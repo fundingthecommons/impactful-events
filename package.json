@@ -22,6 +22,8 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.2",
+    "@mantine/core": "8.1.1",
+    "@mantine/hooks": "8.1.1",
     "@prisma/client": "^6.5.0",
     "@t3-oss/env-nextjs": "^0.12.0",
     "@tanstack/react-query": "^5.69.0",
