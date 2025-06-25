@@ -28,22 +28,23 @@ model Post {
 
 // Necessary for Next auth
 model Account {
-    id                       String  @id @default(cuid())
-    userId                   String
-    type                     String
-    provider                 String
-    providerAccountId        String
-    refresh_token            String? // @db.Text
-    access_token             String? // @db.Text
-    expires_at               Int?
-    token_type               String?
-    scope                    String?
-    id_token                 String? // @db.Text
-    session_state            String?
-    user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    refresh_token_expires_in Int?
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  refresh_token_expires_in Int?
 
-    @@unique([provider, providerAccountId])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
 }
 
 model Session {
@@ -55,14 +56,23 @@ model Session {
 }
 
 model User {
-    id            String    @id @default(cuid())
-    name          String?
-    email         String?   @unique
-    emailVerified DateTime?
-    image         String?
-    accounts      Account[]
-    sessions      Session[]
-    posts         Post[]
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  posts         Post[]
+
+  teamMemberships TeamMembership[]
+  mentorSessions  MentorshipSession[] @relation("MentorSessions")
+  createdHackathons Hackathon[]       @relation("HackathonCreatedBy")
+  createdProjects Project[]           @relation("ProjectCreatedBy")
+  judgedScores   Score[]              @relation("JudgedBy")
+  judge           Judge?
+  userRoles       UserRole[]
+  createdEvents   Event[]              @relation("EventsCreatedBy")
 }
 
 model VerificationToken {
@@ -71,4 +81,163 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  location    String?
+  type        String   // e.g., "HACKATHON", "DINNER", "CONFERENCE"
+  isOnline    Boolean  @default(true)
+
+  createdBy   User     @relation("EventsCreatedBy", fields: [createdById], references: [id])
+  createdById String
+
+  hackathon   Hackathon?
+  // Add other event-specific relations as needed
+
+  userRoles   UserRole[]
+}
+
+model Hackathon {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  location    String?
+  isOnline    Boolean  @default(true)
+
+  createdBy   User     @relation("HackathonCreatedBy", fields: [createdById], references: [id])
+  createdById String
+
+  teams       Team[]
+  tracks      Track[]
+  announcements Announcement[]
+
+  event Event? @relation(fields: [eventId], references: [id])
+  eventId String? @unique
+}
+
+model Track {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  hackathon   Hackathon @relation(fields: [hackathonId], references: [id])
+  hackathonId String
+
+  projects    Project[]
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  hackathon   Hackathon @relation(fields: [hackathonId], references: [id])
+  hackathonId String
+
+  members     TeamMembership[]
+  project     Project?
+  mentorshipSessions MentorshipSession[]
+}
+
+model TeamMembership {
+  id      String @id @default(cuid())
+  user    User   @relation(fields: [userId], references: [id])
+  userId  String
+  team    Team   @relation(fields: [teamId], references: [id])
+  teamId  String
+
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, teamId])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  repoUrl     String?
+  demoUrl     String?
+  videoUrl    String?
+  submissionDate DateTime?
+
+  team        Team     @relation(fields: [teamId], references: [id])
+  teamId      String   @unique
+
+  track       Track?   @relation(fields: [trackId], references: [id])
+  trackId     String?
+
+  createdBy   User     @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  createdById String
+
+  scores      Score[]
+}
+
+model Judge {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
+
+  criteria JudgingCriteria[]
+}
+
+model JudgingCriteria {
+  id        String @id @default(cuid())
+  name      String
+  weight    Float  @default(1.0)
+  judge     Judge  @relation(fields: [judgeId], references: [id])
+  judgeId   String
+}
+
+model Score {
+  id         String    @id @default(cuid())
+  value      Float
+  notes      String?
+  project    Project   @relation(fields: [projectId], references: [id])
+  projectId  String
+  judge      User      @relation("JudgedBy", fields: [judgeId], references: [id])
+  judgeId    String
+  criteria   String
+}
+
+model MentorshipSession {
+  id        String   @id @default(cuid())
+  mentor    User     @relation("MentorSessions", fields: [mentorId], references: [id])
+  mentorId  String
+  team      Team     @relation(fields: [teamId], references: [id])
+  teamId    String
+  scheduledAt DateTime
+  durationMinutes Int
+  notes     String?
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  hackathon   Hackathon @relation(fields: [hackathonId], references: [id])
+  hackathonId String
+  message     String
+  publishedAt DateTime @default(now())
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  name      String  
+  userRoles UserRole[]
+
+  @@unique([name])
+}
+
+model UserRole {
+  id      String   @id @default(cuid())
+  user    User     @relation(fields: [userId], references: [id])
+  userId  String
+  event   Event    @relation(fields: [eventId], references: [id])
+  eventId String
+  role    Role     @relation(fields: [roleId], references: [id])
+  roleId  String
+
+  @@unique([userId, eventId, roleId])
 }
