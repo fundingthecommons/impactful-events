@@ -1,8 +1,9 @@
 "use client";
-import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid } from "@mantine/core";
+import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, Progress, TextInput, ActionIcon, Tooltip } from "@mantine/core";
 import { useState } from "react";
-import { MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
+import { IconSearch, IconMail, IconBell } from "@tabler/icons-react";
+import HeaderBar from "./HeaderBar";
 
 // Onboarding states (grouped into 4 columns for display)
 const columns = [
@@ -44,7 +45,12 @@ function SponsorCard({ sponsor }: { sponsor: any }) {
           {sponsor.name[0]}
         </Avatar>
         <Stack gap={0}>
-          <Text fw={500}>{sponsor.name}</Text>
+          <Group>
+            <Text fw={500}>{sponsor.name}</Text>
+            {sponsor.name === "Aave" && (
+              <Badge color="green" size="sm" variant="filled">qualified</Badge>
+            )}
+          </Group>
           {sponsor.websiteUrl && (
             <Text size="xs" c="dimmed" component="a" href={sponsor.websiteUrl} target="_blank" rel="noopener noreferrer">
               {sponsor.websiteUrl.replace(/^https?:\/\//, "")}
@@ -60,12 +66,13 @@ export default function SponsorKanbanBoard() {
   const [sponsors] = useState(initialSponsors);
 
   return (
-    <MantineProvider>
-      <Stack>
-        <Title order={2}>Sponsor Onboarding Board</Title>
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="lg">
+    <>
+      <HeaderBar />
+      <Stack p={{ base: 12, sm: 24, md: 32 }}>
+        <Title order={4} mb="md">Sponsors</Title>
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="xl">
           {columns.map((col) => (
-            <Paper key={col.title} p="md" radius="md" shadow="xs" withBorder>
+            <Paper key={col.title} p="lg" radius="md" shadow="xs" withBorder>
               <Stack>
                 <Group justify="space-between">
                   <Title order={4}>{col.title}</Title>
@@ -87,6 +94,6 @@ export default function SponsorKanbanBoard() {
           ))}
         </SimpleGrid>
       </Stack>
-    </MantineProvider>
+    </>
   );
 }

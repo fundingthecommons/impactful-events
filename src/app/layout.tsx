@@ -1,4 +1,6 @@
 import "~/styles/globals.css";
+import { MantineProvider } from '@mantine/core';
+import '@mantine/core/styles.css';
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
@@ -22,7 +24,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable}`}>
       <body>
-        <TRPCReactProvider>{children}</TRPCReactProvider>
+        <MantineProvider>
+          <TRPCReactProvider>{children}</TRPCReactProvider>
+        </MantineProvider>
       </body>
     </html>
   );
