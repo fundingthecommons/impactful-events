@@ -67,7 +67,6 @@ export default function SponsorKanbanBoard() {
 
   return (
     <>
-      <HeaderBar />
       <Stack p={{ base: 12, sm: 24, md: 32 }}>
         <Title order={4} mb="md">Sponsors</Title>
         <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="xl">
