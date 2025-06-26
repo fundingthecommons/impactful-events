@@ -29,7 +29,6 @@ export default function RootLayout({
           <TRPCReactProvider>
             <HeaderBar />
             {children}
-            <HeaderBar />
           </TRPCReactProvider>
         </MantineProvider>
       </body>

@@ -245,10 +245,11 @@ model UserRole {
 
 model Sponsor {
   id      String         @id @default(cuid())
-  name    String
+  name    String         @unique
   websiteUrl String?
   logoUrl String?
   events  EventSponsor[]
+  contacts Contact[]
 }
 
 model EventSponsor {
@@ -259,4 +260,13 @@ model EventSponsor {
   sponsorId String
 
   @@unique([eventId, sponsorId])
+}
+
+model Contact {
+  id        String @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String @unique
+  sponsor   Sponsor @relation(fields: [sponsorId], references: [id])
+  sponsorId String
 }
