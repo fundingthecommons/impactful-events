@@ -34,4 +34,37 @@ export const eventRouter = createTRPCRouter({
     });
     return events;
   }),
+
+  addSponsorToEvent: publicProcedure
+    .input(z.object({ 
+      eventId: z.string(),
+      sponsorId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Check if the relationship already exists
+      const existing = await ctx.db.eventSponsor.findUnique({
+        where: {
+          eventId_sponsorId: {
+            eventId: input.eventId,
+            sponsorId: input.sponsorId,
+          },
+        },
+      });
+
+      if (existing) {
+        throw new Error("Sponsor is already added to this event");
+      }
+
+      const eventSponsor = await ctx.db.eventSponsor.create({
+        data: {
+          eventId: input.eventId,
+          sponsorId: input.sponsorId,
+        },
+        include: {
+          sponsor: true,
+        },
+      });
+
+      return eventSponsor;
+    }),
 }); 

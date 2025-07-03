@@ -55,9 +55,27 @@ function SponsorCard({ sponsor }: { sponsor: any }) {
 export default function SponsorKanbanBoard() {
   const [addLeadPanelOpened, setAddLeadPanelOpened] = useState(false);
   
+  // Get tRPC utils for invalidation
+  const utils = api.useUtils();
+  
   // Fetch event data from database
   const { data: event, isLoading } = api.event.getEvent.useQuery({
     id: "realfi-hackathon-2024"
+  });
+
+  // Mutation to add sponsor to event
+  const addSponsorMutation = api.event.addSponsorToEvent.useMutation({
+    onSuccess: (data) => {
+      // Invalidate and refetch the event data to ensure consistency
+      utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
+      console.log(`✅ Successfully added ${data.sponsor.name} as a lead!`);
+      // You could add a toast notification here for better UX
+    },
+    onError: (error) => {
+      // Show error message to user
+      console.error('❌ Failed to add sponsor:', error.message);
+      // You could add a toast notification here
+    },
   });
 
   // Transform database sponsors into component format
@@ -73,13 +91,24 @@ export default function SponsorKanbanBoard() {
     }));
   }, [event]);
 
-  const handleAddSponsor = (sponsorId: string) => {
-    // For now, we'll just show an alert. In a real app, you'd probably:
-    // 1. Create an EventSponsor relationship
-    // 2. Add the sponsor to the "lead" state
-    // 3. Refresh the data
-    console.log('Adding sponsor as lead:', sponsorId);
-    // You can implement the actual logic here based on your needs
+  const handleAddSponsor = async (sponsorId: string) => {
+    if (!event) return;
+
+    try {
+      // Perform the mutation - this will trigger the loading state
+      await addSponsorMutation.mutateAsync({
+        eventId: event.id,
+        sponsorId: sponsorId,
+      });
+      
+      // Close the add lead panel on success
+      setAddLeadPanelOpened(false);
+      
+    } catch (error) {
+      // Error handling is done in the mutation's onError callback
+      // Keep the modal open so user can try again
+      console.error('Error in handleAddSponsor:', error);
+    }
   };
 
   if (isLoading) {
@@ -142,6 +171,8 @@ export default function SponsorKanbanBoard() {
         opened={addLeadPanelOpened}
         onClose={() => setAddLeadPanelOpened(false)}
         onAddSponsor={handleAddSponsor}
+        isAddingLead={addSponsorMutation.isPending}
+        existingSponsorIds={sponsors.map(s => s.id)}
       />
     </>
   );

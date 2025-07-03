@@ -8,10 +8,15 @@ interface AddLeadPanelProps {
   opened: boolean;
   onClose: () => void;
   onAddSponsor: (sponsorId: string) => void;
+  isAddingLead?: boolean;
+  existingSponsorIds?: string[];
 }
 
-export default function AddLeadPanel({ opened, onClose, onAddSponsor }: AddLeadPanelProps) {
+export default function AddLeadPanel({ opened, onClose, onAddSponsor, isAddingLead = false, existingSponsorIds = [] }: AddLeadPanelProps) {
   const { data: sponsors, isLoading, error } = api.sponsor.getSponsors.useQuery();
+  
+  // Filter out sponsors that are already added to the event
+  const availableSponsors = sponsors?.filter(sponsor => !existingSponsorIds.includes(sponsor.id)) || [];
 
   return (
     <Modal
@@ -42,7 +47,7 @@ export default function AddLeadPanel({ opened, onClose, onAddSponsor }: AddLeadP
         {sponsors && (
           <ScrollArea h={400} type="auto">
             <Stack gap="sm">
-              {sponsors.map((sponsor) => (
+              {availableSponsors.map((sponsor) => (
                 <Card key={sponsor.id} shadow="sm" padding="md" radius="md" withBorder>
                   <Group justify="space-between">
                     <Group>
@@ -79,12 +84,12 @@ export default function AddLeadPanel({ opened, onClose, onAddSponsor }: AddLeadP
                       color="blue"
                       size="lg"
                       radius="xl"
+                      disabled={isAddingLead}
                       onClick={() => {
                         onAddSponsor(sponsor.id);
-                        onClose();
                       }}
                     >
-                      <IconPlus size={16} />
+                      {isAddingLead ? <Loader size={16} color="white" /> : <IconPlus size={16} />}
                     </ActionIcon>
                   </Group>
                 </Card>
@@ -93,9 +98,12 @@ export default function AddLeadPanel({ opened, onClose, onAddSponsor }: AddLeadP
           </ScrollArea>
         )}
         
-        {sponsors && sponsors.length === 0 && (
+        {sponsors && availableSponsors.length === 0 && (
           <Text ta="center" c="dimmed" p="xl">
-            No sponsors found. Add some sponsors first to use this feature.
+            {sponsors.length === 0 
+              ? "No sponsors found. Add some sponsors first to use this feature."
+              : "All available sponsors are already added to this event."
+            }
           </Text>
         )}
       </Stack>
