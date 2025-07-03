@@ -44,6 +44,86 @@ interface Event {
   sponsors: EventSponsor[];
 }
 
+// Status codes for sponsor pipeline - maintains logical order
+const SPONSOR_STATUS_CODES = [
+  { code: 'ORG_ADDED', label: 'Organization Added', description: 'Organization added to sponsor database' },
+  { code: 'ON_EVENT_BOARD', label: 'On Event Board', description: 'Sponsor appears on the event kanban board' },
+  { code: 'QUALIFY_SPONSOR', label: 'Qualify Sponsor', description: 'Initial assessment of sponsor fit and potential' },
+  { code: 'SPONSOR_QUALIFIED', label: 'Sponsor Qualified', description: 'Sponsor meets qualification criteria' },
+  { code: 'CONTACT_IDENTIFIED', label: 'Contact Identified', description: 'Key contact person identified and added to system' },
+  { code: 'MATERIALS_SENT', label: 'Materials Sent', description: 'Initial materials and information sent to sponsor' },
+  { code: 'SCOUT_HANDOFF', label: 'Scout Handoff', description: 'Scouts have qualified and handed off to main team' },
+  { code: 'INITIAL_CALL_SETUP', label: 'Initial Call Setup', description: 'Schedule first formal conversation with sponsor' },
+  { code: 'INITIAL_CALL_TAKEN', label: 'Initial Call Taken', description: 'Present sponsorship opportunity and value proposition' },
+  { code: 'SUBSEQUENT_CALLS', label: 'Subsequent Calls', description: 'Follow-up discussions and Q&A sessions' },
+  { code: 'PROPOSAL_SENT', label: 'Proposal Sent', description: 'Formal proposal document created and shared' },
+  { code: 'TERMS_CONFIRMED', label: 'Terms Confirmed', description: 'Sponsor confirms agreement to proposed terms' },
+  { code: 'CONTRACT_SENT', label: 'Contract Sent', description: 'Legal contract documentation delivered' },
+  { code: 'CONTRACT_SIGNED', label: 'Contract Signed', description: 'Both parties have executed the agreement' },
+  { code: 'PAYMENT_INFO_SENT', label: 'Payment Info Sent', description: 'Invoice and payment details provided' },
+  { code: 'PAYMENT_PENDING', label: 'Payment Pending', description: 'Monitor payment status until received' },
+  { code: 'DELIVERABLES_CIRCULATED', label: 'Deliverables Circulated', description: 'Share sponsor requirements with internal team' },
+  { code: 'ASSETS_COLLECTED', label: 'Assets Collected', description: 'Collect logos, materials, and other assets' },
+  { code: 'MARKETING_COORDINATION', label: 'Marketing Coordination', description: 'Coordinate promotional activities and announcements' },
+  { code: 'POST_CONTRACT', label: 'Post-Contract', description: 'Ongoing relationship management and fulfillment' }
+] as const;
+
+// Type for status codes
+type SponsorStatusCode = typeof SPONSOR_STATUS_CODES[number]['code'];
+
+/**
+ * Determines the current status of a sponsor based on available data
+ * @param eventSponsor - The event sponsor data to analyze
+ * @returns The current status code for the sponsor
+ */
+function determineSponsorStatus(eventSponsor: EventSponsor): SponsorStatusCode {
+  const { sponsor, qualified } = eventSponsor;
+  const hasContacts = sponsor.contacts && sponsor.contacts.length > 0;
+  
+  // TODO: Extend this logic as more data becomes available
+  // For now, we can only determine status based on what we have:
+  // - sponsor exists (ORG_ADDED, ON_EVENT_BOARD)
+  // - qualified status
+  // - contacts presence
+  
+  if (hasContacts) {
+    // If we have contacts, we've at least identified them
+    return 'CONTACT_IDENTIFIED';
+  } else if (qualified) {
+    // If qualified but no contacts, we're in the qualification phase
+    return 'SPONSOR_QUALIFIED';
+  } else {
+    // If not qualified yet, we're still qualifying
+    return 'QUALIFY_SPONSOR';
+  }
+  
+  // Note: As the system grows, you can add more logic here to detect:
+  // - Materials sent (maybe a field on EventSponsor)
+  // - Call scheduled/taken (maybe a separate Interaction table)
+  // - Proposal sent (maybe a Document table)
+  // - Contract status (maybe a Contract table)
+  // - Payment status (maybe a Payment table)
+  // etc.
+}
+
+/**
+ * Gets the status object for a given status code
+ * @param statusCode - The status code to look up
+ * @returns The status object containing code, label, and description
+ */
+function getStatusInfo(statusCode: SponsorStatusCode) {
+  return SPONSOR_STATUS_CODES.find(status => status.code === statusCode);
+}
+
+/**
+ * Gets the index/position of a status in the pipeline
+ * @param statusCode - The status code to find the position of
+ * @returns The 0-based index of the status in the pipeline
+ */
+function getStatusPosition(statusCode: SponsorStatusCode): number {
+  return SPONSOR_STATUS_CODES.findIndex(status => status.code === statusCode);
+}
+
 interface SponsorCardData {
   id: string;
   name: string;
@@ -54,45 +134,68 @@ interface SponsorCardData {
   eventSponsorId: string;
 }
 
-// Onboarding states (grouped into 4 columns for display)
+// Kanban columns mapping status codes to display columns
 const columns = [
   {
     title: "Lead",
-    states: ["lead", "qualified", "contacted"],
+    statusCodes: ['QUALIFY_SPONSOR', 'SPONSOR_QUALIFIED'],
   },
   {
     title: "Contact Identified",
-    states: ["contact identified", "initial meeting setup"],
+    statusCodes: ['CONTACT_IDENTIFIED', 'MATERIALS_SENT', 'SCOUT_HANDOFF', 'INITIAL_CALL_SETUP'],
   },
   {
     title: "Proposal",
-    states: ["initial proposal sent", "contract sent", "promises confirmed"],
+    statusCodes: ['INITIAL_CALL_TAKEN', 'SUBSEQUENT_CALLS', 'PROPOSAL_SENT', 'TERMS_CONFIRMED', 'CONTRACT_SENT'],
   },
   {
     title: "Contract Signed",
-    states: ["Contract signed"],
+    statusCodes: ['CONTRACT_SIGNED', 'PAYMENT_INFO_SENT', 'PAYMENT_PENDING', 'DELIVERABLES_CIRCULATED', 'ASSETS_COLLECTED', 'MARKETING_COORDINATION', 'POST_CONTRACT'],
   },
 ];
+
+/**
+ * Determines which column a sponsor should appear in based on their status
+ * @param statusCode - The sponsor's current status code
+ * @returns The column that the sponsor belongs in
+ */
+function getColumnForStatus(statusCode: SponsorStatusCode) {
+  return columns.find(col => col.statusCodes.includes(statusCode)) ?? columns[0];
+}
 
 function SponsorCard({ sponsor, onClick }: { sponsor: SponsorCardData; onClick: () => void }) {
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder style={{ cursor: 'pointer' }} onClick={onClick}>
-      <Group>
-        <Avatar src={sponsor.logoUrl} alt={sponsor.name} radius="xl">
-          {sponsor.name[0]}
-        </Avatar>
-        <Stack gap={0}>
-          <Group>
-            <Text fw={500}>{sponsor.name}</Text>
-            <Badge color="blue" size="sm" variant="light">{sponsor.state}</Badge>
+      <Stack gap="sm">
+        <Group justify="space-between" align="flex-start">
+          <Group gap="sm">
+            <Avatar src={sponsor.logoUrl} alt={sponsor.name} radius="xl">
+              {sponsor.name[0]}
+            </Avatar>
+            <Stack gap={0}>
+              <Text fw={500}>{sponsor.name}</Text>
+              {sponsor.websiteUrl && (
+                <Text size="xs" c="dimmed">
+                  {sponsor.websiteUrl.replace(/^https?:\/\//, "")}
+                </Text>
+              )}
+            </Stack>
           </Group>
-          {sponsor.websiteUrl && (
-            <Text size="xs" c="dimmed">
-              {sponsor.websiteUrl.replace(/^https?:\/\//, "")}
-            </Text>
+          {sponsor.qualified && (
+            <Badge color="green" size="xs" variant="light">
+              Qualified
+            </Badge>
           )}
-        </Stack>
-      </Group>
+        </Group>
+        <Badge 
+          color="blue" 
+          size="sm" 
+          variant="filled" 
+          style={{ alignSelf: 'flex-start' }}
+        >
+          {sponsor.state}
+        </Badge>
+      </Stack>
     </Card>
   );
 }
@@ -180,16 +283,16 @@ export default function SponsorKanbanBoard() {
     if (!event?.sponsors) return [];
     
     return event.sponsors.map((eventSponsor): SponsorCardData => {
-      // Determine state based on sponsor data
-      const hasContacts = eventSponsor.sponsor.contacts && eventSponsor.sponsor.contacts.length > 0;
-      const state = hasContacts ? "contact identified" : "lead";
+      // Determine status using the new status system
+      const statusCode = determineSponsorStatus(eventSponsor);
+      const statusInfo = getStatusInfo(statusCode);
       
       return {
         id: eventSponsor.sponsor.id,
         name: eventSponsor.sponsor.name,
         websiteUrl: eventSponsor.sponsor.websiteUrl,
         logoUrl: eventSponsor.sponsor.logoUrl,
-        state: state,
+        state: statusInfo?.label ?? 'Unknown',
         qualified: eventSponsor.qualified,
         eventSponsorId: eventSponsor.id
       };
@@ -266,6 +369,14 @@ export default function SponsorKanbanBoard() {
     }
   };
 
+  // Calculate timeline position for selected sponsor
+  const timelinePosition = useMemo(() => {
+    if (!selectedSponsor || !event) return 0;
+    const eventSponsor = event.sponsors.find(es => es.sponsor.id === selectedSponsor.id);
+    const currentStatusCode = eventSponsor ? determineSponsorStatus(eventSponsor) : 'QUALIFY_SPONSOR';
+    return getStatusPosition(currentStatusCode);
+  }, [selectedSponsor, event]);
+
   if (isLoading) {
     return (
       <Stack p={{ base: 12, sm: 24, md: 32 }}>
@@ -304,16 +415,20 @@ export default function SponsorKanbanBoard() {
                     )}
                   </Title>
                   <Badge color="blue" variant="light">
-                    {col.states.reduce((acc, state) => acc + sponsors.filter((s) => s.state === state).length, 0)}
+                    {sponsors.filter(sponsor => {
+                      const statusCode = determineSponsorStatus(event.sponsors.find(es => es.sponsor.id === sponsor.id)!);
+                      return col.statusCodes.includes(statusCode);
+                    }).length}
                   </Badge>
                 </Group>
                 <ScrollArea h={500} type="auto" offsetScrollbars>
                   <Stack gap="sm">
-                    {col.states.flatMap((state) =>
-                      sponsors
-                        .filter((s) => s.state === state)
-                        .map((sponsor) => <SponsorCard key={sponsor.id} sponsor={sponsor} onClick={() => handleSponsorClick(sponsor)} />)
-                    )}
+                    {sponsors
+                      .filter(sponsor => {
+                        const statusCode = determineSponsorStatus(event.sponsors.find(es => es.sponsor.id === sponsor.id)!);
+                        return col.statusCodes.includes(statusCode);
+                      })
+                      .map((sponsor) => <SponsorCard key={sponsor.id} sponsor={sponsor} onClick={() => handleSponsorClick(sponsor)} />)}
                   </Stack>
                 </ScrollArea>
               </Stack>
@@ -443,7 +558,7 @@ export default function SponsorKanbanBoard() {
             <Tabs.Panel value="timeline" pt="md">
               <Stack gap="md">
                 <Text fw={500} size="lg">Sponsor Process Timeline</Text>
-                <Timeline active={5} bulletSize={24} lineWidth={2}>
+                <Timeline active={timelinePosition} bulletSize={24} lineWidth={2}>
                   <Timeline.Item title="Add Organization to Sponsor Database">
                     <Text c="dimmed" size="sm">
                       Organization added to the system for tracking
