@@ -272,6 +272,9 @@ model Contact {
   email     String @unique
   sponsor   Sponsor? @relation(fields: [sponsorId], references: [id])
   sponsorId String?
+  linkedIn  String?
+  telegram  String?
+  phone     String?
 }
 
 model GeckoCoin {

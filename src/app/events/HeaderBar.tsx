@@ -19,7 +19,7 @@ export default async function HeaderBar() {
         <Group align="center" gap={16}>
           <Link href="/events" style={{ textDecoration: 'none', fontWeight: 500 }}>Events</Link>
           <Link href="/contacts" style={{ textDecoration: 'none', fontWeight: 500 }}>Contacts</Link>
-          <Link href="/coins" style={{ textDecoration: 'none', fontWeight: 500 }}>Coins</Link>
+          <Link href="/coins" style={{ textDecoration: 'none', fontWeight: 500 }}>Import</Link>
         </Group>
         <Group gap={16}>
           <TextInput

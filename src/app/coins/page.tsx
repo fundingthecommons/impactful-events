@@ -11,7 +11,7 @@ export default async function CoinsPage() {
         <HydrateClient>
             <Container size="xl" py="xl">
                 <Stack gap="lg">
-                    <Title order={2}>Cryptocurrency Coins</Title>
+                    <Title order={2}>Import Organizations</Title>
                     <CoinsClient categories={categories} />
                     <CoinsTableClient categories={categories} />
                 </Stack>
