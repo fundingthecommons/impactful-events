@@ -1,11 +1,58 @@
 "use client";
-import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, Progress, TextInput, ActionIcon, Tooltip, Button, Drawer, Modal, Select, Timeline, Checkbox, Tabs } from "@mantine/core";
+import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, ActionIcon, Button, Drawer, Modal, Select, Timeline, Checkbox, Tabs } from "@mantine/core";
 import { useState, useMemo } from "react";
 import '@mantine/core/styles.css';
-import { IconSearch, IconMail, IconBell, IconExternalLink, IconPlus, IconTrash } from "@tabler/icons-react";
-import HeaderBar from "./HeaderBar";
+import { IconExternalLink, IconPlus, IconTrash } from "@tabler/icons-react";
 import AddLeadPanel from "./AddLeadPanel";
 import { api } from "~/trpc/react";
+
+// Type definitions based on Prisma schema
+interface Sponsor {
+  id: string;
+  name: string;
+  websiteUrl?: string | null;
+  logoUrl?: string | null;
+  contacts: Contact[];
+}
+
+interface EventSponsor {
+  id: string;
+  eventId: string;
+  sponsorId: string;
+  qualified: boolean;
+  sponsor: Sponsor;
+}
+
+interface Contact {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  sponsorId?: string | null;
+}
+
+interface Event {
+  id: string;
+  name: string;
+  description?: string | null;
+  startDate: Date;
+  endDate: Date;
+  location?: string | null;
+  type: string;
+  isOnline: boolean;
+  createdById: string;
+  sponsors: EventSponsor[];
+}
+
+interface SponsorCardData {
+  id: string;
+  name: string;
+  websiteUrl?: string | null;
+  logoUrl?: string | null;
+  state: string;
+  qualified: boolean;
+  eventSponsorId: string;
+}
 
 // Onboarding states (grouped into 4 columns for display)
 const columns = [
@@ -27,9 +74,7 @@ const columns = [
   },
 ];
 
-
-
-function SponsorCard({ sponsor, onClick }: { sponsor: any; onClick: () => void }) {
+function SponsorCard({ sponsor, onClick }: { sponsor: SponsorCardData; onClick: () => void }) {
   return (
     <Card shadow="sm" padding="md" radius="md" withBorder style={{ cursor: 'pointer' }} onClick={onClick}>
       <Group>
@@ -54,7 +99,7 @@ function SponsorCard({ sponsor, onClick }: { sponsor: any; onClick: () => void }
 
 export default function SponsorKanbanBoard() {
   const [addLeadPanelOpened, setAddLeadPanelOpened] = useState(false);
-  const [selectedSponsor, setSelectedSponsor] = useState<any>(null);
+  const [selectedSponsor, setSelectedSponsor] = useState<SponsorCardData | null>(null);
   const [sponsorPanelOpened, setSponsorPanelOpened] = useState(false);
   const [addContactModalOpened, setAddContactModalOpened] = useState(false);
   const [selectedContactId, setSelectedContactId] = useState<string>("");
@@ -72,7 +117,7 @@ export default function SponsorKanbanBoard() {
 
   // Fetch detailed sponsor information when one is selected
   const { data: detailedSponsor } = api.sponsor.getSponsor.useQuery(
-    { id: selectedSponsor?.id }, 
+    { id: selectedSponsor?.id ?? "" }, 
     { enabled: !!selectedSponsor?.id }
   );
 
@@ -80,7 +125,7 @@ export default function SponsorKanbanBoard() {
   const addSponsorMutation = api.event.addSponsorToEvent.useMutation({
     onSuccess: (data) => {
       // Invalidate and refetch the event data to ensure consistency
-      utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
+      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
       console.log(`✅ Successfully added ${data.sponsor.name} as a lead!`);
       // You could add a toast notification here for better UX
     },
@@ -95,9 +140,9 @@ export default function SponsorKanbanBoard() {
   const assignContactMutation = api.contact.assignContactToSponsor.useMutation({
     onSuccess: () => {
       // Invalidate contact, sponsor, and event data to update columns
-      utils.contact.getContacts.invalidate();
-      utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id });
-      utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
+      void utils.contact.getContacts.invalidate();
+      void utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id ?? "" });
+      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
       setAddContactModalOpened(false);
       setSelectedContactId("");
     },
@@ -107,9 +152,9 @@ export default function SponsorKanbanBoard() {
   const removeContactMutation = api.contact.removeContactFromSponsor.useMutation({
     onSuccess: () => {
       // Invalidate contact, sponsor, and event data to update columns
-      utils.contact.getContacts.invalidate();
-      utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id });
-      utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
+      void utils.contact.getContacts.invalidate();
+      void utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id ?? "" });
+      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
     },
   });
 
@@ -125,8 +170,8 @@ export default function SponsorKanbanBoard() {
       }
       
       // Invalidate event and sponsor data to update status
-      utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
-      utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id });
+      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
+      void utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id ?? "" });
     },
   });
 
@@ -134,7 +179,7 @@ export default function SponsorKanbanBoard() {
   const sponsors = useMemo(() => {
     if (!event?.sponsors) return [];
     
-    return event.sponsors.map((eventSponsor) => {
+    return event.sponsors.map((eventSponsor): SponsorCardData => {
       // Determine state based on sponsor data
       const hasContacts = eventSponsor.sponsor.contacts && eventSponsor.sponsor.contacts.length > 0;
       const state = hasContacts ? "contact identified" : "lead";
@@ -171,7 +216,7 @@ export default function SponsorKanbanBoard() {
     }
   };
 
-  const handleSponsorClick = (sponsor: any) => {
+  const handleSponsorClick = (sponsor: SponsorCardData) => {
     setSelectedSponsor(sponsor);
     setSponsorPanelOpened(true);
   };
@@ -179,34 +224,46 @@ export default function SponsorKanbanBoard() {
   const handleAssignContact = async () => {
     if (!selectedContactId || !selectedSponsor?.id) return;
 
-    await assignContactMutation.mutateAsync({
-      contactId: selectedContactId,
-      sponsorId: selectedSponsor.id,
-    });
+    try {
+      await assignContactMutation.mutateAsync({
+        contactId: selectedContactId,
+        sponsorId: selectedSponsor.id,
+      });
+    } catch (error) {
+      console.error('Error assigning contact:', error);
+    }
   };
 
   const handleRemoveContact = async (contactId: string) => {
-    await removeContactMutation.mutateAsync({
-      contactId,
-    });
+    try {
+      await removeContactMutation.mutateAsync({
+        contactId,
+      });
+    } catch (error) {
+      console.error('Error removing contact:', error);
+    }
   };
 
   // Get available contacts (not assigned to this sponsor)
   const availableContacts = useMemo(() => {
     if (!allContacts || !detailedSponsor) return [];
     
-    const sponsorContactIds = detailedSponsor.contacts.map((c: any) => c.id);
-    return allContacts.filter((contact: any) => !sponsorContactIds.includes(contact.id));
+    const sponsorContactIds = detailedSponsor.contacts.map((c: Contact) => c.id);
+    return allContacts.filter((contact: Contact) => !sponsorContactIds.includes(contact.id));
   }, [allContacts, detailedSponsor]);
 
   const handleQualifiedChange = async (checked: boolean) => {
     if (!event || !selectedSponsor) return;
 
-    await updateQualifiedMutation.mutateAsync({
-      eventId: event.id,
-      sponsorId: selectedSponsor.id,
-      qualified: checked,
-    });
+    try {
+      await updateQualifiedMutation.mutateAsync({
+        eventId: event.id,
+        sponsorId: selectedSponsor.id,
+        qualified: checked,
+      });
+    } catch (error) {
+      console.error('Error updating qualified status:', error);
+    }
   };
 
   if (isLoading) {
@@ -278,228 +335,238 @@ export default function SponsorKanbanBoard() {
         onClose={() => setSponsorPanelOpened(false)}
         position="right"
         size="33%"
-        title={selectedSponsor?.name || "Sponsor Details"}
+        title={selectedSponsor?.name ?? "Sponsor Details"}
         overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
       >
         {selectedSponsor && (
-          <Stack gap="lg">
-            <Group>
-              <Avatar size="xl" src={selectedSponsor.logoUrl} alt={selectedSponsor.name} radius="md">
-                {selectedSponsor.name[0]}
-              </Avatar>
-              <Stack gap={0}>
-                <Text size="xl" fw={600}>{selectedSponsor.name}</Text>
-                <Badge color="blue" size="md" variant="light">{selectedSponsor.state}</Badge>
-              </Stack>
-            </Group>
-            
-            {selectedSponsor.websiteUrl && (
-              <Group gap="xs">
-                <Text fw={500}>Website:</Text>
-                <Text 
-                  component="a" 
-                  href={selectedSponsor.websiteUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{ color: 'var(--mantine-color-blue-6)', textDecoration: 'none' }}
-                  className="hover:underline"
-                >
-                  {selectedSponsor.websiteUrl.replace(/^https?:\/\//, "")}
-                  <IconExternalLink size={14} style={{ marginLeft: 4, display: 'inline' }} />
-                </Text>
-              </Group>
-            )}
-            
-            <Stack gap="xs">
-              <Text fw={500}>Status:</Text>
-              <Text c="dimmed">{selectedSponsor.state}</Text>
-            </Stack>
+          <Tabs defaultValue="general">
+            <Tabs.List>
+              <Tabs.Tab value="general">General</Tabs.Tab>
+              <Tabs.Tab value="timeline">Timeline</Tabs.Tab>
+            </Tabs.List>
 
-            <Checkbox
-              label="Qualified"
-              checked={selectedSponsor.qualified}
-              onChange={(event) => handleQualifiedChange(event.currentTarget.checked)}
-              disabled={updateQualifiedMutation.isPending}
-            />
-            
-            <Stack gap="xs">
-              <Text fw={500}>Sponsor ID:</Text>
-              <Text c="dimmed" size="sm">{selectedSponsor.id}</Text>
-            </Stack>
-
-            {/* Contacts Section */}
-            <Stack gap="md">
-              <Group justify="space-between" align="center">
-                <Text fw={500} size="lg">Contacts</Text>
-                <Button
-                  leftSection={<IconPlus size={16} />}
-                  variant="light"
-                  size="sm"
-                  onClick={() => setAddContactModalOpened(true)}
-                  disabled={!availableContacts.length}
-                >
-                  Add Contact
-                </Button>
-              </Group>
-              
-              {detailedSponsor?.contacts && detailedSponsor.contacts.length > 0 ? (
-                <Stack gap="sm">
-                  {detailedSponsor.contacts.map((contact: any) => (
-                    <Paper key={contact.id} p="md" withBorder>
-                      <Group justify="space-between" align="center">
-                        <Stack gap={0}>
-                          <Text fw={500}>
-                            {contact.firstName} {contact.lastName}
-                          </Text>
-                          <Text size="sm" c="dimmed">
-                            {contact.email}
-                          </Text>
-                        </Stack>
-                        <ActionIcon
-                          color="red"
-                          variant="light"
-                          onClick={() => handleRemoveContact(contact.id)}
-                          loading={removeContactMutation.isPending}
-                        >
-                          <IconTrash size={16} />
-                        </ActionIcon>
-                      </Group>
-                    </Paper>
-                  ))}
+            <Tabs.Panel value="general" pt="md">
+              <Stack gap="lg">
+                <Group>
+                  <Avatar size="xl" src={selectedSponsor.logoUrl} alt={selectedSponsor.name} radius="md">
+                    {selectedSponsor.name[0]}
+                  </Avatar>
+                  <Stack gap={0}>
+                    <Text size="xl" fw={600}>{selectedSponsor.name}</Text>
+                    <Badge color="blue" size="md" variant="light">{selectedSponsor.state}</Badge>
+                  </Stack>
+                </Group>
+                
+                {selectedSponsor.websiteUrl && (
+                  <Group gap="xs">
+                    <Text fw={500}>Website:</Text>
+                    <Text 
+                      component="a" 
+                      href={selectedSponsor.websiteUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{ color: 'var(--mantine-color-blue-6)', textDecoration: 'none' }}
+                      className="hover:underline"
+                    >
+                      {selectedSponsor.websiteUrl.replace(/^https?:\/\//, "")}
+                      <IconExternalLink size={14} style={{ marginLeft: 4, display: 'inline' }} />
+                    </Text>
+                  </Group>
+                )}
+                
+                <Stack gap="xs">
+                  <Text fw={500}>Status:</Text>
+                  <Text c="dimmed">{selectedSponsor.state}</Text>
                 </Stack>
-              ) : (
-                <Text c="dimmed" ta="center" py="xl">
-                  No contacts assigned to this sponsor
-                </Text>
-              )}
-            </Stack>
 
-            {/* Sponsor Process Timeline */}
-            <Stack gap="md">
-              <Text fw={500} size="lg">Sponsor Process Timeline</Text>
-              <Timeline active={5} bulletSize={24} lineWidth={2}>
-                <Timeline.Item title="Add Organization to Sponsor Database">
-                  <Text c="dimmed" size="sm">
-                    Organization added to the system for tracking
-                  </Text>
-                </Timeline.Item>
+                <Checkbox
+                  label="Qualified"
+                  checked={selectedSponsor.qualified}
+                  onChange={(event) => void handleQualifiedChange(event.currentTarget.checked)}
+                  disabled={updateQualifiedMutation.isPending}
+                />
+                
+                <Stack gap="xs">
+                  <Text fw={500}>Sponsor ID:</Text>
+                  <Text c="dimmed" size="sm">{selectedSponsor.id}</Text>
+                </Stack>
 
-                <Timeline.Item title="Add Organization to Event Board">
-                  <Text c="dimmed" size="sm">
-                    Sponsor appears on the event kanban board
-                  </Text>
-                </Timeline.Item>
+                {/* Contacts Section */}
+                <Stack gap="md">
+                  <Group justify="space-between" align="center">
+                    <Text fw={500} size="lg">Contacts</Text>
+                    <Button
+                      leftSection={<IconPlus size={16} />}
+                      variant="light"
+                      size="sm"
+                      onClick={() => setAddContactModalOpened(true)}
+                      disabled={!availableContacts.length}
+                    >
+                      Add Contact
+                    </Button>
+                  </Group>
+                  
+                  {detailedSponsor?.contacts && detailedSponsor.contacts.length > 0 ? (
+                    <Stack gap="sm">
+                      {detailedSponsor.contacts.map((contact: Contact) => (
+                        <Paper key={contact.id} p="md" withBorder>
+                          <Group justify="space-between" align="center">
+                            <Stack gap={0}>
+                              <Text fw={500}>
+                                {contact.firstName} {contact.lastName}
+                              </Text>
+                              <Text size="sm" c="dimmed">
+                                {contact.email}
+                              </Text>
+                            </Stack>
+                            <ActionIcon
+                              color="red"
+                              variant="light"
+                              onClick={() => void handleRemoveContact(contact.id)}
+                              loading={removeContactMutation.isPending}
+                            >
+                              <IconTrash size={16} />
+                            </ActionIcon>
+                          </Group>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Text c="dimmed" ta="center" py="xl">
+                      No contacts assigned to this sponsor
+                    </Text>
+                  )}
+                </Stack>
+              </Stack>
+            </Tabs.Panel>
 
-                <Timeline.Item title="Qualify Sponsor">
-                  <Text c="dimmed" size="sm">
-                    Initial assessment of sponsor fit and potential
-                  </Text>
-                </Timeline.Item>
+            <Tabs.Panel value="timeline" pt="md">
+              <Stack gap="md">
+                <Text fw={500} size="lg">Sponsor Process Timeline</Text>
+                <Timeline active={5} bulletSize={24} lineWidth={2}>
+                  <Timeline.Item title="Add Organization to Sponsor Database">
+                    <Text c="dimmed" size="sm">
+                      Organization added to the system for tracking
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Sponsor Qualified">
-                  <Text c="dimmed" size="sm">
-                    Sponsor meets qualification criteria
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Add Organization to Event Board">
+                    <Text c="dimmed" size="sm">
+                      Sponsor appears on the event kanban board
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Identify Sponsor Contact">
-                  <Text c="dimmed" size="sm">
-                    Key contact person identified and added to system
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Qualify Sponsor">
+                    <Text c="dimmed" size="sm">
+                      Initial assessment of sponsor fit and potential
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Send Materials">
-                  <Text c="dimmed" size="sm">
-                    Initial materials and information sent to sponsor
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Sponsor Qualified">
+                    <Text c="dimmed" size="sm">
+                      Sponsor meets qualification criteria
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Flow 2: Scouts Have Qualified and Hand Off">
-                  <Text c="dimmed" size="sm">
-                    Transition from scouts to main team
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Identify Sponsor Contact">
+                    <Text c="dimmed" size="sm">
+                      Key contact person identified and added to system
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Setup Initial Call">
-                  <Text c="dimmed" size="sm">
-                    Schedule first formal conversation with sponsor
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Send Materials">
+                    <Text c="dimmed" size="sm">
+                      Initial materials and information sent to sponsor
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Take Initial Call and Make Pitch">
-                  <Text c="dimmed" size="sm">
-                    Present sponsorship opportunity and value proposition
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Flow 2: Scouts Have Qualified and Hand Off">
+                    <Text c="dimmed" size="sm">
+                      Transition from scouts to main team
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Any Subsequent Calls">
-                  <Text c="dimmed" size="sm">
-                    Follow-up discussions and Q&A sessions
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Setup Initial Call">
+                    <Text c="dimmed" size="sm">
+                      Schedule first formal conversation with sponsor
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Initial Notion Proposal">
-                  <Text c="dimmed" size="sm">
-                    Formal proposal document created and shared
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Take Initial Call and Make Pitch">
+                    <Text c="dimmed" size="sm">
+                      Present sponsorship opportunity and value proposition
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Get Terms Confirmation">
-                  <Text c="dimmed" size="sm">
-                    Sponsor confirms agreement to proposed terms
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Any Subsequent Calls">
+                    <Text c="dimmed" size="sm">
+                      Follow-up discussions and Q&A sessions
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Contract is Sent to the Sponsor">
-                  <Text c="dimmed" size="sm">
-                    Legal contract documentation delivered
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Initial Notion Proposal">
+                    <Text c="dimmed" size="sm">
+                      Formal proposal document created and shared
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Contract is Signed">
-                  <Text c="dimmed" size="sm">
-                    Both parties have executed the agreement
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Get Terms Confirmation">
+                    <Text c="dimmed" size="sm">
+                      Sponsor confirms agreement to proposed terms
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Send Sponsor Payment Information">
-                  <Text c="dimmed" size="sm">
-                    Invoice and payment details provided
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Contract is Sent to the Sponsor">
+                    <Text c="dimmed" size="sm">
+                      Legal contract documentation delivered
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Automatically Check Payment Until Made">
-                  <Text c="dimmed" size="sm">
-                    Monitor payment status until received
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Contract is Signed">
+                    <Text c="dimmed" size="sm">
+                      Both parties have executed the agreement
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Circulate Sponsor Deliverables Internally">
-                  <Text c="dimmed" size="sm">
-                    Share sponsor requirements with internal team
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Send Sponsor Payment Information">
+                    <Text c="dimmed" size="sm">
+                      Invoice and payment details provided
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Get Assets from Sponsor">
-                  <Text c="dimmed" size="sm">
-                    Collect logos, materials, and other assets
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Automatically Check Payment Until Made">
+                    <Text c="dimmed" size="sm">
+                      Monitor payment status until received
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Marketing Co-ordination">
-                  <Text c="dimmed" size="sm">
-                    Coordinate promotional activities and announcements
-                  </Text>
-                </Timeline.Item>
+                  <Timeline.Item title="Circulate Sponsor Deliverables Internally">
+                    <Text c="dimmed" size="sm">
+                      Share sponsor requirements with internal team
+                    </Text>
+                  </Timeline.Item>
 
-                <Timeline.Item title="Post-contract Steps">
-                  <Text c="dimmed" size="sm">
-                    Ongoing relationship management and fulfillment
-                  </Text>
-                </Timeline.Item>
-              </Timeline>
-            </Stack>
-          </Stack>
+                  <Timeline.Item title="Get Assets from Sponsor">
+                    <Text c="dimmed" size="sm">
+                      Collect logos, materials, and other assets
+                    </Text>
+                  </Timeline.Item>
+
+                  <Timeline.Item title="Marketing Co-ordination">
+                    <Text c="dimmed" size="sm">
+                      Coordinate promotional activities and announcements
+                    </Text>
+                  </Timeline.Item>
+
+                  <Timeline.Item title="Post-contract Steps">
+                    <Text c="dimmed" size="sm">
+                      Ongoing relationship management and fulfillment
+                    </Text>
+                  </Timeline.Item>
+                </Timeline>
+              </Stack>
+            </Tabs.Panel>
+          </Tabs>
         )}
       </Drawer>
       
@@ -518,8 +585,8 @@ export default function SponsorKanbanBoard() {
             label="Select Contact"
             placeholder="Choose a contact to add"
             value={selectedContactId}
-            onChange={(value) => setSelectedContactId(value || "")}
-            data={availableContacts.map((contact: any) => ({
+            onChange={(value) => setSelectedContactId(value ?? "")}
+            data={availableContacts.map((contact: Contact) => ({
               value: contact.id,
               label: `${contact.firstName} ${contact.lastName} (${contact.email})`,
             }))}
@@ -538,7 +605,7 @@ export default function SponsorKanbanBoard() {
               Cancel
             </Button>
             <Button
-              onClick={handleAssignContact}
+              onClick={() => void handleAssignContact()}
               disabled={!selectedContactId}
               loading={assignContactMutation.isPending}
             >

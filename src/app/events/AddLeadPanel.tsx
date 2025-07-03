@@ -1,6 +1,6 @@
 "use client";
 
-import { Modal, Title, Stack, Card, Group, Avatar, Text, ActionIcon, ScrollArea, Loader, Alert } from "@mantine/core";
+import { Modal, Stack, Card, Group, Avatar, Text, ActionIcon, ScrollArea, Loader, Alert } from "@mantine/core";
 import { IconPlus, IconExternalLink } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 
@@ -16,7 +16,7 @@ export default function AddLeadPanel({ opened, onClose, onAddSponsor, isAddingLe
   const { data: sponsors, isLoading, error } = api.sponsor.getSponsors.useQuery();
   
   // Filter out sponsors that are already added to the event
-  const availableSponsors = sponsors?.filter(sponsor => !existingSponsorIds.includes(sponsor.id)) || [];
+  const availableSponsors = sponsors?.filter(sponsor => !existingSponsorIds.includes(sponsor.id)) ?? [];
 
   return (
     <Modal

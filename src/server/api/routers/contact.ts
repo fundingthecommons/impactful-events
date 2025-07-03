@@ -42,31 +42,33 @@ async function getGoogleAuthClient(ctx: Context) {
   });
 
   // Listen for token refresh events and update the database
-  oauth2Client.on('tokens', async (tokens) => {
-    console.log('Google token refreshed.');
-    const updateData: { access_token?: string, expires_at?: number, refresh_token?: string } = {};
+  oauth2Client.on('tokens', (tokens) => {
+    void (async () => {
+      console.log('Google token refreshed.');
+      const updateData: { access_token?: string, expires_at?: number, refresh_token?: string } = {};
 
-    if (tokens.access_token) {
-      updateData.access_token = tokens.access_token;
-    }
-    if (tokens.expiry_date) {
-      // expires_at from google is in ms, convert to seconds for db
-      updateData.expires_at = Math.floor(tokens.expiry_date / 1000);
-    }
-    if (tokens.refresh_token) {
-      // A new refresh token is sometimes issued
-      updateData.refresh_token = tokens.refresh_token;
-    }
+      if (tokens.access_token) {
+        updateData.access_token = tokens.access_token;
+      }
+      if (tokens.expiry_date) {
+        // expires_at from google is in ms, convert to seconds for db
+        updateData.expires_at = Math.floor(tokens.expiry_date / 1000);
+      }
+      if (tokens.refresh_token) {
+        // A new refresh token is sometimes issued
+        updateData.refresh_token = tokens.refresh_token;
+      }
 
-    await ctx.db.account.update({
-      where: {
-        provider_providerAccountId: {
-          provider: 'google',
-          providerAccountId: account.providerAccountId,
-        }
-      },
-      data: updateData,
-    });
+      await ctx.db.account.update({
+        where: {
+          provider_providerAccountId: {
+            provider: 'google',
+            providerAccountId: account.providerAccountId,
+          }
+        },
+        data: updateData,
+      });
+    })();
   });
 
   return oauth2Client;
@@ -146,7 +148,7 @@ export const contactRouter = createTRPCRouter({
       pageSize: 1000,
     });
 
-    const connections = res.data.connections || [];
+    const connections = res.data.connections ?? [];
 
     for (const person of connections) {
       const email = person.emailAddresses?.[0]?.value;
@@ -178,7 +180,7 @@ export const contactRouter = createTRPCRouter({
           maxResults: 500, // 500 is the max
         });
 
-      const messages = res.data.messages || [];
+      const messages = res.data.messages ?? [];
 
       for (const message of messages) {
         if (message.id) {
