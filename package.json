@@ -9,6 +9,7 @@
     "db:generate": "prisma migrate dev",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "dev": "next dev --turbo",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
@@ -53,8 +54,12 @@
     "prettier-plugin-tailwindcss": "^0.6.11",
     "prisma": "^6.5.0",
     "tailwindcss": "^4.0.15",
+    "tsx": "^4.19.1",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.27.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "ct3aMetadata": {
     "initVersion": "7.39.3"

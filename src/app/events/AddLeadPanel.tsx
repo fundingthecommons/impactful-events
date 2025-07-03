@@ -17,7 +17,7 @@ export default function AddLeadPanel({ opened, onClose, onAddSponsor }: AddLeadP
     <Modal
       opened={opened}
       onClose={onClose}
-      title={<Title order={3}>Add Lead</Title>}
+      title="Add Lead"
       size="lg"
       centered
     >
