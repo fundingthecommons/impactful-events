@@ -1,8 +1,10 @@
 "use client";
 
-import { Modal, Stack, Card, Group, Avatar, Text, ActionIcon, ScrollArea, Loader, Alert } from "@mantine/core";
+import { Modal, Stack, Card, Group, Avatar, Text, ActionIcon, ScrollArea, Loader, Alert, TextInput } from "@mantine/core";
 import { IconPlus, IconExternalLink } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
+import CategoryFilter from "../coins/CategoryFilter";
+import { useState, useMemo } from "react";
 
 interface AddLeadPanelProps {
   opened: boolean;
@@ -15,8 +17,27 @@ interface AddLeadPanelProps {
 export default function AddLeadPanel({ opened, onClose, onAddSponsor, isAddingLead = false, existingSponsorIds = [] }: AddLeadPanelProps) {
   const { data: sponsors, isLoading, error } = api.sponsor.getSponsors.useQuery();
   
+  const categories = [
+    { id: 'layer-1', name: 'layer-1', _count: { geckoCoins: 0, sponsors: 0 } },
+    { id: 'layer-2', name: 'layer-2', _count: { geckoCoins: 0, sponsors: 0 } },
+  ];
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
   // Filter out sponsors that are already added to the event
-  const availableSponsors = sponsors?.filter(sponsor => !existingSponsorIds.includes(sponsor.id)) ?? [];
+  let availableSponsors = sponsors?.filter(sponsor => !existingSponsorIds.includes(sponsor.id)) ?? [];
+  if (selectedCategory) {
+    availableSponsors = availableSponsors.filter(sponsor =>
+      sponsor.categories?.some((catObj: any) => catObj.category?.name === selectedCategory)
+    );
+  }
+  if (search.trim()) {
+    const searchLower = search.trim().toLowerCase();
+    availableSponsors = availableSponsors.filter(sponsor =>
+      sponsor.name.toLowerCase().includes(searchLower) ||
+      (sponsor.websiteUrl?.toLowerCase().includes(searchLower))
+    );
+  }
 
   return (
     <Modal
@@ -27,9 +48,20 @@ export default function AddLeadPanel({ opened, onClose, onAddSponsor, isAddingLe
       centered
     >
       <Stack gap="md">
+        <TextInput
+          placeholder="Search sponsors by name or website..."
+          value={search}
+          onChange={e => setSearch(e.currentTarget.value)}
+        />
         <Text size="sm" c="dimmed">
           Select a sponsor to add as a lead for this event
         </Text>
+        
+        <CategoryFilter
+          categories={categories}
+          selectedCategory={selectedCategory}
+          setSelectedCategory={setSelectedCategory}
+        />
         
         {isLoading && (
           <Group justify="center" p="xl">

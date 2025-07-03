@@ -11,6 +11,11 @@ export const sponsorRouter = createTRPCRouter({
       include: {
         contacts: true,
         events: true,
+        categories: {
+          include: {
+            category: true,
+          },
+        },
       },
     });
     return sponsors;

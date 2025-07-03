@@ -16,8 +16,10 @@ export default async function HeaderBar() {
           <Progress value={61} w={120} color="blue" size="sm" style={{ marginLeft: 16, marginRight: 8 }} />
           <Text size="sm" c="dimmed">61% complete</Text> */}
         </Group>
-        <Group align="center" gap={8}>
-          <Link href="/events">Events</Link>
+        <Group align="center" gap={16}>
+          <Link href="/events" style={{ textDecoration: 'none', fontWeight: 500 }}>Events</Link>
+          <Link href="/contacts" style={{ textDecoration: 'none', fontWeight: 500 }}>Contacts</Link>
+          <Link href="/coins" style={{ textDecoration: 'none', fontWeight: 500 }}>Coins</Link>
         </Group>
         <Group gap={16}>
           <TextInput

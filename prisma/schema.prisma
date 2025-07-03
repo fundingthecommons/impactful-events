@@ -244,12 +244,14 @@ model UserRole {
 }
 
 model Sponsor {
-  id      String         @id @default(cuid())
-  name    String         @unique
-  websiteUrl String?
-  logoUrl String?
-  events  EventSponsor[]
-  contacts Contact[]
+  id          String         @id @default(cuid())
+  name        String         @unique
+  websiteUrl  String?
+  logoUrl     String?
+  events      EventSponsor[]
+  contacts    Contact[]
+  categories  SponsorCategory[]
+  geckoCoin   GeckoCoin?
 }
 
 model EventSponsor {
@@ -270,4 +272,75 @@ model Contact {
   email     String @unique
   sponsor   Sponsor? @relation(fields: [sponsorId], references: [id])
   sponsorId String?
+}
+
+model GeckoCoin {
+  id                              String   @id @default(cuid())
+  geckoId                         String   @unique // CoinGecko's unique ID
+  symbol                          String
+  name                            String
+  image                           String?
+  currentPrice                    Float?
+  marketCap                       Float?
+  marketCapRank                   Int?
+  fullyDilutedValuation           Float?
+  totalVolume                     Float?
+  high24h                         Float?
+  low24h                          Float?
+  priceChange24h                  Float?
+  priceChangePercentage24h        Float?
+  marketCapChange24h              Float?
+  marketCapChangePercentage24h    Float?
+  circulatingSupply               Float?
+  totalSupply                     Float?
+  maxSupply                       Float?
+  ath                             Float?
+  athChangePercentage             Float?
+  athDate                         DateTime?
+  atl                             Float?
+  atlChangePercentage             Float?
+  atlDate                         DateTime?
+  roiTimes                        Float?
+  roiCurrency                     String?
+  roiPercentage                   Float?
+  lastUpdated                     DateTime?
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  sponsorId                       String? @unique
+  sponsor                         Sponsor? @relation(fields: [sponsorId], references: [id])
+
+  categories                      CategoryGeckoCoin[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sponsors  SponsorCategory[]
+  geckoCoins CategoryGeckoCoin[]
+}
+
+model SponsorCategory {
+  id         String   @id @default(cuid())
+  sponsor    Sponsor  @relation(fields: [sponsorId], references: [id])
+  sponsorId  String
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  @@unique([sponsorId, categoryId])
+}
+
+model CategoryGeckoCoin {
+  id         String    @id @default(cuid())
+  category   Category  @relation(fields: [categoryId], references: [id])
+  categoryId String
+  geckoCoin  GeckoCoin @relation(fields: [geckoId], references: [id])
+  geckoId    String
+  createdAt  DateTime  @default(now())
+
+  @@unique([categoryId, geckoId])
 }
