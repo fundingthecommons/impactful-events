@@ -267,6 +267,6 @@ model Contact {
   firstName String
   lastName  String
   email     String @unique
-  sponsor   Sponsor @relation(fields: [sponsorId], references: [id])
-  sponsorId String
+  sponsor   Sponsor? @relation(fields: [sponsorId], references: [id])
+  sponsorId String?
 }
