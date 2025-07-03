@@ -1,8 +1,8 @@
 "use client";
-import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, Progress, TextInput, ActionIcon, Tooltip, Button, Drawer } from "@mantine/core";
+import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, Progress, TextInput, ActionIcon, Tooltip, Button, Drawer, Modal, Select } from "@mantine/core";
 import { useState, useMemo } from "react";
 import '@mantine/core/styles.css';
-import { IconSearch, IconMail, IconBell, IconExternalLink } from "@tabler/icons-react";
+import { IconSearch, IconMail, IconBell, IconExternalLink, IconPlus, IconTrash } from "@tabler/icons-react";
 import HeaderBar from "./HeaderBar";
 import AddLeadPanel from "./AddLeadPanel";
 import { api } from "~/trpc/react";
@@ -56,6 +56,8 @@ export default function SponsorKanbanBoard() {
   const [addLeadPanelOpened, setAddLeadPanelOpened] = useState(false);
   const [selectedSponsor, setSelectedSponsor] = useState<any>(null);
   const [sponsorPanelOpened, setSponsorPanelOpened] = useState(false);
+  const [addContactModalOpened, setAddContactModalOpened] = useState(false);
+  const [selectedContactId, setSelectedContactId] = useState<string>("");
   
   // Get tRPC utils for invalidation
   const utils = api.useUtils();
@@ -64,6 +66,15 @@ export default function SponsorKanbanBoard() {
   const { data: event, isLoading } = api.event.getEvent.useQuery({
     id: "realfi-hackathon-2024"
   });
+
+  // Fetch all contacts
+  const { data: allContacts } = api.contact.getContacts.useQuery();
+
+  // Fetch detailed sponsor information when one is selected
+  const { data: detailedSponsor } = api.sponsor.getSponsor.useQuery(
+    { id: selectedSponsor?.id }, 
+    { enabled: !!selectedSponsor?.id }
+  );
 
   // Mutation to add sponsor to event
   const addSponsorMutation = api.event.addSponsorToEvent.useMutation({
@@ -77,6 +88,26 @@ export default function SponsorKanbanBoard() {
       // Show error message to user
       console.error('❌ Failed to add sponsor:', error.message);
       // You could add a toast notification here
+    },
+  });
+
+  // Mutation to assign contact to sponsor
+  const assignContactMutation = api.contact.assignContactToSponsor.useMutation({
+    onSuccess: () => {
+      // Invalidate contact and sponsor data
+      utils.contact.getContacts.invalidate();
+      utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id });
+      setAddContactModalOpened(false);
+      setSelectedContactId("");
+    },
+  });
+
+  // Mutation to remove contact from sponsor
+  const removeContactMutation = api.contact.removeContactFromSponsor.useMutation({
+    onSuccess: () => {
+      // Invalidate contact and sponsor data
+      utils.contact.getContacts.invalidate();
+      utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id });
     },
   });
 
@@ -117,6 +148,29 @@ export default function SponsorKanbanBoard() {
     setSelectedSponsor(sponsor);
     setSponsorPanelOpened(true);
   };
+
+  const handleAssignContact = async () => {
+    if (!selectedContactId || !selectedSponsor?.id) return;
+
+    await assignContactMutation.mutateAsync({
+      contactId: selectedContactId,
+      sponsorId: selectedSponsor.id,
+    });
+  };
+
+  const handleRemoveContact = async (contactId: string) => {
+    await removeContactMutation.mutateAsync({
+      contactId,
+    });
+  };
+
+  // Get available contacts (not assigned to this sponsor)
+  const availableContacts = useMemo(() => {
+    if (!allContacts || !detailedSponsor) return [];
+    
+    const sponsorContactIds = detailedSponsor.contacts.map((c: any) => c.id);
+    return allContacts.filter((contact: any) => !sponsorContactIds.includes(contact.id));
+  }, [allContacts, detailedSponsor]);
 
   if (isLoading) {
     return (
@@ -228,9 +282,101 @@ export default function SponsorKanbanBoard() {
               <Text fw={500}>Sponsor ID:</Text>
               <Text c="dimmed" size="sm">{selectedSponsor.id}</Text>
             </Stack>
+
+            {/* Contacts Section */}
+            <Stack gap="md">
+              <Group justify="space-between" align="center">
+                <Text fw={500} size="lg">Contacts</Text>
+                <Button
+                  leftSection={<IconPlus size={16} />}
+                  variant="light"
+                  size="sm"
+                  onClick={() => setAddContactModalOpened(true)}
+                  disabled={!availableContacts.length}
+                >
+                  Add Contact
+                </Button>
+              </Group>
+              
+              {detailedSponsor?.contacts && detailedSponsor.contacts.length > 0 ? (
+                <Stack gap="sm">
+                  {detailedSponsor.contacts.map((contact: any) => (
+                    <Paper key={contact.id} p="md" withBorder>
+                      <Group justify="space-between" align="center">
+                        <Stack gap={0}>
+                          <Text fw={500}>
+                            {contact.firstName} {contact.lastName}
+                          </Text>
+                          <Text size="sm" c="dimmed">
+                            {contact.email}
+                          </Text>
+                        </Stack>
+                        <ActionIcon
+                          color="red"
+                          variant="light"
+                          onClick={() => handleRemoveContact(contact.id)}
+                          loading={removeContactMutation.isPending}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Group>
+                    </Paper>
+                  ))}
+                </Stack>
+              ) : (
+                <Text c="dimmed" ta="center" py="xl">
+                  No contacts assigned to this sponsor
+                </Text>
+              )}
+            </Stack>
           </Stack>
         )}
       </Drawer>
+      
+      {/* Add Contact Modal */}
+      <Modal
+        opened={addContactModalOpened}
+        onClose={() => {
+          setAddContactModalOpened(false);
+          setSelectedContactId("");
+        }}
+        title="Add Contact to Sponsor"
+        size="md"
+      >
+        <Stack gap="md">
+          <Select
+            label="Select Contact"
+            placeholder="Choose a contact to add"
+            value={selectedContactId}
+            onChange={(value) => setSelectedContactId(value || "")}
+            data={availableContacts.map((contact: any) => ({
+              value: contact.id,
+              label: `${contact.firstName} ${contact.lastName} (${contact.email})`,
+            }))}
+            searchable
+            maxDropdownHeight={200}
+          />
+          
+          <Group justify="end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAddContactModalOpened(false);
+                setSelectedContactId("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssignContact}
+              disabled={!selectedContactId}
+              loading={assignContactMutation.isPending}
+            >
+              Add Contact
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </>
   );
 }

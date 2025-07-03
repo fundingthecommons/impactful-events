@@ -95,11 +95,46 @@ async function upsertContact(db: PrismaClient, contact: { email: string; firstNa
 
 export const contactRouter = createTRPCRouter({
   getContacts: publicProcedure.query(async ({ ctx }) => {
-    const contacts = await ctx.db.contact.findMany();
+    const contacts = await ctx.db.contact.findMany({
+      include: {
+        sponsor: true,
+      },
+    });
     console.log(contacts);
 
     return contacts ?? null;
   }),
+
+  assignContactToSponsor: publicProcedure
+    .input(z.object({ 
+      contactId: z.string(),
+      sponsorId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const contact = await ctx.db.contact.update({
+        where: { id: input.contactId },
+        data: { sponsorId: input.sponsorId },
+        include: {
+          sponsor: true,
+        },
+      });
+      return contact;
+    }),
+
+  removeContactFromSponsor: publicProcedure
+    .input(z.object({ 
+      contactId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const contact = await ctx.db.contact.update({
+        where: { id: input.contactId },
+        data: { sponsorId: null },
+        include: {
+          sponsor: true,
+        },
+      });
+      return contact;
+    }),
 
   importGoogleContacts: protectedProcedure.mutation(async ({ ctx }) => {
     const oauth2Client = await getGoogleAuthClient(ctx);
