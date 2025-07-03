@@ -258,6 +258,7 @@ model EventSponsor {
   eventId   String
   sponsor   Sponsor  @relation(fields: [sponsorId], references: [id])
   sponsorId String
+  qualified Boolean  @default(false)
 
   @@unique([eventId, sponsorId])
 }

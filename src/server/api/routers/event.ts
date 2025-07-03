@@ -14,7 +14,11 @@ export const eventRouter = createTRPCRouter({
         include: {
           sponsors: {
             include: {
-              sponsor: true,
+              sponsor: {
+                include: {
+                  contacts: true,
+                },
+              },
             },
           },
         },
@@ -27,7 +31,11 @@ export const eventRouter = createTRPCRouter({
       include: {
         sponsors: {
           include: {
-            sponsor: true,
+            sponsor: {
+              include: {
+                contacts: true,
+              },
+            },
           },
         },
       },
@@ -62,6 +70,35 @@ export const eventRouter = createTRPCRouter({
         },
         include: {
           sponsor: true,
+        },
+      });
+
+      return eventSponsor;
+    }),
+
+  updateSponsorQualified: publicProcedure
+    .input(z.object({ 
+      eventId: z.string(),
+      sponsorId: z.string(),
+      qualified: z.boolean(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const eventSponsor = await ctx.db.eventSponsor.update({
+        where: {
+          eventId_sponsorId: {
+            eventId: input.eventId,
+            sponsorId: input.sponsorId,
+          },
+        },
+        data: {
+          qualified: input.qualified,
+        },
+        include: {
+          sponsor: {
+            include: {
+              contacts: true,
+            },
+          },
         },
       });
 

@@ -1,5 +1,5 @@
 "use client";
-import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, Progress, TextInput, ActionIcon, Tooltip, Button, Drawer, Modal, Select } from "@mantine/core";
+import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, Progress, TextInput, ActionIcon, Tooltip, Button, Drawer, Modal, Select, Timeline, Checkbox, Tabs } from "@mantine/core";
 import { useState, useMemo } from "react";
 import '@mantine/core/styles.css';
 import { IconSearch, IconMail, IconBell, IconExternalLink, IconPlus, IconTrash } from "@tabler/icons-react";
@@ -94,9 +94,10 @@ export default function SponsorKanbanBoard() {
   // Mutation to assign contact to sponsor
   const assignContactMutation = api.contact.assignContactToSponsor.useMutation({
     onSuccess: () => {
-      // Invalidate contact and sponsor data
+      // Invalidate contact, sponsor, and event data to update columns
       utils.contact.getContacts.invalidate();
       utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id });
+      utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
       setAddContactModalOpened(false);
       setSelectedContactId("");
     },
@@ -105,8 +106,26 @@ export default function SponsorKanbanBoard() {
   // Mutation to remove contact from sponsor
   const removeContactMutation = api.contact.removeContactFromSponsor.useMutation({
     onSuccess: () => {
-      // Invalidate contact and sponsor data
+      // Invalidate contact, sponsor, and event data to update columns
       utils.contact.getContacts.invalidate();
+      utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id });
+      utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
+    },
+  });
+
+  // Mutation to update sponsor qualified status
+  const updateQualifiedMutation = api.event.updateSponsorQualified.useMutation({
+    onSuccess: (data) => {
+      // Update the local selectedSponsor state to reflect the change immediately
+      if (selectedSponsor) {
+        setSelectedSponsor({
+          ...selectedSponsor,
+          qualified: data.qualified
+        });
+      }
+      
+      // Invalidate event and sponsor data to update status
+      utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
       utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id });
     },
   });
@@ -115,13 +134,21 @@ export default function SponsorKanbanBoard() {
   const sponsors = useMemo(() => {
     if (!event?.sponsors) return [];
     
-    return event.sponsors.map((eventSponsor) => ({
-      id: eventSponsor.sponsor.id,
-      name: eventSponsor.sponsor.name,
-      websiteUrl: eventSponsor.sponsor.websiteUrl,
-      logoUrl: eventSponsor.sponsor.logoUrl,
-      state: "lead" // Default state - can be enhanced later to track actual states
-    }));
+    return event.sponsors.map((eventSponsor) => {
+      // Determine state based on sponsor data
+      const hasContacts = eventSponsor.sponsor.contacts && eventSponsor.sponsor.contacts.length > 0;
+      const state = hasContacts ? "contact identified" : "lead";
+      
+      return {
+        id: eventSponsor.sponsor.id,
+        name: eventSponsor.sponsor.name,
+        websiteUrl: eventSponsor.sponsor.websiteUrl,
+        logoUrl: eventSponsor.sponsor.logoUrl,
+        state: state,
+        qualified: eventSponsor.qualified,
+        eventSponsorId: eventSponsor.id
+      };
+    });
   }, [event]);
 
   const handleAddSponsor = async (sponsorId: string) => {
@@ -171,6 +198,16 @@ export default function SponsorKanbanBoard() {
     const sponsorContactIds = detailedSponsor.contacts.map((c: any) => c.id);
     return allContacts.filter((contact: any) => !sponsorContactIds.includes(contact.id));
   }, [allContacts, detailedSponsor]);
+
+  const handleQualifiedChange = async (checked: boolean) => {
+    if (!event || !selectedSponsor) return;
+
+    await updateQualifiedMutation.mutateAsync({
+      eventId: event.id,
+      sponsorId: selectedSponsor.id,
+      qualified: checked,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -277,6 +314,13 @@ export default function SponsorKanbanBoard() {
               <Text fw={500}>Status:</Text>
               <Text c="dimmed">{selectedSponsor.state}</Text>
             </Stack>
+
+            <Checkbox
+              label="Qualified"
+              checked={selectedSponsor.qualified}
+              onChange={(event) => handleQualifiedChange(event.currentTarget.checked)}
+              disabled={updateQualifiedMutation.isPending}
+            />
             
             <Stack gap="xs">
               <Text fw={500}>Sponsor ID:</Text>
@@ -328,6 +372,132 @@ export default function SponsorKanbanBoard() {
                   No contacts assigned to this sponsor
                 </Text>
               )}
+            </Stack>
+
+            {/* Sponsor Process Timeline */}
+            <Stack gap="md">
+              <Text fw={500} size="lg">Sponsor Process Timeline</Text>
+              <Timeline active={5} bulletSize={24} lineWidth={2}>
+                <Timeline.Item title="Add Organization to Sponsor Database">
+                  <Text c="dimmed" size="sm">
+                    Organization added to the system for tracking
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Add Organization to Event Board">
+                  <Text c="dimmed" size="sm">
+                    Sponsor appears on the event kanban board
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Qualify Sponsor">
+                  <Text c="dimmed" size="sm">
+                    Initial assessment of sponsor fit and potential
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Sponsor Qualified">
+                  <Text c="dimmed" size="sm">
+                    Sponsor meets qualification criteria
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Identify Sponsor Contact">
+                  <Text c="dimmed" size="sm">
+                    Key contact person identified and added to system
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Send Materials">
+                  <Text c="dimmed" size="sm">
+                    Initial materials and information sent to sponsor
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Flow 2: Scouts Have Qualified and Hand Off">
+                  <Text c="dimmed" size="sm">
+                    Transition from scouts to main team
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Setup Initial Call">
+                  <Text c="dimmed" size="sm">
+                    Schedule first formal conversation with sponsor
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Take Initial Call and Make Pitch">
+                  <Text c="dimmed" size="sm">
+                    Present sponsorship opportunity and value proposition
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Any Subsequent Calls">
+                  <Text c="dimmed" size="sm">
+                    Follow-up discussions and Q&A sessions
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Initial Notion Proposal">
+                  <Text c="dimmed" size="sm">
+                    Formal proposal document created and shared
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Get Terms Confirmation">
+                  <Text c="dimmed" size="sm">
+                    Sponsor confirms agreement to proposed terms
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Contract is Sent to the Sponsor">
+                  <Text c="dimmed" size="sm">
+                    Legal contract documentation delivered
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Contract is Signed">
+                  <Text c="dimmed" size="sm">
+                    Both parties have executed the agreement
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Send Sponsor Payment Information">
+                  <Text c="dimmed" size="sm">
+                    Invoice and payment details provided
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Automatically Check Payment Until Made">
+                  <Text c="dimmed" size="sm">
+                    Monitor payment status until received
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Circulate Sponsor Deliverables Internally">
+                  <Text c="dimmed" size="sm">
+                    Share sponsor requirements with internal team
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Get Assets from Sponsor">
+                  <Text c="dimmed" size="sm">
+                    Collect logos, materials, and other assets
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Marketing Co-ordination">
+                  <Text c="dimmed" size="sm">
+                    Coordinate promotional activities and announcements
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item title="Post-contract Steps">
+                  <Text c="dimmed" size="sm">
+                    Ongoing relationship management and fulfillment
+                  </Text>
+                </Timeline.Item>
+              </Timeline>
             </Stack>
           </Stack>
         )}
