@@ -1,8 +1,8 @@
 "use client";
-import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, Progress, TextInput, ActionIcon, Tooltip, Button } from "@mantine/core";
+import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, Progress, TextInput, ActionIcon, Tooltip, Button, Drawer } from "@mantine/core";
 import { useState, useMemo } from "react";
 import '@mantine/core/styles.css';
-import { IconSearch, IconMail, IconBell } from "@tabler/icons-react";
+import { IconSearch, IconMail, IconBell, IconExternalLink } from "@tabler/icons-react";
 import HeaderBar from "./HeaderBar";
 import AddLeadPanel from "./AddLeadPanel";
 import { api } from "~/trpc/react";
@@ -29,9 +29,9 @@ const columns = [
 
 
 
-function SponsorCard({ sponsor }: { sponsor: any }) {
+function SponsorCard({ sponsor, onClick }: { sponsor: any; onClick: () => void }) {
   return (
-    <Card shadow="sm" padding="md" radius="md" withBorder>
+    <Card shadow="sm" padding="md" radius="md" withBorder style={{ cursor: 'pointer' }} onClick={onClick}>
       <Group>
         <Avatar src={sponsor.logoUrl} alt={sponsor.name} radius="xl">
           {sponsor.name[0]}
@@ -42,7 +42,7 @@ function SponsorCard({ sponsor }: { sponsor: any }) {
             <Badge color="blue" size="sm" variant="light">{sponsor.state}</Badge>
           </Group>
           {sponsor.websiteUrl && (
-            <Text size="xs" c="dimmed" component="a" href={sponsor.websiteUrl} target="_blank" rel="noopener noreferrer">
+            <Text size="xs" c="dimmed">
               {sponsor.websiteUrl.replace(/^https?:\/\//, "")}
             </Text>
           )}
@@ -54,6 +54,8 @@ function SponsorCard({ sponsor }: { sponsor: any }) {
 
 export default function SponsorKanbanBoard() {
   const [addLeadPanelOpened, setAddLeadPanelOpened] = useState(false);
+  const [selectedSponsor, setSelectedSponsor] = useState<any>(null);
+  const [sponsorPanelOpened, setSponsorPanelOpened] = useState(false);
   
   // Get tRPC utils for invalidation
   const utils = api.useUtils();
@@ -111,6 +113,11 @@ export default function SponsorKanbanBoard() {
     }
   };
 
+  const handleSponsorClick = (sponsor: any) => {
+    setSelectedSponsor(sponsor);
+    setSponsorPanelOpened(true);
+  };
+
   if (isLoading) {
     return (
       <Stack p={{ base: 12, sm: 24, md: 32 }}>
@@ -157,7 +164,7 @@ export default function SponsorKanbanBoard() {
                     {col.states.flatMap((state) =>
                       sponsors
                         .filter((s) => s.state === state)
-                        .map((sponsor) => <SponsorCard key={sponsor.id} sponsor={sponsor} />)
+                        .map((sponsor) => <SponsorCard key={sponsor.id} sponsor={sponsor} onClick={() => handleSponsorClick(sponsor)} />)
                     )}
                   </Stack>
                 </ScrollArea>
@@ -174,6 +181,56 @@ export default function SponsorKanbanBoard() {
         isAddingLead={addSponsorMutation.isPending}
         existingSponsorIds={sponsors.map(s => s.id)}
       />
+      
+      <Drawer
+        opened={sponsorPanelOpened}
+        onClose={() => setSponsorPanelOpened(false)}
+        position="right"
+        size="33%"
+        title={selectedSponsor?.name || "Sponsor Details"}
+        overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
+      >
+        {selectedSponsor && (
+          <Stack gap="lg">
+            <Group>
+              <Avatar size="xl" src={selectedSponsor.logoUrl} alt={selectedSponsor.name} radius="md">
+                {selectedSponsor.name[0]}
+              </Avatar>
+              <Stack gap={0}>
+                <Text size="xl" fw={600}>{selectedSponsor.name}</Text>
+                <Badge color="blue" size="md" variant="light">{selectedSponsor.state}</Badge>
+              </Stack>
+            </Group>
+            
+            {selectedSponsor.websiteUrl && (
+              <Group gap="xs">
+                <Text fw={500}>Website:</Text>
+                <Text 
+                  component="a" 
+                  href={selectedSponsor.websiteUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{ color: 'var(--mantine-color-blue-6)', textDecoration: 'none' }}
+                  className="hover:underline"
+                >
+                  {selectedSponsor.websiteUrl.replace(/^https?:\/\//, "")}
+                  <IconExternalLink size={14} style={{ marginLeft: 4, display: 'inline' }} />
+                </Text>
+              </Group>
+            )}
+            
+            <Stack gap="xs">
+              <Text fw={500}>Status:</Text>
+              <Text c="dimmed">{selectedSponsor.state}</Text>
+            </Stack>
+            
+            <Stack gap="xs">
+              <Text fw={500}>Sponsor ID:</Text>
+              <Text c="dimmed" size="sm">{selectedSponsor.id}</Text>
+            </Stack>
+          </Stack>
+        )}
+      </Drawer>
     </>
   );
 }
