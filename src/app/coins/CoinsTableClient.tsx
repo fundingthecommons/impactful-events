@@ -14,6 +14,40 @@ interface Category {
     };
 }
 
+interface GeckoCoin {
+    id: string;
+    geckoId: string;
+    symbol: string;
+    name: string;
+    image: string | null;
+    currentPrice: number | null;
+    marketCap: number | null;
+    marketCapRank: number | null;
+    priceChangePercentage24h: number | null;
+    lastUpdated: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    sponsorId: string | null;
+    sponsor: {
+        id: string;
+        name: string;
+        websiteUrl: string | null;
+        logoUrl: string | null;
+    } | null;
+    categories: Array<{
+        id: string;
+        categoryId: string;
+        geckoId: string;
+        createdAt: Date;
+        category: {
+            id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+        };
+    }>;
+}
+
 interface CoinsTableClientProps {
     categories: Category[];
 }
@@ -25,13 +59,13 @@ export default function CoinsTableClient({ categories }: CoinsTableClientProps) 
         isLoading,
         isFetching,
     } = api.coinGecko.getGeckoCoins.useQuery(
-        { categoryName: selectedCategory || undefined, limit: 100 }
+        { categoryName: selectedCategory ?? undefined, limit: 100 }
     );
 
     // Transform coins into table data format for Mantine Table
     const tableData = geckoCoins ? {
         head: ['Coin', 'Symbol', 'Price', 'Market Cap', 'Rank', 'Categories', 'Organization', 'Last Updated'],
-        body: geckoCoins.map((coin: any) => [
+        body: geckoCoins.map((coin: GeckoCoin) => [
             // Coin column with image and name
             <Group gap="sm" key={`coin-${coin.id}`}> 
                 <Avatar src={coin.image} size="sm" radius="xl">
@@ -77,7 +111,7 @@ export default function CoinsTableClient({ categories }: CoinsTableClientProps) 
             // Categories column
             <Group gap="xs" key={`categories-${coin.id}`}> 
                 {coin.categories.length > 0 ? (
-                    coin.categories.map((catCoin: any) => (
+                    coin.categories.map((catCoin: { category: { id: string; name: string } }) => (
                         <Badge 
                             key={`cat-${catCoin.category.id}`} 
                             variant="light" 
@@ -107,7 +141,7 @@ export default function CoinsTableClient({ categories }: CoinsTableClientProps) 
             // Last Updated column
             coin.lastUpdated ? (
                 <Text size="xs" c="dimmed" key={`updated-${coin.id}`}>
-                    {new Date(coin.lastUpdated).toLocaleDateString()}
+                    {coin.lastUpdated.toLocaleDateString()}
                 </Text>
             ) : (
                 <Text c="dimmed" size="xs" key={`no-update-${coin.id}`}>-</Text>

@@ -28,7 +28,7 @@ export default function AddLeadPanel({ opened, onClose, onAddSponsor, isAddingLe
   let availableSponsors = sponsors?.filter(sponsor => !existingSponsorIds.includes(sponsor.id)) ?? [];
   if (selectedCategory) {
     availableSponsors = availableSponsors.filter(sponsor =>
-      sponsor.categories?.some((catObj: any) => catObj.category?.name === selectedCategory)
+      sponsor.categories?.some((catObj: { category?: { name?: string } }) => catObj.category?.name === selectedCategory)
     );
   }
   if (search.trim()) {

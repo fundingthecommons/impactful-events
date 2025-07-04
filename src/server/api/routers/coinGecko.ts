@@ -40,8 +40,6 @@ const CoinGeckoApiResponseSchema = z.object({
   last_updated: z.string(),
 });
 
-type CoinGeckoApiResponse = z.infer<typeof CoinGeckoApiResponseSchema>;
-
 export const coinGeckoRouter = createTRPCRouter({
   fetchAndStoreCategoryCoins: publicProcedure
     .input(z.object({
@@ -55,6 +53,10 @@ export const coinGeckoRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const apiKey = process.env.COIN_GEKCO_CAP_API_KEY;
+      if (!apiKey) {
+        throw new Error("CoinGecko API key is not configured");
+      }
+      
       const baseUrl = "https://api.coingecko.com/api/v3/coins/markets";
       
       const url = new URL(baseUrl);
@@ -71,14 +73,14 @@ export const coinGeckoRouter = createTRPCRouter({
           headers: {
             'accept': 'application/json',
             'x-cg-demo-api-key': apiKey,
-          },
+          } as HeadersInit,
         });
 
         if (!response.ok) {
           throw new Error(`CoinGecko API error: ${response.status} ${response.statusText}`);
         }
 
-        const data = await response.json();
+        const data = await response.json() as unknown;
         const coins = z.array(CoinGeckoApiResponseSchema).parse(data);
 
         // Create or get the category
@@ -199,7 +201,7 @@ export const coinGeckoRouter = createTRPCRouter({
         };
       } catch (error) {
         console.error("Error fetching CoinGecko data:", error);
-        throw new Error(`Failed to fetch and store CoinGecko data: ${error}`);
+        throw new Error(`Failed to fetch and store CoinGecko data: ${String(error)}`);
       }
     }),
 

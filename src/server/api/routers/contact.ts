@@ -235,10 +235,10 @@ export const contactRouter = createTRPCRouter({
     for (const page of response.results) {
       // Extract fields from the Notion page properties
       // Adjust these property names to match your Notion database
-      const properties = (page as any).properties;
-      const email = properties?.Email?.email || properties?.Email?.rich_text?.[0]?.plain_text;
-      const firstName = properties?.FirstName?.title?.[0]?.plain_text || properties?.FirstName?.rich_text?.[0]?.plain_text;
-      const lastName = properties?.LastName?.rich_text?.[0]?.plain_text || properties?.LastName?.title?.[1]?.plain_text;
+      const properties = (page as { properties?: Record<string, unknown> }).properties;
+      const email = (properties?.Email as { email?: string; rich_text?: Array<{ plain_text?: string }> })?.email ?? (properties?.Email as { rich_text?: Array<{ plain_text?: string }> })?.rich_text?.[0]?.plain_text;
+      const firstName = (properties?.FirstName as { title?: Array<{ plain_text?: string }>; rich_text?: Array<{ plain_text?: string }> })?.title?.[0]?.plain_text ?? (properties?.FirstName as { rich_text?: Array<{ plain_text?: string }> })?.rich_text?.[0]?.plain_text;
+      const lastName = (properties?.LastName as { rich_text?: Array<{ plain_text?: string }>; title?: Array<{ plain_text?: string }> })?.rich_text?.[0]?.plain_text ?? (properties?.LastName as { title?: Array<{ plain_text?: string }> })?.title?.[1]?.plain_text;
       if (email) {
         await upsertContact(ctx.db, { email, firstName, lastName });
         count++;

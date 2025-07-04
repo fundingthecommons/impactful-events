@@ -52,8 +52,8 @@ export default function CoinsClient({ categories }: CoinsClientProps) {
                 coinsInserted: data.coinsInserted,
             });
             // Invalidate queries to refresh the data
-            utils.coinGecko.getGeckoCoins.invalidate();
-            utils.coinGecko.getCategories.invalidate();
+            void utils.coinGecko.getGeckoCoins.invalidate();
+            void utils.coinGecko.getCategories.invalidate();
             setIsLoading(false);
         },
         onError: (error) => {
