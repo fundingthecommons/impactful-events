@@ -111,7 +111,7 @@ export default function CoinsClient({ categories }: CoinsClientProps) {
                 <Accordion.Control>
                     <Group justify="space-between" align="center">
                         <Text fw={500} size="lg">
-                            Import Coins from CoinGecko
+                            Import Coins from the CoinGecko
                         </Text>
                         <Badge variant="light" color="blue">
                             CoinGecko API
