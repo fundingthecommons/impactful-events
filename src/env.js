@@ -17,6 +17,8 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    NOTION_TOKEN: z.string(),
+    NOTION_CONTACTS_DATABASE_ID: z.string(),
   },
 
   /**

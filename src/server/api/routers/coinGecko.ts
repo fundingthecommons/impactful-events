@@ -54,7 +54,7 @@ export const coinGeckoRouter = createTRPCRouter({
       locale: z.string().default("en"),
     }))
     .mutation(async ({ ctx, input }) => {
-      const apiKey = "CG-podfZgxicurECcWEHbXk7KqN";
+      const apiKey = process.env.COIN_GEKCO_CAP_API_KEY;
       const baseUrl = "https://api.coingecko.com/api/v3/coins/markets";
       
       const url = new URL(baseUrl);

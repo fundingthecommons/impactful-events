@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { google, type gmail_v1 } from "googleapis";
 import { type PrismaClient } from "@prisma/client";
+import { Client as NotionClient } from "@notionhq/client";
 
 import {
   createTRPCRouter,
@@ -217,5 +218,32 @@ export const contactRouter = createTRPCRouter({
     }
 
     return { count: emails.size };
+  }),
+
+  importNotionContacts: protectedProcedure.mutation(async ({ ctx }) => {
+    const notionToken = process.env.NOTION_TOKEN;
+    const databaseId = process.env.NOTION_CONTACTS_DATABASE_ID;
+    if (!notionToken || !databaseId) {
+      throw new Error("Notion integration token or database ID not set in environment variables.");
+    }
+    const notion = new NotionClient({ auth: notionToken });
+    // Query the Notion database for contacts
+    const response = await notion.databases.query({
+      database_id: databaseId,
+    });
+    let count = 0;
+    for (const page of response.results) {
+      // Extract fields from the Notion page properties
+      // Adjust these property names to match your Notion database
+      const properties = (page as any).properties;
+      const email = properties?.Email?.email || properties?.Email?.rich_text?.[0]?.plain_text;
+      const firstName = properties?.FirstName?.title?.[0]?.plain_text || properties?.FirstName?.rich_text?.[0]?.plain_text;
+      const lastName = properties?.LastName?.rich_text?.[0]?.plain_text || properties?.LastName?.title?.[1]?.plain_text;
+      if (email) {
+        await upsertContact(ctx.db, { email, firstName, lastName });
+        count++;
+      }
+    }
+    return { count };
   }),
 });
