@@ -210,7 +210,7 @@ async function syncUsersToNotion(events: EventData[]): Promise<{
   const notion = new NotionClient({ auth: notionToken });
   
   let synced = 0;
-  let skipped = 0;
+  const skipped = 0;
   const errors: Array<{ userId: string; error: string }> = [];
   const processedAirtableIds = new Set<string>();
 
@@ -264,10 +264,10 @@ async function syncUsersToNotion(events: EventData[]): Promise<{
 
         // Add Twitter and Telegram only if handle doesn't start with "0x"
         if (isTwitterHandle) {
-          contactProperties["Twitter"] = {
+          contactProperties.Twitter = {
             rich_text: [{ text: { content: user.handle } }],
           };
-          contactProperties["Telegram"] = {
+          contactProperties.Telegram = {
             rich_text: [{ text: { content: user.handle } }],
           };
         }
@@ -277,7 +277,7 @@ async function syncUsersToNotion(events: EventData[]): Promise<{
           ? `Event: ${event.event}` 
           : `Event: ${event.event} | Handle: ${user.handle}`;
         
-        contactProperties["Notes"] = {
+        contactProperties.Notes = {
           rich_text: [{ text: { content: notesContent } }],
         };
 

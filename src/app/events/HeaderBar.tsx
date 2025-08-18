@@ -1,5 +1,5 @@
-import { Group, Title, Text, Progress, TextInput, ActionIcon, Tooltip, Avatar, Paper, Button } from "@mantine/core";
-import { IconSearch, IconMail, IconBell, IconLogout } from "@tabler/icons-react";
+import { Group, Text, Avatar, Paper, Stack, Badge } from "@mantine/core";
+import { IconShield } from "@tabler/icons-react";
 import Image from "next/image";
 import { auth } from "~/server/auth";
 import Link from "next/link";
@@ -19,30 +19,29 @@ export default async function HeaderBar() {
         </Group>
         <Group align="center" gap={16}>
           <Link href="/events" style={{ textDecoration: 'none', fontWeight: 500 }}>Events</Link>
-          <Link href="/sponsors" style={{ textDecoration: 'none', fontWeight: 500 }}>Sponsors</Link>
           <Link href="/contacts" style={{ textDecoration: 'none', fontWeight: 500 }}>Contacts</Link>
-          <Link href="/coins" style={{ textDecoration: 'none', fontWeight: 500 }}>Import</Link>
+          <Link href="/crypto-nomads-import" style={{ textDecoration: 'none', fontWeight: 500 }}>Import</Link>
         </Group>
         <Group gap={16}>
+          {session?.user && (
+            <Stack gap={0} align="flex-end">
+              <Group gap="xs">
+                <Text size="sm" fw={500}>
+                  {session.user.name ?? session.user.email}
+                </Text>
+                <Avatar src={session.user.image ?? ""} radius="xl" size={32} />
+              </Group>
+              {session.user.role && session.user.role !== "user" && (
+                <Group gap={4}>
+                  <IconShield size={12} color="green" />
+                  <Badge size="xs" color={session.user.role === "admin" ? "red" : "green"} variant="light">
+                    {session.user.role.toUpperCase()}
+                  </Badge>
+                </Group>
+              )}
+            </Stack>
+          )}
           {session && <SignOutButton />}
-          <TextInput
-            placeholder="Search"
-            leftSection={<IconSearch size={16} />}
-            size="sm"
-            w={180}
-          />
-          <Tooltip label="Inbox" withArrow>
-            <ActionIcon variant="default" size="lg" radius="md">
-              <IconMail size={18} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label="Notifications" withArrow>
-            <ActionIcon variant="default" size="lg" radius="md">
-              <IconBell size={18} />
-            </ActionIcon>
-          </Tooltip>
-          <Avatar src={session?.user?.image ?? ""} radius="xl" size={36} />
-          
         </Group>
       </Group>
     </Paper>

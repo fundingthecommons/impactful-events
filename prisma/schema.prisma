@@ -61,6 +61,7 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
+  role          String?   @default("user") // Add simple role field
   accounts      Account[]
   sessions      Session[]
   posts         Post[]
@@ -72,6 +73,7 @@ model User {
   judgedScores   Score[]              @relation("JudgedBy")
   judge           Judge?
   userRoles       UserRole[]
+  userGlobalRoles UserGlobalRole[] // Keep for backward compatibility but use role field primarily
   createdEvents   Event[]              @relation("EventsCreatedBy")
 }
 
@@ -346,4 +348,27 @@ model CategoryGeckoCoin {
   createdAt  DateTime  @default(now())
 
   @@unique([categoryId, geckoId])
+}
+
+model GlobalRole {
+  id             String @id @default(cuid())
+  name           String @unique
+  description    String?
+  permissions    String[] // JSON array of permissions like ["events:read", "contacts:read", "imports:write"]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  userGlobalRoles UserGlobalRole[]
+}
+
+model UserGlobalRole {
+  id           String @id @default(cuid())
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  globalRole   GlobalRole @relation(fields: [globalRoleId], references: [id], onDelete: Cascade)
+  globalRoleId String
+  assignedAt   DateTime @default(now())
+  assignedBy   String? // Optional: track who assigned the role
+
+  @@unique([userId, globalRoleId])
 }

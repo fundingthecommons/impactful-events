@@ -1,8 +1,22 @@
 import { api, HydrateClient } from "~/trpc/server";
 import { Table, Stack, Title, Text, Badge, Avatar, Group, Paper, Container } from "@mantine/core";
+import { redirect } from "next/navigation";
+import { auth } from "~/server/auth";
 import ContactsClient from "./ContactsClient";
 
 export default async function ContactsPage() {
+    // Check authentication and role
+    const session = await auth();
+    
+    // Must be authenticated
+    if (!session?.user) {
+        redirect("/api/auth/signin?callbackUrl=/contacts");
+    }
+    
+    // Must have staff or admin role
+    if (session.user.role !== "staff" && session.user.role !== "admin") {
+        redirect("/unauthorized");
+    }
     const contacts = await api.contact.getContacts();
     
     // Transform contacts into table data format for Mantine Table

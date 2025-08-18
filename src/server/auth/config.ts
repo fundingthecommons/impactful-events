@@ -15,16 +15,15 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
-      // ...other properties
-      // role: UserRole;
+      role?: string;
     } & DefaultSession["user"];
   }
 
-  // interface User {
-  //   // ...other properties
-  //   // role: UserRole;
-  // }
+  interface User {
+    role?: string;
+  }
 }
+
 
 /**
  * Options for NextAuth.js used to configure adapters, providers, callbacks, etc.
@@ -57,6 +56,10 @@ export const authConfig = {
      */
   ],
   adapter: PrismaAdapter(db),
+  // Account linking will be handled by the signIn callback
+  pages: {
+    error: '/auth/error', // Custom error page
+  },
   cookies: {
     sessionToken: {
       name: `ftc-t3.sessionToken`,
@@ -69,11 +72,16 @@ export const authConfig = {
     },
   },
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Always allow sign in - NextAuth will handle account linking with the adapter
+      return true;
+    },
     session: ({ session, user }) => ({
       ...session,
       user: {
         ...session.user,
         id: user.id,
+        role: user.role,
       },
     }),
   },
