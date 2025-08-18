@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Table, Stack, Text, Badge, Avatar, Group, Paper, Select, Loader } from "@mantine/core";
+import { Table, Stack, Text, Badge, Avatar, Group, Paper, Loader } from "@mantine/core";
 import { api } from "~/trpc/react";
 import CategoryFilter from "./CategoryFilter";
 

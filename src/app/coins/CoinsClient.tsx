@@ -8,7 +8,6 @@ import {
     Group, 
     Text, 
     TextInput, 
-    Select, 
     Alert, 
     Loader,
     Badge,

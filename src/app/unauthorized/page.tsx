@@ -33,15 +33,9 @@ export default async function UnauthorizedPage() {
               <Text size="sm" fw={500}>
                 Signed in as: {session.user.email}
               </Text>
-              {session.user.globalRoles?.length ? (
-                <Text size="xs" c="dimmed">
-                  Roles: {session.user.globalRoles.map(r => r.name).join(", ")}
-                </Text>
-              ) : (
-                <Text size="xs" c="dimmed">
-                  No roles assigned
-                </Text>
-              )}
+              <Text size="xs" c="dimmed">
+                Contact an administrator for access
+              </Text>
             </Stack>
           ) : (
             <Text size="sm">

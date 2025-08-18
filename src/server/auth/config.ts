@@ -72,7 +72,7 @@ export const authConfig = {
     },
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user: _user, account: _account, profile: _profile }) {
       // Always allow sign in - NextAuth will handle account linking with the adapter
       return true;
     },

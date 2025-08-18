@@ -48,7 +48,7 @@ export default function CryptoNomadsImportClient() {
 
     try {
       // Parse the JSON input
-      const parsedData: EventsData = JSON.parse(jsonInput);
+      const parsedData = JSON.parse(jsonInput) as EventsData;
       
       // Extract events from the data structure
       let events: unknown[] = [];
@@ -98,7 +98,7 @@ export default function CryptoNomadsImportClient() {
 
     try {
       // Parse the JSON input
-      const parsedData: EventsData = JSON.parse(jsonInput);
+      const parsedData = JSON.parse(jsonInput) as EventsData;
       
       // Extract events from the data structure
       let events: unknown[] = [];

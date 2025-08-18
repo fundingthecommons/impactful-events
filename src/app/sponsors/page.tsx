@@ -31,18 +31,6 @@ interface Contact {
   sponsorId?: string | null;
 }
 
-interface Event {
-  id: string;
-  name: string;
-  description?: string | null;
-  startDate: Date;
-  endDate: Date;
-  location?: string | null;
-  type: string;
-  isOnline: boolean;
-  createdById: string;
-  sponsors: EventSponsor[];
-}
 
 // Status codes for sponsor pipeline - maintains logical order
 const SPONSOR_STATUS_CODES = [
@@ -154,14 +142,6 @@ const columns = [
   },
 ];
 
-/**
- * Determines which column a sponsor should appear in based on their status
- * @param statusCode - The sponsor's current status code
- * @returns The column that the sponsor belongs in
- */
-function getColumnForStatus(statusCode: SponsorStatusCode) {
-  return columns.find(col => col.statusCodes.includes(statusCode)) ?? columns[0];
-}
 
 function SponsorCard({ sponsor, onClick }: { sponsor: SponsorCardData; onClick: () => void }) {
   return (

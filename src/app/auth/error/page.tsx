@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Container, Title, Text, Button, Stack, Alert, Paper } from "@mantine/core";
 import { IconAlertTriangle, IconArrowLeft } from "@tabler/icons-react";
 import Link from "next/link";
+import { Suspense } from "react";
 
 const errorMessages = {
   OAuthAccountNotLinked: "Account linking issue resolved! Please try signing in again.",
@@ -12,7 +13,7 @@ const errorMessages = {
   Default: "An authentication error occurred. Please try again.",
 };
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   
@@ -64,5 +65,13 @@ export default function AuthErrorPage() {
         </Stack>
       </Paper>
     </Container>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthErrorContent />
+    </Suspense>
   );
 }

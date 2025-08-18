@@ -4,7 +4,7 @@ import { Modal, Stack, Card, Group, Avatar, Text, ActionIcon, ScrollArea, Loader
 import { IconPlus, IconExternalLink } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import CategoryFilter from "../coins/CategoryFilter";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 
 interface AddLeadPanelProps {
   opened: boolean;

@@ -1,5 +1,8 @@
 "use client";
 
+// Disable static generation for this admin page
+export const dynamic = 'force-dynamic';\nexport const revalidate = 0;
+
 import { useState } from "react";
 import {
   Container,
@@ -24,22 +27,33 @@ import { useSession } from "next-auth/react";
 import { hasAdminAccess } from "~/lib/permissions";
 
 export default function RoleAdminPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
 
   // Check admin access
   const hasAdmin = hasAdminAccess(session);
+  
+  // Don't render during loading state
+  if (status === "loading") {
+    return (
+      <Container size="sm" py="xl">
+        <Text>Loading...</Text>
+      </Container>
+    );
+  }
 
-  // Queries
+  // Queries - only run if we have session data
   const { data: usersWithRoles, isLoading: usersLoading, refetch: refetchUsers } = 
     api.role.getUsersWithRoles.useQuery(undefined, {
-      enabled: hasAdmin,
+      enabled: hasAdmin && status === "authenticated",
     });
 
   const { data: globalRoles, isLoading: rolesLoading } = 
-    api.role.getGlobalRoles.useQuery();
+    api.role.getGlobalRoles.useQuery(undefined, {
+      enabled: status === "authenticated",
+    });
 
   // Mutations
   const assignRoleMutation = api.role.assignGlobalRole.useMutation({

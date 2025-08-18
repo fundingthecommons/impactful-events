@@ -142,7 +142,7 @@ async function syncEventsToNotion(events: EventData[]): Promise<{
           multi_select: event.topics.map(topic => ({ name: topic })),
         },
         "Organizer": {
-          rich_text: [{ text: { content: event.organizer || "Unknown" } }],
+          rich_text: [{ text: { content: event.organizer ?? "Unknown" } }],
         },
         "Attending Status": {
           select: { name: "Interested" }, // Default status
@@ -151,7 +151,7 @@ async function syncEventsToNotion(events: EventData[]): Promise<{
           url: event.link,
         },
         "Banner": event.banner ? { url: event.banner } : undefined,
-        "City": event.city.length ? { multi_select: event.city.map(c => ({ name: c })) } : undefined,
+        "City": event.city?.length ? { multi_select: event.city.map(c => ({ name: c })) } : undefined,
         "Country": event.country.length ? { multi_select: event.country.map(c => ({ name: c })) } : undefined,
         "Region": event.region.length ? { multi_select: event.region.map(r => ({ name: r })) } : undefined,
         "Timezone": event.timezone.length ? { multi_select: event.timezone.map(tz => ({ name: tz })) } : undefined,
@@ -168,13 +168,16 @@ async function syncEventsToNotion(events: EventData[]): Promise<{
       };
 
       // Remove undefined properties
-      const filteredProperties = Object.fromEntries(
-        Object.entries(properties).filter(([_, v]) => v !== undefined)
-      );
+      const filteredProperties: Record<string, NonNullable<typeof properties[keyof typeof properties]>> = {};
+      Object.entries(properties).forEach(([key, value]) => {
+        if (value !== undefined) {
+          filteredProperties[key] = value;
+        }
+      });
 
       await notion.pages.create({
         parent: { database_id: notionEventsDbId },
-        properties: filteredProperties as Record<string, any>,
+        properties: filteredProperties,
       });
 
       synced++;
@@ -238,7 +241,7 @@ async function syncUsersToNotion(events: EventData[]): Promise<{
         const isTwitterHandle = user.handle && !user.handle.startsWith("0x");
 
         // Create new contact in Notion matching the schema from screenshot
-        const contactProperties: Record<string, any> = {
+        const baseContactProperties = {
           "First name": {
             rich_text: [{ text: { content: firstName } }],
           },
@@ -262,12 +265,15 @@ async function syncUsersToNotion(events: EventData[]): Promise<{
           },
         };
 
+        // Create dynamic properties object
+        const dynamicProperties: Record<string, object> = {};
+        
         // Add Twitter and Telegram only if handle doesn't start with "0x"
         if (isTwitterHandle) {
-          contactProperties.Twitter = {
+          dynamicProperties.Twitter = {
             rich_text: [{ text: { content: user.handle } }],
           };
-          contactProperties.Telegram = {
+          dynamicProperties.Telegram = {
             rich_text: [{ text: { content: user.handle } }],
           };
         }
@@ -277,7 +283,7 @@ async function syncUsersToNotion(events: EventData[]): Promise<{
           ? `Event: ${event.event}` 
           : `Event: ${event.event} | Handle: ${user.handle}`;
         
-        contactProperties.Notes = {
+        dynamicProperties.Notes = {
           rich_text: [{ text: { content: notesContent } }],
         };
 
@@ -285,12 +291,18 @@ async function syncUsersToNotion(events: EventData[]): Promise<{
         if (event.series && event.series.length > 0) {
           const validSeries = event.series.filter(s => s.title && s.title.trim() !== "");
           if (validSeries.length > 0) {
-            contactProperties["Event Series"] = {
+            dynamicProperties["Event Series"] = {
               multi_select: validSeries.map(s => ({ name: s.title })),
             };
           }
         }
 
+        // Combine base and dynamic properties
+        const contactProperties = {
+          ...baseContactProperties,
+          ...dynamicProperties
+        };
+        
         await notion.pages.create({
           parent: { database_id: notionContactsDbId },
           properties: contactProperties,
