@@ -37,6 +37,89 @@ bun run format:write    # Format code with Prettier
 - **ALWAYS prefer editing an existing file to creating a new one**
 - **NEVER proactively create documentation files (*.md) or README files** - Only create documentation files if explicitly requested by the User
 
+## CODE QUALITY REQUIREMENTS FOR VERCEL BUILD
+
+**CRITICAL: All generated code must pass these ESLint rules to deploy on Vercel.**
+
+### Mandatory Code Standards
+
+1. **Nullish Coalescing (@typescript-eslint/prefer-nullish-coalescing)**
+   ```typescript
+   // ❌ WRONG - fails Vercel build
+   const value = input || 'default';
+   const name = user.name || 'Anonymous';
+   
+   // ✅ CORRECT - passes Vercel build  
+   const value = input ?? 'default';
+   const name = user.name ?? 'Anonymous';
+   ```
+
+2. **No Explicit Any (@typescript-eslint/no-explicit-any)**
+   ```typescript
+   // ❌ WRONG - fails Vercel build
+   const data: any = response;
+   function process(input: any): any { }
+   
+   // ✅ CORRECT - passes Vercel build
+   const data: unknown = response;
+   function process(input: unknown): string { }
+   interface ResponseData { id: string; name: string; }
+   const data: ResponseData = response;
+   ```
+
+3. **Safe Type Assertions (@typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access)**
+   ```typescript
+   // ❌ WRONG - fails Vercel build
+   const result: any = getData();
+   const name = result.user.name;
+   
+   // ✅ CORRECT - passes Vercel build
+   interface UserData { user: { name: string } }
+   const result = getData() as UserData;
+   const name = result.user.name;
+   ```
+
+4. **Promise Handling (@typescript-eslint/no-floating-promises)**
+   ```typescript
+   // ❌ WRONG - fails Vercel build
+   saveData(formData);
+   processUser();
+   
+   // ✅ CORRECT - passes Vercel build
+   await saveData(formData);
+   void processUser(); // If fire-and-forget is intended
+   saveData(formData).catch(console.error);
+   ```
+
+5. **String Conversion (@typescript-eslint/no-base-to-string)**
+   ```typescript
+   // ❌ WRONG - fails Vercel build
+   const message = `User: ${userObject}`;
+   
+   // ✅ CORRECT - passes Vercel build
+   const message = `User: ${userObject.name}`;
+   const message = `User: ${JSON.stringify(userObject)}`;
+   ```
+
+6. **Remove Unused Variables (@typescript-eslint/no-unused-vars)**
+   ```typescript
+   // ❌ WRONG - fails Vercel build
+   import { Button, Card } from '@mantine/core'; // Card unused
+   
+   // ✅ CORRECT - passes Vercel build
+   import { Button } from '@mantine/core';
+   ```
+
+### Pre-Deployment Validation
+
+**ALWAYS run these commands before considering any implementation complete:**
+```bash
+bun run check    # Must pass for Vercel deployment
+bun run build    # Must complete successfully
+```
+
+**If any linting errors appear, they MUST be fixed before deployment.**
+
 ## Git Commit Conventions
 
 - **NEVER mention "Claude Code" or any AI assistant references in commit messages**
