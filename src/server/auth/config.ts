@@ -57,10 +57,16 @@ export const authConfig = {
      */
   ],
   adapter: PrismaAdapter(db),
-  pages: {
-    signIn: '/api/auth/signin',
-    signOut: '/api/auth/signout',
-    error: '/api/auth/error',
+  cookies: {
+    sessionToken: {
+      name: `ftc-t3.sessionToken`,
+    },
+    callbackUrl: {
+      name: `ftc-t3.callbackUrl`,
+    },
+    csrfToken: {
+      name: `ftc-t3.csrfToken`,
+    },
   },
   callbacks: {
     session: ({ session, user }) => ({
@@ -70,17 +76,5 @@ export const authConfig = {
         id: user.id,
       },
     }),
-    redirect: ({ url, baseUrl }) => {
-      // Debug logging to identify where the redirect is coming from
-      console.log('NextAuth redirect called:', { url, baseUrl });
-      
-      // Always redirect to home page after signin
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      // Allow redirect to same origin
-      if (new URL(url).origin === baseUrl) return url;
-      // Default to home page
-      console.log('Redirecting to baseUrl:', baseUrl);
-      return baseUrl;
-    },
   },
 } satisfies NextAuthConfig;

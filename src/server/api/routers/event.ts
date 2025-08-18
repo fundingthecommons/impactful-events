@@ -191,6 +191,126 @@ async function syncEventsToNotion(events: EventData[]): Promise<{
   return { synced, skipped, errors };
 }
 
+/**
+ * Syncs users from events to Notion Contacts database
+ * Extracts users from usersGoingObj array and creates contact records
+ */
+async function syncUsersToNotion(events: EventData[]): Promise<{
+  synced: number;
+  skipped: number;
+  errors: Array<{ userId: string; error: string }>;
+}> {
+  const notionToken = process.env.NOTION_TOKEN;
+  const notionContactsDbId = process.env.NOTION_CONTACTS_DATABASE_ID;
+  
+  if (!notionToken || !notionContactsDbId) {
+    throw new Error("Notion integration token or contacts database ID not set in environment variables.");
+  }
+
+  const notion = new NotionClient({ auth: notionToken });
+  
+  let synced = 0;
+  let skipped = 0;
+  const errors: Array<{ userId: string; error: string }> = [];
+  const processedAirtableIds = new Set<string>();
+
+  for (const event of events) {
+    if (!event.usersGoingObj || event.usersGoingObj.length === 0) {
+      continue;
+    }
+
+    for (const user of event.usersGoingObj) {
+      try {
+        // Skip if we've already processed this user in this batch
+        if (processedAirtableIds.has(user.airtableId)) {
+          continue;
+        }
+        processedAirtableIds.add(user.airtableId);
+
+        // For now, skip duplicate checking since the airtableId property might not exist yet
+        // We'll rely on the processedAirtableIds Set to avoid duplicates in this batch
+        console.log(`Processing user ${user.airtableId}...`);
+
+        // Use user.name directly as First name, no parsing needed
+        const firstName = user.name || "";
+
+        // Determine if handle is a crypto address (starts with 0x) or social handle
+        const isTwitterHandle = user.handle && !user.handle.startsWith("0x");
+
+        // Create new contact in Notion matching the schema from screenshot
+        const contactProperties: Record<string, any> = {
+          "First name": {
+            rich_text: [{ text: { content: firstName } }],
+          },
+          "avatar": {
+            rich_text: [{ text: { content: user.avatar || "" } }],
+          },
+          "followerCount": {
+            number: user.followerCount || 0,
+          },
+          "airtableId": {
+            rich_text: [{ text: { content: user.airtableId } }],
+          },
+          "Lead Source": {
+            select: { name: "CryptoNomadsImport" },
+          },
+          "Source": {
+            rich_text: [{ text: { content: "CryptoNomadsImport" } }],
+          },
+          "Current Process Status": {
+            select: { name: "New Lead" },
+          },
+        };
+
+        // Add Twitter and Telegram only if handle doesn't start with "0x"
+        if (isTwitterHandle) {
+          contactProperties["Twitter"] = {
+            rich_text: [{ text: { content: user.handle } }],
+          };
+          contactProperties["Telegram"] = {
+            rich_text: [{ text: { content: user.handle } }],
+          };
+        }
+
+        // Add Notes with any additional context
+        const notesContent = isTwitterHandle 
+          ? `Event: ${event.event}` 
+          : `Event: ${event.event} | Handle: ${user.handle}`;
+        
+        contactProperties["Notes"] = {
+          rich_text: [{ text: { content: notesContent } }],
+        };
+
+        // Add Event Series if available and has valid entries
+        if (event.series && event.series.length > 0) {
+          const validSeries = event.series.filter(s => s.title && s.title.trim() !== "");
+          if (validSeries.length > 0) {
+            contactProperties["Event Series"] = {
+              multi_select: validSeries.map(s => ({ name: s.title })),
+            };
+          }
+        }
+
+        await notion.pages.create({
+          parent: { database_id: notionContactsDbId },
+          properties: contactProperties,
+        });
+
+        synced++;
+        console.log(`Successfully synced user ${user.airtableId} to Notion contacts`);
+      } catch (error) {
+        console.error(`Error syncing user ${user.airtableId}:`, error);
+        errors.push({
+          userId: user.airtableId,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+  }
+
+  return { synced, skipped, errors };
+}
+
 export const eventRouter = createTRPCRouter({
   getEvent: publicProcedure
     .input(z.object({ id: z.string() }))
@@ -295,6 +415,13 @@ export const eventRouter = createTRPCRouter({
     .input(z.object({ events: z.array(EventDataSchema) }))
     .mutation(async ({ input }) => {
       const result = await syncEventsToNotion(input.events);
+      return result;
+    }),
+
+  syncUsersToNotion: publicProcedure
+    .input(z.object({ events: z.array(EventDataSchema) }))
+    .mutation(async ({ input }) => {
+      const result = await syncUsersToNotion(input.events);
       return result;
     }),
 }); 

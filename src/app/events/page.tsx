@@ -1,734 +1,243 @@
 "use client";
-import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, ActionIcon, Button, Drawer, Modal, Select, Timeline, Checkbox, Tabs } from "@mantine/core";
-import { useState, useMemo } from "react";
-import '@mantine/core/styles.css';
-import { IconExternalLink, IconPlus, IconTrash } from "@tabler/icons-react";
-import AddLeadPanel from "./AddLeadPanel";
-import { api } from "~/trpc/react";
+import { 
+  Container, 
+  Title, 
+  SimpleGrid, 
+  Card, 
+  Text, 
+  Badge, 
+  Group, 
+  Stack, 
+  Button,
+  ThemeIcon,
+  Gradient,
+  Box,
+  Paper
+} from "@mantine/core";
+import { 
+  IconUsers, 
+  IconBuilding, 
+  IconCalendarEvent,
+  IconHome,
+  IconTrophy,
+  IconMicrophone,
+  IconUmbrella
+} from "@tabler/icons-react";
+import Link from "next/link";
 
-// Type definitions based on Prisma schema
-interface Sponsor {
-  id: string;
-  name: string;
-  websiteUrl?: string | null;
-  logoUrl?: string | null;
-  contacts: Contact[];
-}
-
-interface EventSponsor {
-  id: string;
-  eventId: string;
-  sponsorId: string;
-  qualified: boolean;
-  sponsor: Sponsor;
-}
-
-interface Contact {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  sponsorId?: string | null;
-}
-
-interface Event {
-  id: string;
-  name: string;
-  description?: string | null;
-  startDate: Date;
-  endDate: Date;
-  location?: string | null;
-  type: string;
-  isOnline: boolean;
-  createdById: string;
-  sponsors: EventSponsor[];
-}
-
-// Status codes for sponsor pipeline - maintains logical order
-const SPONSOR_STATUS_CODES = [
-  { code: 'ORG_ADDED', label: 'Organization Added', description: 'Organization added to sponsor database' },
-  { code: 'ON_EVENT_BOARD', label: 'On Event Board', description: 'Sponsor appears on the event kanban board' },
-  { code: 'QUALIFY_SPONSOR', label: 'Qualify Sponsor', description: 'Initial assessment of sponsor fit and potential' },
-  { code: 'SPONSOR_QUALIFIED', label: 'Sponsor Qualified', description: 'Sponsor meets qualification criteria' },
-  { code: 'CONTACT_IDENTIFIED', label: 'Contact Identified', description: 'Key contact person identified and added to system' },
-  { code: 'MATERIALS_SENT', label: 'Materials Sent', description: 'Initial materials and information sent to sponsor' },
-  { code: 'SCOUT_HANDOFF', label: 'Scout Handoff', description: 'Scouts have qualified and handed off to main team' },
-  { code: 'INITIAL_CALL_SETUP', label: 'Initial Call Setup', description: 'Schedule first formal conversation with sponsor' },
-  { code: 'INITIAL_CALL_TAKEN', label: 'Initial Call Taken', description: 'Present sponsorship opportunity and value proposition' },
-  { code: 'SUBSEQUENT_CALLS', label: 'Subsequent Calls', description: 'Follow-up discussions and Q&A sessions' },
-  { code: 'PROPOSAL_SENT', label: 'Proposal Sent', description: 'Formal proposal document created and shared' },
-  { code: 'TERMS_CONFIRMED', label: 'Terms Confirmed', description: 'Sponsor confirms agreement to proposed terms' },
-  { code: 'CONTRACT_SENT', label: 'Contract Sent', description: 'Legal contract documentation delivered' },
-  { code: 'CONTRACT_SIGNED', label: 'Contract Signed', description: 'Both parties have executed the agreement' },
-  { code: 'PAYMENT_INFO_SENT', label: 'Payment Info Sent', description: 'Invoice and payment details provided' },
-  { code: 'PAYMENT_PENDING', label: 'Payment Pending', description: 'Monitor payment status until received' },
-  { code: 'DELIVERABLES_CIRCULATED', label: 'Deliverables Circulated', description: 'Share sponsor requirements with internal team' },
-  { code: 'ASSETS_COLLECTED', label: 'Assets Collected', description: 'Collect logos, materials, and other assets' },
-  { code: 'MARKETING_COORDINATION', label: 'Marketing Coordination', description: 'Coordinate promotional activities and announcements' },
-  { code: 'POST_CONTRACT', label: 'Post-Contract', description: 'Ongoing relationship management and fulfillment' }
-] as const;
-
-// Type for status codes
-type SponsorStatusCode = typeof SPONSOR_STATUS_CODES[number]['code'];
-
-/**
- * Determines the current status of a sponsor based on available data
- * @param eventSponsor - The event sponsor data to analyze
- * @returns The current status code for the sponsor
- */
-function determineSponsorStatus(eventSponsor: EventSponsor): SponsorStatusCode {
-  const { sponsor, qualified } = eventSponsor;
-  const hasContacts = sponsor.contacts && sponsor.contacts.length > 0;
-  
-  // TODO: Extend this logic as more data becomes available
-  // For now, we can only determine status based on what we have:
-  // - sponsor exists (ORG_ADDED, ON_EVENT_BOARD)
-  // - qualified status
-  // - contacts presence
-  
-  if (hasContacts) {
-    // If we have contacts, we've at least identified them
-    return 'CONTACT_IDENTIFIED';
-  } else if (qualified) {
-    // If qualified but no contacts, we're in the qualification phase
-    return 'SPONSOR_QUALIFIED';
-  } else {
-    // If not qualified yet, we're still qualifying
-    return 'QUALIFY_SPONSOR';
+// Event data - in a real app this would come from your database
+const events = [
+  {
+    id: "residency",
+    name: "Residency",
+    description: "Intensive residency program for selected participants to work on projects and build connections.",
+    type: "residency",
+    status: "active",
+    icon: IconHome,
+    gradient: { from: "blue", to: "cyan" },
+    participantsCount: 45,
+    sponsorsCount: 12
+  },
+  {
+    id: "hackathon", 
+    name: "Hackathon",
+    description: "48-hour intensive hackathon where teams compete to build innovative solutions.",
+    type: "hackathon",
+    status: "active", 
+    icon: IconTrophy,
+    gradient: { from: "orange", to: "red" },
+    participantsCount: 128,
+    sponsorsCount: 8
+  },
+  {
+    id: "conference",
+    name: "Conference", 
+    description: "Multi-day conference featuring keynotes, panels, and networking opportunities.",
+    type: "conference",
+    status: "active",
+    icon: IconMicrophone,
+    gradient: { from: "green", to: "teal" },
+    participantsCount: 350,
+    sponsorsCount: 25
+  },
+  {
+    id: "umbrella",
+    name: "Umbrella",
+    description: "Overarching program that encompasses multiple events and ongoing initiatives.",
+    type: "umbrella", 
+    status: "active",
+    icon: IconUmbrella,
+    gradient: { from: "purple", to: "pink" },
+    participantsCount: 500,
+    sponsorsCount: 40
   }
-  
-  // Note: As the system grows, you can add more logic here to detect:
-  // - Materials sent (maybe a field on EventSponsor)
-  // - Call scheduled/taken (maybe a separate Interaction table)
-  // - Proposal sent (maybe a Document table)
-  // - Contract status (maybe a Contract table)
-  // - Payment status (maybe a Payment table)
-  // etc.
-}
-
-/**
- * Gets the status object for a given status code
- * @param statusCode - The status code to look up
- * @returns The status object containing code, label, and description
- */
-function getStatusInfo(statusCode: SponsorStatusCode) {
-  return SPONSOR_STATUS_CODES.find(status => status.code === statusCode);
-}
-
-/**
- * Gets the index/position of a status in the pipeline
- * @param statusCode - The status code to find the position of
- * @returns The 0-based index of the status in the pipeline
- */
-function getStatusPosition(statusCode: SponsorStatusCode): number {
-  return SPONSOR_STATUS_CODES.findIndex(status => status.code === statusCode);
-}
-
-interface SponsorCardData {
-  id: string;
-  name: string;
-  websiteUrl?: string | null;
-  logoUrl?: string | null;
-  state: string;
-  qualified: boolean;
-  eventSponsorId: string;
-}
-
-// Kanban columns mapping status codes to display columns
-const columns = [
-  {
-    title: "Lead",
-    statusCodes: ['QUALIFY_SPONSOR', 'SPONSOR_QUALIFIED'],
-  },
-  {
-    title: "Contact Identified",
-    statusCodes: ['CONTACT_IDENTIFIED', 'MATERIALS_SENT', 'SCOUT_HANDOFF', 'INITIAL_CALL_SETUP'],
-  },
-  {
-    title: "Proposal",
-    statusCodes: ['INITIAL_CALL_TAKEN', 'SUBSEQUENT_CALLS', 'PROPOSAL_SENT', 'TERMS_CONFIRMED', 'CONTRACT_SENT'],
-  },
-  {
-    title: "Contract Signed",
-    statusCodes: ['CONTRACT_SIGNED', 'PAYMENT_INFO_SENT', 'PAYMENT_PENDING', 'DELIVERABLES_CIRCULATED', 'ASSETS_COLLECTED', 'MARKETING_COORDINATION', 'POST_CONTRACT'],
-  },
 ];
 
-/**
- * Determines which column a sponsor should appear in based on their status
- * @param statusCode - The sponsor's current status code
- * @returns The column that the sponsor belongs in
- */
-function getColumnForStatus(statusCode: SponsorStatusCode) {
-  return columns.find(col => col.statusCodes.includes(statusCode)) ?? columns[0];
+interface EventCardProps {
+  event: typeof events[0];
 }
 
-function SponsorCard({ sponsor, onClick }: { sponsor: SponsorCardData; onClick: () => void }) {
+function EventCard({ event }: EventCardProps) {
+  const Icon = event.icon;
+  
   return (
-    <Card shadow="sm" padding="md" radius="md" withBorder style={{ cursor: 'pointer' }} onClick={onClick}>
-      <Stack gap="sm">
-        <Group justify="space-between" align="flex-start">
-          <Group gap="sm">
-            <Avatar src={sponsor.logoUrl} alt={sponsor.name} radius="xl">
-              {sponsor.name[0]}
-            </Avatar>
-            <Stack gap={0}>
-              <Text fw={500}>{sponsor.name}</Text>
-              {sponsor.websiteUrl && (
-                <Text size="xs" c="dimmed">
-                  {sponsor.websiteUrl.replace(/^https?:\/\//, "")}
-                </Text>
-              )}
-            </Stack>
-          </Group>
-          {sponsor.qualified && (
-            <Badge color="green" size="xs" variant="light">
-              Qualified
-            </Badge>
-          )}
-        </Group>
-        <Badge 
-          color="blue" 
-          size="sm" 
-          variant="filled" 
-          style={{ alignSelf: 'flex-start' }}
+    <Card shadow="lg" padding="xl" radius="md" withBorder h="100%">
+      <Card.Section>
+        <Box
+          h={120}
+          style={{
+            background: `linear-gradient(135deg, var(--mantine-color-${event.gradient.from}-6) 0%, var(--mantine-color-${event.gradient.to}-6) 100%)`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
         >
-          {sponsor.state}
-        </Badge>
+          <ThemeIcon size={60} radius="xl" variant="light" color="white">
+            <Icon size={30} />
+          </ThemeIcon>
+        </Box>
+      </Card.Section>
+
+      <Stack gap="md" mt="md" style={{ height: 'calc(100% - 120px)' }}>
+        <Stack gap="xs" style={{ flex: 1 }}>
+          <Group justify="space-between" align="flex-start">
+            <Title order={3} size="h2">
+              {event.name}
+            </Title>
+            <Badge 
+              color="green" 
+              variant="light" 
+              size="sm"
+              tt="uppercase"
+            >
+              {event.status}
+            </Badge>
+          </Group>
+          
+          <Text size="sm" c="dimmed" style={{ lineHeight: 1.5 }}>
+            {event.description}
+          </Text>
+        </Stack>
+
+        <Stack gap="sm">
+          <Group justify="space-between">
+            <Group gap="xs">
+              <ThemeIcon size="sm" variant="light" color="blue">
+                <IconUsers size={12} />
+              </ThemeIcon>
+              <Text size="sm" fw={500}>
+                {event.participantsCount} Participants
+              </Text>
+            </Group>
+            <Link href={`/events/${event.id}/participants`} style={{ textDecoration: 'none' }}>
+              <Badge variant="outline" color="blue" style={{ cursor: 'pointer' }}>
+                View
+              </Badge>
+            </Link>
+          </Group>
+
+          <Group justify="space-between">
+            <Group gap="xs">
+              <ThemeIcon size="sm" variant="light" color="orange">
+                <IconBuilding size={12} />
+              </ThemeIcon>
+              <Text size="sm" fw={500}>
+                {event.sponsorsCount} Sponsors
+              </Text>
+            </Group>
+            <Link href={`/events/${event.id}/sponsors`} style={{ textDecoration: 'none' }}>
+              <Badge variant="outline" color="orange" style={{ cursor: 'pointer' }}>
+                View
+              </Badge>
+            </Link>
+          </Group>
+        </Stack>
       </Stack>
     </Card>
   );
 }
 
-export default function SponsorKanbanBoard() {
-  const [addLeadPanelOpened, setAddLeadPanelOpened] = useState(false);
-  const [selectedSponsor, setSelectedSponsor] = useState<SponsorCardData | null>(null);
-  const [sponsorPanelOpened, setSponsorPanelOpened] = useState(false);
-  const [addContactModalOpened, setAddContactModalOpened] = useState(false);
-  const [selectedContactId, setSelectedContactId] = useState<string>("");
-  
-  // Get tRPC utils for invalidation
-  const utils = api.useUtils();
-  
-  // Fetch event data from database
-  const { data: event, isLoading } = api.event.getEvent.useQuery({
-    id: "realfi-hackathon-2024"
-  });
-
-  // Fetch all contacts
-  const { data: allContacts } = api.contact.getContacts.useQuery();
-
-  // Fetch detailed sponsor information when one is selected
-  const { data: detailedSponsor } = api.sponsor.getSponsor.useQuery(
-    { id: selectedSponsor?.id ?? "" }, 
-    { enabled: !!selectedSponsor?.id }
-  );
-
-  // Mutation to add sponsor to event
-  const addSponsorMutation = api.event.addSponsorToEvent.useMutation({
-    onSuccess: (data) => {
-      // Invalidate and refetch the event data to ensure consistency
-      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
-      console.log(`✅ Successfully added ${data.sponsor.name} as a lead!`);
-      // You could add a toast notification here for better UX
-    },
-    onError: (error) => {
-      // Show error message to user
-      console.error('❌ Failed to add sponsor:', error.message);
-      // You could add a toast notification here
-    },
-  });
-
-  // Mutation to assign contact to sponsor
-  const assignContactMutation = api.contact.assignContactToSponsor.useMutation({
-    onSuccess: () => {
-      // Invalidate contact, sponsor, and event data to update columns
-      void utils.contact.getContacts.invalidate();
-      void utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id ?? "" });
-      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
-      setAddContactModalOpened(false);
-      setSelectedContactId("");
-    },
-  });
-
-  // Mutation to remove contact from sponsor
-  const removeContactMutation = api.contact.removeContactFromSponsor.useMutation({
-    onSuccess: () => {
-      // Invalidate contact, sponsor, and event data to update columns
-      void utils.contact.getContacts.invalidate();
-      void utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id ?? "" });
-      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
-    },
-  });
-
-  // Mutation to update sponsor qualified status
-  const updateQualifiedMutation = api.event.updateSponsorQualified.useMutation({
-    onSuccess: (data) => {
-      // Update the local selectedSponsor state to reflect the change immediately
-      if (selectedSponsor) {
-        setSelectedSponsor({
-          ...selectedSponsor,
-          qualified: data.qualified
-        });
-      }
-      
-      // Invalidate event and sponsor data to update status
-      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
-      void utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id ?? "" });
-    },
-  });
-
-  // Transform database sponsors into component format
-  const sponsors = useMemo(() => {
-    if (!event?.sponsors) return [];
-    
-    return event.sponsors.map((eventSponsor): SponsorCardData => {
-      // Determine status using the new status system
-      const statusCode = determineSponsorStatus(eventSponsor);
-      const statusInfo = getStatusInfo(statusCode);
-      
-      return {
-        id: eventSponsor.sponsor.id,
-        name: eventSponsor.sponsor.name,
-        websiteUrl: eventSponsor.sponsor.websiteUrl,
-        logoUrl: eventSponsor.sponsor.logoUrl,
-        state: statusInfo?.label ?? 'Unknown',
-        qualified: eventSponsor.qualified,
-        eventSponsorId: eventSponsor.id
-      };
-    });
-  }, [event]);
-
-  const handleAddSponsor = async (sponsorId: string) => {
-    if (!event) return;
-
-    try {
-      // Perform the mutation - this will trigger the loading state
-      await addSponsorMutation.mutateAsync({
-        eventId: event.id,
-        sponsorId: sponsorId,
-      });
-      
-      // Close the add lead panel on success
-      setAddLeadPanelOpened(false);
-      
-    } catch (error) {
-      // Error handling is done in the mutation's onError callback
-      // Keep the modal open so user can try again
-      console.error('Error in handleAddSponsor:', error);
-    }
-  };
-
-  const handleSponsorClick = (sponsor: SponsorCardData) => {
-    setSelectedSponsor(sponsor);
-    setSponsorPanelOpened(true);
-  };
-
-  const handleAssignContact = async () => {
-    if (!selectedContactId || !selectedSponsor?.id) return;
-
-    try {
-      await assignContactMutation.mutateAsync({
-        contactId: selectedContactId,
-        sponsorId: selectedSponsor.id,
-      });
-    } catch (error) {
-      console.error('Error assigning contact:', error);
-    }
-  };
-
-  const handleRemoveContact = async (contactId: string) => {
-    try {
-      await removeContactMutation.mutateAsync({
-        contactId,
-      });
-    } catch (error) {
-      console.error('Error removing contact:', error);
-    }
-  };
-
-  // Get available contacts (not assigned to this sponsor)
-  const availableContacts = useMemo(() => {
-    if (!allContacts || !detailedSponsor) return [];
-    
-    const sponsorContactIds = detailedSponsor.contacts.map((c: Contact) => c.id);
-    return allContacts.filter((contact: Contact) => !sponsorContactIds.includes(contact.id));
-  }, [allContacts, detailedSponsor]);
-
-  const handleQualifiedChange = async (checked: boolean) => {
-    if (!event || !selectedSponsor) return;
-
-    try {
-      await updateQualifiedMutation.mutateAsync({
-        eventId: event.id,
-        sponsorId: selectedSponsor.id,
-        qualified: checked,
-      });
-    } catch (error) {
-      console.error('Error updating qualified status:', error);
-    }
-  };
-
-  // Calculate timeline position for selected sponsor
-  const timelinePosition = useMemo(() => {
-    if (!selectedSponsor || !event) return 0;
-    const eventSponsor = event.sponsors.find(es => es.sponsor.id === selectedSponsor.id);
-    const currentStatusCode = eventSponsor ? determineSponsorStatus(eventSponsor) : 'QUALIFY_SPONSOR';
-    return getStatusPosition(currentStatusCode);
-  }, [selectedSponsor, event]);
-
-  if (isLoading) {
-    return (
-      <Stack p={{ base: 12, sm: 24, md: 32 }}>
-        <Text>Loading event data...</Text>
-      </Stack>
-    );
-  }
-
-  if (!event) {
-    return (
-      <Stack p={{ base: 12, sm: 24, md: 32 }}>
-        <Text>Event not found</Text>
-      </Stack>
-    );
-  }
-
+export default function EventsPage() {
   return (
-    <>
-      <Stack p={{ base: 12, sm: 24, md: 32 }}>
-        <Title order={4} mb="md">{event.name}</Title>
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="xl">
-          {columns.map((col) => (
-            <Paper key={col.title} p="lg" radius="md" shadow="xs" withBorder>
-              <Stack>
-                <Group justify="space-between">
-                  <Title order={4}>
-                    {col.title}{" "}
-                    {col.title === "Lead" && (
-                      <Button
-                        variant="subtle"
-                        size="xs"
-                        onClick={() => setAddLeadPanelOpened(true)}
-                      >
-                        (Add Lead)
-                      </Button>
-                    )}
-                  </Title>
-                  <Badge color="blue" variant="light">
-                    {sponsors.filter(sponsor => {
-                      const statusCode = determineSponsorStatus(event.sponsors.find(es => es.sponsor.id === sponsor.id)!);
-                      return col.statusCodes.includes(statusCode);
-                    }).length}
-                  </Badge>
-                </Group>
-                <ScrollArea h={500} type="auto" offsetScrollbars>
-                  <Stack gap="sm">
-                    {sponsors
-                      .filter(sponsor => {
-                        const statusCode = determineSponsorStatus(event.sponsors.find(es => es.sponsor.id === sponsor.id)!);
-                        return col.statusCodes.includes(statusCode);
-                      })
-                      .map((sponsor) => <SponsorCard key={sponsor.id} sponsor={sponsor} onClick={() => handleSponsorClick(sponsor)} />)}
-                  </Stack>
-                </ScrollArea>
-              </Stack>
-            </Paper>
+    <Container size="xl" py="xl">
+      <Stack gap="xl">
+        {/* Header Section */}
+        <Stack gap="md" ta="center">
+          <Group justify="center" gap="xs">
+            <ThemeIcon size="xl" radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'purple' }}>
+              <IconCalendarEvent size={28} />
+            </ThemeIcon>
+            <Title order={1} size="h1" fw={700}>
+              Events Center
+            </Title>
+          </Group>
+          <Text size="lg" c="dimmed" maw={600} mx="auto">
+            Manage and explore all active events, track participants and sponsors across our ecosystem.
+          </Text>
+        </Stack>
+
+        {/* Stats Overview */}
+        <Paper p="md" radius="md" withBorder>
+          <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="lg">
+            <Stack gap={0} ta="center">
+              <Text size="xl" fw={700} c="blue">
+                {events.length}
+              </Text>
+              <Text size="sm" c="dimmed">Active Events</Text>
+            </Stack>
+            <Stack gap={0} ta="center">
+              <Text size="xl" fw={700} c="green">
+                {events.reduce((sum, event) => sum + event.participantsCount, 0)}
+              </Text>
+              <Text size="sm" c="dimmed">Total Participants</Text>
+            </Stack>
+            <Stack gap={0} ta="center">
+              <Text size="xl" fw={700} c="orange">
+                {events.reduce((sum, event) => sum + event.sponsorsCount, 0)}
+              </Text>
+              <Text size="sm" c="dimmed">Total Sponsors</Text>
+            </Stack>
+            <Stack gap={0} ta="center">
+              <Text size="xl" fw={700} c="purple">
+                100%
+              </Text>
+              <Text size="sm" c="dimmed">Active Rate</Text>
+            </Stack>
+          </SimpleGrid>
+        </Paper>
+
+        {/* Events Grid */}
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
+          {events.map((event) => (
+            <EventCard key={event.id} event={event} />
           ))}
         </SimpleGrid>
+
+        {/* Additional Actions */}
+        <Group justify="center" mt="xl">
+          <Button 
+            variant="light" 
+            size="lg"
+            leftSection={<IconCalendarEvent size={18} />}
+          >
+            Create New Event
+          </Button>
+          <Button 
+            variant="outline" 
+            size="lg"
+            leftSection={<IconUsers size={18} />}
+          >
+            Manage Participants
+          </Button>
+          <Button 
+            variant="outline" 
+            size="lg"
+            leftSection={<IconBuilding size={18} />}
+          >
+            Sponsor Dashboard
+          </Button>
+        </Group>
       </Stack>
-      
-      <AddLeadPanel
-        opened={addLeadPanelOpened}
-        onClose={() => setAddLeadPanelOpened(false)}
-        onAddSponsor={handleAddSponsor}
-        isAddingLead={addSponsorMutation.isPending}
-        existingSponsorIds={sponsors.map(s => s.id)}
-      />
-      
-      <Drawer
-        opened={sponsorPanelOpened}
-        onClose={() => setSponsorPanelOpened(false)}
-        position="right"
-        size="33%"
-        title={selectedSponsor?.name ?? "Sponsor Details"}
-        overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
-      >
-        {selectedSponsor && (
-          <Tabs defaultValue="general">
-            <Tabs.List>
-              <Tabs.Tab value="general">General</Tabs.Tab>
-              <Tabs.Tab value="timeline">Timeline</Tabs.Tab>
-            </Tabs.List>
-
-            <Tabs.Panel value="general" pt="md">
-              <Stack gap="lg">
-                <Group>
-                  <Avatar size="xl" src={selectedSponsor.logoUrl} alt={selectedSponsor.name} radius="md">
-                    {selectedSponsor.name[0]}
-                  </Avatar>
-                  <Stack gap={0}>
-                    <Text size="xl" fw={600}>{selectedSponsor.name}</Text>
-                    <Badge color="blue" size="md" variant="light">{selectedSponsor.state}</Badge>
-                  </Stack>
-                </Group>
-                
-                {selectedSponsor.websiteUrl && (
-                  <Group gap="xs">
-                    <Text fw={500}>Website:</Text>
-                    <Text 
-                      component="a" 
-                      href={selectedSponsor.websiteUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      style={{ color: 'var(--mantine-color-blue-6)', textDecoration: 'none' }}
-                      className="hover:underline"
-                    >
-                      {selectedSponsor.websiteUrl.replace(/^https?:\/\//, "")}
-                      <IconExternalLink size={14} style={{ marginLeft: 4, display: 'inline' }} />
-                    </Text>
-                  </Group>
-                )}
-                
-                <Stack gap="xs">
-                  <Text fw={500}>Status:</Text>
-                  <Text c="dimmed">{selectedSponsor.state}</Text>
-                </Stack>
-
-                <Checkbox
-                  label="Qualified"
-                  checked={selectedSponsor.qualified}
-                  onChange={(event) => void handleQualifiedChange(event.currentTarget.checked)}
-                  disabled={updateQualifiedMutation.isPending}
-                />
-                
-                <Stack gap="xs">
-                  <Text fw={500}>Sponsor ID:</Text>
-                  <Text c="dimmed" size="sm">{selectedSponsor.id}</Text>
-                </Stack>
-
-                {/* Contacts Section */}
-                <Stack gap="md">
-                  <Group justify="space-between" align="center">
-                    <Text fw={500} size="lg">Contacts</Text>
-                    <Button
-                      leftSection={<IconPlus size={16} />}
-                      variant="light"
-                      size="sm"
-                      onClick={() => setAddContactModalOpened(true)}
-                      disabled={!availableContacts.length}
-                    >
-                      Add Contact
-                    </Button>
-                  </Group>
-                  
-                  {detailedSponsor?.contacts && detailedSponsor.contacts.length > 0 ? (
-                    <Stack gap="sm">
-                      {detailedSponsor.contacts.map((contact: Contact) => (
-                        <Paper key={contact.id} p="md" withBorder>
-                          <Group justify="space-between" align="center">
-                            <Stack gap={0}>
-                              <Text fw={500}>
-                                {contact.firstName} {contact.lastName}
-                              </Text>
-                              <Text size="sm" c="dimmed">
-                                {contact.email}
-                              </Text>
-                            </Stack>
-                            <ActionIcon
-                              color="red"
-                              variant="light"
-                              onClick={() => void handleRemoveContact(contact.id)}
-                              loading={removeContactMutation.isPending}
-                            >
-                              <IconTrash size={16} />
-                            </ActionIcon>
-                          </Group>
-                        </Paper>
-                      ))}
-                    </Stack>
-                  ) : (
-                    <Text c="dimmed" ta="center" py="xl">
-                      No contacts assigned to this sponsor
-                    </Text>
-                  )}
-                </Stack>
-              </Stack>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="timeline" pt="md">
-              <Stack gap="md">
-                <Text fw={500} size="lg">Sponsor Process Timeline</Text>
-                <Timeline active={timelinePosition} bulletSize={24} lineWidth={2}>
-                  <Timeline.Item title="Add Organization to Sponsor Database">
-                    <Text c="dimmed" size="sm">
-                      Organization added to the system for tracking
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Add Organization to Event Board">
-                    <Text c="dimmed" size="sm">
-                      Sponsor appears on the event kanban board
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Qualify Sponsor">
-                    <Text c="dimmed" size="sm">
-                      Initial assessment of sponsor fit and potential
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Sponsor Qualified">
-                    <Text c="dimmed" size="sm">
-                      Sponsor meets qualification criteria
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Identify Sponsor Contact">
-                    <Text c="dimmed" size="sm">
-                      Key contact person identified and added to system
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Send Materials">
-                    <Text c="dimmed" size="sm">
-                      Initial materials and information sent to sponsor
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Flow 2: Scouts Have Qualified and Hand Off">
-                    <Text c="dimmed" size="sm">
-                      Transition from scouts to main team
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Setup Initial Call">
-                    <Text c="dimmed" size="sm">
-                      Schedule first formal conversation with sponsor
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Take Initial Call and Make Pitch">
-                    <Text c="dimmed" size="sm">
-                      Present sponsorship opportunity and value proposition
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Any Subsequent Calls">
-                    <Text c="dimmed" size="sm">
-                      Follow-up discussions and Q&A sessions
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Initial Notion Proposal">
-                    <Text c="dimmed" size="sm">
-                      Formal proposal document created and shared
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Get Terms Confirmation">
-                    <Text c="dimmed" size="sm">
-                      Sponsor confirms agreement to proposed terms
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Contract is Sent to the Sponsor">
-                    <Text c="dimmed" size="sm">
-                      Legal contract documentation delivered
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Contract is Signed">
-                    <Text c="dimmed" size="sm">
-                      Both parties have executed the agreement
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Send Sponsor Payment Information">
-                    <Text c="dimmed" size="sm">
-                      Invoice and payment details provided
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Automatically Check Payment Until Made">
-                    <Text c="dimmed" size="sm">
-                      Monitor payment status until received
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Circulate Sponsor Deliverables Internally">
-                    <Text c="dimmed" size="sm">
-                      Share sponsor requirements with internal team
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Get Assets from Sponsor">
-                    <Text c="dimmed" size="sm">
-                      Collect logos, materials, and other assets
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Marketing Co-ordination">
-                    <Text c="dimmed" size="sm">
-                      Coordinate promotional activities and announcements
-                    </Text>
-                  </Timeline.Item>
-
-                  <Timeline.Item title="Post-contract Steps">
-                    <Text c="dimmed" size="sm">
-                      Ongoing relationship management and fulfillment
-                    </Text>
-                  </Timeline.Item>
-                </Timeline>
-              </Stack>
-            </Tabs.Panel>
-          </Tabs>
-        )}
-      </Drawer>
-      
-      {/* Add Contact Modal */}
-      <Modal
-        opened={addContactModalOpened}
-        onClose={() => {
-          setAddContactModalOpened(false);
-          setSelectedContactId("");
-        }}
-        title="Add Contact to Sponsor"
-        size="md"
-      >
-        <Stack gap="md">
-          <Select
-            label="Select Contact"
-            placeholder="Choose a contact to add"
-            value={selectedContactId}
-            onChange={(value) => setSelectedContactId(value ?? "")}
-            data={availableContacts.map((contact: Contact) => ({
-              value: contact.id,
-              label: `${contact.firstName} ${contact.lastName} (${contact.email})`,
-            }))}
-            searchable
-            maxDropdownHeight={200}
-          />
-          
-          <Group justify="end">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setAddContactModalOpened(false);
-                setSelectedContactId("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => void handleAssignContact()}
-              disabled={!selectedContactId}
-              loading={assignContactMutation.isPending}
-            >
-              Add Contact
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </>
+    </Container>
   );
 }

@@ -1,8 +1,9 @@
-import { Group, Title, Text, Progress, TextInput, ActionIcon, Tooltip, Avatar, Paper } from "@mantine/core";
-import { IconSearch, IconMail, IconBell } from "@tabler/icons-react";
+import { Group, Title, Text, Progress, TextInput, ActionIcon, Tooltip, Avatar, Paper, Button } from "@mantine/core";
+import { IconSearch, IconMail, IconBell, IconLogout } from "@tabler/icons-react";
 import Image from "next/image";
 import { auth } from "~/server/auth";
 import Link from "next/link";
+import SignOutButton from "./SignOutButton";
 
 export default async function HeaderBar() {
     const session = await auth();
@@ -18,10 +19,12 @@ export default async function HeaderBar() {
         </Group>
         <Group align="center" gap={16}>
           <Link href="/events" style={{ textDecoration: 'none', fontWeight: 500 }}>Events</Link>
+          <Link href="/sponsors" style={{ textDecoration: 'none', fontWeight: 500 }}>Sponsors</Link>
           <Link href="/contacts" style={{ textDecoration: 'none', fontWeight: 500 }}>Contacts</Link>
           <Link href="/coins" style={{ textDecoration: 'none', fontWeight: 500 }}>Import</Link>
         </Group>
         <Group gap={16}>
+          {session && <SignOutButton />}
           <TextInput
             placeholder="Search"
             leftSection={<IconSearch size={16} />}
