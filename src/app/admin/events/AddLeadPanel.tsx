@@ -3,7 +3,7 @@
 import { Modal, Stack, Card, Group, Avatar, Text, ActionIcon, ScrollArea, Loader, Alert, TextInput } from "@mantine/core";
 import { IconPlus, IconExternalLink } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
-import CategoryFilter from "../coins/CategoryFilter";
+import CategoryFilter from "../../coins/CategoryFilter";
 import { useState } from "react";
 
 interface AddLeadPanelProps {

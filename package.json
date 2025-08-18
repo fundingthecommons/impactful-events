@@ -25,7 +25,9 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.2",
     "@mantine/core": "8.1.1",
+    "@mantine/form": "^8.2.5",
     "@mantine/hooks": "8.1.1",
+    "@mantine/notifications": "^8.2.5",
     "@notionhq/client": "^4.0.0",
     "@prisma/client": "^6.5.0",
     "@t3-oss/env-nextjs": "^0.12.0",
@@ -34,6 +36,7 @@
     "@trpc/client": "^11.0.0",
     "@trpc/react-query": "^11.0.0",
     "@trpc/server": "^11.0.0",
+    "csv-parser": "^3.2.0",
     "googleapis": "^150.0.1",
     "next": "^15.2.3",
     "next-auth": "5.0.0-beta.25",

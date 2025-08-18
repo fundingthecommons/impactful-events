@@ -1,20 +1,15 @@
 import { redirect } from "next/navigation";
 import { auth } from "~/server/auth";
-import EventsClient from "./EventsClient";
+import ParticipantEventsClient from "./ParticipantEventsClient";
 
 export default async function EventsPage() {
-  // Check authentication and role
+  // Check authentication
   const session = await auth();
   
-  // Must be authenticated
+  // Must be authenticated to view events
   if (!session?.user) {
     redirect("/api/auth/signin?callbackUrl=/events");
   }
   
-  // Must have staff or admin role
-  if (session.user.role !== "staff" && session.user.role !== "admin") {
-    redirect("/unauthorized");
-  }
-  
-  return <EventsClient />;
+  return <ParticipantEventsClient />;
 }

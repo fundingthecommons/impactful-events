@@ -75,6 +75,7 @@ model User {
   userRoles       UserRole[]
   userGlobalRoles UserGlobalRole[] // Keep for backward compatibility but use role field primarily
   createdEvents   Event[]              @relation("EventsCreatedBy")
+  applications    Application[]
 }
 
 model VerificationToken {
@@ -103,6 +104,8 @@ model Event {
 
   userRoles   UserRole[]
   sponsors    EventSponsor[]
+  applications Application[]
+  applicationQuestions ApplicationQuestion[]
 }
 
 model Hackathon {
@@ -371,4 +374,86 @@ model UserGlobalRole {
   assignedBy   String? // Optional: track who assigned the role
 
   @@unique([userId, globalRoleId])
+}
+
+// Application System Models
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  WAITLISTED
+}
+
+enum QuestionType {
+  TEXT
+  TEXTAREA
+  EMAIL
+  PHONE
+  URL
+  SELECT
+  MULTISELECT
+  CHECKBOX
+  NUMBER
+}
+
+model Application {
+  id            String   @id @default(cuid())
+  userId        String?  // Optional initially for legacy data
+  eventId       String   // Links to event
+  email         String   // For matching legacy submissions
+  status        ApplicationStatus @default(DRAFT)
+  language      String   @default("en") // User's preferred language
+  submittedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Legacy data tracking
+  googleFormId  String?  // If migrated from Google Forms
+  notionPageId  String?  // If migrated from Notion Forms
+  
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  responses     ApplicationResponse[]
+  
+  @@unique([userId, eventId]) // One application per user per event
+  @@index([email])
+  @@index([status])
+}
+
+model ApplicationQuestion {
+  id            String   @id @default(cuid())
+  eventId       String   // Questions can be event-specific
+  order         Int      // Display order
+  questionKey   String   // Unique key for the question (e.g., "full_name", "email")
+  questionEn    String   // Question in English
+  questionEs    String   // Question in Spanish
+  questionType  QuestionType
+  required      Boolean  @default(true)
+  options       String[] // For multiple choice questions (JSON array)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  responses     ApplicationResponse[]
+  
+  @@unique([eventId, questionKey]) // Unique question per event
+  @@index([eventId, order])
+}
+
+model ApplicationResponse {
+  id            String   @id @default(cuid())
+  applicationId String
+  questionId    String
+  answer        String   // Store answer as text (JSON for complex responses)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  question      ApplicationQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  @@unique([applicationId, questionId])
+  @@index([applicationId])
 }

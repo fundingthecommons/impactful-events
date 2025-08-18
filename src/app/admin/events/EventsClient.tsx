@@ -126,12 +126,12 @@ function EventCard({ event }: EventCardProps) {
                 <IconUsers size={12} />
               </ThemeIcon>
               <Text size="sm" fw={500}>
-                {event.participantsCount} Participants
+                Applications
               </Text>
             </Group>
-            <Link href={`/events/${event.id}/participants`} style={{ textDecoration: 'none' }}>
+            <Link href={`/admin/events/${event.id}/applications`} style={{ textDecoration: 'none' }}>
               <Badge variant="outline" color="blue" style={{ cursor: 'pointer' }}>
-                View
+                Manage
               </Badge>
             </Link>
           </Group>
@@ -145,7 +145,7 @@ function EventCard({ event }: EventCardProps) {
                 {event.sponsorsCount} Sponsors
               </Text>
             </Group>
-            <Link href={`/events/${event.id}/sponsors`} style={{ textDecoration: 'none' }}>
+            <Link href={`/admin/events/${event.id}/sponsors`} style={{ textDecoration: 'none' }}>
               <Badge variant="outline" color="orange" style={{ cursor: 'pointer' }}>
                 View
               </Badge>

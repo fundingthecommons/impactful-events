@@ -3,7 +3,7 @@ import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, Simp
 import { useState, useMemo } from "react";
 import '@mantine/core/styles.css';
 import { IconExternalLink, IconPlus, IconTrash } from "@tabler/icons-react";
-import AddLeadPanel from "../events/AddLeadPanel";
+import AddLeadPanel from "../admin/events/AddLeadPanel";
 import { api } from "~/trpc/react";
 
 // Type definitions based on Prisma schema
