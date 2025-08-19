@@ -45,6 +45,29 @@ async function main() {
     console.log(`✅ Created/updated sponsor: ${sponsor.name}`)
   }
 
+  // Create default roles for invitation system
+  const defaultRoles = [
+    { name: 'sponsor', description: 'Event sponsor with access to sponsor areas' },
+    { name: 'mentor', description: 'Event mentor providing guidance to participants' },
+    { name: 'judge', description: 'Event judge for evaluating submissions' },
+    { name: 'organizer', description: 'Event organizer with management permissions' },
+    { name: 'speaker', description: 'Event speaker or presenter' },
+    { name: 'volunteer', description: 'Event volunteer helping with operations' },
+    { name: 'participant', description: 'General event participant' }
+  ]
+
+  console.log('🌱 Creating default roles...')
+  for (const roleData of defaultRoles) {
+    const role = await prisma.role.upsert({
+      where: { name: roleData.name },
+      update: {},
+      create: {
+        name: roleData.name,
+      },
+    })
+    console.log(`✅ Created/updated role: ${role.name}`)
+  }
+
   // Create RealFi event
   const realFiEvent = await prisma.event.upsert({
     where: { id: 'realfi-hackathon-2024' },

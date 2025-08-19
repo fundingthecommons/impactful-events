@@ -182,4 +182,292 @@ export const roleRouter = createTRPCRouter({
       globalRoles: user.userGlobalRoles.map(ur => ur.globalRole),
     }));
   }),
+
+  // Get all users with their event roles and applications
+  getAllUsersWithEventRoles: protectedProcedure
+    .input(z.object({
+      search: z.string().optional(),
+      eventId: z.string().optional(),
+      roleId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // TODO: Add admin check here once we implement it
+      
+      const users = await ctx.db.user.findMany({
+        where: {
+          ...(input.search && {
+            OR: [
+              { name: { contains: input.search, mode: "insensitive" } },
+              { email: { contains: input.search, mode: "insensitive" } },
+            ],
+          }),
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          image: true,
+          emailVerified: true,
+          userRoles: {
+            where: {
+              ...(input.eventId && { eventId: input.eventId }),
+              ...(input.roleId && { roleId: input.roleId }),
+            },
+            include: {
+              event: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              role: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          applications: {
+            include: {
+              event: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: {
+              userRoles: true,
+              applications: true,
+            },
+          },
+        },
+        orderBy: [
+          { role: "desc" }, // Admins first, then staff, then users
+          { name: "asc" },
+        ],
+      });
+
+      return users;
+    }),
+
+  // Assign event role to existing user
+  assignEventRole: protectedProcedure
+    .input(z.object({
+      userId: z.string(),
+      eventId: z.string(),
+      roleId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // TODO: Add admin check here once we implement it
+      
+      // Check if assignment already exists
+      const existing = await ctx.db.userRole.findUnique({
+        where: {
+          userId_eventId_roleId: {
+            userId: input.userId,
+            eventId: input.eventId,
+            roleId: input.roleId,
+          },
+        },
+      });
+
+      if (existing) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "User already has this role for this event",
+        });
+      }
+
+      // Verify user, event, and role exist
+      const [user, event, role] = await Promise.all([
+        ctx.db.user.findUnique({ where: { id: input.userId } }),
+        ctx.db.event.findUnique({ where: { id: input.eventId } }),
+        ctx.db.role.findUnique({ where: { id: input.roleId } }),
+      ]);
+
+      if (!user || !event || !role) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User, event, or role not found",
+        });
+      }
+
+      const userRole = await ctx.db.userRole.create({
+        data: {
+          userId: input.userId,
+          eventId: input.eventId,
+          roleId: input.roleId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          role: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      return userRole;
+    }),
+
+  // Remove event role from user
+  removeEventRole: protectedProcedure
+    .input(z.object({
+      userId: z.string(),
+      eventId: z.string(),
+      roleId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // TODO: Add admin check here once we implement it
+      
+      const deleted = await ctx.db.userRole.deleteMany({
+        where: {
+          userId: input.userId,
+          eventId: input.eventId,
+          roleId: input.roleId,
+        },
+      });
+
+      if (deleted.count === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User role assignment not found",
+        });
+      }
+
+      return { success: true };
+    }),
+
+  // Update user's global role (admin -> staff -> user)
+  updateUserGlobalRole: protectedProcedure
+    .input(z.object({
+      userId: z.string(),
+      newRole: z.enum(["user", "staff", "admin"]),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // TODO: Add admin check here once we implement it
+      
+      const user = await ctx.db.user.update({
+        where: { id: input.userId },
+        data: { role: input.newRole },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      });
+
+      return user;
+    }),
+
+  // Get user details with all roles and applications
+  getUserDetails: protectedProcedure
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // TODO: Add admin check here once we implement it
+      
+      const user = await ctx.db.user.findUnique({
+        where: { id: input.userId },
+        include: {
+          userRoles: {
+            include: {
+              event: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  startDate: true,
+                  endDate: true,
+                },
+              },
+              role: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          applications: {
+            include: {
+              event: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          },
+          userGlobalRoles: {
+            include: {
+              globalRole: true,
+            },
+          },
+          _count: {
+            select: {
+              userRoles: true,
+              applications: true,
+              posts: true,
+            },
+          },
+        },
+      });
+
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      return user;
+    }),
+
+  // Get user statistics
+  getUserStats: protectedProcedure.query(async ({ ctx }) => {
+    // TODO: Add admin check here once we implement it
+    
+    const [totalUsers, adminCount, staffCount, usersWithRoles] = await Promise.all([
+      ctx.db.user.count(),
+      ctx.db.user.count({ where: { role: "admin" } }),
+      ctx.db.user.count({ where: { role: "staff" } }),
+      ctx.db.user.count({
+        where: {
+          userRoles: {
+            some: {},
+          },
+        },
+      }),
+    ]);
+
+    return {
+      total: totalUsers,
+      admins: adminCount,
+      staff: staffCount,
+      users: totalUsers - adminCount - staffCount,
+      usersWithEventRoles: usersWithRoles,
+    };
+  }),
 });

@@ -182,6 +182,166 @@ function formatFieldName(fieldKey: string): string {
 }
 
 /**
+ * Generate email content for event invitations
+ */
+export function generateInvitationEmail(params: {
+  inviteeName?: string;
+  email: string;
+  eventName: string;
+  eventDescription: string;
+  roleName: string;
+  inviterName: string;
+  signupUrl: string;
+  invitationToken: string;
+  expiresAt: Date;
+}): { subject: string; htmlContent: string; textContent: string } {
+  const { 
+    inviteeName, 
+    email, 
+    eventName, 
+    eventDescription, 
+    roleName, 
+    inviterName, 
+    signupUrl, 
+    invitationToken,
+    expiresAt 
+  } = params;
+  
+  const signupWithTokenUrl = `${signupUrl}?invitation=${invitationToken}`;
+  const displayName = inviteeName ?? email.split('@')[0];
+  const expirationDate = expiresAt.toLocaleDateString();
+  
+  const subject = `You're Invited: Join ${eventName} as ${roleName}`;
+  
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #333; margin-bottom: 10px;">You're Invited!</h1>
+        <div style="height: 3px; background: linear-gradient(90deg, #007bff, #28a745); margin: 10px auto; width: 100px;"></div>
+      </div>
+      
+      <p>Hi ${displayName},</p>
+      
+      <p>${inviterName} has invited you to join <strong>${eventName}</strong> as a <strong style="color: #007bff;">${roleName}</strong>.</p>
+      
+      <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 25px 0;">
+        <h3 style="color: #333; margin-top: 0; margin-bottom: 15px;">${eventName}</h3>
+        <p style="color: #666; margin-bottom: 0;">${eventDescription}</p>
+      </div>
+      
+      <div style="background-color: #e3f2fd; border-left: 4px solid #007bff; padding: 15px; margin: 25px 0;">
+        <h4 style="color: #1976d2; margin-top: 0; margin-bottom: 10px;">Your Role: ${roleName}</h4>
+        <p style="margin-bottom: 0; color: #555;">You'll have special access and permissions for this event.</p>
+      </div>
+      
+      <p><strong>What's next?</strong></p>
+      <ol style="color: #555;">
+        <li>Click the button below to create your account or sign in</li>
+        <li>Your role will be automatically assigned when you sign up</li>
+        <li>You'll get access to ${roleName}-specific features and areas</li>
+      </ol>
+      
+      <div style="text-align: center; margin: 35px 0;">
+        <a href="${signupWithTokenUrl}" 
+           style="background-color: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 500; font-size: 16px;">
+          Accept Invitation
+        </a>
+      </div>
+      
+      <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 12px; margin: 25px 0;">
+        <p style="margin: 0; color: #856404; font-size: 14px;">
+          <strong>⏰ This invitation expires on ${expirationDate}.</strong> 
+          Make sure to accept it before then!
+        </p>
+      </div>
+      
+      <p>If you have any questions about this invitation or the event, feel free to reach out to ${inviterName} or our support team.</p>
+      
+      <p>Looking forward to having you as part of ${eventName}!</p>
+      
+      <p>Best regards,<br>
+      The ${eventName} Team</p>
+      
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+      <p style="font-size: 12px; color: #666;">
+        You received this invitation because ${inviterName} thought you'd be a great ${roleName} for ${eventName}. 
+        If you believe this was sent in error, please ignore this email.
+        <br><br>
+        Invitation link: <a href="${signupWithTokenUrl}" style="color: #007bff; text-decoration: none;">${signupWithTokenUrl}</a>
+      </p>
+    </div>
+  `;
+  
+  const textContent = `
+You're Invited: Join ${eventName} as ${roleName}
+
+Hi ${displayName},
+
+${inviterName} has invited you to join ${eventName} as a ${roleName}.
+
+About the Event:
+${eventName}
+${eventDescription}
+
+Your Role: ${roleName}
+You'll have special access and permissions for this event.
+
+What's next?
+1. Click the link below to create your account or sign in
+2. Your role will be automatically assigned when you sign up
+3. You'll get access to ${roleName}-specific features and areas
+
+Accept your invitation:
+${signupWithTokenUrl}
+
+⏰ This invitation expires on ${expirationDate}. Make sure to accept it before then!
+
+If you have any questions about this invitation or the event, feel free to reach out to ${inviterName} or our support team.
+
+Looking forward to having you as part of ${eventName}!
+
+Best regards,
+The ${eventName} Team
+
+---
+You received this invitation because ${inviterName} thought you'd be a great ${roleName} for ${eventName}. 
+If you believe this was sent in error, please ignore this email.
+
+Invitation link: ${signupWithTokenUrl}
+  `;
+  
+  return { subject, htmlContent, textContent };
+}
+
+/**
+ * Send invitation email
+ */
+export async function sendInvitationEmail(params: {
+  email: string;
+  eventName: string;
+  eventDescription: string;
+  roleName: string;
+  inviterName: string;
+  invitationToken: string;
+  expiresAt: Date;
+}): Promise<SendEmailResult> {
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const signupUrl = `${baseUrl}/register`;
+  
+  const emailContent = generateInvitationEmail({
+    ...params,
+    signupUrl,
+  });
+  
+  return sendEmail({
+    to: params.email,
+    subject: emailContent.subject,
+    htmlContent: emailContent.htmlContent,
+    textContent: emailContent.textContent,
+  });
+}
+
+/**
  * Test email connectivity
  */
 export async function testEmailConnection(): Promise<boolean> {

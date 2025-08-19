@@ -3,6 +3,7 @@ import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
+import '@mantine/dates/styles.css';
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
@@ -27,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable}`}>
       <body>
-        <MantineProvider>
+        <MantineProvider forceColorScheme="light">
           <Notifications />
           <TRPCReactProvider>
             <HeaderBar />

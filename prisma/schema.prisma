@@ -108,6 +108,7 @@ model Event {
   applications Application[]
   applicationQuestions ApplicationQuestion[]
   emails      Email[]  // Emails related to this event
+  invitations Invitation[]  // Invitations for this event
 }
 
 model Hackathon {
@@ -234,6 +235,7 @@ model Role {
   id        String   @id @default(cuid())
   name      String  
   userRoles UserRole[]
+  invitations Invitation[]  // Invitations for this role
 
   @@unique([name])
 }
@@ -401,6 +403,13 @@ enum QuestionType {
   NUMBER
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
 model Application {
   id            String   @id @default(cuid())
   userId        String?  // Optional initially for legacy data
@@ -459,6 +468,30 @@ model ApplicationResponse {
   
   @@unique([applicationId, questionId])
   @@index([applicationId])
+}
+
+// Invitation System Models
+model Invitation {
+  id          String   @id @default(cuid())
+  email       String   // Email to invite
+  eventId     String   // Which event they're being invited to
+  roleId      String   // What role they'll get (mentor, sponsor, etc.)
+  
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  invitedBy   String   // Admin who sent invitation
+  token       String   @unique @default(cuid()) // For invitation links
+  
+  createdAt   DateTime @default(now())
+  acceptedAt  DateTime?
+  
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  @@unique([email, eventId, roleId]) // Prevent duplicate invites
+  @@index([email])
+  @@index([token])
+  @@index([status])
 }
 
 // Email System Models
