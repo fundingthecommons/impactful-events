@@ -176,7 +176,7 @@ async function main() {
       questionEn: "Telegram",
       questionEs: "Telegram",
       questionType: "TEXT" as const,
-      required: false,
+      required: true,
       order: 7
     },
     {
@@ -236,7 +236,7 @@ async function main() {
       questionEn: "What, if any, commitments (e.g. work/spouse/family) do you have that would make committing to the residency difficult?",
       questionEs: "¿Qué compromisos, si es que tienes alguno (trabajo, pareja, familia), podrían dificultarte comprometerte a atender la residencia?",
       questionType: "TEXTAREA" as const,
-      required: false,
+      required: true,
       order: 14
     },
     {
@@ -244,7 +244,7 @@ async function main() {
       questionEn: "How did you hear about this program? If you were referred by someone, please tell us who.",
       questionEs: "¿Cómo te enteraste del programa? Si alguien te lo recomendó, por favor dinos quién fue.",
       questionType: "TEXTAREA" as const,
-      required: false,
+      required: true,
       order: 15
     },
     {
@@ -270,7 +270,7 @@ async function main() {
       questionEn: "If you answered 'other' in the previous question, please specify here. If you did not select 'other,' please answer with N/A.",
       questionEs: "Si respondiste \"otro\" en la pregunta anterior, por favor da más detalle. Si no seleccionaste \"otro\", responde con N/A.",
       questionType: "TEXT" as const,
-      required: false,
+      required: true,
       order: 18
     },
     {
@@ -310,7 +310,7 @@ async function main() {
       questionEn: "Are you currently working on—or interested in building—real-fi solutions (solutions for the real world)? Please elaborate.",
       questionEs: "¿Actualmente estás trabajando o te interesaría trabajar en soluciones RealFi (para el mundo real)? Por favor describe.",
       questionType: "TEXTAREA" as const,
-      required: false,
+      required: true,
       order: 23
     },
     {
@@ -318,7 +318,7 @@ async function main() {
       questionEn: "Do privacy-preserving tools or protocols play a role in your work? If so, how?",
       questionEs: "¿Las herramientas o protocolos que preservan la privacidad juegan un rol en tu trabajo? Si es así, ¿cómo?",
       questionType: "TEXTAREA" as const,
-      required: false,
+      required: true,
       order: 24
     },
     {
@@ -326,7 +326,7 @@ async function main() {
       questionEn: "Have you experimented with or proposed new public goods funding mechanisms (e.g. quadratic funding, retroPGF, hypercerts)? Tell us more.",
       questionEs: "¿Has experimentado con o propuesto nuevos mecanismos de financiamiento para Public Goods (por ejemplo, quadratic funding, retroPGF, hypercerts)? Cuéntanos más.",
       questionType: "TEXTAREA" as const,
-      required: false,
+      required: true,
       order: 25
     },
     {
@@ -334,7 +334,7 @@ async function main() {
       questionEn: "How do you think we should measure the impact of public goods?",
       questionEs: "En tu opinión, ¿cómo debería medirse el impacto de los Public Goods (Bienes Públicos)?",
       questionType: "TEXTAREA" as const,
-      required: false,
+      required: true,
       order: 26
     },
     {
@@ -342,7 +342,7 @@ async function main() {
       questionEn: "What kind of people or expertise are you hoping to connect with during the residency?",
       questionEs: "¿Con qué tipo de personas o conocimientos te gustaría conectar durante la residencia?",
       questionType: "TEXTAREA" as const,
-      required: false,
+      required: true,
       order: 27
     },
     {
@@ -350,15 +350,15 @@ async function main() {
       questionEn: "What can you offer to others in the cohort?",
       questionEs: "¿Qué puedes ofrecer a tus demás compañeros en esta edición de la residencia?",
       questionType: "TEXTAREA" as const,
-      required: false,
+      required: true,
       order: 28
     },
     {
       questionKey: "intro_video_link",
       questionEn: "Please include a one-minute introduction video. You can upload it here, or share a private YouTube or Loom link below.",
-      questionEs: "Por favor, incluye un video de presentación de un minuto. Puedes subirlo aquí o compartir un enlace privado de YouTube o Loom abajo.",
+      questionEs: "Por favor, incluye un video de presentación de un minuto. Puedes subirlo aquí o compartir un enlace privado de YouTube or Loom abajo.",
       questionType: "URL" as const,
-      required: false,
+      required: true,
       order: 29
     },
     {
@@ -366,7 +366,7 @@ async function main() {
       questionEn: "Is there anything else you want us to know about you?",
       questionEs: "¿Hay algo más que quieras contarnos sobre ti?",
       questionType: "TEXTAREA" as const,
-      required: false,
+      required: true,
       order: 30
     },
     {
@@ -374,7 +374,7 @@ async function main() {
       questionEn: "Do you want to subscribe to our newsletter?",
       questionEs: "¿Te quieres suscribir a nuestro newsletter?",
       questionType: "SELECT" as const,
-      required: false,
+      required: true,
       options: ["Yes", "No"],
       order: 31
     }
