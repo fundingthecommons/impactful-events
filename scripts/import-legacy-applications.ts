@@ -45,39 +45,48 @@ const GOOGLE_FORM_MAPPING: Record<string, string> = {
   "Do you agree to our media policy? / ¿Te parece bien cómo usamos fotos y videos del evento (ver política)?": "media_policy",
 };
 
-// Column mapping for Notion forms CSV (based on the form structure provided)
+// Column mapping for Notion forms CSV (updated to match actual CSV headers)
 const NOTION_FORM_MAPPING: Record<string, string> = {
-  "First and last legal name as listed on your passport": "full_name",
-  "Email": "email",
-  "What is your nationality": "nationality", 
-  "Twitter": "twitter",
-  "GitHub": "github",
-  "LinkedIn": "linkedin",
-  "Telegram": "telegram",
-  "Will you be able to attend the full program from October 24th through November 14th?": "program_availability",
-  "What do you want to build during the residency?": "project_description",
-  "What is your prior experience with cryptography/currency, decentralized technologies, and/or climate, and public goods funding systems?": "prior_experience",
-  "Do you need financial support to attend the residency?": "financial_support",
-  "Do you need a visa?": "visa_needed",
-  "Do you agree to our terms and conditions?": "terms_agreement",
-  "What, if any, commitments (e.g. work/spouse/family) do you have that would make committing to the residency difficult?": "commitments",
-  "How did you hear about this program? If you were referred by someone, please tell us who.": "how_heard",
-  "Are you fully available for the duration of the residency?": "fully_available",
-  "What are your technical skills? Please select all that apply.": "technical_skills",
-  "If you answered 'other' in the previous question, please specify here. If you did not select 'other,' please answer with N/A.": "technical_skills_other",
-  "On a scale of 1-10, 1 being a beginner, 5 being very confident about the skill, and 10 being world-class expert, how would you rate the technical skills you chose for the last two questions?": "skill_rating",
-  "Tell us about a time when you contributed to a collaborative or open-source effort. What did you learn?": "open_source_experience",
-  "What does 'funding the commons' mean to you, and why is it important?": "funding_commons_meaning",
-  "What motivates you to contribute to the public goods ecosystem?": "public_goods_motivation",
-  "Are you currently working on—or interested in building—real-fi solutions (solutions for the real world)? Please elaborate.": "realfi_interest",
-  "Do privacy-preserving tools or protocols play a role in your work? If so, how?": "privacy_tools",
-  "Have you experimented with or proposed new public goods funding mechanisms (e.g. quadratic funding, retroPGF, hypercerts)? Tell us more.": "funding_mechanisms",
-  "How do you think we should measure the impact of public goods?": "impact_measurement",
-  "What kind of people or expertise are you hoping to connect with during the residency?": "connections_sought",
-  "What can you offer to others in the cohort?": "cohort_contribution",
-  "Please include a one-minute introduction video. You can upload it here, or share a private YouTube or Loom link below.": "intro_video_link",
-  "Is there anything else you want us to know about you?": "additional_info",
-  "Do you want to subscribe to our newsletter?": "newsletter_subscription",
+  // Core identification fields
+  "First and last legal name as listed on your passport": "full_name", // Column 14
+  "Email / Correo electrónico": "email", // Column 15
+  "What is your nationality ? / ¿Cuál es tu nacionalidad? ": "nationality", // Column 22
+  
+  // Social media fields
+  "Twitter": "twitter", // Column 49
+  "GitHub": "github", // Column 47
+  "LinkedIn": "linkedin", // Column 50
+  "Telegram": "telegram", // Column 12
+  
+  // Program specific questions
+  "Will you be able to attend the full program from October 24th through November 14th? / ¿Estarás disponible durante todo el tiempo que duré la residencia?": "program_availability", // Column 33
+  "What do you want to build during the residency? / ¿Qué proyecto quieres desarrollar durante la residencia?": "project_description", // Column 16
+  "What is your prior experience with cryptography/currency, decentralized technologies, and/or climate, and public goods funding systems?": "prior_experience", // Column 18-21 (multiline)
+  "Do you need financial support to attend the residency? / ¿Necesitas apoyo financiero para atender la residencia?": "financial_support", // Column 41
+  "Do you need a visa?": "visa_needed", // Column 86
+  "Do you agree to our terms and conditions?": "terms_agreement", // Column 55
+  "What, if any, commitments (e.g. work/spouse/family) do you have that would make committing to the residency difficult? / ¿Qué compromisos, si es que tienes alguno  (trabajo, pareja, familia), podrían dificultarte comprometerte a atender la residencia?": "commitments", // Column 34-40 (multiline)
+  "How did you hear about this program? If you were referred by someone, please tell us who. / ¿Cómo te enteraste delprograma? Si alguien te lo recomendó, por favor dinos quién fue.": "how_heard", // Column 51-53 (multiline)
+  
+  // Technical skills
+  "What are your technical skills? Please select all that apply. / ¿Cuáles son tus habilidades técnicas? Por favor, selecciona todas las que apliquen.": "technical_skills", // Column 23-24 (multiline)
+  "If you answered 'other' in the previous question, please specify here. If you did not select 'other,' please answer with N/A.": "technical_skills_other", // Column 25-27 (multiline)
+  "On a scale of 1-10, 1 being a beginner, 5 being very confident about the skill, and 10 being world-class expert, how would you rate the technical skills you chose for the last two questions?": "skill_rating", // Column 28-32 (multiline)
+  
+  // Deep questions
+  "Tell us about a time when you contributed to a collaborative or open-source effort. What did you learn? / Dime de alguna vez en la que tuviste que contribuir a una iniciativa de open-source. ¿Qué aprendiste?": "open_source_experience", // Column 130
+  "What does 'funding the commons' mean to you, and why is it important? / ¿Qué significa para ti \"funding the commons\" y por qué es importante? ": "funding_commons_meaning", // Column 138
+  "What motivates you to contribute to the public goods ecosystem? / ¿Qué te motiva a construir y contribuir en el ecosistema de Public Goods (Bienes Públicos)?": "public_goods_motivation", // Column 141
+  "Are you currently working on—or interested in building—real-fi solutions (solutions for the real world)? Please elaborate. / ¿Actualmente estás trabajando o te interesaría trabajar en soluciones RealFi (para el mundo real)? Por favor describe. ": "realfi_interest", // Column 91
+  "Do privacy-preserving tools or protocols play a role in your work? If so, how? / ¿Las herramientas o protocolos que preservan la privacidad juegan un rol en tu trabajo? Si es así, ¿cómo?": "privacy_tools", // Column 94-96 (multiline)
+  "Have you experimented with or proposed new public goods funding mechanisms (e.g. quadratic funding, retroPGF, hypercerts)? Tell us more. / ¿Has experimentado con o propuesto nuevos mecanismos de financiamiento para Public Goods (por ejemplo, quadratic funding, retroPGF, hypercerts)? Cuéntanos más.": "funding_mechanisms", // Column 98-103 (multiline)
+  "How do you think we should measure the impact of public goods? / En tu opinión, ¿cómo debería medirse el impacto de los Public Goods (Bienes Públicos)?": "impact_measurement", // Column 104-105 (multiline)
+  "What kind of people or expertise are you hoping to connect with during the residency? / ¿Con qué tipo de personas o conocimientos te gustaría conectar durante la residencia?": "connections_sought", // Column 142
+  "What can you offer to others in the cohort? / ¿Qué puedes ofrecer a tus demás compañeros en esta edición de la residencia?": "cohort_contribution", // Column 137
+  "Please include a one-minute introduction video.\nYou can upload it here, or share a private YouTube or Loom link below. / Por favor, incluye un video de presentación de un minuto. Puedes subirlo aquí o compartir un enlace privado de YouTube o Loom abajo.": "intro_video_link", // Column 129
+  "Link us to your intro video if you didn't upload one above. / Comparte el enlace a tu video de presentación si no lo subiste arriba.": "intro_video_link", // Column 117 (alternative)
+  "Is there anything else you want us to know about you?": "additional_info", // Column 54
+  "Do you want to subscribe to our newsletter? / ¿Te quieres suscribir a nuestro newsletter?": "newsletter_subscription", // Column 97
 };
 
 async function readCSV(filePath: string): Promise<CSVRow[]> {
@@ -278,8 +287,5 @@ async function main() {
   }
 }
 
-if (require.main === module) {
-  main().catch(console.error);
-}
-
-export { importApplications };
+// Run the main function directly
+main().catch(console.error);

@@ -44,3 +44,11 @@ yarn-error.log*
 
 # idea files
 .idea
+
+# application logs
+ftc.log
+one.log
+*.log
+
+# import data
+imports/
