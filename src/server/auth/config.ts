@@ -1,9 +1,12 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { type DefaultSession, type NextAuthConfig } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
 import DiscordProvider from "next-auth/providers/discord";
 import GoogleProvider from "next-auth/providers/google";
+import { z } from "zod";
 
 import { db } from "~/server/db";
+import { verifyPassword } from "~/utils/password";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -32,6 +35,68 @@ declare module "next-auth" {
  */
 export const authConfig = {
   providers: [
+    CredentialsProvider({
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        console.log("[AUTH] Authorize function called with credentials for:", credentials?.email);
+        
+        const credentialsSchema = z.object({
+          email: z.string().email(),
+          password: z.string().min(1),
+        });
+
+        const result = credentialsSchema.safeParse(credentials);
+
+        if (!result.success) {
+          console.log("[AUTH] Credentials validation failed:", result.error);
+          return null;
+        }
+
+        const { email, password } = result.data;
+        console.log("[AUTH] Looking up user with email:", email);
+
+        const user = await db.user.findUnique({
+          where: { email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            password: true,
+            role: true,
+          },
+        });
+
+        console.log("[AUTH] User found:", user ? { id: user.id, email: user.email, name: user.name, hasPassword: !!user.password } : "No user found");
+
+        if (!user?.password) {
+          console.log("[AUTH] User not found or no password set");
+          return null;
+        }
+
+        console.log("[AUTH] Verifying password...");
+        const passwordValid = await verifyPassword(password, user.password);
+        console.log("[AUTH] Password verification result:", passwordValid);
+
+        if (!passwordValid) {
+          console.log("[AUTH] Password verification failed");
+          return null;
+        }
+
+        const userForAuth = {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role ?? undefined,
+        };
+        
+        console.log("[AUTH] Authentication successful, returning user:", userForAuth);
+        return userForAuth;
+      },
+    }),
     DiscordProvider,
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -60,6 +125,9 @@ export const authConfig = {
   pages: {
     error: '/auth/error', // Custom error page
   },
+  session: {
+    strategy: "jwt", // Use JWT for credentials provider
+  },
   cookies: {
     sessionToken: {
       name: `ftc-t3.sessionToken`,
@@ -76,12 +144,20 @@ export const authConfig = {
       // Always allow sign in - NextAuth will handle account linking with the adapter
       return true;
     },
-    session: ({ session, user }) => ({
+    jwt: ({ token, user }) => {
+      // When user logs in, add user data to token
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+      }
+      return token;
+    },
+    session: ({ session, token }) => ({
       ...session,
       user: {
         ...session.user,
-        id: user.id,
-        role: user.role,
+        id: token.id as string,
+        role: token.role as string | undefined,
       },
     }),
   },
