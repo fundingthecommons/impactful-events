@@ -451,7 +451,7 @@ export default function DynamicApplicationForm({
     );
   }
 
-  const canEdit = !existingApplication || existingApplication.status === "DRAFT";
+  const canEdit = !existingApplication || (existingApplication.status !== "UNDER_REVIEW" && existingApplication.status !== "ACCEPTED" && existingApplication.status !== "REJECTED" && existingApplication.status !== "WAITLISTED");
   const isSubmitted = existingApplication && existingApplication.status !== "DRAFT";
 
   return (

@@ -90,9 +90,9 @@ function getStatusMessage(status: string) {
     case "DRAFT":
       return "Your application is saved as a draft. Submit when you're ready!";
     case "SUBMITTED":
-      return "Your application has been submitted and is pending review.";
+      return "Your application has been submitted and is pending review. You can still edit it until it's under review.";
     case "UNDER_REVIEW":
-      return "Your application is currently under review by our team.";
+      return "Your application is currently under review by our team. Editing is no longer available.";
     case "ACCEPTED":
       return "Congratulations! Your application has been accepted.";
     case "REJECTED":
