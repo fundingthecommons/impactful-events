@@ -123,7 +123,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [actionsTab, setActionsTab] = useState<string>("next");
 
   // Fetch emails for the currently viewing application
-  const { data: applicationEmails, isLoading: emailsLoading } = api.email.getApplicationEmails.useQuery(
+  const { data: applicationEmails } = api.email.getApplicationEmails.useQuery(
     { applicationId: viewingApplication?.id ?? "" },
     { enabled: !!viewingApplication?.id && viewDrawerOpened }
   );
@@ -824,7 +824,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             <Text fw={600} color="blue.7">Application Submitted</Text>
                           </Group>
                           <Text size="sm" c="dimmed">
-                            This application has been submitted and is ready for review. Change status to "Under Review" to begin evaluation.
+                            This application has been submitted and is ready for review. Change status to &ldquo;Under Review&rdquo; to begin evaluation.
                           </Text>
                         </Stack>
                       )}
