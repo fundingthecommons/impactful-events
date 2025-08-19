@@ -336,7 +336,7 @@ export function generateGlobalAdminInvitationEmail(params: {
   } = params;
   
   const signupWithTokenUrl = `${signupUrl}?invitation=${invitationToken}`;
-  const displayName = inviteeName || email.split('@')[0];
+  const displayName = inviteeName ?? email.split('@')[0];
   const expirationDate = expiresAt.toLocaleDateString();
   const roleDisplayName = globalRole === "admin" ? "Administrator" : "Staff Member";
   
