@@ -15,17 +15,19 @@ import {
   Select,
   TextInput,
   ActionIcon,
-  Modal,
+  Drawer,
   Paper,
   Loader,
   Menu,
-  Divider,
+  Tabs,
+  ScrollArea,
+  Box,
+  Anchor,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { 
   IconArrowLeft,
-  IconFilter,
   IconDownload,
   IconEye,
   IconCheck,
@@ -34,9 +36,11 @@ import {
   IconSearch,
   IconDots,
   IconUsers,
+  IconEdit,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import EditableApplicationForm from "~/app/_components/EditableApplicationForm";
 
 type Event = {
   id: string;
@@ -105,17 +109,54 @@ function getStatusIcon(status: string) {
 }
 
 export default function AdminApplicationsClient({ event }: AdminApplicationsClientProps) {
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
   const [viewingApplication, setViewingApplication] = useState<ApplicationWithUser | null>(null);
-  const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
+  const [editingApplication, setEditingApplication] = useState<ApplicationWithUser | null>(null);
+  const [viewDrawerOpened, { open: openViewDrawer, close: closeViewDrawer }] = useDisclosure(false);
+  const [editDrawerOpened, { open: openEditDrawer, close: closeEditDrawer }] = useDisclosure(false);
 
-  // Fetch applications
-  const { data: applications, isLoading, refetch } = api.application.getEventApplications.useQuery({
+  // Determine status filter based on active tab
+  const getStatusForTab = (tab: string) => {
+    switch (tab) {
+      case "under_review":
+        return "UNDER_REVIEW" as const;
+      case "accepted":
+        return "ACCEPTED" as const;
+      case "rejected":
+        return "REJECTED" as const;
+      case "all":
+      default:
+        return undefined;
+    }
+  };
+
+  // Fetch applications based on active tab
+  const { data: applications, isLoading } = api.application.getEventApplications.useQuery({
     eventId: event.id,
-    status: statusFilter ? (statusFilter as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED") : undefined,
+    status: getStatusForTab(activeTab),
   });
+
+  // Fetch counts for tab badges
+  const { data: allApplications } = api.application.getEventApplications.useQuery({
+    eventId: event.id,
+  });
+  const { data: underReviewApplications } = api.application.getEventApplications.useQuery({
+    eventId: event.id,
+    status: "UNDER_REVIEW",
+  });
+  const { data: acceptedApplications } = api.application.getEventApplications.useQuery({
+    eventId: event.id,
+    status: "ACCEPTED",
+  });
+  const { data: rejectedApplications } = api.application.getEventApplications.useQuery({
+    eventId: event.id,
+    status: "REJECTED",
+  });
+
+  // Get tRPC utils for invalidation
+  const utils = api.useUtils();
 
   // API mutations
   const updateStatus = api.application.updateApplicationStatus.useMutation();
@@ -163,7 +204,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         icon: <IconCheck />,
       });
       
-      void refetch();
+      // Invalidate all application queries to refresh all tabs immediately
+      await utils.application.getEventApplications.invalidate({ eventId: event.id });
     } catch (error: unknown) {
       notifications.show({
         title: "Error",
@@ -192,7 +234,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       });
       
       setSelectedApplications(new Set());
-      void refetch();
+      // Invalidate all application queries to refresh all tabs immediately
+      await utils.application.getEventApplications.invalidate({ eventId: event.id });
     } catch (error: unknown) {
       notifications.show({
         title: "Error",
@@ -206,7 +249,13 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // View application details
   const viewApplication = (application: ApplicationWithUser) => {
     setViewingApplication(application);
-    openModal();
+    openViewDrawer();
+  };
+
+  // Edit application
+  const editApplication = (application: ApplicationWithUser) => {
+    setEditingApplication(application);
+    openEditDrawer();
   };
 
   // Export applications (basic CSV export)
@@ -324,8 +373,46 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
           </Card>
         )}
 
-        {/* Filters and Actions */}
-        <Card shadow="sm" padding="md" radius="md" withBorder>
+        {/* Tabs for Application Status */}
+        <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? "all")}>
+          <Tabs.List grow>
+            <Tabs.Tab value="all">
+              All Applications
+              {allApplications && (
+                <Badge size="sm" variant="light" ml="xs">
+                  {allApplications.length}
+                </Badge>
+              )}
+            </Tabs.Tab>
+            <Tabs.Tab value="under_review">
+              Under Review
+              {underReviewApplications && (
+                <Badge size="sm" variant="light" color="yellow" ml="xs">
+                  {underReviewApplications.length}
+                </Badge>
+              )}
+            </Tabs.Tab>
+            <Tabs.Tab value="accepted">
+              Accepted
+              {acceptedApplications && (
+                <Badge size="sm" variant="light" color="green" ml="xs">
+                  {acceptedApplications.length}
+                </Badge>
+              )}
+            </Tabs.Tab>
+            <Tabs.Tab value="rejected">
+              Rejected
+              {rejectedApplications && (
+                <Badge size="sm" variant="light" color="red" ml="xs">
+                  {rejectedApplications.length}
+                </Badge>
+              )}
+            </Tabs.Tab>
+          </Tabs.List>
+
+          <Tabs.Panel value={activeTab} mt="md">
+            {/* Filters and Actions */}
+            <Card shadow="sm" padding="md" radius="md" withBorder>
           <Group justify="space-between" wrap="wrap" gap="md">
             <Group gap="md">
               <TextInput
@@ -335,24 +422,16 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 onChange={(e) => setSearchQuery(e.currentTarget.value)}
                 style={{ minWidth: 200 }}
               />
-              <Select
-                placeholder="Filter by status"
-                leftSection={<IconFilter size={16} />}
-                data={[
-                  { value: "", label: "All Statuses" },
-                  ...statusOptions,
-                ]}
-                value={statusFilter ?? ""}
-                onChange={(value) => setStatusFilter(value ?? null)}
-                clearable
-              />
             </Group>
             
             <Group gap="md">
               {selectedApplications.size > 0 && (
                 <Menu position="bottom-end">
                   <Menu.Target>
-                    <Button variant="outline">
+                    <Button 
+                      variant="outline"
+                      loading={bulkUpdateStatus.isPending}
+                    >
                       Bulk Actions ({selectedApplications.size})
                     </Button>
                   </Menu.Target>
@@ -453,6 +532,13 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             >
                               <IconEye size={16} />
                             </ActionIcon>
+
+                            <ActionIcon
+                              variant="subtle"
+                              onClick={() => editApplication(application)}
+                            >
+                              <IconEdit size={16} />
+                            </ActionIcon>
                             
                             <Menu position="bottom-end">
                               <Menu.Target>
@@ -464,8 +550,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 {statusOptions.map((option) => (
                                   <Menu.Item
                                     key={option.value}
-                                    onClick={() => handleStatusChange(application.id, option.value)}
-                                    disabled={application.status === option.value}
+                                    onClick={() => void handleStatusChange(application.id, option.value)}
+                                    disabled={application.status === option.value || updateStatus.isPending}
                                   >
                                     Set to {option.label}
                                   </Menu.Item>
@@ -482,51 +568,140 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
             </Table.ScrollContainer>
           )}
         </Paper>
+          </Tabs.Panel>
+        </Tabs>
       </Stack>
 
-      {/* Application Detail Modal */}
-      <Modal
-        opened={modalOpened}
-        onClose={closeModal}
-        title="Application Details"
+      {/* Application Detail Drawer */}
+      <Drawer
+        opened={viewDrawerOpened}
+        onClose={closeViewDrawer}
+        position="right"
         size="lg"
+        title="Application Details"
+        padding="xl"
       >
-        {viewingApplication && (
-          <Stack gap="md">
-            <Group justify="space-between">
-              <Stack gap="xs">
-                <Text fw={500}>
-                  {viewingApplication.user?.name ?? "No name provided"}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  {viewingApplication.email}
-                </Text>
+        <ScrollArea h="100%" offsetScrollbars>
+          {viewingApplication && (
+            <Stack gap="xl">
+              {/* Applicant Header */}
+              <Paper p="lg" withBorder radius="md">
+                <Stack gap="md">
+                  <Group justify="space-between" align="flex-start">
+                    <Box>
+                      <Text size="xl" fw={600} mb="xs">
+                        {viewingApplication.user?.name ?? "No name provided"}
+                      </Text>
+                      <Anchor href={`mailto:${viewingApplication.email}`} size="md" c="blue">
+                        {viewingApplication.email}
+                      </Anchor>
+                    </Box>
+                    <Badge size="lg" color={getStatusColor(viewingApplication.status)} variant="light">
+                      {viewingApplication.status.replace("_", " ")}
+                    </Badge>
+                  </Group>
+                  
+                  <Group gap="xl" mt="md">
+                    <Box>
+                      <Text size="sm" c="dimmed" fw={500}>Submitted</Text>
+                      <Text size="sm">
+                        {viewingApplication.submittedAt
+                          ? new Date(viewingApplication.submittedAt).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long", 
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "Draft (not submitted)"
+                        }
+                      </Text>
+                    </Box>
+                    <Box>
+                      <Text size="sm" c="dimmed" fw={500}>Created</Text>
+                      <Text size="sm">
+                        {new Date(viewingApplication.createdAt).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </Text>
+                    </Box>
+                  </Group>
+                </Stack>
+              </Paper>
+
+              {/* Application Responses */}
+              <Stack gap="lg">
+                <Text size="lg" fw={600}>Application Responses</Text>
+                {viewingApplication.responses.length === 0 ? (
+                  <Paper p="xl" withBorder radius="md" ta="center">
+                    <Text c="dimmed" size="md">No responses submitted yet</Text>
+                  </Paper>
+                ) : (
+                  viewingApplication.responses.map((response) => (
+                    <Paper key={response.id} p="lg" withBorder radius="md">
+                      <Stack gap="md">
+                        <Text fw={600} size="md" lh={1.4}>
+                          {response.question.questionEn}
+                        </Text>
+                        <Paper p="md" bg="gray.0" radius="sm">
+                          <Text size="sm" lh={1.6} style={{ whiteSpace: "pre-wrap" }}>
+                            {response.answer || <Text c="dimmed">No response provided</Text>}
+                          </Text>
+                        </Paper>
+                      </Stack>
+                    </Paper>
+                  ))
+                )}
               </Stack>
-              <Badge color={getStatusColor(viewingApplication.status)} variant="light">
-                {viewingApplication.status.replace("_", " ")}
-              </Badge>
-            </Group>
-            
-            <Divider />
-            
-            <Stack gap="sm">
-              <Text fw={500}>Responses:</Text>
-              {viewingApplication.responses.map((response) => (
-                <Paper key={response.id} p="sm" withBorder>
-                  <Stack gap="xs">
-                    <Text size="sm" fw={500}>
-                      {response.question.questionEn}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      {response.answer}
-                    </Text>
-                  </Stack>
-                </Paper>
-              ))}
             </Stack>
-          </Stack>
-        )}
-      </Modal>
+          )}
+        </ScrollArea>
+      </Drawer>
+
+      {/* Application Edit Drawer */}
+      <Drawer
+        opened={editDrawerOpened}
+        onClose={closeEditDrawer}
+        position="right"
+        size="xl"
+        title="Edit Application"
+        padding="xl"
+      >
+        <ScrollArea h="100%" offsetScrollbars>
+          {editingApplication && (
+            <Stack gap="xl">
+              {/* Applicant Header */}
+              <Paper p="lg" withBorder radius="md">
+                <Group justify="space-between" align="flex-start">
+                  <Box>
+                    <Text size="xl" fw={600} mb="xs">
+                      {editingApplication.user?.name ?? "No name provided"}
+                    </Text>
+                    <Anchor href={`mailto:${editingApplication.email}`} size="md" c="blue">
+                      {editingApplication.email}
+                    </Anchor>
+                  </Box>
+                  <Badge size="lg" color={getStatusColor(editingApplication.status)} variant="light">
+                    {editingApplication.status.replace("_", " ")}
+                  </Badge>
+                </Group>
+              </Paper>
+              
+              {/* Editable form */}
+              <EditableApplicationForm 
+                application={editingApplication}
+                eventId={event.id}
+                onSaved={() => {
+                  void utils.application.getEventApplications.invalidate({ eventId: event.id });
+                  closeEditDrawer();
+                }}
+              />
+            </Stack>
+          )}
+        </ScrollArea>
+      </Drawer>
     </Container>
   );
 }

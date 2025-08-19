@@ -1,0 +1,452 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { 
+  Stack, 
+  Text, 
+  TextInput, 
+  Textarea,
+  Select,
+  MultiSelect,
+  NumberInput,
+  Checkbox,
+  Button,
+  Group,
+  Alert,
+  Divider,
+  Paper,
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { 
+  IconDeviceFloppy, 
+  IconCheck,
+  IconAlertCircle,
+} from "@tabler/icons-react";
+import { api } from "~/trpc/react";
+
+type Question = {
+  id: string;
+  questionKey: string;
+  questionEn: string;
+  questionEs: string;
+  questionType: "TEXT" | "TEXTAREA" | "EMAIL" | "PHONE" | "URL" | "SELECT" | "MULTISELECT" | "CHECKBOX" | "NUMBER";
+  required: boolean;
+  options: string[];
+  order: number;
+};
+
+type ApplicationWithUser = {
+  id: string;
+  email: string;
+  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED";
+  submittedAt: Date | null;
+  createdAt: Date;
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
+  responses: Array<{
+    id: string;
+    answer: string;
+    question: {
+      id: string;
+      questionKey: string;
+      questionEn: string;
+      questionEs: string;
+    };
+  }>;
+};
+
+interface EditableApplicationFormProps {
+  application: ApplicationWithUser;
+  eventId: string;
+  onSaved: () => void;
+}
+
+export default function EditableApplicationForm({
+  application,
+  eventId,
+  onSaved,
+}: EditableApplicationFormProps) {
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({});
+  const [userName, setUserName] = useState(application.user?.name ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch questions for the event
+  const { data: questions, isLoading: questionsLoading } = api.application.getEventQuestions.useQuery({
+    eventId,
+  });
+
+  // API mutations
+  const updateResponse = api.application.updateResponse.useMutation();
+  const updateUserName = api.application.updateApplicationUserName.useMutation();
+
+  // Initialize form values with existing responses
+  useEffect(() => {
+    if (questions && questions.length > 0) {
+      const initialValues: Record<string, unknown> = {};
+
+      questions.forEach((question) => {
+        const existingResponse = application.responses.find(
+          r => r.question.questionKey === question.questionKey
+        );
+        
+        if (existingResponse) {
+          if (question.questionType === "MULTISELECT") {
+            try {
+              initialValues[question.questionKey] = JSON.parse(existingResponse.answer) as unknown[];
+            } catch {
+              initialValues[question.questionKey] = [];
+            }
+          } else if (question.questionType === "CHECKBOX") {
+            initialValues[question.questionKey] = existingResponse.answer === "true";
+          } else if (question.questionType === "NUMBER") {
+            initialValues[question.questionKey] = parseFloat(existingResponse.answer) || 0;
+          } else {
+            initialValues[question.questionKey] = existingResponse.answer;
+          }
+        } else {
+          // Default values for missing responses
+          if (question.questionType === "MULTISELECT") {
+            initialValues[question.questionKey] = [];
+          } else if (question.questionType === "CHECKBOX") {
+            initialValues[question.questionKey] = false;
+          } else if (question.questionType === "NUMBER") {
+            initialValues[question.questionKey] = 0;
+          } else {
+            initialValues[question.questionKey] = "";
+          }
+        }
+      });
+
+      setFormValues(initialValues);
+    }
+  }, [questions, application.responses]);
+
+  // Handle form field changes
+  const handleFieldChange = (questionKey: string, value: unknown) => {
+    setFormValues(prev => ({ ...prev, [questionKey]: value }));
+  };
+
+  // Save user name
+  const saveUserName = async () => {
+    if (!userName.trim()) return;
+
+    setIsSaving(true);
+    try {
+      await updateUserName.mutateAsync({
+        applicationId: application.id,
+        name: userName.trim(),
+      });
+
+      notifications.show({
+        title: "Saved",
+        message: "Applicant name updated successfully",
+        color: "green",
+        icon: <IconCheck />,
+      });
+    } catch {
+      notifications.show({
+        title: "Error",
+        message: "Failed to save name",
+        color: "red",
+        icon: <IconAlertCircle />,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save a specific field
+  const saveField = async (questionKey: string, value: unknown) => {
+    if (!questions) return;
+
+    const question = questions.find(q => q.questionKey === questionKey);
+    if (!question) return;
+
+    setIsSaving(true);
+    
+    try {
+      let answerValue: string;
+      if (question.questionType === "MULTISELECT") {
+        answerValue = JSON.stringify(value);
+      } else if (question.questionType === "CHECKBOX") {
+        answerValue = String(value);
+      } else {
+        answerValue = String(value);
+      }
+
+      await updateResponse.mutateAsync({
+        applicationId: application.id,
+        questionId: question.id,
+        answer: answerValue,
+      });
+
+      notifications.show({
+        title: "Saved",
+        message: `Updated ${question.questionEn}`,
+        color: "green",
+        icon: <IconCheck />,
+      });
+    } catch {
+      notifications.show({
+        title: "Error",
+        message: "Failed to save changes",
+        color: "red",
+        icon: <IconAlertCircle />,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save all changes
+  const saveAllChanges = async () => {
+    if (!questions) return;
+
+    setIsSaving(true);
+    let savedCount = 0;
+
+    try {
+      for (const question of questions) {
+        const value = formValues[question.questionKey];
+        if (value !== undefined) {
+          await saveField(question.questionKey, value);
+          savedCount++;
+        }
+      }
+
+      notifications.show({
+        title: "Success!",
+        message: `Saved ${savedCount} changes successfully`,
+        color: "green",
+        icon: <IconCheck />,
+      });
+
+      onSaved();
+    } catch (error) {
+      notifications.show({
+        title: "Error",
+        message: "Failed to save some changes",
+        color: "red",
+        icon: <IconAlertCircle />,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Render individual question
+  const renderQuestion = (question: Question) => {
+    const questionText = question.questionEn; // Use English for admin interface
+    const currentValue = formValues[question.questionKey] ?? "";
+
+    const commonProps = {
+      label: questionText,
+      required: question.required,
+      size: "md" as const,
+      styles: {
+        label: { 
+          fontSize: '14px', 
+          fontWeight: 600, 
+          marginBottom: '8px',
+          lineHeight: 1.4,
+        },
+        input: { fontSize: '14px', lineHeight: 1.5 },
+      },
+    };
+
+    switch (question.questionType) {
+      case "TEXT":
+      case "EMAIL":
+      case "PHONE":
+      case "URL":
+        return (
+          <TextInput
+            key={question.id}
+            {...commonProps}
+            type={question.questionType === "EMAIL" ? "email" : 
+                  question.questionType === "URL" ? "url" : 
+                  question.questionType === "PHONE" ? "tel" : "text"}
+            value={typeof currentValue === "string" ? currentValue : ""}
+            onChange={(event) => handleFieldChange(question.questionKey, event.currentTarget.value)}
+            onBlur={() => void saveField(question.questionKey, currentValue)}
+          />
+        );
+
+      case "TEXTAREA":
+        return (
+          <Textarea
+            key={question.id}
+            {...commonProps}
+            autosize
+            minRows={4}
+            maxRows={12}
+            value={typeof currentValue === "string" ? currentValue : ""}
+            onChange={(event) => handleFieldChange(question.questionKey, event.currentTarget.value)}
+            onBlur={() => void saveField(question.questionKey, currentValue)}
+          />
+        );
+
+      case "SELECT":
+        return (
+          <Select
+            key={question.id}
+            data={question.options}
+            searchable
+            clearable={!question.required}
+            {...commonProps}
+            value={typeof currentValue === "string" ? currentValue : ""}
+            onChange={(value) => {
+              const newValue = value ?? "";
+              handleFieldChange(question.questionKey, newValue);
+              void saveField(question.questionKey, newValue);
+            }}
+          />
+        );
+
+      case "MULTISELECT":
+        return (
+          <MultiSelect
+            key={question.id}
+            data={question.options}
+            searchable
+            clearable={!question.required}
+            {...commonProps}
+            value={Array.isArray(currentValue) ? currentValue : []}
+            onChange={(value) => {
+              handleFieldChange(question.questionKey, value);
+              void saveField(question.questionKey, value);
+            }}
+          />
+        );
+
+      case "NUMBER":
+        return (
+          <NumberInput
+            key={question.id}
+            min={0}
+            max={10}
+            {...commonProps}
+            value={typeof currentValue === "number" ? currentValue : ""}
+            onChange={(value) => {
+              const newValue = value ?? 0;
+              handleFieldChange(question.questionKey, newValue);
+              void saveField(question.questionKey, newValue);
+            }}
+          />
+        );
+
+      case "CHECKBOX":
+        return (
+          <Checkbox
+            key={question.id}
+            label={questionText}
+            checked={Boolean(currentValue)}
+            onChange={(event) => {
+              const newValue = event.currentTarget.checked;
+              handleFieldChange(question.questionKey, newValue);
+              void saveField(question.questionKey, newValue);
+            }}
+          />
+        );
+
+      default:
+        return (
+          <TextInput
+            key={question.id}
+            {...commonProps}
+            value={typeof currentValue === "string" ? currentValue : ""}
+            onChange={(event) => handleFieldChange(question.questionKey, event.currentTarget.value)}
+            onBlur={() => void saveField(question.questionKey, currentValue)}
+          />
+        );
+    }
+  };
+
+  if (questionsLoading) {
+    return (
+      <Stack align="center" gap="md" p="xl">
+        <Text c="dimmed">Loading application form...</Text>
+      </Stack>
+    );
+  }
+
+  if (!questions || questions.length === 0) {
+    return (
+      <Alert color="yellow" icon={<IconAlertCircle />}>
+        No questions found for this event.
+      </Alert>
+    );
+  }
+
+  return (
+    <Stack gap="xl">
+      <Alert color="blue" icon={<IconDeviceFloppy />} radius="md" p="lg">
+        <Text fw={500} mb="xs">Auto-save enabled</Text>
+        <Text size="sm">Changes are saved automatically when you move to the next field or change selections.</Text>
+      </Alert>
+
+      {/* User Name Editor */}
+      <Paper p="xl" withBorder radius="md">
+        <Stack gap="lg">
+          <Text fw={600} size="lg">Applicant Information</Text>
+          <TextInput
+            label="Applicant Name"
+            placeholder="Enter applicant's full name"
+            value={userName}
+            onChange={(event) => setUserName(event.currentTarget.value)}
+            onBlur={saveUserName}
+            size="md"
+            rightSection={
+              userName !== (application.user?.name ?? "") ? (
+                <IconDeviceFloppy size={18} color="orange" />
+              ) : (
+                <IconCheck size={18} color="green" />
+              )
+            }
+            styles={{
+              label: { fontSize: '14px', fontWeight: 600, marginBottom: '8px' },
+              input: { fontSize: '14px' }
+            }}
+          />
+          <Paper p="md" bg="gray.0" radius="sm">
+            <Text size="sm" fw={500} c="dimmed">
+              Email: {application.email}
+            </Text>
+          </Paper>
+        </Stack>
+      </Paper>
+
+      {/* Editable form questions */}
+      <Stack gap="xl">
+        <Text fw={600} size="lg">Application Responses</Text>
+        {questions
+          .sort((a, b) => a.order - b.order)
+          .map((question) => (
+            <Paper key={question.id} p="xl" withBorder radius="md">
+              <Stack gap="lg">
+                {renderQuestion(question)}
+              </Stack>
+            </Paper>
+          ))}
+      </Stack>
+
+      {/* Action buttons */}
+      <Paper p="lg" withBorder radius="md" mt="xl">
+        <Group justify="flex-end">
+          <Button
+            onClick={saveAllChanges}
+            leftSection={<IconDeviceFloppy size={16} />}
+            loading={isSaving}
+            color="green"
+            size="md"
+          >
+            Save All Changes
+          </Button>
+        </Group>
+      </Paper>
+    </Stack>
+  );
+}

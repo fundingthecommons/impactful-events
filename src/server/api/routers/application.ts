@@ -458,4 +458,54 @@ export const applicationRouter = createTRPCRouter({
 
       return { canApply: !existing, hasApplication: !!existing, application: existing };
     }),
+
+  // Admin: Update user name for an application
+  updateApplicationUserName: protectedProcedure
+    .input(z.object({
+      applicationId: z.string(),
+      name: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      // Get the application to find the user
+      const application = await ctx.db.application.findUnique({
+        where: { id: input.applicationId },
+        include: { user: true },
+      });
+
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Application not found",
+        });
+      }
+
+      if (application.user) {
+        // Update the user's name
+        await ctx.db.user.update({
+          where: { id: application.user.id },
+          data: { name: input.name },
+        });
+      }
+
+      // Return updated application
+      return await ctx.db.application.findUnique({
+        where: { id: input.applicationId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          responses: {
+            include: {
+              question: true,
+            },
+          },
+        },
+      });
+    }),
 });
