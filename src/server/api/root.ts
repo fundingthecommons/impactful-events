@@ -5,6 +5,7 @@ import { eventRouter } from "~/server/api/routers/event";
 import { coinGeckoRouter } from "~/server/api/routers/coinGecko";
 import { roleRouter } from "~/server/api/routers/role";
 import { applicationRouter } from "~/server/api/routers/application";
+import { emailRouter } from "~/server/api/routers/email";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -20,6 +21,7 @@ export const appRouter = createTRPCRouter({
   coinGecko: coinGeckoRouter,
   role: roleRouter,
   application: applicationRouter,
+  email: emailRouter,
 });
 
 // export type definition of API

@@ -13,7 +13,7 @@ import {
   Button,
   Group,
   Alert,
-  Divider,
+
   Paper,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
@@ -225,7 +225,7 @@ export default function EditableApplicationForm({
       });
 
       onSaved();
-    } catch (error) {
+    } catch {
       notifications.show({
         title: "Error",
         message: "Failed to save some changes",

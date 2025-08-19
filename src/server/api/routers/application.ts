@@ -459,6 +459,53 @@ export const applicationRouter = createTRPCRouter({
       return { canApply: !existing, hasApplication: !!existing, application: existing };
     }),
 
+  // Admin: Delete application responses (for testing missing fields)
+  deleteApplicationResponse: protectedProcedure
+    .input(z.object({
+      applicationId: z.string(),
+      questionKeys: z.array(z.string()), // Array of question keys to delete responses for
+    }))
+    .mutation(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      // Find the questions by their keys for this application's event
+      const application = await ctx.db.application.findUnique({
+        where: { id: input.applicationId },
+        include: { event: true },
+      });
+
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Application not found",
+        });
+      }
+
+      const questions = await ctx.db.applicationQuestion.findMany({
+        where: {
+          eventId: application.eventId,
+          questionKey: {
+            in: input.questionKeys,
+          },
+        },
+      });
+
+      // Delete the responses for these questions
+      const deletedResponses = await ctx.db.applicationResponse.deleteMany({
+        where: {
+          applicationId: input.applicationId,
+          questionId: {
+            in: questions.map(q => q.id),
+          },
+        },
+      });
+
+      return {
+        deletedCount: deletedResponses.count,
+        deletedQuestions: questions.map(q => q.questionKey),
+      };
+    }),
+
   // Admin: Update user name for an application
   updateApplicationUserName: protectedProcedure
     .input(z.object({

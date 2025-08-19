@@ -22,6 +22,7 @@ export const env = createEnv({
     NOTION_TOKEN: z.string(),
     NOTION_CONTACTS_DATABASE_ID: z.string(),
     NOTION_EVENTS_DATABASE_ID: z.string(),
+    POSTMARK_SERVER_TOKEN: z.string(),
   },
 
   /**
@@ -48,6 +49,7 @@ export const env = createEnv({
     NOTION_TOKEN: process.env.NOTION_TOKEN,
     NOTION_CONTACTS_DATABASE_ID: process.env.NOTION_CONTACTS_DATABASE_ID,
     NOTION_EVENTS_DATABASE_ID: process.env.NOTION_EVENTS_DATABASE_ID,
+    POSTMARK_SERVER_TOKEN: process.env.POSTMARK_SERVER_TOKEN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

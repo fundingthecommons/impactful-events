@@ -12,7 +12,6 @@ import {
   Badge,
   Table,
   Checkbox,
-  Select,
   TextInput,
   ActionIcon,
   Drawer,
@@ -37,6 +36,11 @@ import {
   IconDots,
   IconUsers,
   IconEdit,
+  IconChecklist,
+  IconMail,
+  IconSend,
+  IconTrash,
+  IconAlertCircle,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -117,6 +121,12 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [viewDrawerOpened, { open: openViewDrawer, close: closeViewDrawer }] = useDisclosure(false);
   const [editDrawerOpened, { open: openEditDrawer, close: closeEditDrawer }] = useDisclosure(false);
 
+  // Fetch emails for the currently viewing application
+  const { data: applicationEmails, isLoading: emailsLoading } = api.email.getApplicationEmails.useQuery(
+    { applicationId: viewingApplication?.id ?? "" },
+    { enabled: !!viewingApplication?.id && viewDrawerOpened }
+  );
+
   // Determine status filter based on active tab
   const getStatusForTab = (tab: string) => {
     switch (tab) {
@@ -161,6 +171,9 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // API mutations
   const updateStatus = api.application.updateApplicationStatus.useMutation();
   const bulkUpdateStatus = api.application.bulkUpdateApplicationStatus.useMutation();
+  const createMissingInfoEmail = api.email.createMissingInfoEmail.useMutation();
+  const sendEmail = api.email.sendEmail.useMutation();
+  const deleteEmail = api.email.deleteEmail.useMutation();
 
   // Filter applications based on search
   const filteredApplications = applications?.filter(app => 
@@ -256,6 +269,95 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const editApplication = (application: ApplicationWithUser) => {
     setEditingApplication(application);
     openEditDrawer();
+  };
+
+  // Check application for missing information
+  const handleCheckApplication = async (applicationId: string) => {
+    try {
+      await createMissingInfoEmail.mutateAsync({
+        applicationId,
+      });
+      
+      notifications.show({
+        title: "Email Draft Created",
+        message: "Missing information email draft has been created and can be reviewed in the application details.",
+        color: "blue",
+        icon: <IconChecklist />,
+      });
+      
+      // Refresh emails if viewing this application
+      if (viewingApplication?.id === applicationId) {
+        await utils.email.getApplicationEmails.invalidate({ applicationId });
+      }
+    } catch (error: unknown) {
+      notifications.show({
+        title: "Error",
+        message: (error as { message?: string }).message ?? "Failed to create email draft",
+        color: "red",
+        icon: <IconX />,
+      });
+    }
+  };
+
+  // Send a draft email
+  const handleSendEmail = async (emailId: string) => {
+    try {
+      const result = await sendEmail.mutateAsync({ emailId });
+      
+      if (result.success) {
+        notifications.show({
+          title: "Email Sent",
+          message: "Email has been sent successfully",
+          color: "green",
+          icon: <IconCheck />,
+        });
+      } else {
+        notifications.show({
+          title: "Email Failed",
+          message: result.error ?? "Failed to send email",
+          color: "red",
+          icon: <IconX />,
+        });
+      }
+      
+      // Refresh emails
+      if (viewingApplication?.id) {
+        await utils.email.getApplicationEmails.invalidate({ applicationId: viewingApplication.id });
+      }
+    } catch (error: unknown) {
+      notifications.show({
+        title: "Error",
+        message: (error as { message?: string }).message ?? "Failed to send email",
+        color: "red",
+        icon: <IconX />,
+      });
+    }
+  };
+
+  // Delete a draft email
+  const handleDeleteEmail = async (emailId: string) => {
+    try {
+      await deleteEmail.mutateAsync({ emailId });
+      
+      notifications.show({
+        title: "Email Deleted",
+        message: "Draft email has been deleted",
+        color: "blue",
+        icon: <IconCheck />,
+      });
+      
+      // Refresh emails
+      if (viewingApplication?.id) {
+        await utils.email.getApplicationEmails.invalidate({ applicationId: viewingApplication.id });
+      }
+    } catch (error: unknown) {
+      notifications.show({
+        title: "Error",
+        message: (error as { message?: string }).message ?? "Failed to delete email",
+        color: "red",
+        icon: <IconX />,
+      });
+    }
   };
 
   // Export applications (basic CSV export)
@@ -539,6 +641,18 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             >
                               <IconEdit size={16} />
                             </ActionIcon>
+
+                            {application.status === "UNDER_REVIEW" && (
+                              <ActionIcon
+                                variant="subtle"
+                                color="orange"
+                                onClick={() => void handleCheckApplication(application.id)}
+                                loading={createMissingInfoEmail.isPending}
+                                title="Check for missing information"
+                              >
+                                <IconChecklist size={16} />
+                              </ActionIcon>
+                            )}
                             
                             <Menu position="bottom-end">
                               <Menu.Target>
@@ -631,24 +745,114 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 </Stack>
               </Paper>
 
-              {/* Application Responses */}
+              {/* Email Communications */}
               <Stack gap="lg">
-                <Text size="lg" fw={600}>Application Responses</Text>
-                {viewingApplication.responses.length === 0 ? (
+                <Group justify="space-between" align="center">
+                  <Text size="lg" fw={600}>Email Communications</Text>
+                  {viewingApplication.status === "UNDER_REVIEW" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      leftSection={<IconChecklist size={16} />}
+                      onClick={() => void handleCheckApplication(viewingApplication.id)}
+                      loading={createMissingInfoEmail.isPending}
+                    >
+                      Check Application
+                    </Button>
+                  )}
+                </Group>
+
+                {emailsLoading ? (
                   <Paper p="xl" withBorder radius="md" ta="center">
-                    <Text c="dimmed" size="md">No responses submitted yet</Text>
+                    <Loader size="sm" />
+                    <Text c="dimmed" size="md" mt="xs">Loading emails...</Text>
+                  </Paper>
+                ) : !applicationEmails || applicationEmails.length === 0 ? (
+                  <Paper p="xl" withBorder radius="md" ta="center">
+                    <IconMail size={48} stroke={1} color="var(--mantine-color-gray-5)" />
+                    <Text c="dimmed" size="md" mt="xs">No emails found</Text>
+                    {viewingApplication.status === "UNDER_REVIEW" && (
+                      <Text c="dimmed" size="sm" mt="xs">
+                        Click "Check Application" to create a missing information email
+                      </Text>
+                    )}
                   </Paper>
                 ) : (
-                  viewingApplication.responses.map((response) => (
-                    <Paper key={response.id} p="lg" withBorder radius="md">
+                  applicationEmails.map((email) => (
+                    <Paper key={email.id} p="lg" withBorder radius="md">
                       <Stack gap="md">
-                        <Text fw={600} size="md" lh={1.4}>
-                          {response.question.questionEn}
-                        </Text>
+                        <Group justify="space-between" align="flex-start">
+                          <Box flex={1}>
+                            <Group gap="xs" mb="xs">
+                              <Badge 
+                                color={email.status === "DRAFT" ? "blue" : email.status === "SENT" ? "green" : "red"} 
+                                variant="light"
+                              >
+                                {email.status}
+                              </Badge>
+                              <Badge variant="outline" color="gray">
+                                {email.type.replace("_", " ")}
+                              </Badge>
+                            </Group>
+                            <Text fw={600} size="md" mb="xs">
+                              {email.subject}
+                            </Text>
+                            <Text size="sm" c="dimmed" mb="sm">
+                              To: {email.toEmail} • Created: {new Date(email.createdAt).toLocaleDateString()}
+                              {email.sentAt && ` • Sent: ${new Date(email.sentAt).toLocaleDateString()}`}
+                            </Text>
+                            {email.type === "MISSING_INFO" && email.missingFields.length > 0 && (
+                              <Paper p="md" bg="orange.0" radius="sm" mb="md">
+                                <Group gap="xs" mb="xs">
+                                  <IconAlertCircle size={16} color="orange" />
+                                  <Text size="sm" fw={500} c="orange.7">Missing Fields:</Text>
+                                </Group>
+                                <Text size="sm" c="orange.7">
+                                  {email.missingFields.map(field => field.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())).join(", ")}
+                                </Text>
+                              </Paper>
+                            )}
+                          </Box>
+                          
+                          <Group gap="xs">
+                            {email.status === "DRAFT" && (
+                              <>
+                                <Button
+                                  size="xs"
+                                  variant="filled"
+                                  color="blue"
+                                  leftSection={<IconSend size={14} />}
+                                  onClick={() => void handleSendEmail(email.id)}
+                                  loading={sendEmail.isPending}
+                                >
+                                  Send
+                                </Button>
+                                <ActionIcon
+                                  size="sm"
+                                  variant="subtle"
+                                  color="red"
+                                  onClick={() => void handleDeleteEmail(email.id)}
+                                  loading={deleteEmail.isPending}
+                                >
+                                  <IconTrash size={14} />
+                                </ActionIcon>
+                              </>
+                            )}
+                          </Group>
+                        </Group>
+                        
+                        {/* Email Preview */}
                         <Paper p="md" bg="gray.0" radius="sm">
-                          <Text size="sm" lh={1.6} style={{ whiteSpace: "pre-wrap" }}>
-                            {response.answer || <Text c="dimmed">No response provided</Text>}
-                          </Text>
+                          <Text size="xs" c="dimmed" mb="xs">Email Preview:</Text>
+                          <div 
+                            style={{ 
+                              fontSize: "12px", 
+                              maxHeight: "200px", 
+                              overflow: "auto",
+                              lineHeight: 1.4 
+                            }}
+                            dangerouslySetInnerHTML={{ __html: email.htmlContent }}
+                          />
                         </Paper>
                       </Stack>
                     </Paper>

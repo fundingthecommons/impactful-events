@@ -106,6 +106,7 @@ model Event {
   sponsors    EventSponsor[]
   applications Application[]
   applicationQuestions ApplicationQuestion[]
+  emails      Email[]  // Emails related to this event
 }
 
 model Hackathon {
@@ -417,6 +418,7 @@ model Application {
   user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   responses     ApplicationResponse[]
+  emails        Email[]  // Emails related to this application
   
   @@unique([userId, eventId]) // One application per user per event
   @@index([email])
@@ -456,4 +458,52 @@ model ApplicationResponse {
   
   @@unique([applicationId, questionId])
   @@index([applicationId])
+}
+
+// Email System Models
+enum EmailStatus {
+  DRAFT
+  QUEUED
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum EmailType {
+  MISSING_INFO    // For incomplete application notifications
+  STATUS_UPDATE   // For application status notifications
+  GENERAL         // For general communications
+}
+
+model Email {
+  id            String      @id @default(cuid())
+  applicationId String?     // Optional: link to specific application
+  eventId       String      // Required: link to event
+  toEmail       String      // Recipient email address
+  fromEmail     String      @default("james@fundingthecommons.io") // Always send from this for testing
+  subject       String      // Email subject line
+  htmlContent   String      @db.Text // HTML version of email
+  textContent   String?     @db.Text // Plain text version (optional)
+  type          EmailType   @default(MISSING_INFO)
+  status        EmailStatus @default(DRAFT)
+  
+  // Metadata
+  missingFields String[]    // JSON array of missing field keys (for MISSING_INFO emails)
+  createdBy     String      // User ID who created the email
+  sentAt        DateTime?   // When email was actually sent
+  failureReason String?     // Error message if sending failed
+  postmarkId    String?     // Postmark message ID for tracking
+  
+  // Timestamps
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@index([applicationId])
+  @@index([eventId])
+  @@index([status])
+  @@index([toEmail])
 }
