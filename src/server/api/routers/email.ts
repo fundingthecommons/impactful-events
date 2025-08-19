@@ -80,14 +80,61 @@ export const emailRouter = createTRPCRouter({
         orderBy: { order: "asc" },
       });
 
-      // Find missing required questions
-      const answeredQuestionIds = new Set(
-        application.responses.map(r => r.questionId)
+      // Find missing or inadequately answered required questions
+      const responseMap = new Map(
+        application.responses.map(r => [r.questionId, r])
       );
 
-      const missingQuestions = requiredQuestions.filter(
-        q => !answeredQuestionIds.has(q.id)
-      );
+      const missingQuestions = requiredQuestions.filter(question => {
+        const response = responseMap.get(question.id);
+        
+        // No response at all
+        if (!response) {
+          return true;
+        }
+        
+        // Empty or whitespace-only answer
+        if (!response.answer || response.answer.trim() === "") {
+          return true;
+        }
+        
+        // For SELECT/MULTISELECT questions, check if answer is valid
+        if (question.questionType === "SELECT" || question.questionType === "MULTISELECT") {
+          const answer = response.answer.trim();
+          
+          // Common invalid select values
+          if (answer === "" || 
+              answer === "Please select" || 
+              answer === "Select an option" ||
+              answer === "Choose one" ||
+              answer === "null" ||
+              answer === "undefined") {
+            return true;
+          }
+          
+          // If question has options defined, check if answer is one of them
+          if (question.options && question.options.length > 0) {
+            const validOptions = question.options.map(opt => opt.toLowerCase().trim());
+            const answerLower = answer.toLowerCase().trim();
+            
+            // For MULTISELECT, check each selected option
+            if (question.questionType === "MULTISELECT") {
+              const selectedOptions = answer.split(',').map(opt => opt.toLowerCase().trim());
+              const hasInvalidOption = selectedOptions.some(opt => !validOptions.includes(opt));
+              if (hasInvalidOption || selectedOptions.length === 0) {
+                return true;
+              }
+            } else {
+              // For SELECT, check if the answer is one of the valid options
+              if (!validOptions.includes(answerLower)) {
+                return true;
+              }
+            }
+          }
+        }
+        
+        return false;
+      });
 
       if (missingQuestions.length === 0) {
         throw new TRPCError({

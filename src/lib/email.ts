@@ -4,7 +4,8 @@ import { env } from "~/env";
 // Create Postmark client
 const postmarkClient = new ServerClient(env.POSTMARK_SERVER_TOKEN);
 
-// For testing, all emails will be sent to this address
+// Production mode check
+const IS_PRODUCTION = env.EMAIL_MODE === "production";
 const TEST_EMAIL = "james@fundingthecommons.io";
 
 export interface SendEmailParams {
@@ -23,21 +24,39 @@ export interface SendEmailResult {
 
 /**
  * Send an email using Postmark
- * For testing purposes, all emails will be redirected to james@fundingthecommons.io
+ * In development: redirects to test email
+ * In production: sends to actual recipient (if Postmark account is approved)
+ * Sandbox mode: only allows same domain as From address
  */
 export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
   try {
+    const isProductionMode = IS_PRODUCTION;
+    
+    // Check if recipient domain matches sender domain (for sandbox mode)
+    const recipientDomain = params.to.split('@')[1];
+    const senderDomain = "fundingthecommons.io";
+    const isSameDomain = recipientDomain === senderDomain;
+    
+    // In production mode, only send to actual recipient if it's same domain or account is approved
+    // For now, redirect external domains to test email until Postmark approval
+    const shouldRedirect = !isProductionMode || !isSameDomain;
+    const finalRecipient = shouldRedirect ? TEST_EMAIL : params.to;
+    
     const response = await postmarkClient.sendEmail({
       From: "james@fundingthecommons.io",
-      To: TEST_EMAIL, // Always send to test email
-      Subject: `[TEST] ${params.subject} - Original: ${params.to}`,
-      HtmlBody: `
-        <div style="border: 2px solid #ff6b6b; padding: 16px; margin-bottom: 16px; background-color: #ffe6e6; border-radius: 4px;">
-          <strong>⚠️ TEST MODE:</strong> This email was originally intended for <strong>${params.to}</strong> but has been redirected for testing purposes.
+      To: finalRecipient,
+      Subject: shouldRedirect ? `[${isProductionMode ? 'SANDBOX' : 'DEV'}] ${params.subject} - Original: ${params.to}` : params.subject,
+      HtmlBody: shouldRedirect ? `
+        <div style="border: 2px solid #${isProductionMode ? 'ffa500' : 'ff6b6b'}; padding: 16px; margin-bottom: 16px; background-color: #${isProductionMode ? 'fff3cd' : 'ffe6e6'}; border-radius: 4px;">
+          <strong>⚠️ ${isProductionMode ? 'SANDBOX MODE' : 'DEVELOPMENT MODE'}:</strong> This email was originally intended for <strong>${params.to}</strong> but has been redirected ${isProductionMode ? 'due to Postmark sandbox restrictions' : 'for testing purposes'}.
+          ${isProductionMode ? '<br><br>To send to external domains, your Postmark account needs approval.' : ''}
         </div>
         ${params.htmlContent}
-      `,
-      TextBody: params.textContent ?? `TEST MODE: This email was originally intended for ${params.to} but has been redirected for testing purposes.\n\n${stripHtml(params.htmlContent)}`,
+      ` : params.htmlContent,
+      TextBody: params.textContent ?? (shouldRedirect 
+        ? `${isProductionMode ? 'SANDBOX MODE' : 'DEVELOPMENT MODE'}: This email was originally intended for ${params.to} but has been redirected ${isProductionMode ? 'due to Postmark sandbox restrictions' : 'for testing purposes'}.\n\n${stripHtml(params.htmlContent)}`
+        : stripHtml(params.htmlContent)
+      ),
       MessageStream: params.messageStream ?? "outbound",
     });
 

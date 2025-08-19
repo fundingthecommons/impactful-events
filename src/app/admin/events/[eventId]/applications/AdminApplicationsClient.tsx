@@ -120,6 +120,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [editingApplication, setEditingApplication] = useState<ApplicationWithUser | null>(null);
   const [viewDrawerOpened, { open: openViewDrawer, close: closeViewDrawer }] = useDisclosure(false);
   const [editDrawerOpened, { open: openEditDrawer, close: closeEditDrawer }] = useDisclosure(false);
+  const [actionsTab, setActionsTab] = useState<string>("next");
 
   // Fetch emails for the currently viewing application
   const { data: applicationEmails, isLoading: emailsLoading } = api.email.getApplicationEmails.useQuery(
@@ -745,120 +746,288 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 </Stack>
               </Paper>
 
-              {/* Email Communications */}
-              <Stack gap="lg">
-                <Group justify="space-between" align="center">
-                  <Text size="lg" fw={600}>Email Communications</Text>
-                  {viewingApplication.status === "UNDER_REVIEW" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      leftSection={<IconChecklist size={16} />}
-                      onClick={() => void handleCheckApplication(viewingApplication.id)}
-                      loading={createMissingInfoEmail.isPending}
-                    >
-                      Check Application
-                    </Button>
-                  )}
-                </Group>
-
-                {emailsLoading ? (
-                  <Paper p="xl" withBorder radius="md" ta="center">
-                    <Loader size="sm" />
-                    <Text c="dimmed" size="md" mt="xs">Loading emails...</Text>
-                  </Paper>
-                ) : !applicationEmails || applicationEmails.length === 0 ? (
-                  <Paper p="xl" withBorder radius="md" ta="center">
-                    <IconMail size={48} stroke={1} color="var(--mantine-color-gray-5)" />
-                    <Text c="dimmed" size="md" mt="xs">No emails found</Text>
-                    {viewingApplication.status === "UNDER_REVIEW" && (
-                      <Text c="dimmed" size="sm" mt="xs">
-                        Click "Check Application" to create a missing information email
-                      </Text>
+              {/* Actions Tabs */}
+              <Tabs value={actionsTab} onChange={(value) => setActionsTab(value ?? "next")}>
+                <Tabs.List>
+                  <Tabs.Tab value="next">
+                    Next Actions
+                  </Tabs.Tab>
+                  <Tabs.Tab value="previous">
+                    Previous Actions
+                    {applicationEmails && applicationEmails.filter(e => e.status === "SENT").length > 0 && (
+                      <Badge size="sm" variant="light" color="blue" ml="xs">
+                        {applicationEmails.filter(e => e.status === "SENT").length}
+                      </Badge>
                     )}
-                  </Paper>
-                ) : (
-                  applicationEmails.map((email) => (
-                    <Paper key={email.id} p="lg" withBorder radius="md">
-                      <Stack gap="md">
-                        <Group justify="space-between" align="flex-start">
-                          <Box flex={1}>
-                            <Group gap="xs" mb="xs">
-                              <Badge 
-                                color={email.status === "DRAFT" ? "blue" : email.status === "SENT" ? "green" : "red"} 
-                                variant="light"
-                              >
-                                {email.status}
-                              </Badge>
-                              <Badge variant="outline" color="gray">
-                                {email.type.replace("_", " ")}
-                              </Badge>
-                            </Group>
-                            <Text fw={600} size="md" mb="xs">
-                              {email.subject}
-                            </Text>
-                            <Text size="sm" c="dimmed" mb="sm">
-                              To: {email.toEmail} • Created: {new Date(email.createdAt).toLocaleDateString()}
-                              {email.sentAt && ` • Sent: ${new Date(email.sentAt).toLocaleDateString()}`}
-                            </Text>
-                            {email.type === "MISSING_INFO" && email.missingFields.length > 0 && (
-                              <Paper p="md" bg="orange.0" radius="sm" mb="md">
-                                <Group gap="xs" mb="xs">
-                                  <IconAlertCircle size={16} color="orange" />
-                                  <Text size="sm" fw={500} c="orange.7">Missing Fields:</Text>
-                                </Group>
-                                <Text size="sm" c="orange.7">
-                                  {email.missingFields.map(field => field.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())).join(", ")}
-                                </Text>
-                              </Paper>
-                            )}
-                          </Box>
-                          
-                          <Group gap="xs">
-                            {email.status === "DRAFT" && (
-                              <>
-                                <Button
-                                  size="xs"
-                                  variant="filled"
-                                  color="blue"
-                                  leftSection={<IconSend size={14} />}
-                                  onClick={() => void handleSendEmail(email.id)}
-                                  loading={sendEmail.isPending}
-                                >
-                                  Send
-                                </Button>
-                                <ActionIcon
-                                  size="sm"
-                                  variant="subtle"
-                                  color="red"
-                                  onClick={() => void handleDeleteEmail(email.id)}
-                                  loading={deleteEmail.isPending}
-                                >
-                                  <IconTrash size={14} />
-                                </ActionIcon>
-                              </>
-                            )}
+                  </Tabs.Tab>
+                </Tabs.List>
+
+                <Tabs.Panel value="next" mt="md">
+                  <Stack gap="lg">
+                    {/* Show appropriate next action based on status */}
+                    <Paper p="lg" withBorder radius="md">
+                      {viewingApplication.status === "UNDER_REVIEW" ? (
+                        <Stack gap="md">
+                          <Group gap="xs" align="center">
+                            <IconChecklist size={20} color="orange" />
+                            <Text fw={600} color="orange.7">Review Application</Text>
                           </Group>
+                          <Text size="sm" c="dimmed">
+                            Review the application for completeness and missing information. If fields are missing, 
+                            you can create and send an email to request additional information from the applicant.
+                          </Text>
+                          <Button
+                            size="sm"
+                            variant="filled"
+                            color="orange"
+                            leftSection={<IconChecklist size={16} />}
+                            onClick={() => void handleCheckApplication(viewingApplication.id)}
+                            loading={createMissingInfoEmail.isPending}
+                          >
+                            Check for Missing Information
+                          </Button>
+                        </Stack>
+                      ) : viewingApplication.status === "ACCEPTED" ? (
+                        <Stack gap="md">
+                          <Group gap="xs" align="center">
+                            <IconCheck size={20} color="green" />
+                            <Text fw={600} color="green.7">Application Accepted</Text>
+                          </Group>
+                          <Text size="sm" c="dimmed">
+                            This applicant has been accepted. Consider sending a welcome email or onboarding information.
+                          </Text>
+                        </Stack>
+                      ) : viewingApplication.status === "REJECTED" ? (
+                        <Stack gap="md">
+                          <Group gap="xs" align="center">
+                            <IconX size={20} color="red" />
+                            <Text fw={600} color="red.7">Application Rejected</Text>
+                          </Group>
+                          <Text size="sm" c="dimmed">
+                            This application has been rejected. Consider sending a rejection email with feedback if appropriate.
+                          </Text>
+                        </Stack>
+                      ) : viewingApplication.status === "WAITLISTED" ? (
+                        <Stack gap="md">
+                          <Group gap="xs" align="center">
+                            <IconClock size={20} color="yellow" />
+                            <Text fw={600} color="yellow.7">Application Waitlisted</Text>
+                          </Group>
+                          <Text size="sm" c="dimmed">
+                            This applicant is on the waitlist. Monitor for available spots and notify when status changes.
+                          </Text>
+                        </Stack>
+                      ) : (
+                        <Stack gap="md">
+                          <Group gap="xs" align="center">
+                            <IconClock size={20} color="blue" />
+                            <Text fw={600} color="blue.7">Application Submitted</Text>
+                          </Group>
+                          <Text size="sm" c="dimmed">
+                            This application has been submitted and is ready for review. Change status to "Under Review" to begin evaluation.
+                          </Text>
+                        </Stack>
+                      )}
+                    </Paper>
+
+                    {/* Draft Emails - Show as pending next actions */}
+                    {applicationEmails && applicationEmails.filter(email => email.status === "DRAFT").length > 0 && (
+                      <Stack gap="md">
+                        <Text size="md" fw={600} c="orange.7">Pending Email Actions</Text>
+                        {applicationEmails.filter(email => email.status === "DRAFT").map((email) => (
+                          <Paper key={email.id} p="lg" withBorder radius="md" bg="orange.0">
+                            <Stack gap="md">
+                              <Group justify="space-between" align="flex-start">
+                                <Box flex={1}>
+                                  <Group gap="xs" mb="xs">
+                                    <Badge color="blue" variant="light">
+                                      DRAFT
+                                    </Badge>
+                                    <Badge variant="outline" color="gray">
+                                      {email.type.replace("_", " ")}
+                                    </Badge>
+                                  </Group>
+                                  <Text fw={600} size="md" mb="xs">
+                                    {email.subject}
+                                  </Text>
+                                  <Text size="sm" c="dimmed" mb="sm">
+                                    To: {email.toEmail} • Created: {new Date(email.createdAt).toLocaleDateString()}
+                                  </Text>
+                                  {email.type === "MISSING_INFO" && email.missingFields.length > 0 && (
+                                    <Paper p="md" bg="orange.1" radius="sm" mb="md">
+                                      <Group gap="xs" mb="xs">
+                                        <IconAlertCircle size={16} color="orange" />
+                                        <Text size="sm" fw={500} c="orange.7">Missing Fields:</Text>
+                                      </Group>
+                                      <Text size="sm" c="orange.7">
+                                        {email.missingFields.map(field => field.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())).join(", ")}
+                                      </Text>
+                                    </Paper>
+                                  )}
+                                </Box>
+                                
+                                <Group gap="xs">
+                                  <Button
+                                    size="xs"
+                                    variant="filled"
+                                    color="blue"
+                                    leftSection={<IconSend size={14} />}
+                                    onClick={() => void handleSendEmail(email.id)}
+                                    loading={sendEmail.isPending}
+                                  >
+                                    Send
+                                  </Button>
+                                  <ActionIcon
+                                    size="sm"
+                                    variant="subtle"
+                                    color="red"
+                                    onClick={() => void handleDeleteEmail(email.id)}
+                                    loading={deleteEmail.isPending}
+                                  >
+                                    <IconTrash size={14} />
+                                  </ActionIcon>
+                                </Group>
+                              </Group>
+                              
+                              {/* Email Preview */}
+                              <Paper p="md" bg="white" radius="sm" withBorder>
+                                <Text size="xs" c="dimmed" mb="xs">Email Preview:</Text>
+                                <div 
+                                  style={{ 
+                                    fontSize: "12px", 
+                                    maxHeight: "200px", 
+                                    overflow: "auto",
+                                    lineHeight: 1.4 
+                                  }}
+                                  dangerouslySetInnerHTML={{ __html: email.htmlContent }}
+                                />
+                              </Paper>
+                            </Stack>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    )}
+                  </Stack>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="previous" mt="md">
+                  <Stack gap="lg">
+                    {/* Status Change History - Could be added later with audit log */}
+                    <Paper p="lg" withBorder radius="md">
+                      <Stack gap="md">
+                        <Group gap="xs" align="center">
+                          <IconClock size={20} color="blue" />
+                          <Text fw={600} color="blue.7">Application Timeline</Text>
                         </Group>
-                        
-                        {/* Email Preview */}
-                        <Paper p="md" bg="gray.0" radius="sm">
-                          <Text size="xs" c="dimmed" mb="xs">Email Preview:</Text>
-                          <div 
-                            style={{ 
-                              fontSize: "12px", 
-                              maxHeight: "200px", 
-                              overflow: "auto",
-                              lineHeight: 1.4 
-                            }}
-                            dangerouslySetInnerHTML={{ __html: email.htmlContent }}
-                          />
-                        </Paper>
+                        <Stack gap="sm">
+                          <Group gap="sm">
+                            <Text size="sm" fw={500}>Created:</Text>
+                            <Text size="sm" c="dimmed">
+                              {new Date(viewingApplication.createdAt).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </Text>
+                          </Group>
+                          {viewingApplication.submittedAt && (
+                            <Group gap="sm">
+                              <Text size="sm" fw={500}>Submitted:</Text>
+                              <Text size="sm" c="dimmed">
+                                {new Date(viewingApplication.submittedAt).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </Text>
+                            </Group>
+                          )}
+                          <Group gap="sm">
+                            <Text size="sm" fw={500}>Current Status:</Text>
+                            <Badge color={getStatusColor(viewingApplication.status)} variant="light">
+                              {viewingApplication.status.replace("_", " ")}
+                            </Badge>
+                          </Group>
+                        </Stack>
                       </Stack>
                     </Paper>
-                  ))
-                )}
-              </Stack>
+
+                    {/* Sent Emails History */}
+                    {applicationEmails && applicationEmails.filter(email => email.status === "SENT").length > 0 ? (
+                      <Stack gap="md">
+                        <Text size="md" fw={600} c="green.7">Sent Communications</Text>
+                        {applicationEmails.filter(email => email.status === "SENT").map((email) => (
+                          <Paper key={email.id} p="lg" withBorder radius="md" bg="green.0">
+                            <Stack gap="md">
+                              <Group justify="space-between" align="flex-start">
+                                <Box flex={1}>
+                                  <Group gap="xs" mb="xs">
+                                    <Badge color="green" variant="light">
+                                      SENT
+                                    </Badge>
+                                    <Badge variant="outline" color="gray">
+                                      {email.type.replace("_", " ")}
+                                    </Badge>
+                                  </Group>
+                                  <Text fw={600} size="md" mb="xs">
+                                    {email.subject}
+                                  </Text>
+                                  <Text size="sm" c="dimmed" mb="sm">
+                                    To: {email.toEmail} • Sent: {email.sentAt ? new Date(email.sentAt).toLocaleDateString("en-US", {
+                                      year: "numeric",
+                                      month: "long",
+                                      day: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    }) : "Unknown"}
+                                  </Text>
+                                  {email.type === "MISSING_INFO" && email.missingFields.length > 0 && (
+                                    <Paper p="md" bg="orange.1" radius="sm" mb="md">
+                                      <Group gap="xs" mb="xs">
+                                        <IconAlertCircle size={16} color="orange" />
+                                        <Text size="sm" fw={500} c="orange.7">Missing Fields Requested:</Text>
+                                      </Group>
+                                      <Text size="sm" c="orange.7">
+                                        {email.missingFields.map(field => field.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())).join(", ")}
+                                      </Text>
+                                    </Paper>
+                                  )}
+                                </Box>
+                              </Group>
+                              
+                              {/* Email Preview */}
+                              <Paper p="md" bg="white" radius="sm" withBorder>
+                                <Text size="xs" c="dimmed" mb="xs">Email Content:</Text>
+                                <div 
+                                  style={{ 
+                                    fontSize: "12px", 
+                                    maxHeight: "200px", 
+                                    overflow: "auto",
+                                    lineHeight: 1.4 
+                                  }}
+                                  dangerouslySetInnerHTML={{ __html: email.htmlContent }}
+                                />
+                              </Paper>
+                            </Stack>
+                          </Paper>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Paper p="xl" withBorder radius="md" ta="center">
+                        <IconMail size={48} stroke={1} color="var(--mantine-color-gray-5)" />
+                        <Text c="dimmed" size="md" mt="xs">No previous actions recorded</Text>
+                        <Text c="dimmed" size="sm" mt="xs">
+                          Status changes and sent emails will appear here
+                        </Text>
+                      </Paper>
+                    )}
+                  </Stack>
+                </Tabs.Panel>
+              </Tabs>
             </Stack>
           )}
         </ScrollArea>
