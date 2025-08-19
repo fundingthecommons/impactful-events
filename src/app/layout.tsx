@@ -1,5 +1,4 @@
 import "~/styles/globals.css";
-import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
@@ -10,6 +9,8 @@ import { Geist } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import HeaderBar from "./admin/events/HeaderBar";
+import { ThemeProvider } from "./_components/ThemeProvider";
+import { ThemeToggle } from "./_components/ThemeToggle";
 
 export const metadata: Metadata = {
   title: "FtC",
@@ -28,13 +29,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable}`}>
       <body>
-        <MantineProvider forceColorScheme="light">
+        <ThemeProvider>
           <Notifications />
           <TRPCReactProvider>
             <HeaderBar />
             {children}
           </TRPCReactProvider>
-        </MantineProvider>
+          <ThemeToggle />
+        </ThemeProvider>
       </body>
     </html>
   );

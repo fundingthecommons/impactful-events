@@ -1,0 +1,49 @@
+#!/usr/bin/env node
+
+/**
+ * Fix Build Errors and Push
+ * 
+ * Iteratively run `vercel build` and fix all errors until the build succeeds,
+ * then automatically commit and push the changes.
+ */
+
+const { execSync } = require('child_process');
+
+async function main() {
+  console.log('🔧 Starting fix-build-errors-and-push...');
+  
+  // First, run the existing fix-build-errors command
+  try {
+    console.log('📦 Running fix-build-errors...');
+    execSync('/fix-build-errors', { stdio: 'inherit' });
+    console.log('✅ Build errors fixed successfully');
+  } catch (error) {
+    console.error('❌ Failed to fix build errors:', error.message);
+    process.exit(1);
+  }
+  
+  // If build fixes succeeded, commit and push
+  try {
+    console.log('📝 Adding changes to git...');
+    execSync('git add .', { stdio: 'inherit' });
+    
+    console.log('💾 Committing changes...');
+    const commitMessage = `fix: Resolve build errors and enhance admin system
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>`;
+    
+    execSync(`git commit -m "${commitMessage}"`, { stdio: 'inherit' });
+    
+    console.log('🚀 Pushing to remote...');
+    execSync('git push', { stdio: 'inherit' });
+    
+    console.log('✅ Changes successfully committed and pushed!');
+  } catch (error) {
+    console.error('❌ Failed to commit and push:', error.message);
+    process.exit(1);
+  }
+}
+
+main().catch(console.error);

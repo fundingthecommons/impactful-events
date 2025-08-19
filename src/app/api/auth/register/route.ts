@@ -89,26 +89,36 @@ export async function POST(request: NextRequest) {
       // If there's an invitation and user already exists, assign the role
       if (invitation) {
         try {
-          // Check if user already has this role for this event
-          const existingRole = await db.userRole.findUnique({
-            where: {
-              userId_eventId_roleId: {
-                userId: existingUser.id,
-                eventId: invitation.eventId,
-                roleId: invitation.roleId,
-              },
-            },
-          });
-
-          if (!existingRole) {
-            // Create user role assignment
-            await db.userRole.create({
-              data: {
-                userId: existingUser.id,
-                eventId: invitation.eventId,
-                roleId: invitation.roleId,
+          if (invitation.type === "EVENT_ROLE") {
+            // Check if user already has this role for this event
+            const existingRole = await db.userRole.findUnique({
+              where: {
+                userId_eventId_roleId: {
+                  userId: existingUser.id,
+                  eventId: invitation.eventId!,
+                  roleId: invitation.roleId!,
+                },
               },
             });
+
+            if (!existingRole) {
+              // Create user role assignment
+              await db.userRole.create({
+                data: {
+                  userId: existingUser.id,
+                  eventId: invitation.eventId!,
+                  roleId: invitation.roleId!,
+                },
+              });
+            }
+          } else if (invitation.type === "GLOBAL_ADMIN" || invitation.type === "GLOBAL_STAFF") {
+            // Update user's global role if not already at that level
+            if (existingUser.role !== invitation.globalRole) {
+              await db.user.update({
+                where: { id: existingUser.id },
+                data: { role: invitation.globalRole },
+              });
+            }
           }
 
           // Mark invitation as accepted
@@ -120,13 +130,18 @@ export async function POST(request: NextRequest) {
             },
           });
 
+          const message = invitation.type === "EVENT_ROLE" 
+            ? `User already exists with this email, but invitation to ${invitation.event?.name} as ${invitation.role?.name} has been accepted. Please sign in.`
+            : `User already exists with this email, but has been promoted to global ${invitation.globalRole}. Please sign in.`;
+
           return NextResponse.json(
             { 
-              error: "User already exists with this email, but invitation has been accepted. Please sign in.",
+              error: message,
               userExists: true,
               invitation: {
-                eventName: invitation.event.name,
-                roleName: invitation.role.name,
+                type: invitation.type,
+                eventName: invitation.event?.name,
+                roleName: invitation.role?.name ?? invitation.globalRole,
               }
             },
             { status: 409 }
@@ -162,14 +177,22 @@ export async function POST(request: NextRequest) {
     // If there was an invitation, assign the role and mark invitation as accepted
     if (invitation) {
       try {
-        // Create user role assignment
-        await db.userRole.create({
-          data: {
-            userId: user.id,
-            eventId: invitation.eventId,
-            roleId: invitation.roleId,
-          },
-        });
+        if (invitation.type === "EVENT_ROLE") {
+          // Create user role assignment for event-specific roles
+          await db.userRole.create({
+            data: {
+              userId: user.id,
+              eventId: invitation.eventId!,
+              roleId: invitation.roleId!,
+            },
+          });
+        } else if (invitation.type === "GLOBAL_ADMIN" || invitation.type === "GLOBAL_STAFF") {
+          // Update user's global role
+          await db.user.update({
+            where: { id: user.id },
+            data: { role: invitation.globalRole },
+          });
+        }
 
         // Mark invitation as accepted
         await db.invitation.update({
@@ -180,13 +203,21 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        const responseMessage = invitation.type === "EVENT_ROLE" 
+          ? `User registered successfully with invitation to ${invitation.event?.name} as ${invitation.role?.name}`
+          : `User registered successfully as global ${invitation.globalRole}`;
+
         return NextResponse.json(
           { 
-            message: "User registered successfully with invitation", 
-            user,
+            message: responseMessage, 
+            user: {
+              ...user,
+              role: invitation.type === "EVENT_ROLE" ? user.role : invitation.globalRole,
+            },
             invitation: {
-              eventName: invitation.event.name,
-              roleName: invitation.role.name,
+              type: invitation.type,
+              eventName: invitation.event?.name,
+              roleName: invitation.role?.name ?? invitation.globalRole,
             }
           },
           { status: 201 }

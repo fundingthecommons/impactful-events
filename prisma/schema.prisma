@@ -410,6 +410,12 @@ enum InvitationStatus {
   CANCELLED
 }
 
+enum InvitationType {
+  EVENT_ROLE      // For event-specific roles (mentor, sponsor, etc.)
+  GLOBAL_ADMIN    // For global admin access
+  GLOBAL_STAFF    // For global staff access
+}
+
 model Application {
   id            String   @id @default(cuid())
   userId        String?  // Optional initially for legacy data
@@ -474,8 +480,10 @@ model ApplicationResponse {
 model Invitation {
   id          String   @id @default(cuid())
   email       String   // Email to invite
-  eventId     String   // Which event they're being invited to
-  roleId      String   // What role they'll get (mentor, sponsor, etc.)
+  type        InvitationType @default(EVENT_ROLE) // Type of invitation
+  eventId     String?  // Which event they're being invited to (null for global roles)
+  roleId      String?  // What event role they'll get (null for global roles)
+  globalRole  String?  // Global role for global invitations (admin, staff)
   
   status      InvitationStatus @default(PENDING)
   expiresAt   DateTime
@@ -485,13 +493,15 @@ model Invitation {
   createdAt   DateTime @default(now())
   acceptedAt  DateTime?
   
-  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  event       Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  role        Role?    @relation(fields: [roleId], references: [id], onDelete: Cascade)
   
-  @@unique([email, eventId, roleId]) // Prevent duplicate invites
+  @@unique([email, eventId, roleId]) // Prevent duplicate event role invites
+  @@unique([email, type, globalRole]) // Prevent duplicate global role invites
   @@index([email])
   @@index([token])
   @@index([status])
+  @@index([type])
 }
 
 // Email System Models

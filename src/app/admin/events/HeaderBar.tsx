@@ -9,7 +9,7 @@ export default async function HeaderBar() {
     const session = await auth();
   return (
     <div>
-      <Paper bg="white" withBorder radius={0} p="md" style={{ paddingLeft: 32, paddingRight: 32, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)' }}>
+      <Paper withBorder radius={0} p="md" style={{ paddingLeft: 32, paddingRight: 32, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)' }}>
         <Group justify="space-between" align="center">
           <Group align="center" gap={8}>
             <Image src="/images/ftc-logo.avif" alt="FtC" width={100} height={100} />
@@ -41,7 +41,7 @@ export default async function HeaderBar() {
       
       {/* Admin Navigation - Only show for admin/staff users */}
       {session?.user && (session.user.role === "admin" || session.user.role === "staff") && (
-        <Paper bg="white" withBorder radius={0} px="lg" style={{ borderTop: 0, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)' }}>
+        <Paper withBorder radius={0} px="lg" style={{ borderTop: 0, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)' }}>
           <AdminNavigation />
         </Paper>
       )}

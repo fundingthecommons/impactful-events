@@ -21,16 +21,43 @@ function checkAdminAccess(userRole?: string | null) {
 // Schema definitions
 const CreateInvitationSchema = z.object({
   email: z.string().email(),
-  eventId: z.string(),
-  roleId: z.string(),
+  type: z.enum(["EVENT_ROLE", "GLOBAL_ADMIN", "GLOBAL_STAFF"]).default("EVENT_ROLE"),
+  eventId: z.string().optional(),
+  roleId: z.string().optional(),
+  globalRole: z.enum(["admin", "staff"]).optional(),
   expiresAt: z.date().optional(),
+}).refine((data) => {
+  // For EVENT_ROLE type, eventId and roleId are required
+  if (data.type === "EVENT_ROLE") {
+    return data.eventId && data.roleId;
+  }
+  // For GLOBAL_ADMIN/GLOBAL_STAFF, globalRole is required
+  if (data.type === "GLOBAL_ADMIN" || data.type === "GLOBAL_STAFF") {
+    return data.globalRole;
+  }
+  return true;
+}, {
+  message: "Missing required fields for invitation type",
 });
 
 const BulkCreateInvitationSchema = z.object({
   emails: z.array(z.string().email()),
-  eventId: z.string(),
-  roleId: z.string(),
+  type: z.enum(["EVENT_ROLE", "GLOBAL_ADMIN", "GLOBAL_STAFF"]).default("EVENT_ROLE"),
+  eventId: z.string().optional(),
+  roleId: z.string().optional(),
+  globalRole: z.enum(["admin", "staff"]).optional(),
   expiresAt: z.date().optional(),
+}).refine((data) => {
+  // Same validation as CreateInvitationSchema
+  if (data.type === "EVENT_ROLE") {
+    return data.eventId && data.roleId;
+  }
+  if (data.type === "GLOBAL_ADMIN" || data.type === "GLOBAL_STAFF") {
+    return data.globalRole;
+  }
+  return true;
+}, {
+  message: "Missing required fields for invitation type",
 });
 
 const AcceptInvitationSchema = z.object({
@@ -45,43 +72,60 @@ export const invitationRouter = createTRPCRouter({
       checkAdminAccess(ctx.session.user.role);
 
       // Check if invitation already exists
-      const existing = await ctx.db.invitation.findFirst({
-        where: {
-          email: input.email,
-          eventId: input.eventId,
-          roleId: input.roleId,
-          status: "PENDING",
-        },
-      });
+      let existing;
+      if (input.type === "EVENT_ROLE") {
+        existing = await ctx.db.invitation.findFirst({
+          where: {
+            email: input.email,
+            eventId: input.eventId,
+            roleId: input.roleId,
+            status: "PENDING",
+          },
+        });
+      } else {
+        existing = await ctx.db.invitation.findFirst({
+          where: {
+            email: input.email,
+            type: input.type,
+            globalRole: input.globalRole,
+            status: "PENDING",
+          },
+        });
+      }
 
       if (existing) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Invitation already exists for this email, event, and role combination",
+          message: "Invitation already exists for this email and role combination",
         });
       }
 
-      // Verify event and role exist
-      const event = await ctx.db.event.findUnique({
-        where: { id: input.eventId },
-      });
+      let event = null;
+      let role = null;
 
-      if (!event) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Event not found",
+      // Verify event and role exist for event-specific invitations
+      if (input.type === "EVENT_ROLE") {
+        event = await ctx.db.event.findUnique({
+          where: { id: input.eventId! },
         });
-      }
 
-      const role = await ctx.db.role.findUnique({
-        where: { id: input.roleId },
-      });
+        if (!event) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Event not found",
+          });
+        }
 
-      if (!role) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Role not found",
+        role = await ctx.db.role.findUnique({
+          where: { id: input.roleId! },
         });
+
+        if (!role) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Role not found",
+          });
+        }
       }
 
       // Set default expiration to 30 days from now
@@ -91,8 +135,10 @@ export const invitationRouter = createTRPCRouter({
       const invitation = await ctx.db.invitation.create({
         data: {
           email: input.email,
+          type: input.type,
           eventId: input.eventId,
           roleId: input.roleId,
+          globalRole: input.globalRole,
           expiresAt: input.expiresAt ?? defaultExpiry,
           invitedBy: ctx.session.user.id,
         },
@@ -104,15 +150,30 @@ export const invitationRouter = createTRPCRouter({
 
       // Send invitation email
       try {
-        await sendInvitationEmail({
-          email: invitation.email,
-          eventName: invitation.event.name,
-          eventDescription: invitation.event.description ?? "Join us for this exciting event!",
-          roleName: invitation.role.name,
-          inviterName: ctx.session.user.name ?? "Event Admin",
-          invitationToken: invitation.token,
-          expiresAt: invitation.expiresAt,
-        });
+        if (input.type === "EVENT_ROLE") {
+          await sendInvitationEmail({
+            email: invitation.email,
+            eventName: invitation.event!.name,
+            eventDescription: invitation.event!.description ?? "Join us for this exciting event!",
+            roleName: invitation.role!.name,
+            inviterName: ctx.session.user.name ?? "Event Admin",
+            invitationToken: invitation.token,
+            expiresAt: invitation.expiresAt,
+          });
+        } else {
+          // Send global admin invitation email
+          await sendInvitationEmail({
+            email: invitation.email,
+            eventName: "Platform Administration",
+            eventDescription: `You've been invited to join as a ${invitation.globalRole} administrator for the entire platform.`,
+            roleName: invitation.globalRole ?? "Administrator",
+            inviterName: ctx.session.user.name ?? "Platform Admin",
+            invitationToken: invitation.token,
+            expiresAt: invitation.expiresAt,
+            isGlobalRole: true,
+            globalRole: invitation.globalRole ?? undefined,
+          });
+        }
       } catch (error) {
         console.error("Failed to send invitation email:", error);
         // Don't throw error - invitation was created, email failure is not critical
@@ -177,8 +238,10 @@ export const invitationRouter = createTRPCRouter({
       // Create invitations for new emails
       const invitationsData = newEmails.map(email => ({
         email,
-        eventId: input.eventId,
-        roleId: input.roleId,
+        type: input.type,
+        eventId: input.eventId ?? undefined,
+        roleId: input.roleId ?? undefined,
+        globalRole: input.globalRole ?? undefined,
         expiresAt: input.expiresAt ?? defaultExpiry,
         invitedBy: ctx.session.user.id,
       }));
@@ -206,15 +269,29 @@ export const invitationRouter = createTRPCRouter({
       // Send invitation emails
       const emailPromises = createdInvitations.map(async (invitation) => {
         try {
-          await sendInvitationEmail({
-            email: invitation.email,
-            eventName: invitation.event.name,
-            eventDescription: invitation.event.description ?? "Join us for this exciting event!",
-            roleName: invitation.role.name,
-            inviterName: ctx.session.user.name ?? "Event Admin",
-            invitationToken: invitation.token,
-            expiresAt: invitation.expiresAt,
-          });
+          if (invitation.type === "EVENT_ROLE") {
+            await sendInvitationEmail({
+              email: invitation.email,
+              eventName: invitation.event?.name ?? "Event",
+              eventDescription: invitation.event?.description ?? "Join us for this exciting event!",
+              roleName: invitation.role?.name ?? "Participant",
+              inviterName: ctx.session.user.name ?? "Event Admin",
+              invitationToken: invitation.token,
+              expiresAt: invitation.expiresAt,
+            });
+          } else {
+            await sendInvitationEmail({
+              email: invitation.email,
+              eventName: "Platform Administration",
+              eventDescription: `You've been invited to join as a ${invitation.globalRole} administrator for the entire platform.`,
+              roleName: invitation.globalRole ?? "Administrator",
+              inviterName: ctx.session.user.name ?? "Platform Admin",
+              invitationToken: invitation.token,
+              expiresAt: invitation.expiresAt,
+              isGlobalRole: true,
+              globalRole: invitation.globalRole ?? undefined,
+            });
+          }
           return { email: invitation.email, success: true };
         } catch (error) {
           console.error(`Failed to send invitation email to ${invitation.email}:`, error);
@@ -354,30 +431,43 @@ export const invitationRouter = createTRPCRouter({
 
       // Process each invitation
       for (const invitation of invitations) {
-        // Check if user already has this role for this event
-        const existingRole = await ctx.db.userRole.findUnique({
-          where: {
-            userId_eventId_roleId: {
-              userId: input.userId,
-              eventId: invitation.eventId,
-              roleId: invitation.roleId,
-            },
-          },
-        });
-
-        if (!existingRole) {
-          // Create the user role assignment
-          await ctx.db.userRole.create({
-            data: {
-              userId: input.userId,
-              eventId: invitation.eventId,
-              roleId: invitation.roleId,
+        if (invitation.type === "EVENT_ROLE" && invitation.eventId && invitation.roleId) {
+          // Check if user already has this role for this event
+          const existingRole = await ctx.db.userRole.findUnique({
+            where: {
+              userId_eventId_roleId: {
+                userId: input.userId,
+                eventId: invitation.eventId,
+                roleId: invitation.roleId,
+              },
             },
           });
 
+          if (!existingRole) {
+            // Create the user role assignment
+            await ctx.db.userRole.create({
+              data: {
+                userId: input.userId,
+                eventId: invitation.eventId,
+                roleId: invitation.roleId,
+              },
+            });
+
+            acceptedRoles.push({
+              eventName: invitation.event?.name ?? "Event",
+              roleName: invitation.role?.name ?? "Role",
+            });
+          }
+        } else if ((invitation.type === "GLOBAL_ADMIN" || invitation.type === "GLOBAL_STAFF") && invitation.globalRole) {
+          // Update user's global role
+          await ctx.db.user.update({
+            where: { id: input.userId },
+            data: { role: invitation.globalRole },
+          });
+
           acceptedRoles.push({
-            eventName: invitation.event.name,
-            roleName: invitation.role.name,
+            eventName: "Global Platform",
+            roleName: invitation.globalRole,
           });
         }
 
@@ -479,15 +569,29 @@ export const invitationRouter = createTRPCRouter({
 
       // Resend invitation email
       try {
-        await sendInvitationEmail({
-          email: updatedInvitation.email,
-          eventName: updatedInvitation.event.name,
-          eventDescription: updatedInvitation.event.description ?? "Join us for this exciting event!",
-          roleName: updatedInvitation.role.name,
-          inviterName: ctx.session.user.name ?? "Event Admin",
-          invitationToken: updatedInvitation.token,
-          expiresAt: updatedInvitation.expiresAt,
-        });
+        if (updatedInvitation.type === "EVENT_ROLE") {
+          await sendInvitationEmail({
+            email: updatedInvitation.email,
+            eventName: updatedInvitation.event?.name ?? "Event",
+            eventDescription: updatedInvitation.event?.description ?? "Join us for this exciting event!",
+            roleName: updatedInvitation.role?.name ?? "Participant",
+            inviterName: ctx.session.user.name ?? "Event Admin",
+            invitationToken: updatedInvitation.token,
+            expiresAt: updatedInvitation.expiresAt,
+          });
+        } else {
+          await sendInvitationEmail({
+            email: updatedInvitation.email,
+            eventName: "Platform Administration",
+            eventDescription: `You've been invited to join as a ${updatedInvitation.globalRole} administrator for the entire platform.`,
+            roleName: updatedInvitation.globalRole ?? "Administrator",
+            inviterName: ctx.session.user.name ?? "Platform Admin",
+            invitationToken: updatedInvitation.token,
+            expiresAt: updatedInvitation.expiresAt,
+            isGlobalRole: true,
+            globalRole: updatedInvitation.globalRole ?? undefined,
+          });
+        }
       } catch (error) {
         console.error("Failed to resend invitation email:", error);
         // Don't throw error - invitation was updated, email failure is not critical

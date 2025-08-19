@@ -314,6 +314,138 @@ Invitation link: ${signupWithTokenUrl}
 }
 
 /**
+ * Generate email content for global admin invitations
+ */
+export function generateGlobalAdminInvitationEmail(params: {
+  inviteeName?: string;
+  email: string;
+  globalRole: string;
+  inviterName: string;
+  signupUrl: string;
+  invitationToken: string;
+  expiresAt: Date;
+}): { subject: string; htmlContent: string; textContent: string } {
+  const { 
+    inviteeName, 
+    email, 
+    globalRole, 
+    inviterName, 
+    signupUrl, 
+    invitationToken,
+    expiresAt 
+  } = params;
+  
+  const signupWithTokenUrl = `${signupUrl}?invitation=${invitationToken}`;
+  const displayName = inviteeName || email.split('@')[0];
+  const expirationDate = expiresAt.toLocaleDateString();
+  const roleDisplayName = globalRole === "admin" ? "Administrator" : "Staff Member";
+  
+  const subject = `Platform Admin Invitation - Join as ${roleDisplayName}`;
+  
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #333; margin-bottom: 10px;">🔑 Admin Invitation</h1>
+        <div style="height: 3px; background: linear-gradient(90deg, #dc2626, #ea580c); margin: 10px auto; width: 120px;"></div>
+      </div>
+      
+      <p>Hi ${displayName},</p>
+      
+      <p>${inviterName} has invited you to join <strong>Funding the Commons</strong> as a <strong style="color: #dc2626;">Platform ${roleDisplayName}</strong>.</p>
+      
+      <div style="background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin: 25px 0;">
+        <h3 style="color: #991b1b; margin-top: 0; margin-bottom: 15px;">🛡️ ${roleDisplayName} Access</h3>
+        <p style="color: #7f1d1d; margin-bottom: 0;">
+          ${globalRole === "admin" 
+            ? "You'll have full administrative access to the entire platform, including user management, event creation, and system configuration."
+            : "You'll have staff-level access to manage events, applications, and user interactions across the platform."
+          }
+        </p>
+      </div>
+      
+      <p><strong>Your responsibilities will include:</strong></p>
+      <ul style="color: #555;">
+        ${globalRole === "admin" 
+          ? "<li>Managing platform users and permissions</li><li>Creating and configuring events</li><li>Overseeing all platform operations</li><li>System administration and settings</li>"
+          : "<li>Managing event applications and participants</li><li>Coordinating with sponsors and mentors</li><li>Supporting event operations</li><li>Assisting with user inquiries</li>"
+        }
+      </ul>
+      
+      <div style="text-align: center; margin: 35px 0;">
+        <a href="${signupWithTokenUrl}" 
+           style="background: linear-gradient(90deg, #dc2626, #ea580c); color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 500; font-size: 16px; box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2);">
+          Accept Admin Invitation
+        </a>
+      </div>
+      
+      <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 4px; padding: 12px; margin: 25px 0;">
+        <p style="margin: 0; color: #92400e; font-size: 14px;">
+          <strong>⏰ This invitation expires on ${expirationDate}.</strong> 
+          Please accept it promptly to gain admin access.
+        </p>
+      </div>
+      
+      <p>This is a privileged invitation with administrative responsibilities. If you have any questions about your role or the platform, feel free to reach out to ${inviterName}.</p>
+      
+      <p>We're excited to have you join our administrative team!</p>
+      
+      <p>Best regards,<br>
+      ${inviterName}<br>
+      <em>Funding the Commons Platform</em></p>
+      
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+      <p style="font-size: 12px; color: #666;">
+        You received this administrative invitation because ${inviterName} believes you'd be an excellent ${roleDisplayName} for our platform. 
+        This invitation grants privileged access - please keep your account secure.
+        <br><br>
+        Invitation link: <a href="${signupWithTokenUrl}" style="color: #dc2626; text-decoration: none;">${signupWithTokenUrl}</a>
+      </p>
+    </div>
+  `;
+  
+  const textContent = `
+Platform Admin Invitation - Join as ${roleDisplayName}
+
+Hi ${displayName},
+
+${inviterName} has invited you to join Funding the Commons as a Platform ${roleDisplayName}.
+
+${roleDisplayName} Access:
+${globalRole === "admin" 
+  ? "You'll have full administrative access to the entire platform, including user management, event creation, and system configuration."
+  : "You'll have staff-level access to manage events, applications, and user interactions across the platform."
+}
+
+Your responsibilities will include:
+${globalRole === "admin" 
+  ? "- Managing platform users and permissions\n- Creating and configuring events\n- Overseeing all platform operations\n- System administration and settings"
+  : "- Managing event applications and participants\n- Coordinating with sponsors and mentors\n- Supporting event operations\n- Assisting with user inquiries"
+}
+
+Accept your admin invitation:
+${signupWithTokenUrl}
+
+⏰ This invitation expires on ${expirationDate}. Please accept it promptly to gain admin access.
+
+This is a privileged invitation with administrative responsibilities. If you have any questions about your role or the platform, feel free to reach out to ${inviterName}.
+
+We're excited to have you join our administrative team!
+
+Best regards,
+${inviterName}
+Funding the Commons Platform
+
+---
+You received this administrative invitation because ${inviterName} believes you'd be an excellent ${roleDisplayName} for our platform. 
+This invitation grants privileged access - please keep your account secure.
+
+Invitation link: ${signupWithTokenUrl}
+  `;
+  
+  return { subject, htmlContent, textContent };
+}
+
+/**
  * Send invitation email
  */
 export async function sendInvitationEmail(params: {
@@ -324,14 +456,26 @@ export async function sendInvitationEmail(params: {
   inviterName: string;
   invitationToken: string;
   expiresAt: Date;
+  isGlobalRole?: boolean;
+  globalRole?: string;
 }): Promise<SendEmailResult> {
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const signupUrl = `${baseUrl}/register`;
   
-  const emailContent = generateInvitationEmail({
-    ...params,
-    signupUrl,
-  });
+  let emailContent;
+  
+  if (params.isGlobalRole && params.globalRole) {
+    emailContent = generateGlobalAdminInvitationEmail({
+      ...params,
+      globalRole: params.globalRole,
+      signupUrl,
+    });
+  } else {
+    emailContent = generateInvitationEmail({
+      ...params,
+      signupUrl,
+    });
+  }
   
   return sendEmail({
     to: params.email,

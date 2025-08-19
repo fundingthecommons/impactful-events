@@ -44,8 +44,10 @@ import { api } from "~/trpc/react";
 
 interface CreateInvitationForm {
   email: string;
-  eventId: string;
-  roleId: string;
+  type: "EVENT_ROLE" | "GLOBAL_ADMIN" | "GLOBAL_STAFF";
+  eventId?: string;
+  roleId?: string;
+  globalRole?: "admin" | "staff";
   expiresAt?: Date;
 }
 
@@ -66,7 +68,7 @@ export default function InvitationsClient() {
   // API queries
   const { data: invitations, refetch: refetchInvitations, isLoading: loadingInvitations } = api.invitation.getAll.useQuery({
     eventId: filterEventId || undefined,
-    status: (filterStatus as "PENDING" | "ACCEPTED" | "EXPIRED" | "CANCELLED") ?? undefined,
+    status: (filterStatus && filterStatus !== "" ? filterStatus as "PENDING" | "ACCEPTED" | "EXPIRED" | "CANCELLED" : undefined),
     email: filterEmail || undefined,
   });
 
@@ -157,14 +159,33 @@ export default function InvitationsClient() {
   const createForm = useForm<CreateInvitationForm>({
     initialValues: {
       email: "",
+      type: "EVENT_ROLE",
       eventId: "",
       roleId: "",
+      globalRole: undefined,
       expiresAt: undefined,
     },
     validate: {
       email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : "Invalid email"),
-      eventId: (value) => (value ? null : "Event is required"),
-      roleId: (value) => (value ? null : "Role is required"),
+      type: (value) => (value ? null : "Invitation type is required"),
+      eventId: (value, values) => {
+        if (values.type === "EVENT_ROLE") {
+          return value ? null : "Event is required for event roles";
+        }
+        return null;
+      },
+      roleId: (value, values) => {
+        if (values.type === "EVENT_ROLE") {
+          return value ? null : "Role is required for event roles";
+        }
+        return null;
+      },
+      globalRole: (value, values) => {
+        if (values.type === "GLOBAL_ADMIN" || values.type === "GLOBAL_STAFF") {
+          return value ? null : "Global role is required";
+        }
+        return null;
+      },
     },
   });
 
@@ -190,8 +211,12 @@ export default function InvitationsClient() {
   const handleCreateInvitation = (values: CreateInvitationForm) => {
     createInvitation.mutate({
       email: values.email,
-      eventId: values.eventId,
-      roleId: values.roleId,
+      type: values.type,
+      // Only include eventId/roleId for EVENT_ROLE type
+      eventId: values.type === "EVENT_ROLE" ? values.eventId : undefined,
+      roleId: values.type === "EVENT_ROLE" ? values.roleId : undefined,
+      // Only include globalRole for global types
+      globalRole: values.type !== "EVENT_ROLE" ? values.globalRole : undefined,
       expiresAt: values.expiresAt,
     });
   };
@@ -356,11 +381,20 @@ export default function InvitationsClient() {
                   <Text size="sm">{invitation.email}</Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm" fw={500}>{invitation.event.name}</Text>
+                  <Text size="sm" fw={500}>
+                    {invitation.type === "EVENT_ROLE" ? invitation.event?.name : "Global Platform"}
+                  </Text>
+                  {invitation.type !== "EVENT_ROLE" && (
+                    <Badge size="xs" color="red" variant="dot" ml="xs">Global</Badge>
+                  )}
                 </Table.Td>
                 <Table.Td>
-                  <Badge variant="light" color="blue" size="sm">
-                    {invitation.role.name}
+                  <Badge 
+                    variant="light" 
+                    color={invitation.type === "EVENT_ROLE" ? "blue" : "red"} 
+                    size="sm"
+                  >
+                    {invitation.type === "EVENT_ROLE" ? invitation.role?.name : invitation.globalRole}
                   </Badge>
                 </Table.Td>
                 <Table.Td>
@@ -440,20 +474,59 @@ export default function InvitationsClient() {
             />
             
             <Select
-              label="Event"
-              placeholder="Select an event"
-              data={events?.map(event => ({ value: event.id, label: event.name })) ?? []}
-              {...createForm.getInputProps("eventId")}
+              label="Invitation Type"
+              placeholder="Select invitation type"
+              data={[
+                { value: "EVENT_ROLE", label: "Event Role (mentor, sponsor, etc.)" },
+                { value: "GLOBAL_ADMIN", label: "Global Admin" },
+                { value: "GLOBAL_STAFF", label: "Global Staff" },
+              ]}
+              {...createForm.getInputProps("type")}
               required
+              onChange={(value) => {
+                createForm.setFieldValue("type", value as "EVENT_ROLE" | "GLOBAL_ADMIN" | "GLOBAL_STAFF");
+                // Reset dependent fields when type changes
+                createForm.setFieldValue("eventId", "");
+                createForm.setFieldValue("roleId", "");
+                createForm.setFieldValue("globalRole", undefined);
+              }}
             />
             
-            <Select
-              label="Role"
-              placeholder="Select a role"
-              data={roles?.map(role => ({ value: role.id, label: role.name })) ?? []}
-              {...createForm.getInputProps("roleId")}
-              required
-            />
+            {/* Global Role Selection - Only show for global invitations */}
+            {(createForm.values.type === "GLOBAL_ADMIN" || createForm.values.type === "GLOBAL_STAFF") && (
+              <Select
+                label="Global Role"
+                placeholder="Select global role"
+                data={[
+                  { value: "admin", label: "Admin - Full platform access" },
+                  { value: "staff", label: "Staff - Management access" },
+                ]}
+                {...createForm.getInputProps("globalRole")}
+                required
+              />
+            )}
+            
+            {/* Event Selection - Only show for event roles */}
+            {createForm.values.type === "EVENT_ROLE" && (
+              <Select
+                label="Event"
+                placeholder="Select an event"
+                data={events?.map(event => ({ value: event.id, label: event.name })) ?? []}
+                {...createForm.getInputProps("eventId")}
+                required
+              />
+            )}
+            
+            {/* Role Selection - Only show for event roles */}
+            {createForm.values.type === "EVENT_ROLE" && (
+              <Select
+                label="Event Role"
+                placeholder="Select a role"
+                data={roles?.map(role => ({ value: role.id, label: role.name })) ?? []}
+                {...createForm.getInputProps("roleId")}
+                required
+              />
+            )}
             
             <DatePickerInput
               label="Expires At (optional)"
