@@ -271,6 +271,9 @@ model EventSponsor {
   sponsorId String
   qualified Boolean  @default(false)
 
+  visitRequests SponsorVisitRequest[]
+  deliverables  SponsorDeliverable[]
+
   @@unique([eventId, sponsorId])
 }
 
@@ -550,4 +553,77 @@ model Email {
   @@index([eventId])
   @@index([status])
   @@index([toEmail])
+}
+
+// Sponsor Residency Models
+enum VisitType {
+  KICKOFF        // Opening week kickoff (1-2 days)
+  MENTORSHIP     // Mid-program mentorship visit
+  DEMO_DAY       // Final showcase/demo day
+  CUSTOM         // Custom dates
+}
+
+enum VisitStatus {
+  PENDING
+  APPROVED
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum DeliverableCategory {
+  TECHNICAL      // Technical mentorship & knowledge transfer
+  SUPPORT        // Builder support & resources
+  PATHWAYS       // Ecosystem pathways
+  VISIBILITY     // Visibility and storytelling
+}
+
+enum DeliverableStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model SponsorVisitRequest {
+  id              String      @id @default(cuid())
+  eventSponsorId  String      // Links to EventSponsor
+  visitType       VisitType
+  preferredDates  DateTime[]  // Array of preferred dates
+  numAttendees    Int         @default(1)
+  purpose         String      // Purpose of visit
+  requirements    String?     // Special requirements or logistics needs
+  status          VisitStatus @default(PENDING)
+  scheduledDate   DateTime?   // Confirmed visit date
+  notes           String?     // Admin notes
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  eventSponsor    EventSponsor @relation(fields: [eventSponsorId], references: [id], onDelete: Cascade)
+
+  @@index([eventSponsorId])
+  @@index([status])
+  @@index([visitType])
+}
+
+model SponsorDeliverable {
+  id              String              @id @default(cuid())
+  eventSponsorId  String
+  category        DeliverableCategory
+  title           String
+  description     String
+  status          DeliverableStatus   @default(PLANNED)
+  dueDate         DateTime?
+  completedAt     DateTime?
+  estimatedHours  Int?                // Estimated time commitment
+  actualHours     Int?                // Actual time spent
+  notes           String?             // Additional notes
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  eventSponsor    EventSponsor @relation(fields: [eventSponsorId], references: [id], onDelete: Cascade)
+
+  @@index([eventSponsorId])
+  @@index([category])
+  @@index([status])
 }
