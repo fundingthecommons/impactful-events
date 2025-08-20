@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { Client as NotionClient } from "@notionhq/client";
-import type { Prisma } from "@prisma/client";
 
 import {
   createTRPCRouter,
@@ -69,53 +68,6 @@ const EventDataSchema = z.object({
 });
 
 type EventData = z.infer<typeof EventDataSchema>;
-
-// Type definitions for better type safety
-type EventWithSponsors = Prisma.EventGetPayload<{
-  include: {
-    sponsors: {
-      include: {
-        sponsor: {
-          include: {
-            contacts: true;
-          };
-        };
-      };
-    };
-    _count: {
-      select: {
-        applications: true;
-        userRoles: true;
-        sponsors?: true;
-      };
-    };
-  };
-}>;
-
-type UserRoleWithEvent = Prisma.UserRoleGetPayload<{
-  include: {
-    event: {
-      include: {
-        sponsors: {
-          include: {
-            sponsor: true;
-          };
-        };
-        _count: {
-          select: {
-            applications: true;
-            userRoles: true;
-            sponsors?: true;
-          };
-        };
-      };
-    };
-  };
-}>;
-
-type ApplicationWithStatus = {
-  status: string;
-};
 
 /**
  * Syncs an array of events to Notion database
@@ -284,7 +236,7 @@ async function syncUsersToNotion(events: EventData[]): Promise<{
         console.log(`Processing user ${user.airtableId}...`);
 
         // Use user.name directly as First name, no parsing needed
-        const firstName = user.name ?? "";
+        const firstName = user.name || "";
 
         // Determine if handle is a crypto address (starts with 0x) or social handle
         const isTwitterHandle = user.handle && !user.handle.startsWith("0x");
@@ -295,10 +247,10 @@ async function syncUsersToNotion(events: EventData[]): Promise<{
             rich_text: [{ text: { content: firstName } }],
           },
           "avatar": {
-            rich_text: [{ text: { content: user.avatar ?? "" } }],
+            rich_text: [{ text: { content: user.avatar || "" } }],
           },
           "followerCount": {
-            number: user.followerCount ?? 0,
+            number: user.followerCount || 0,
           },
           "airtableId": {
             rich_text: [{ text: { content: user.airtableId } }],
@@ -524,8 +476,8 @@ export const eventRouter = createTRPCRouter({
 
     return userRoles.map(ur => ({
       ...ur.event,
-      // Find the sponsor relationship for this user's organization - safe array access
-      sponsorInfo: ur.event.sponsors.length > 0 ? ur.event.sponsors[0] : null
+      // Find the sponsor relationship for this user's organization
+      sponsorInfo: ur.event.sponsors[0] // For now, assume one sponsor per event
     }));
   }),
 
@@ -594,9 +546,8 @@ export const eventRouter = createTRPCRouter({
       }
     });
 
-    // Combine and deduplicate with proper type safety
-    const roleEvents: EventWithSponsors[] = userRoles.map(ur => ur.event);
-    const allEvents: EventWithSponsors[] = [...roleEvents, ...createdEvents];
+    // Combine and deduplicate
+    const allEvents = [...userRoles.map(ur => ur.event), ...createdEvents];
     const uniqueEvents = allEvents.filter((event, index, self) => 
       index === self.findIndex(e => e.id === event.id)
     );
@@ -677,8 +628,8 @@ export const eventRouter = createTRPCRouter({
       };
     }
 
-    // Calculate stats with proper type safety
-    const applications: ApplicationWithStatus[] = await ctx.db.application.findMany({
+    // Calculate stats
+    const applications = await ctx.db.application.findMany({
       where: {
         eventId: {
           in: uniqueEventIds,
