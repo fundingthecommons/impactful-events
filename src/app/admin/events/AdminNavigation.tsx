@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs } from "@mantine/core";
-import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport } from "@tabler/icons-react";
+import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport, IconMapPin } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -17,6 +17,7 @@ export default function AdminNavigation() {
   // Determine active tab based on current path
   const getActiveTab = () => {
     if (pathname === "/admin" || pathname === "/admin/") return "dashboard";
+    if (pathname.startsWith("/admin/events/residency")) return "residency";
     if (pathname.startsWith("/admin/events")) return "events";
     if (pathname.startsWith("/admin/users")) return "users";
     if (pathname.startsWith("/admin/invitations")) return "invitations";
@@ -48,6 +49,16 @@ export default function AdminNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Events
+        </TabsTab>
+        
+        <TabsTab 
+          value="residency" 
+          leftSection={<IconMapPin size={16} />}
+          component={Link}
+          href="/admin/events/residency/applications"
+          style={{ textDecoration: 'none' }}
+        >
+          Residency
         </TabsTab>
         
         <TabsTab 

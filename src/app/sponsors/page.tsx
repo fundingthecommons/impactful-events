@@ -2,9 +2,10 @@
 import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, ActionIcon, Button, Drawer, Modal, Select, Timeline, Checkbox, Tabs } from "@mantine/core";
 import { useState, useMemo } from "react";
 import '@mantine/core/styles.css';
-import { IconExternalLink, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconExternalLink, IconPlus, IconTrash, IconMapPin } from "@tabler/icons-react";
 import AddLeadPanel from "../admin/events/AddLeadPanel";
 import { api } from "~/trpc/react";
+import Link from "next/link";
 
 // Type definitions based on Prisma schema
 interface Sponsor {
@@ -485,6 +486,26 @@ export default function SponsorKanbanBoard() {
                   <Text fw={500}>Sponsor ID:</Text>
                   <Text c="dimmed" size="sm">{selectedSponsor.id}</Text>
                 </Stack>
+
+                {/* Residency Dashboard Link - Show for qualified sponsors */}
+                {selectedSponsor.qualified && (
+                  <Stack gap="xs">
+                    <Text fw={500}>Residency Program:</Text>
+                    <Link 
+                      href={`/sponsors/${selectedSponsor.id}/residency?eventId=${event?.id}`} 
+                      style={{ textDecoration: 'none' }}
+                    >
+                      <Button 
+                        fullWidth
+                        variant="filled"
+                        color="cyan"
+                        leftSection={<IconMapPin size={16} />}
+                      >
+                        Access Residency Dashboard
+                      </Button>
+                    </Link>
+                  </Stack>
+                )}
 
                 {/* Contacts Section */}
                 <Stack gap="md">

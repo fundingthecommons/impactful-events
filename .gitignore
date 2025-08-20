@@ -52,3 +52,6 @@ one.log
 
 # import data
 imports/
+
+# serena cache
+.serena/

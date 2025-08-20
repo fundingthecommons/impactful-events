@@ -92,27 +92,6 @@ type EventWithSponsors = Prisma.EventGetPayload<{
   };
 }>;
 
-type UserRoleWithEvent = Prisma.UserRoleGetPayload<{
-  include: {
-    event: {
-      include: {
-        sponsors: {
-          include: {
-            sponsor: true;
-          };
-        };
-        _count: {
-          select: {
-            applications: true;
-            userRoles: true;
-            sponsors?: true;
-          };
-        };
-      };
-    };
-  };
-}>;
-
 type ApplicationWithStatus = {
   status: string;
 };
@@ -524,8 +503,14 @@ export const eventRouter = createTRPCRouter({
 
     return userRoles.map(ur => ({
       ...ur.event,
-      // Find the sponsor relationship for this user's organization - safe array access
-      sponsorInfo: ur.event.sponsors.length > 0 ? ur.event.sponsors[0] : null
+      // Find the sponsor relationship for this user's organization - safe array access with proper type
+      sponsorInfo: ur.event.sponsors.length > 0 ? {
+        id: ur.event.sponsors[0]!.id,
+        sponsor: {
+          id: ur.event.sponsors[0]!.sponsor.id,
+          name: ur.event.sponsors[0]!.sponsor.name,
+        }
+      } : undefined
     }));
   }),
 
@@ -567,6 +552,15 @@ export const eventRouter = createTRPCRouter({
       include: {
         event: {
           include: {
+            sponsors: {
+              include: {
+                sponsor: {
+                  include: {
+                    contacts: true,
+                  },
+                },
+              },
+            },
             _count: {
               select: {
                 applications: true,
@@ -584,6 +578,15 @@ export const eventRouter = createTRPCRouter({
         createdById: ctx.session.user.id,
       },
       include: {
+        sponsors: {
+          include: {
+            sponsor: {
+              include: {
+                contacts: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             applications: true,
