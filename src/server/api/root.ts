@@ -7,6 +7,7 @@ import { roleRouter } from "~/server/api/routers/role";
 import { applicationRouter } from "~/server/api/routers/application";
 import { emailRouter } from "~/server/api/routers/email";
 import { invitationRouter } from "~/server/api/routers/invitation";
+import { mentorshipRouter } from "~/server/api/routers/mentorship";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -24,6 +25,7 @@ export const appRouter = createTRPCRouter({
   application: applicationRouter,
   email: emailRouter,
   invitation: invitationRouter,
+  mentorship: mentorshipRouter,
 });
 
 // export type definition of API

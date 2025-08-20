@@ -52,6 +52,36 @@ export const roleRouter = createTRPCRouter({
     return userRoles.map(ur => ur.globalRole);
   }),
 
+  // Get current user's event roles
+  getUserRoles: protectedProcedure.query(async ({ ctx }) => {
+    const userRoles = await ctx.db.userRole.findMany({
+      where: { userId: ctx.session.user.id },
+      include: {
+        event: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+        role: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: [
+        { event: { startDate: "desc" } },
+        { role: { name: "asc" } },
+      ],
+    });
+
+    return userRoles;
+  }),
+
   // Check if user has specific permission
   hasPermission: protectedProcedure
     .input(z.object({ permission: z.string() }))

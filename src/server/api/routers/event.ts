@@ -4,6 +4,7 @@ import { Client as NotionClient } from "@notionhq/client";
 import {
   createTRPCRouter,
   publicProcedure,
+  protectedProcedure,
 } from "~/server/api/trpc";
 
 // Define the event data structure based on your sample - more flexible to handle real-world data
@@ -436,4 +437,187 @@ export const eventRouter = createTRPCRouter({
       const result = await syncUsersToNotion(input.events);
       return result;
     }),
+
+  // Dashboard-specific queries
+  getSponsoredEvents: protectedProcedure.query(async ({ ctx }) => {
+    // Get events where user has sponsor role
+    const userRoles = await ctx.db.userRole.findMany({
+      where: {
+        userId: ctx.session.user.id,
+        role: {
+          name: "sponsor"
+        }
+      },
+      include: {
+        event: {
+          include: {
+            _count: {
+              select: {
+                applications: true,
+                userRoles: true,
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return userRoles.map(ur => ur.event);
+  }),
+
+  getMentorEvents: protectedProcedure.query(async ({ ctx }) => {
+    // Get events where user has mentor role
+    const userRoles = await ctx.db.userRole.findMany({
+      where: {
+        userId: ctx.session.user.id,
+        role: {
+          name: "mentor"
+        }
+      },
+      include: {
+        event: {
+          include: {
+            _count: {
+              select: {
+                applications: true,
+                userRoles: true,
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return userRoles.map(ur => ur.event);
+  }),
+
+  getOrganizerEvents: protectedProcedure.query(async ({ ctx }) => {
+    // Get events where user has organizer role OR created the event
+    const userRoles = await ctx.db.userRole.findMany({
+      where: {
+        userId: ctx.session.user.id,
+        role: {
+          name: "organizer"
+        }
+      },
+      include: {
+        event: {
+          include: {
+            _count: {
+              select: {
+                applications: true,
+                userRoles: true,
+                sponsors: true,
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const createdEvents = await ctx.db.event.findMany({
+      where: {
+        createdById: ctx.session.user.id,
+      },
+      include: {
+        _count: {
+          select: {
+            applications: true,
+            userRoles: true,
+            sponsors: true,
+          }
+        }
+      }
+    });
+
+    // Combine and deduplicate
+    const allEvents = [...userRoles.map(ur => ur.event), ...createdEvents];
+    const uniqueEvents = allEvents.filter((event, index, self) => 
+      index === self.findIndex(e => e.id === event.id)
+    );
+
+    return uniqueEvents;
+  }),
+
+  getAvailableEvents: publicProcedure.query(async ({ ctx }) => {
+    // Get events that are accepting applications (open for everyone)
+    const events = await ctx.db.event.findMany({
+      where: {
+        endDate: {
+          gte: new Date(), // Only future events
+        }
+      },
+      include: {
+        _count: {
+          select: {
+            applications: true,
+          }
+        }
+      },
+      orderBy: {
+        startDate: "asc"
+      }
+    });
+
+    return events;
+  }),
+
+  getOrganizerStats: protectedProcedure.query(async ({ ctx }) => {
+    // Get stats for events the user organizes
+    const userRoles = await ctx.db.userRole.findMany({
+      where: {
+        userId: ctx.session.user.id,
+        role: {
+          name: "organizer"
+        }
+      },
+      select: {
+        eventId: true,
+      }
+    });
+
+    const createdEvents = await ctx.db.event.findMany({
+      where: {
+        createdById: ctx.session.user.id,
+      },
+      select: {
+        id: true,
+      }
+    });
+
+    const allEventIds = [...userRoles.map(ur => ur.eventId), ...createdEvents.map(e => e.id)];
+    const uniqueEventIds = [...new Set(allEventIds)];
+
+    if (uniqueEventIds.length === 0) {
+      return {
+        totalEvents: 0,
+        totalApplications: 0,
+        averageAcceptanceRate: 0,
+      };
+    }
+
+    // Calculate stats
+    const applications = await ctx.db.application.findMany({
+      where: {
+        eventId: {
+          in: uniqueEventIds,
+        }
+      },
+      select: {
+        status: true,
+      }
+    });
+
+    const totalApplications = applications.length;
+    const acceptedApplications = applications.filter(app => app.status === "ACCEPTED").length;
+    const averageAcceptanceRate = totalApplications > 0 
+      ? Math.round((acceptedApplications / totalApplications) * 100) 
+      : 0;
+
+    return {
+      totalEvents: uniqueEventIds.length,
+      totalApplications,
+      averageAcceptanceRate,
+    };
+  }),
 }); 

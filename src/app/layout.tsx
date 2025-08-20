@@ -11,6 +11,7 @@ import { TRPCReactProvider } from "~/trpc/react";
 import HeaderBar from "./admin/events/HeaderBar";
 import { ThemeProvider } from "./_components/ThemeProvider";
 import { ThemeToggle } from "./_components/ThemeToggle";
+import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
   title: "FtC",
@@ -30,12 +31,14 @@ export default function RootLayout({
     <html lang="en" className={`${geist.variable}`}>
       <body>
         <ThemeProvider>
-          <Notifications />
-          <TRPCReactProvider>
-            <HeaderBar />
-            {children}
-          </TRPCReactProvider>
-          <ThemeToggle />
+          <SessionProvider>
+            <Notifications />
+            <TRPCReactProvider>
+              <HeaderBar />
+              {children}
+            </TRPCReactProvider>
+            <ThemeToggle />
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

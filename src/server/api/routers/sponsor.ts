@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   createTRPCRouter,
   publicProcedure,
+  protectedProcedure,
 } from "~/server/api/trpc";
 
 export const sponsorRouter = createTRPCRouter({
@@ -211,4 +212,43 @@ export const sponsorRouter = createTRPCRouter({
 
       return createdDeliverables;
     }),
+
+  // Get sponsor stats for dashboard
+  getSponsorStats: protectedProcedure.query(async ({ ctx }) => {
+    // Find all events where user has sponsor role
+    const userRoles = await ctx.db.userRole.findMany({
+      where: {
+        userId: ctx.session.user.id,
+        role: {
+          name: "sponsor"
+        }
+      },
+      include: {
+        event: {
+          include: {
+            _count: {
+              select: {
+                applications: true,
+                userRoles: true,
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const totalEvents = userRoles.length;
+    const totalApplications = userRoles.reduce((sum, ur) => sum + ur.event._count.applications, 0);
+    const totalParticipants = userRoles.reduce((sum, ur) => sum + ur.event._count.userRoles, 0);
+
+    // Calculate impact metrics (this could be enhanced with more sophisticated metrics)
+    const impactScore = totalEvents > 0 ? Math.round((totalApplications + totalParticipants) / totalEvents) : 0;
+
+    return {
+      totalEvents,
+      totalApplications,
+      totalReach: totalParticipants,
+      impactScore,
+    };
+  }),
 }); 
