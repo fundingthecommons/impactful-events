@@ -21,9 +21,6 @@ import {
   IconSettings,
   IconCalendarEvent,
   IconUsersGroup,
-  IconTrendingUp,
-  IconCheck,
-  IconClock,
   IconArrowRight,
   IconMail,
   IconEye,
@@ -121,7 +118,7 @@ function OrganizedEventCard({ event }: { event: OrganizedEvent }) {
           </Group>
           
           <Text size="sm" c="dimmed" style={{ lineHeight: 1.5 }}>
-            {event.description ?? "Event you're organizing"}
+            {event.description ?? "Event you&apos;re organizing"}
           </Text>
 
           <Group gap="xs" mt="sm">
@@ -324,7 +321,7 @@ export default function OrganizerDashboard() {
                 <Stack gap="xs" align="center">
                   <Title order={3} c="dimmed">No Events Yet</Title>
                   <Text c="dimmed" ta="center" maw={400}>
-                    You haven't been assigned as an organizer for any events yet. Contact your admin to get involved in event organization.
+                    You haven&apos;t been assigned as an organizer for any events yet. Contact your admin to get involved in event organization.
                   </Text>
                 </Stack>
                 <Anchor href="mailto:james@fundingthecommons.io">

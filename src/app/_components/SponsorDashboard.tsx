@@ -12,7 +12,6 @@ import {
   Paper,
   ThemeIcon,
   Badge,
-  Progress,
   Loader,
   Box,
   Anchor
@@ -22,11 +21,8 @@ import {
   IconCalendarEvent,
   IconUsersGroup,
   IconTrendingUp,
-  IconCheck,
-  IconClock,
   IconArrowRight,
   IconMail,
-  IconEye,
   IconHeartHandshake,
   IconMapPin,
   IconCalendar
@@ -45,6 +41,13 @@ interface SponsoredEvent {
   _count: {
     applications: number;
     userRoles: number;
+  };
+  sponsorInfo?: {
+    id: string;
+    sponsor: {
+      id: string;
+      name: string;
+    };
   };
 }
 
@@ -143,16 +146,31 @@ function EventCard({ event }: { event: SponsoredEvent }) {
           </Group>
         </Stack>
 
-        <Link href={`/admin/events/${event.id}/applications`} style={{ textDecoration: 'none' }}>
-          <Button 
-            fullWidth
-            variant="outline"
-            rightSection={<IconArrowRight size={16} />}
-            color={gradient.from}
-          >
-            Manage Applications
-          </Button>
-        </Link>
+        <Stack gap="xs">
+          <Link href={`/admin/events/${event.id}/applications`} style={{ textDecoration: 'none' }}>
+            <Button 
+              fullWidth
+              variant="outline"
+              rightSection={<IconArrowRight size={16} />}
+              color={gradient.from}
+            >
+              Manage Applications
+            </Button>
+          </Link>
+          
+          {event.type.toLowerCase() === 'residency' && event.sponsorInfo && (
+            <Link href={`/sponsors/${event.sponsorInfo.sponsor.id}/residency?eventId=${event.id}`} style={{ textDecoration: 'none' }}>
+              <Button 
+                fullWidth
+                variant="filled"
+                rightSection={<IconMapPin size={16} />}
+                color="cyan"
+              >
+                Residency Dashboard
+              </Button>
+            </Link>
+          )}
+        </Stack>
       </Stack>
     </Card>
   );
@@ -293,7 +311,7 @@ export default function SponsorDashboard() {
                 <Stack gap="xs" align="center">
                   <Title order={3} c="dimmed">No Sponsored Events</Title>
                   <Text c="dimmed" ta="center" maw={400}>
-                    You don't have any sponsored events yet. Contact our team to get involved in upcoming events and support amazing builders.
+                    You don&apos;t have any sponsored events yet. Contact our team to get involved in upcoming events and support amazing builders.
                   </Text>
                 </Stack>
                 <Anchor href="mailto:james@fundingthecommons.io">

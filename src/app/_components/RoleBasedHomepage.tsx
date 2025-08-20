@@ -54,8 +54,18 @@ export default function RoleBasedHomepage() {
   const eventRoles = userRoles ?? [];
   const hasApplications = userApplications && userApplications.length > 0;
 
+  // Debug logging to identify routing
+  console.log("🔍 Dashboard routing debug:", {
+    userRole,
+    eventRoleCount: eventRoles.length,
+    roleNames: eventRoles.map(role => role.role.name),
+    hasApplications,
+    applicationsCount: userApplications?.length ?? 0
+  });
+
   // Admin/Staff get admin dashboard
   if (userRole === "admin" || userRole === "staff") {
+    console.log("✅ Routing to: AdminDashboard");
     return <AdminDashboard />;
   }
 
@@ -64,24 +74,29 @@ export default function RoleBasedHomepage() {
   
   // Organizers get organizer dashboard
   if (roleNames.includes("organizer")) {
+    console.log("✅ Routing to: OrganizerDashboard");
     return <OrganizerDashboard />;
   }
   
   // Sponsors get sponsor dashboard  
   if (roleNames.includes("sponsor")) {
+    console.log("✅ Routing to: SponsorDashboard");
     return <SponsorDashboard />;
   }
   
   // Mentors get mentor dashboard
   if (roleNames.includes("mentor")) {
+    console.log("✅ Routing to: MentorDashboard");
     return <MentorDashboard />;
   }
 
   // Users with applications get participant view
   if (hasApplications) {
+    console.log("✅ Routing to: ParticipantEventsClient");
     return <ParticipantEventsClient />;
   }
 
   // Everyone else gets the default user dashboard
+  console.log("✅ Routing to: DefaultUserDashboard");
   return <DefaultUserDashboard />;
 }

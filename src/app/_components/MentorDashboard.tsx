@@ -14,11 +14,9 @@ import {
   Badge,
   Loader,
   Box,
-  Anchor,
-  Timeline
+  Anchor
 } from "@mantine/core";
 import { 
-  IconUserCheck,
   IconCalendarEvent,
   IconUsersGroup,
   IconClock,
@@ -197,7 +195,7 @@ function SessionCard({ session }: { session: MentorshipSession }) {
           </Group>
           {session.notes && (
             <Text size="xs" c="dimmed" style={{ fontStyle: 'italic' }}>
-              "{session.notes}"
+              &ldquo;{session.notes}&rdquo;
             </Text>
           )}
         </Stack>
@@ -341,7 +339,7 @@ export default function MentorDashboard() {
                 <Stack gap="xs" align="center">
                   <Title order={3} c="dimmed">No Upcoming Sessions</Title>
                   <Text c="dimmed" ta="center" maw={400}>
-                    You don't have any mentorship sessions scheduled. Teams will be able to book sessions with you during active events.
+                    You don&apos;t have any mentorship sessions scheduled. Teams will be able to book sessions with you during active events.
                   </Text>
                 </Stack>
               </Stack>
@@ -373,7 +371,7 @@ export default function MentorDashboard() {
                 <Stack gap="xs" align="center">
                   <Title order={3} c="dimmed">No Mentor Roles</Title>
                   <Text c="dimmed" ta="center" maw={400}>
-                    You're not currently assigned as a mentor for any events. Contact the organizers to get involved in mentoring opportunities.
+                    You&apos;re not currently assigned as a mentor for any events. Contact the organizers to get involved in mentoring opportunities.
                   </Text>
                 </Stack>
                 <Anchor href="mailto:james@fundingthecommons.io">

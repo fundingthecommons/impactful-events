@@ -21,11 +21,7 @@ import {
   IconCalendarEvent,
   IconUsersGroup,
   IconTrophy,
-  IconCheck,
-  IconClock,
   IconArrowRight,
-  IconMail,
-  IconHeart,
   IconBrain,
   IconBuildingBank,
   IconCalendar,
@@ -85,7 +81,7 @@ function OpportunityCard({
 }: {
   title: string;
   description: string;
-  icon: React.FC<any>;
+  icon: React.FC<{ size?: number }>;
   color: string;
   action: string;
   actionText: string;

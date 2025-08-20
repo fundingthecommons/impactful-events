@@ -359,6 +359,13 @@ export const eventRouter = createTRPCRouter({
         },
       },
     });
+
+    console.log("🔍 getEvents query result:", {
+      totalEvents: events.length,
+      eventNames: events.map(e => e.name),
+      eventDates: events.map(e => ({ name: e.name, start: e.startDate, end: e.endDate }))
+    });
+
     return events;
   }),
 
@@ -451,6 +458,11 @@ export const eventRouter = createTRPCRouter({
       include: {
         event: {
           include: {
+            sponsors: {
+              include: {
+                sponsor: true
+              }
+            },
             _count: {
               select: {
                 applications: true,
@@ -462,7 +474,11 @@ export const eventRouter = createTRPCRouter({
       }
     });
 
-    return userRoles.map(ur => ur.event);
+    return userRoles.map(ur => ({
+      ...ur.event,
+      // Find the sponsor relationship for this user's organization
+      sponsorInfo: ur.event.sponsors[0] // For now, assume one sponsor per event
+    }));
   }),
 
   getMentorEvents: protectedProcedure.query(async ({ ctx }) => {
@@ -540,12 +556,21 @@ export const eventRouter = createTRPCRouter({
   }),
 
   getAvailableEvents: publicProcedure.query(async ({ ctx }) => {
-    // Get events that are accepting applications (open for everyone)
+    // Get events that are current, ongoing, or upcoming (not past events)
+    const now = new Date();
     const events = await ctx.db.event.findMany({
       where: {
-        endDate: {
-          gte: new Date(), // Only future events
-        }
+        OR: [
+          // Ongoing events (started but not ended)
+          {
+            startDate: { lte: now },
+            endDate: { gte: now }
+          },
+          // Future events (not started yet)
+          {
+            startDate: { gt: now }
+          }
+        ]
       },
       include: {
         _count: {
@@ -554,9 +579,16 @@ export const eventRouter = createTRPCRouter({
           }
         }
       },
-      orderBy: {
-        startDate: "asc"
-      }
+      orderBy: [
+        // Prioritize ongoing events first, then upcoming
+        { startDate: "asc" }
+      ]
+    });
+
+    console.log("🔍 getAvailableEvents query result:", {
+      totalEvents: events.length,
+      eventNames: events.map(e => e.name),
+      now: now.toISOString()
     });
 
     return events;

@@ -197,8 +197,14 @@ function EventCard({ event, applicationStatus }: EventCardProps) {
 }
 
 export default function ParticipantEventsClient() {
-  const { data: events, isLoading } = api.event.getEvents.useQuery();
+  const { data: events, isLoading } = api.event.getAvailableEvents.useQuery();
   const { data: userApplications } = api.application.getUserApplications.useQuery();
+
+  console.log("🔍 ParticipantEventsClient debug:", {
+    eventsCount: events?.length ?? 0,
+    applicationsCount: userApplications?.length ?? 0,
+    isLoading
+  });
 
   // Create a map of event applications for quick lookup
   const applicationMap = new Map(

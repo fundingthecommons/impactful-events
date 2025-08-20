@@ -12,7 +12,6 @@ import {
   Group,
   ThemeIcon,
   Card,
-  Box
 } from "@mantine/core";
 import { 
   IconCalendarEvent,
@@ -21,8 +20,6 @@ import {
   IconBrain,
   IconHeart,
   IconArrowRight,
-  IconWorldWww,
-  IconTrophy
 } from "@tabler/icons-react";
 
 function FeatureCard({ 
@@ -31,7 +28,7 @@ function FeatureCard({
   description, 
   color 
 }: {
-  icon: React.FC<any>;
+  icon: React.FC<{ size?: number }>;
   title: string;
   description: string;
   color: string;
@@ -172,7 +169,7 @@ export default function PublicHomepage() {
                 decentralized impact and sustainable funding mechanisms.
               </Text>
               <Text c="dimmed" maw={600} mx="auto">
-                Whether you're building solutions, providing funding, offering mentorship, or organizing events, 
+                Whether you&apos;re building solutions, providing funding, offering mentorship, or organizing events, 
                 our platform connects you with the right people and opportunities to maximize your impact.
               </Text>
             </Stack>
