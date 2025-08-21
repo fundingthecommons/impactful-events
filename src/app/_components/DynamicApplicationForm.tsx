@@ -25,6 +25,8 @@ import {
   IconCheck 
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
+import ApplicationProgressIndicator from "./ApplicationProgressIndicator";
+import ApplicationCompletionStatus from "./ApplicationCompletionStatus";
 
 type Question = {
   id: string;
@@ -76,6 +78,12 @@ export default function DynamicApplicationForm({
   const { data: questions, isLoading: questionsLoading } = api.application.getEventQuestions.useQuery({
     eventId,
   });
+
+  // Fetch application completion status
+  const { data: completionStatus, refetch: refetchCompletion } = api.application.getApplicationCompletion.useQuery(
+    { applicationId: applicationId! },
+    { enabled: !!applicationId }
+  );
 
   // API mutations
   const createApplication = api.application.createApplication.useMutation();
@@ -157,6 +165,9 @@ export default function DynamicApplicationForm({
 
       setLastSaved(new Date());
       onUpdated?.();
+      
+      // Refetch completion status after updating response
+      void refetchCompletion();
     } catch {
       notifications.show({
         title: "Error",
@@ -452,11 +463,30 @@ export default function DynamicApplicationForm({
   }
 
   const canEdit = !existingApplication || (existingApplication.status !== "UNDER_REVIEW" && existingApplication.status !== "ACCEPTED" && existingApplication.status !== "REJECTED" && existingApplication.status !== "WAITLISTED");
-  const isSubmitted = existingApplication && existingApplication.status !== "DRAFT";
+  const isSubmitted = Boolean(existingApplication && existingApplication.status !== "DRAFT");
 
   return (
     <div>
       <Stack gap="lg">
+        {/* Progress Indicator */}
+        {canEdit && applicationId && completionStatus && (
+          <ApplicationProgressIndicator
+            completedFields={completionStatus.completedFields}
+            totalFields={completionStatus.totalFields}
+            completionPercentage={completionStatus.completionPercentage}
+          />
+        )}
+
+        {/* Completion Status */}
+        {canEdit && applicationId && completionStatus && (
+          <ApplicationCompletionStatus
+            isComplete={completionStatus.isComplete ?? false}
+            isSubmitted={isSubmitted}
+            missingFields={completionStatus.missingFields}
+            onSubmit={handleSubmit}
+          />
+        )}
+
         {/* Auto-save indicator */}
         {canEdit && applicationId && (
           <Group justify="space-between">

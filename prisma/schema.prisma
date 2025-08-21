@@ -426,6 +426,9 @@ model Application {
   email         String   // For matching legacy submissions
   status        ApplicationStatus @default(DRAFT)
   language      String   @default("en") // User's preferred language
+  isComplete    Boolean  @default(false) // Tracks if all required fields are filled
+  completedAt   DateTime? // When it became complete
+  lastIncompleteAt DateTime? // Last time it was incomplete (for notifications)
   submittedAt   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

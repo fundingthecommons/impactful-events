@@ -6,6 +6,11 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { 
+  checkApplicationCompleteness, 
+  updateApplicationCompletionStatus,
+  sendCompletionNotification 
+} from "~/server/api/utils/applicationCompletion";
 
 // Input schemas
 const CreateApplicationInputSchema = z.object({
@@ -148,6 +153,32 @@ export const applicationRouter = createTRPCRouter({
       return application;
     }),
 
+  // Get application completion status
+  getApplicationCompletion: protectedProcedure
+    .input(z.object({ applicationId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Verify the application belongs to the current user
+      const application = await ctx.db.application.findUnique({
+        where: { id: input.applicationId },
+      });
+
+      if (!application || application.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Application not found or access denied",
+        });
+      }
+
+      const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId);
+      
+      return {
+        ...completionResult,
+        isComplete: application.isComplete,
+        completedAt: application.completedAt,
+        status: application.status,
+      };
+    }),
+
   // Update a response to a question
   updateResponse: protectedProcedure
     .input(UpdateApplicationResponseSchema)
@@ -184,6 +215,25 @@ export const applicationRouter = createTRPCRouter({
           question: true,
         },
       });
+
+      // Check if application completion status has changed
+      try {
+        const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId);
+        
+        // Update completion status in database
+        await updateApplicationCompletionStatus(ctx.db, input.applicationId, completionResult);
+        
+        // Send completion notification if application just became complete
+        if (completionResult.wasJustCompleted) {
+          // Send notification asynchronously to avoid blocking the response
+          sendCompletionNotification(ctx.db, input.applicationId).catch((error) => {
+            console.error('Failed to send completion notification:', error);
+          });
+        }
+      } catch (error) {
+        // Log error but don't fail the response update
+        console.error('Error checking application completeness:', error);
+      }
 
       return response;
     }),
