@@ -303,7 +303,7 @@ export function generateMissingInfoEmail(params: {
       
       <p>Thank you for your interest in <strong>${eventName}</strong>. We've reviewed your application and noticed that some required information is missing.</p>
       
-      <p>Please note that the application process has been evolving so it may be that some of these fields were missing from the original application form. We apologise for any inconvenience and thank you for your patience in processing your application.</p>
+      <p>Please note that the application process has been evolving so it may be that some of these fields were missing from the original application form. We apologise for any inconvenience and thank you for your patience while we process your application.</p>
       
       <div style="background-color: #f8f9fa; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
         <h3 style="color: #856404; margin-top: 0;">Missing Information:</h3>

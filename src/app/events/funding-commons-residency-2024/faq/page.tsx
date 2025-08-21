@@ -59,6 +59,13 @@ export default function FundingCommonsResidencyFAQPage() {
                 Yes, if we request additional information, you&rsquo;ll receive an email with a link to update your application. You can also contact us if you need to make changes to your submitted application.
               </p>
             </div>
+
+            <div>
+              <h3 className="text-lg font-medium mb-2">When will I know the outcome of my application?</h3>
+              <p className="text-gray-700">
+                We operate on a rolling admissions basis, which means we review and make decisions on applications continuously rather than waiting for all submissions to close. This allows us to notify successful applicants sooner and provide more personalized attention to each application. We&rsquo;re releasing decisions in waves, with more applicants being notified each passing week. We expect to have all applicants notified of their status by <strong>September 14th, 2025</strong>. If you haven&rsquo;t heard from us by then, please don&rsquo;t hesitate to reach out for an update.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -124,6 +131,17 @@ export default function FundingCommonsResidencyFAQPage() {
               <h3 className="text-lg font-medium mb-2">Can international applicants participate?</h3>
               <p className="text-gray-700">
                 Yes, we welcome international applicants. However, please note that visa requirements, tax implications, and logistics for in-person components may vary depending on your location and the specific program requirements.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-medium mb-2">Do I need a visa to participate?</h3>
+              <p className="text-gray-700">
+                Visa requirements depend on your nationality, current location, and the specific components of the program you&rsquo;ll be participating in. If you require a visa support letter for your application to immigration authorities, please reach out to us at{" "}
+                <a href="mailto:james@fundingthecommons.io" className="text-blue-600 hover:text-blue-800 underline">
+                  james@fundingthecommons.io
+                </a>
+                {" "}with your program details, and we&rsquo;ll be happy to provide the necessary documentation to support your visa application.
               </p>
             </div>
           </div>
