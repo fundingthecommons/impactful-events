@@ -2,8 +2,8 @@ import { ServerClient } from "postmark";
 import { env } from "~/env";
 
 // Email environment configuration
-const EMAIL_MODE = env.EMAIL_MODE;
-const TEST_EMAIL = env.TEST_EMAIL_OVERRIDE;
+const EMAIL_MODE: "development" | "staging" | "production" = env.EMAIL_MODE;
+const TEST_EMAIL: string = env.TEST_EMAIL_OVERRIDE;
 
 // Create appropriate Postmark client based on environment
 const getPostmarkClient = () => {
@@ -54,7 +54,7 @@ export async function sendEmail(params: SendEmailParams & {
   bypassSafety?: boolean; // Admin override for production
 }): Promise<SendEmailResult> {
   try {
-    const emailMode = EMAIL_MODE;
+    const emailMode: "development" | "staging" | "production" = EMAIL_MODE;
     const recipient = params.to;
     const recipientDomain = recipient.split('@')[1] ?? '';
     const senderDomain = "fundingthecommons.io";
@@ -248,7 +248,7 @@ function stripHtml(html: string): string {
  * Check if email sending is safe for the current environment
  */
 export function isEmailSendingSafe(): { safe: boolean; reason: string; mode: string } {
-  const mode = EMAIL_MODE;
+  const mode: "development" | "staging" | "production" = EMAIL_MODE;
   
   switch (mode) {
     case "development":
@@ -303,6 +303,8 @@ export function generateMissingInfoEmail(params: {
       
       <p>Thank you for your interest in <strong>${eventName}</strong>. We've reviewed your application and noticed that some required information is missing.</p>
       
+      <p>Please note that the application process has been evolving so it may be that some of these fields were missing from the original application form. We apologise for any inconvenience and thank you for your patience in processing your application.</p>
+      
       <div style="background-color: #f8f9fa; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
         <h3 style="color: #856404; margin-top: 0;">Missing Information:</h3>
         <ul style="margin-bottom: 0;">
@@ -323,7 +325,7 @@ export function generateMissingInfoEmail(params: {
         </a>
       </div>
       
-      <p>If you have any questions or need assistance, please don't hesitate to reach out to us.</p>
+      <p>If you have any questions or need assistance, please visit our <a href="/events/${eventName.toLowerCase().replace(/\s+/g, '-')}/faq" style="color: #007bff; text-decoration: none;">FAQ page</a> or don't hesitate to reach out to us.</p>
       
       <p>Best regards,<br>
       The ${eventName} Team</p>
@@ -343,6 +345,8 @@ Hi ${applicantName},
 
 Thank you for your interest in ${eventName}. We've reviewed your application and noticed that some required information is missing.
 
+Please note that the application process has been evolving so it may be that some of these fields were missing from the original application form. We apologise for any inconvenience and thank you for your patience in processing your application.
+
 Missing Information:
 ${missingFields.map(field => `- ${formatFieldName(field)}`).join("\n")}
 
@@ -351,7 +355,7 @@ To complete your application, please:
 2. Fill in the missing information listed above
 3. Submit your updated application
 
-If you have any questions or need assistance, please don't hesitate to reach out to us.
+If you have any questions or need assistance, please visit our FAQ page at /events/${eventName.toLowerCase().replace(/\s+/g, '-')}/faq or don't hesitate to reach out to us.
 
 Best regards,
 The ${eventName} Team
