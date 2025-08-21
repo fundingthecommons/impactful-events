@@ -45,6 +45,7 @@ import {
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import EditableApplicationForm from "~/app/_components/EditableApplicationForm";
+import EmailPreviewModal from "~/app/_components/EmailPreviewModal";
 
 type Event = {
   id: string;
@@ -55,6 +56,18 @@ type Event = {
   endDate: Date;
 };
 
+type EmailType = {
+  id: string;
+  subject: string;
+  htmlContent: string;
+  textContent?: string | null;
+  toEmail: string;
+  type: string;
+  status: "DRAFT" | "QUEUED" | "SENT" | "FAILED" | "CANCELLED";
+  missingFields?: string[];
+  createdAt: Date;
+  sentAt?: Date | null;
+};
 type ApplicationWithUser = {
   id: string;
   email: string;
@@ -121,6 +134,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [viewDrawerOpened, { open: openViewDrawer, close: closeViewDrawer }] = useDisclosure(false);
   const [editDrawerOpened, { open: openEditDrawer, close: closeEditDrawer }] = useDisclosure(false);
   const [actionsTab, setActionsTab] = useState<string>("next");
+  const [emailPreviewOpened, { open: openEmailPreview, close: closeEmailPreview }] = useDisclosure(false);
+  const [previewingEmail, setPreviewingEmail] = useState<EmailType | null>(null);
 
   // Fetch emails for the currently viewing application
   const { data: applicationEmails } = api.email.getApplicationEmails.useQuery(
@@ -175,6 +190,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const createMissingInfoEmail = api.email.createMissingInfoEmail.useMutation();
   const sendEmail = api.email.sendEmail.useMutation();
   const deleteEmail = api.email.deleteEmail.useMutation();
+  const { data: emailSafety } = api.email.getEmailSafety.useQuery();
 
   // Filter applications based on search
   const filteredApplications = applications?.filter(app => 
@@ -300,10 +316,19 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     }
   };
 
-  // Send a draft email
-  const handleSendEmail = async (emailId: string) => {
+  // Preview email before sending
+  const handlePreviewEmail = (email: EmailType) => {
+    setPreviewingEmail(email);
+    openEmailPreview();
+  };
+
+  // Send a draft email (now with safety confirmation)
+  const handleSendEmail = async (emailId: string, confirmed = false) => {
     try {
-      const result = await sendEmail.mutateAsync({ emailId });
+      const result = await sendEmail.mutateAsync({ 
+        emailId, 
+        bypassSafety: confirmed 
+      });
       
       if (result.success) {
         notifications.show({
@@ -312,6 +337,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
           color: "green",
           icon: <IconCheck />,
         });
+        closeEmailPreview();
       } else {
         notifications.show({
           title: "Email Failed",
@@ -857,7 +883,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                   <Text size="sm" c="dimmed" mb="sm">
                                     To: {email.toEmail} • Created: {new Date(email.createdAt).toLocaleDateString()}
                                   </Text>
-                                  {email.type === "MISSING_INFO" && email.missingFields.length > 0 && (
+                                  {email.type === "MISSING_INFO" && email.missingFields && email.missingFields.length > 0 && (
                                     <Paper p="md" bg="orange.1" radius="sm" mb="md">
                                       <Group gap="xs" mb="xs">
                                         <IconAlertCircle size={16} color="orange" />
@@ -876,10 +902,9 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                     variant="filled"
                                     color="blue"
                                     leftSection={<IconSend size={14} />}
-                                    onClick={() => void handleSendEmail(email.id)}
-                                    loading={sendEmail.isPending}
+                                    onClick={() => handlePreviewEmail(email)}
                                   >
-                                    Send
+                                    Preview & Send
                                   </Button>
                                   <ActionIcon
                                     size="sm"
@@ -989,7 +1014,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                       minute: "2-digit",
                                     }) : "Unknown"}
                                   </Text>
-                                  {email.type === "MISSING_INFO" && email.missingFields.length > 0 && (
+                                  {email.type === "MISSING_INFO" && email.missingFields && email.missingFields.length > 0 && (
                                     <Paper p="md" bg="orange.1" radius="sm" mb="md">
                                       <Group gap="xs" mb="xs">
                                         <IconAlertCircle size={16} color="orange" />
@@ -1079,6 +1104,18 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
           )}
         </ScrollArea>
       </Drawer>
+
+      {/* Email Preview Modal */}
+      {previewingEmail && emailSafety && (
+        <EmailPreviewModal
+          opened={emailPreviewOpened}
+          onClose={closeEmailPreview}
+          email={{...previewingEmail, textContent: previewingEmail.textContent ?? undefined}}
+          emailSafety={emailSafety}
+          onSend={handleSendEmail}
+          sending={sendEmail.isPending}
+        />
+      )}
     </Container>
   );
 }

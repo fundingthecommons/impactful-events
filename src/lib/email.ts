@@ -1,12 +1,33 @@
 import { ServerClient } from "postmark";
 import { env } from "~/env";
 
-// Create Postmark client
-const postmarkClient = new ServerClient(env.POSTMARK_SERVER_TOKEN);
+// Email environment configuration
+const EMAIL_MODE = env.EMAIL_MODE;
+const TEST_EMAIL = env.TEST_EMAIL_OVERRIDE;
 
-// Production mode check
-const IS_PRODUCTION = env.EMAIL_MODE === "production";
-const TEST_EMAIL = "james@fundingthecommons.io";
+// Create appropriate Postmark client based on environment
+const getPostmarkClient = () => {
+  switch (EMAIL_MODE) {
+    case "development":
+      // Use sandbox token if available, otherwise live token with redirection
+      return new ServerClient(env.POSTMARK_SANDBOX_TOKEN ?? env.POSTMARK_SERVER_TOKEN);
+    case "staging":
+    case "production":
+      return new ServerClient(env.POSTMARK_SERVER_TOKEN);
+    default:
+      return new ServerClient(env.POSTMARK_SANDBOX_TOKEN ?? env.POSTMARK_SERVER_TOKEN);
+  }
+};
+
+const postmarkClient = getPostmarkClient();
+
+// Safety configuration
+const EMAIL_SAFETY_CONFIG = {
+  useSandboxInDev: !!env.POSTMARK_SANDBOX_TOKEN,
+  redirectInStaging: EMAIL_MODE === "staging",
+  directSendInProd: EMAIL_MODE === "production",
+  requireConfirmationInProd: EMAIL_MODE === "production",
+};
 
 export interface SendEmailParams {
   to: string;
@@ -23,40 +44,117 @@ export interface SendEmailResult {
 }
 
 /**
- * Send an email using Postmark
- * In development: redirects to test email
- * In production: sends to actual recipient (if Postmark account is approved)
- * Sandbox mode: only allows same domain as From address
+ * Enhanced email sending with multiple safety layers
+ * 
+ * Development: Uses sandbox server (black-hole) or redirects to test email
+ * Staging: Redirects all emails to test email with clear labeling  
+ * Production: Sends to actual recipients with safety checks
  */
-export async function sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
+export async function sendEmail(params: SendEmailParams & { 
+  bypassSafety?: boolean; // Admin override for production
+}): Promise<SendEmailResult> {
   try {
-    const isProductionMode = IS_PRODUCTION;
-    
-    // Check if recipient domain matches sender domain (for sandbox mode)
-    const recipientDomain = params.to.split('@')[1];
+    const emailMode = EMAIL_MODE;
+    const recipient = params.to;
+    const recipientDomain = recipient.split('@')[1] ?? '';
     const senderDomain = "fundingthecommons.io";
     const isSameDomain = recipientDomain === senderDomain;
     
-    // In production mode, only send to actual recipient if it's same domain or account is approved
-    // For now, redirect external domains to test email until Postmark approval
-    const shouldRedirect = !isProductionMode || !isSameDomain;
-    const finalRecipient = shouldRedirect ? TEST_EMAIL : params.to;
+    // Determine email handling strategy
+    let finalRecipient: string;
+    let subjectPrefix: string;
+    let shouldAddWarningBanner: boolean;
+    let warningType: string;
+    
+    switch (emailMode) {
+      case "development":
+        if (EMAIL_SAFETY_CONFIG.useSandboxInDev) {
+          // Sandbox server - emails go to black hole (safest for dev)
+          finalRecipient = recipient; // Postmark sandbox handles the black-holing
+          subjectPrefix = "[DEV-SANDBOX]";
+          shouldAddWarningBanner = false; // No need since it won't be delivered
+          warningType = "sandbox";
+        } else {
+          // Redirect to test email
+          finalRecipient = TEST_EMAIL;
+          subjectPrefix = "[DEV]";
+          shouldAddWarningBanner = true;
+          warningType = "development";
+        }
+        break;
+        
+      case "staging":
+        // Always redirect to test email in staging
+        finalRecipient = TEST_EMAIL;
+        subjectPrefix = "[STAGING]";
+        shouldAddWarningBanner = true;
+        warningType = "staging";
+        break;
+        
+      case "production":
+        if (params.bypassSafety) {
+          // Admin explicitly bypassed safety - send directly
+          finalRecipient = recipient;
+          subjectPrefix = "";
+          shouldAddWarningBanner = false;
+          warningType = "none";
+        } else if (!isSameDomain) {
+          // External domain in production - redirect for safety until account approved
+          finalRecipient = TEST_EMAIL;
+          subjectPrefix = "[PROD-REDIRECT]";
+          shouldAddWarningBanner = true;
+          warningType = "production-redirect";
+        } else {
+          // Same domain in production - send directly
+          finalRecipient = recipient;
+          subjectPrefix = "";
+          shouldAddWarningBanner = false;
+          warningType = "none";
+        }
+        break;
+        
+      default:
+        // Fallback to safe mode
+        finalRecipient = TEST_EMAIL;
+        subjectPrefix = "[UNKNOWN-MODE]";
+        shouldAddWarningBanner = true;
+        warningType = "fallback";
+    }
+    
+    // Log email routing for debugging
+    console.log("📧 Email routing:", {
+      mode: emailMode,
+      originalRecipient: recipient,
+      finalRecipient,
+      subjectPrefix,
+      warningType,
+      usingSandbox: EMAIL_SAFETY_CONFIG.useSandboxInDev && emailMode === "development"
+    });
+    
+    // Prepare final content
+    const finalSubject = subjectPrefix 
+      ? `${subjectPrefix} ${params.subject} - Original: ${recipient}`
+      : params.subject;
+      
+    const finalHtmlContent = shouldAddWarningBanner ? `
+      <div style="border: 2px solid #${getWarningColor(warningType)}; padding: 16px; margin-bottom: 16px; background-color: #${getWarningBgColor(warningType)}; border-radius: 4px;">
+        <strong>⚠️ ${getWarningTitle(warningType)}:</strong> This email was originally intended for <strong>${recipient}</strong> but has been redirected ${getWarningReason(warningType)}.
+        ${getWarningDetails(warningType)}
+      </div>
+      ${params.htmlContent}
+    ` : params.htmlContent;
+    
+    const finalTextContent = params.textContent ?? (shouldAddWarningBanner 
+      ? `${getWarningTitle(warningType)}: This email was originally intended for ${recipient} but has been redirected ${getWarningReason(warningType)}.\n\n${stripHtml(params.htmlContent)}`
+      : stripHtml(params.htmlContent)
+    );
     
     const response = await postmarkClient.sendEmail({
       From: "james@fundingthecommons.io",
       To: finalRecipient,
-      Subject: shouldRedirect ? `[${isProductionMode ? 'SANDBOX' : 'DEV'}] ${params.subject} - Original: ${params.to}` : params.subject,
-      HtmlBody: shouldRedirect ? `
-        <div style="border: 2px solid #${isProductionMode ? 'ffa500' : 'ff6b6b'}; padding: 16px; margin-bottom: 16px; background-color: #${isProductionMode ? 'fff3cd' : 'ffe6e6'}; border-radius: 4px;">
-          <strong>⚠️ ${isProductionMode ? 'SANDBOX MODE' : 'DEVELOPMENT MODE'}:</strong> This email was originally intended for <strong>${params.to}</strong> but has been redirected ${isProductionMode ? 'due to Postmark sandbox restrictions' : 'for testing purposes'}.
-          ${isProductionMode ? '<br><br>To send to external domains, your Postmark account needs approval.' : ''}
-        </div>
-        ${params.htmlContent}
-      ` : params.htmlContent,
-      TextBody: params.textContent ?? (shouldRedirect 
-        ? `${isProductionMode ? 'SANDBOX MODE' : 'DEVELOPMENT MODE'}: This email was originally intended for ${params.to} but has been redirected ${isProductionMode ? 'due to Postmark sandbox restrictions' : 'for testing purposes'}.\n\n${stripHtml(params.htmlContent)}`
-        : stripHtml(params.htmlContent)
-      ),
+      Subject: finalSubject,
+      HtmlBody: finalHtmlContent,
+      TextBody: finalTextContent,
       MessageStream: params.messageStream ?? "outbound",
     });
 
@@ -74,6 +172,64 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
 }
 
 /**
+ * Warning message helpers for different email redirection scenarios
+ */
+function getWarningColor(warningType: string): string {
+  switch (warningType) {
+    case "development": return "ff6b6b";
+    case "staging": return "ffa500";
+    case "production-redirect": return "ff9800";
+    case "sandbox": return "2196f3";
+    default: return "666666";
+  }
+}
+
+function getWarningBgColor(warningType: string): string {
+  switch (warningType) {
+    case "development": return "ffe6e6";
+    case "staging": return "fff3cd";
+    case "production-redirect": return "fff8e1";
+    case "sandbox": return "e3f2fd";
+    default: return "f5f5f5";
+  }
+}
+
+function getWarningTitle(warningType: string): string {
+  switch (warningType) {
+    case "development": return "DEVELOPMENT MODE";
+    case "staging": return "STAGING MODE";
+    case "production-redirect": return "PRODUCTION REDIRECT";
+    case "sandbox": return "SANDBOX MODE";
+    default: return "TEST MODE";
+  }
+}
+
+function getWarningReason(warningType: string): string {
+  switch (warningType) {
+    case "development": return "for safe development testing";
+    case "staging": return "for staging environment testing";
+    case "production-redirect": return "due to external domain safety restrictions";
+    case "sandbox": return "via Postmark sandbox server";
+    default: return "for testing purposes";
+  }
+}
+
+function getWarningDetails(warningType: string): string {
+  switch (warningType) {
+    case "development": 
+      return "<br><br><strong>Safe Testing:</strong> This is your development environment - no real emails will be sent.";
+    case "staging": 
+      return "<br><br><strong>Staging Test:</strong> This is your staging environment for testing before production.";
+    case "production-redirect": 
+      return "<br><br><strong>Safety First:</strong> External domain emails are redirected until Postmark account approval.";
+    case "sandbox": 
+      return "<br><br><strong>Sandbox Server:</strong> Using Postmark sandbox - emails are safely black-holed.";
+    default: 
+      return "";
+  }
+}
+
+/**
  * Simple HTML to text converter for fallback text content
  */
 function stripHtml(html: string): string {
@@ -86,6 +242,42 @@ function stripHtml(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .trim();
+}
+
+/**
+ * Check if email sending is safe for the current environment
+ */
+export function isEmailSendingSafe(): { safe: boolean; reason: string; mode: string } {
+  const mode = EMAIL_MODE;
+  
+  switch (mode) {
+    case "development":
+      return { 
+        safe: true, 
+        reason: EMAIL_SAFETY_CONFIG.useSandboxInDev 
+          ? "Using Postmark sandbox server (black-hole)" 
+          : "Redirecting to test email",
+        mode: "development"
+      };
+    case "staging":
+      return { 
+        safe: true, 
+        reason: "All emails redirected to test address", 
+        mode: "staging" 
+      };
+    case "production":
+      return { 
+        safe: false, 
+        reason: "Production mode - emails go to real recipients", 
+        mode: "production" 
+      };
+    default:
+      return { 
+        safe: true, 
+        reason: "Unknown mode - defaulting to safe redirection", 
+        mode: "unknown" 
+      };
+  }
 }
 
 /**

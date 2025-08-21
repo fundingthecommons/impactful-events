@@ -23,7 +23,9 @@ export const env = createEnv({
     NOTION_CONTACTS_DATABASE_ID: z.string(),
     NOTION_EVENTS_DATABASE_ID: z.string(),
     POSTMARK_SERVER_TOKEN: z.string(),
-    EMAIL_MODE: z.enum(["development", "production"]).default("development"),
+    POSTMARK_SANDBOX_TOKEN: z.string().optional(),
+    EMAIL_MODE: z.enum(["development", "staging", "production"]).default("development"),
+    TEST_EMAIL_OVERRIDE: z.string().email().default("james@fundingthecommons.io"),
   },
 
   /**
@@ -51,7 +53,9 @@ export const env = createEnv({
     NOTION_CONTACTS_DATABASE_ID: process.env.NOTION_CONTACTS_DATABASE_ID,
     NOTION_EVENTS_DATABASE_ID: process.env.NOTION_EVENTS_DATABASE_ID,
     POSTMARK_SERVER_TOKEN: process.env.POSTMARK_SERVER_TOKEN,
+    POSTMARK_SANDBOX_TOKEN: process.env.POSTMARK_SANDBOX_TOKEN,
     EMAIL_MODE: process.env.EMAIL_MODE,
+    TEST_EMAIL_OVERRIDE: process.env.TEST_EMAIL_OVERRIDE,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

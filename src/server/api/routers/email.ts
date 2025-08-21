@@ -6,7 +6,7 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 
-import { sendEmail, generateMissingInfoEmail } from "~/lib/email";
+import { sendEmail, generateMissingInfoEmail, isEmailSendingSafe } from "~/lib/email";
 
 // Input schemas
 const CreateMissingInfoEmailSchema = z.object({
@@ -15,6 +15,7 @@ const CreateMissingInfoEmailSchema = z.object({
 
 const SendEmailSchema = z.object({
   emailId: z.string(),
+  bypassSafety: z.boolean().optional(),
 });
 
 const GetApplicationEmailsSchema = z.object({
@@ -239,12 +240,13 @@ export const emailRouter = createTRPCRouter({
         });
       }
 
-      // Send the email using Postmark
+      // Send the email using Postmark with safety options
       const result = await sendEmail({
         to: email.toEmail,
         subject: email.subject,
         htmlContent: email.htmlContent,
         textContent: email.textContent ?? undefined,
+        bypassSafety: input.bypassSafety ?? false,
       });
 
       // Update email status based on result
@@ -429,4 +431,10 @@ export const emailRouter = createTRPCRouter({
         total: stats.reduce((sum, stat) => sum + stat._count.id, 0),
       };
     }),
+
+  // Get email safety configuration for current environment
+  getEmailSafety: protectedProcedure.query(async ({ ctx }) => {
+    checkAdminAccess(ctx.session.user.role);
+    return isEmailSendingSafe();
+  }),
 });
