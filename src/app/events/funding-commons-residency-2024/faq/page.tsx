@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "FAQ - Funding the Commons Residency 2024",
-  description: "Frequently asked questions about the Funding the Commons Residency 2024 program",
+  title: "FAQ - Funding the Commons Residency 2025",
+  description: "Frequently asked questions about the Funding the Commons Residency 2025 program",
 };
 
 export default function FundingCommonsResidencyFAQPage() {
@@ -12,7 +12,7 @@ export default function FundingCommonsResidencyFAQPage() {
       <div className="mb-8">
         <nav className="text-sm breadcrumbs mb-4">
           <Link href="/events/funding-commons-residency-2024" className="text-blue-600 hover:text-blue-800">
-            ← Back to Funding the Commons Residency 2024
+            ← Back to Funding the Commons Residency 2025
           </Link>
         </nav>
         
@@ -20,7 +20,7 @@ export default function FundingCommonsResidencyFAQPage() {
           Frequently Asked Questions
         </h1>
         <p className="text-xl text-gray-600 mb-8">
-          Funding the Commons Residency 2024
+          Funding the Commons Residency 2025
         </p>
       </div>
 
@@ -86,14 +86,14 @@ export default function FundingCommonsResidencyFAQPage() {
             <div>
               <h3 className="text-lg font-medium mb-2">How long is the residency program?</h3>
               <p className="text-gray-700">
-                The residency program duration varies depending on the specific track and project requirements. Typical residencies range from 3-6 months, with some flexibility based on project needs and resident availability.
+                The residency program runs for <strong>3 weeks from October 24 – November 14, 2025</strong> in Buenos Aires, Argentina. This intensive format allows for deep collaboration and focused development while being accessible to participants with various commitments.
               </p>
             </div>
 
             <div>
               <h3 className="text-lg font-medium mb-2">Is the residency remote or in-person?</h3>
               <p className="text-gray-700">
-                The 2024 residency offers both remote and in-person components. Some activities and workshops may be conducted in-person, while day-to-day work can often be done remotely. Specific requirements will be discussed during the application process.
+                The 2025 residency is primarily in-person in Buenos Aires, Argentina. This intensive 3-week format encourages deep collaboration and immersive development. Specific logistics and requirements will be discussed during the application process.
               </p>
             </div>
 

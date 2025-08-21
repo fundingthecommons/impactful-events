@@ -57,10 +57,18 @@ export default async function FundingCommonsResidencyPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <Link 
-                href="/events/funding-commons-residency-2024/about"
+                href="https://www.fundingthecommons.io/builderresidency2025"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-center"
               >
                 Learn About RealFi
+              </Link>
+              <Link 
+                href="/events/funding-commons-residency-2024/about"
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-center"
+              >
+                Residency Focus
               </Link>
               <Link 
                 href="/events/funding-commons-residency-2024/faq"
