@@ -195,26 +195,81 @@ export const applicationRouter = createTRPCRouter({
         });
       }
 
-      // Update or create the response
-      const response = await ctx.db.applicationResponse.upsert({
-        where: {
-          applicationId_questionId: {
-            applicationId: input.applicationId,
-            questionId: input.questionId,
-          },
-        },
-        update: {
-          answer: input.answer,
-        },
-        create: {
-          applicationId: input.applicationId,
-          questionId: input.questionId,
-          answer: input.answer,
-        },
-        include: {
-          question: true,
-        },
-      });
+      // Update or create the response with retry logic for race conditions
+      let response;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (retryCount < maxRetries) {
+        try {
+          response = await ctx.db.applicationResponse.upsert({
+            where: {
+              applicationId_questionId: {
+                applicationId: input.applicationId,
+                questionId: input.questionId,
+              },
+            },
+            update: {
+              answer: input.answer,
+            },
+            create: {
+              applicationId: input.applicationId,
+              questionId: input.questionId,
+              answer: input.answer,
+            },
+            include: {
+              question: true,
+            },
+          });
+          break; // Success, exit the retry loop
+        } catch (error: unknown) {
+          retryCount++;
+          
+          // Check if it's a unique constraint error
+          if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+            console.log(`Unique constraint error on attempt ${retryCount}, retrying...`);
+            
+            if (retryCount >= maxRetries) {
+              // Final attempt: just try to update existing record
+              const existingResponse = await ctx.db.applicationResponse.findUnique({
+                where: {
+                  applicationId_questionId: {
+                    applicationId: input.applicationId,
+                    questionId: input.questionId,
+                  },
+                },
+                include: {
+                  question: true,
+                },
+              });
+              
+              if (existingResponse) {
+                response = await ctx.db.applicationResponse.update({
+                  where: { id: existingResponse.id },
+                  data: { answer: input.answer },
+                  include: {
+                    question: true,
+                  },
+                });
+                break;
+              }
+            }
+            
+            // Wait a bit before retrying to avoid immediate conflict
+            await new Promise(resolve => setTimeout(resolve, 50 * retryCount));
+          } else {
+            // Non-constraint error, don't retry
+            throw error;
+          }
+        }
+      }
+      
+      if (!response) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to save response after multiple attempts",
+        });
+      }
 
       // Check if application completion status has changed
       try {
@@ -262,9 +317,10 @@ export const applicationRouter = createTRPCRouter({
       }
 
       if (application.status !== "DRAFT") {
+        console.log(`Submit attempt on non-DRAFT application: ${input.applicationId}, current status: ${application.status}, user: ${ctx.session.user.id}`);
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Application has already been submitted",
+          message: `Application has already been submitted (current status: ${application.status})`,
         });
       }
 

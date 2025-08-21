@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { 
   Stack, 
   Text, 
@@ -73,6 +73,7 @@ export default function DynamicApplicationForm({
   const [applicationId, setApplicationId] = useState<string | null>(existingApplication?.id ?? null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const saveTimeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Fetch questions for the event
   const { data: questions, isLoading: questionsLoading } = api.application.getEventQuestions.useQuery({
@@ -139,7 +140,7 @@ export default function DynamicApplicationForm({
   }, [questions, existingApplication]);
 
   // Auto-save functionality
-  const autoSave = async (questionKey: string, value: unknown) => {
+  const autoSave = useCallback(async (questionKey: string, value: unknown) => {
     if (!applicationId || !questions) return;
 
     const question = questions.find(q => q.questionKey === questionKey);
@@ -168,17 +169,41 @@ export default function DynamicApplicationForm({
       
       // Refetch completion status after updating response
       void refetchCompletion();
-    } catch {
+    } catch (error: unknown) {
+      console.error('Error saving response:', error);
+      
+      // Show user-friendly error message
+      const errorMessage = error && typeof error === 'object' && 'message' in error 
+        ? String(error.message)
+        : "Failed to save your response";
+        
       notifications.show({
         title: "Error",
-        message: "Failed to save your response",
+        message: errorMessage,
         color: "red",
         icon: <IconAlertCircle />,
       });
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [applicationId, questions, updateResponse, onUpdated, refetchCompletion]);
+
+  // Debounced auto-save function
+  const debouncedAutoSave = useCallback((questionKey: string, value: unknown) => {
+    // Clear any existing timeout for this field
+    const existingTimeout = saveTimeoutRefs.current.get(questionKey);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    
+    // Set new timeout
+    const newTimeout = setTimeout(() => {
+      void autoSave(questionKey, value);
+      saveTimeoutRefs.current.delete(questionKey);
+    }, 1500); // Increased debounce delay to reduce race conditions
+    
+    saveTimeoutRefs.current.set(questionKey, newTimeout);
+  }, [autoSave]);
 
   // Handle form field changes
   const handleFieldChange = async (questionKey: string, value: unknown) => {
@@ -211,11 +236,19 @@ export default function DynamicApplicationForm({
       }
     }
     
-    // Auto-save after a short delay
-    setTimeout(() => {
-      void autoSave(questionKey, value);
-    }, 1000);
+    // Use debounced auto-save to prevent race conditions
+    debouncedAutoSave(questionKey, value);
   };
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    const timeouts = saveTimeoutRefs.current;
+    return () => {
+      // Clear all pending timeouts
+      timeouts.forEach(timeout => clearTimeout(timeout));
+      timeouts.clear();
+    };
+  }, []);
 
   // Create application if it doesn't exist
   const ensureApplication = async () => {
@@ -287,6 +320,13 @@ export default function DynamicApplicationForm({
       return;
     }
     
+    // Refresh completion status to get latest application state
+    try {
+      await refetchCompletion();
+    } catch (error) {
+      console.error('Error refreshing application status:', error);
+    }
+    
     if (!validateForm()) {
       notifications.show({
         title: "Please Complete Required Fields",
@@ -311,12 +351,33 @@ export default function DynamicApplicationForm({
 
       onSubmitted?.();
     } catch (error: unknown) {
-      notifications.show({
-        title: "Error",
-        message: (error as { message?: string }).message ?? "Failed to submit application",
-        color: "red",
-        icon: <IconAlertCircle />,
-      });
+      console.error('Submit error:', error);
+      
+      const errorMessage = error && typeof error === 'object' && 'message' in error 
+        ? String(error.message)
+        : "Failed to submit application";
+      
+      // Check if it's the "already submitted" error and refresh the page
+      if (errorMessage.includes("already been submitted")) {
+        notifications.show({
+          title: "Application Already Submitted",
+          message: "This application has already been submitted. Refreshing the page...",
+          color: "yellow",
+          icon: <IconAlertCircle />,
+        });
+        
+        // Refresh the page to show the correct state
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        notifications.show({
+          title: "Error",
+          message: errorMessage,
+          color: "red",
+          icon: <IconAlertCircle />,
+        });
+      }
     }
   };
 
@@ -532,17 +593,27 @@ export default function DynamicApplicationForm({
         </Stack>
 
         {/* Form actions */}
-        {canEdit && (
-          <Group justify="flex-end" mt="xl">
-            <Button
-              onClick={handleSubmit}
-              size="lg"
-              leftSection={<IconSend size={16} />}
-              loading={submitApplication.isPending}
-            >
-              {language === "es" ? "Enviar Aplicación" : "Submit Application"}
-            </Button>
-          </Group>
+        {canEdit && !isSubmitted && completionStatus && (
+          <Stack gap="sm" mt="xl">
+            {(!completionStatus.isComplete || completionStatus.status !== "DRAFT") && (
+              <Text size="sm" c="dimmed" ta="right">
+                {completionStatus.status !== "DRAFT" 
+                  ? "Application has already been submitted"
+                  : "Complete all required fields to submit"}
+              </Text>
+            )}
+            <Group justify="flex-end">
+              <Button
+                onClick={handleSubmit}
+                size="lg"
+                leftSection={<IconSend size={16} />}
+                loading={submitApplication.isPending}
+                disabled={!completionStatus.isComplete || completionStatus.status !== "DRAFT"}
+              >
+                {language === "es" ? "Enviar Aplicación" : "Submit Application"}
+              </Button>
+            </Group>
+          </Stack>
         )}
 
         {isSubmitted && (
