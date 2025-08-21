@@ -40,22 +40,35 @@ export default async function FundingCommonsResidencyPage() {
 
   return (
     <div>
-      {/* FAQ Link Banner */}
-      <div className="bg-blue-50 border-b border-blue-200 px-4 py-3">
+      {/* Info Banner */}
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-blue-200 px-4 py-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-              <span className="text-blue-800 font-medium">Have questions about the application process?</span>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start space-x-3">
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-2 mt-0.5">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-blue-900 font-semibold">FtC RealFi Residency • Buenos Aires 2025</p>
+                <p className="text-blue-700 text-sm">Building real-world blockchain applications for everyday Argentinians</p>
+              </div>
             </div>
-            <Link 
-              href="/events/funding-commons-residency-2024/faq"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              View FAQ
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Link 
+                href="/events/funding-commons-residency-2024/about"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-center"
+              >
+                Learn About RealFi
+              </Link>
+              <Link 
+                href="/events/funding-commons-residency-2024/faq"
+                className="bg-white hover:bg-gray-50 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-blue-200 text-center"
+              >
+                View FAQ
+              </Link>
+            </div>
           </div>
         </div>
       </div>

@@ -178,14 +178,22 @@ export default function FundingCommonsResidencyFAQPage() {
         </section>
       </div>
 
-      {/* Back to Event Link */}
+      {/* Navigation Links */}
       <div className="mt-12 pt-8 border-t border-gray-200">
-        <Link 
-          href="/events/funding-commons-residency-2024"
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          ← Back to Funding the Commons Residency 2024
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Link 
+            href="/events/funding-commons-residency-2024"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            ← Back to Residency
+          </Link>
+          <Link 
+            href="/events/funding-commons-residency-2024/about"
+            className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            Learn About RealFi →
+          </Link>
+        </div>
       </div>
     </div>
   );
