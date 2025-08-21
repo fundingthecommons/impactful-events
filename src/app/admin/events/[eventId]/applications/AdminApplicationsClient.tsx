@@ -615,6 +615,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             color={getStatusColor(application.status)}
                             variant="light"
                             leftSection={<StatusIcon size={12} />}
+                            title={`Debug: Status is "${application.status}"`}
                           >
                             {application.status.replace("_", " ")}
                           </Badge>
@@ -643,13 +644,14 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                               <IconEdit size={16} />
                             </ActionIcon>
 
-                            {application.status === "UNDER_REVIEW" && (
+                            {(application.status === "UNDER_REVIEW" || application.status === "SUBMITTED") && (
                               <ActionIcon
                                 variant="subtle"
                                 color="orange"
                                 onClick={() => void handleCheckApplication(application.id)}
                                 loading={createMissingInfoEmail.isPending}
                                 title="Check for missing information"
+                                data-status={application.status}
                               >
                                 <IconChecklist size={16} />
                               </ActionIcon>
@@ -766,11 +768,13 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                   <Stack gap="lg">
                     {/* Show appropriate next action based on status */}
                     <Paper p="lg" withBorder radius="md">
-                      {viewingApplication.status === "UNDER_REVIEW" ? (
+                      {(viewingApplication.status === "UNDER_REVIEW" || viewingApplication.status === "SUBMITTED") ? (
                         <Stack gap="md">
                           <Group gap="xs" align="center">
                             <IconChecklist size={20} color="orange" />
-                            <Text fw={600} color="orange.7">Review Application</Text>
+                            <Text fw={600} color="orange.7">
+                              {viewingApplication.status === "SUBMITTED" ? "Review Submitted Application" : "Review Application"}
+                            </Text>
                           </Group>
                           <Text size="sm" c="dimmed">
                             Review the application for completeness and missing information. If fields are missing, 

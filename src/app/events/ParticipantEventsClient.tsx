@@ -118,6 +118,9 @@ function EventCard({ event, applicationStatus }: EventCardProps) {
       year: 'numeric'
     }).format(date);
   };
+
+  const isHackathon = event.type.toLowerCase() === "hackathon";
+  const showComingSoon = isHackathon && !applicationStatus?.hasApplication;
   
   return (
     <Card shadow="lg" padding="xl" radius="md" withBorder style={{ height: "100%" }}>
@@ -177,19 +180,30 @@ function EventCard({ event, applicationStatus }: EventCardProps) {
         </Stack>
 
         <Stack gap="sm">
-          <Link href={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
+          {showComingSoon ? (
             <Button 
               fullWidth
-              variant={applicationStatus?.hasApplication ? "outline" : "filled"}
-              rightSection={<IconArrowRight size={16} />}
+              variant="outline"
+              disabled
               color={gradient.from}
             >
-              {applicationStatus?.hasApplication 
-                ? "Manage Application" 
-                : "Learn More & Apply"
-              }
+              Coming Soon
             </Button>
-          </Link>
+          ) : (
+            <Link href={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
+              <Button 
+                fullWidth
+                variant={applicationStatus?.hasApplication ? "outline" : "filled"}
+                rightSection={<IconArrowRight size={16} />}
+                color={gradient.from}
+              >
+                {applicationStatus?.hasApplication 
+                  ? "Manage Application" 
+                  : "Learn More & Apply"
+                }
+              </Button>
+            </Link>
+          )}
         </Stack>
       </Stack>
     </Card>

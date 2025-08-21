@@ -4,6 +4,9 @@ import Link from "next/link";
 import { api } from "~/trpc/server";
 import ResidencyApplicationsClient from "./ResidencyApplicationsClient";
 
+// Force dynamic rendering since we're using server-side tRPC calls
+export const dynamic = 'force-dynamic';
+
 export default async function ResidencyApplicationsPage() {
   try {
     // Get all residency-type events
