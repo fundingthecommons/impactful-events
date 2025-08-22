@@ -9,7 +9,7 @@ import {
 import { 
   checkApplicationCompleteness, 
   updateApplicationCompletionStatus,
-  sendCompletionNotification 
+  sendSubmissionNotification 
 } from "~/server/api/utils/applicationCompletion";
 
 // Input schemas
@@ -283,12 +283,10 @@ export const applicationRouter = createTRPCRouter({
           console.log(`✏️ Application ${input.applicationId} status reverted from SUBMITTED to DRAFT due to field edit`);
         }
         
-        // Send completion notification if application just became complete
+        // Note: We don't send emails just for field completion anymore
+        // Users should only get emails for actual submission, not just filling fields
         if (completionResult.wasJustCompleted) {
-          // Send notification asynchronously to avoid blocking the response
-          sendCompletionNotification(ctx.db, input.applicationId).catch((error) => {
-            console.error('Failed to send completion notification:', error);
-          });
+          console.log(`✅ Application ${input.applicationId} became complete - in-browser notification will show, no email sent`);
         }
       } catch (error) {
         // Log error but don't fail the response update
@@ -368,6 +366,15 @@ export const applicationRouter = createTRPCRouter({
           },
         },
       });
+
+      // Send submission confirmation email now that application is actually submitted
+      try {
+        await sendSubmissionNotification(ctx.db, input.applicationId);
+        console.log(`📧 Submission confirmation email sent for application ${input.applicationId}`);
+      } catch (error) {
+        // Log error but don't fail the submission
+        console.error('Failed to send submission notification email:', error);
+      }
 
       return submitted;
     }),
