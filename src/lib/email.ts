@@ -92,25 +92,11 @@ export async function sendEmail(params: SendEmailParams & {
         break;
         
       case "production":
-        if (params.bypassSafety) {
-          // Admin explicitly bypassed safety - send directly
-          finalRecipient = recipient;
-          subjectPrefix = "";
-          shouldAddWarningBanner = false;
-          warningType = "none";
-        } else if (!isSameDomain) {
-          // External domain in production - redirect for safety until account approved
-          finalRecipient = TEST_EMAIL;
-          subjectPrefix = "[PROD-REDIRECT]";
-          shouldAddWarningBanner = true;
-          warningType = "production-redirect";
-        } else {
-          // Same domain in production - send directly
-          finalRecipient = recipient;
-          subjectPrefix = "";
-          shouldAddWarningBanner = false;
-          warningType = "none";
-        }
+        // Postmark account is now approved - send directly to all recipients
+        finalRecipient = recipient;
+        subjectPrefix = "";
+        shouldAddWarningBanner = false;
+        warningType = "none";
         break;
         
       default:

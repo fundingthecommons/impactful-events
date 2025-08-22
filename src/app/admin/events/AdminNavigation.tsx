@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs } from "@mantine/core";
-import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport, IconMapPin } from "@tabler/icons-react";
+import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport, IconMapPin, IconMailOpened } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -21,6 +21,7 @@ export default function AdminNavigation() {
     if (pathname.startsWith("/admin/events")) return "events";
     if (pathname.startsWith("/admin/users")) return "users";
     if (pathname.startsWith("/admin/invitations")) return "invitations";
+    if (pathname.startsWith("/admin/emails")) return "emails";
     if (pathname.startsWith("/contacts")) return "contacts";
     if (pathname.startsWith("/crypto-nomads-import")) return "import";
     return null;
@@ -79,6 +80,16 @@ export default function AdminNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Invitations
+        </TabsTab>
+        
+        <TabsTab 
+          value="emails" 
+          leftSection={<IconMailOpened size={16} />}
+          component={Link}
+          href="/admin/emails"
+          style={{ textDecoration: 'none' }}
+        >
+          Sent Emails
         </TabsTab>
         
         <TabsTab 
