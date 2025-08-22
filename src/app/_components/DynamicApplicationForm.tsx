@@ -74,8 +74,8 @@ export default function DynamicApplicationForm({
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [wasRecentlyReverted, setWasRecentlyReverted] = useState(false);
-  const [hasShownCompletionNotification, setHasShownCompletionNotification] = useState(false);
   const saveTimeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const prevCompletionPercentage = useRef<number>(-1); // -1 means uninitialized
 
   // Fetch questions for the event
   const { data: questions, isLoading: questionsLoading } = api.application.getEventQuestions.useQuery({
@@ -172,10 +172,15 @@ export default function DynamicApplicationForm({
     prevStatusRef.current = safeCurrentStatus;
   }, [safeCurrentStatus]);
 
-  // Show completion notification when application becomes 100% complete
+  // Show completion notification only when application actually transitions to 100% complete
   useEffect(() => {
-    if (completionStatus && applicationId && !hasShownCompletionNotification) {
-      if (completionStatus.isComplete && completionStatus.completionPercentage === 100) {
+    if (completionStatus && applicationId) {
+      const currentPercentage = completionStatus.completionPercentage;
+      const previousPercentage = prevCompletionPercentage.current;
+      
+      // Only show notification when completion percentage goes from <100% to 100%
+      // (not on initial page load with already-complete applications)
+      if (previousPercentage >= 0 && previousPercentage < 100 && currentPercentage === 100) {
         notifications.show({
           title: "Application Complete! 🎉",
           message: `All ${completionStatus.totalFields} required fields have been filled. Your application is ready to submit!`,
@@ -183,16 +188,15 @@ export default function DynamicApplicationForm({
           icon: <IconCheck />,
           autoClose: 5000,
         });
-        setHasShownCompletionNotification(true);
-        console.log(`🎉 Application ${applicationId} is 100% complete - notification shown`);
+        console.log(`🎉 Application ${applicationId} completed - transition from ${previousPercentage}% to 100%`);
+      }
+      
+      // Update the previous percentage for next comparison
+      if (currentPercentage >= 0) {
+        prevCompletionPercentage.current = currentPercentage;
       }
     }
-    
-    // Reset notification flag if application becomes incomplete
-    if (completionStatus && !completionStatus.isComplete) {
-      setHasShownCompletionNotification(false);
-    }
-  }, [completionStatus, applicationId, hasShownCompletionNotification]);
+  }, [completionStatus, applicationId]);
 
   // Auto-save functionality
   const autoSave = useCallback(async (questionKey: string, value: unknown) => {
