@@ -74,6 +74,7 @@ export default function DynamicApplicationForm({
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [wasRecentlyReverted, setWasRecentlyReverted] = useState(false);
+  const [hasShownCompletionNotification, setHasShownCompletionNotification] = useState(false);
   const saveTimeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Fetch questions for the event
@@ -170,6 +171,28 @@ export default function DynamicApplicationForm({
     }
     prevStatusRef.current = safeCurrentStatus;
   }, [safeCurrentStatus]);
+
+  // Show completion notification when application becomes 100% complete
+  useEffect(() => {
+    if (completionStatus && applicationId && !hasShownCompletionNotification) {
+      if (completionStatus.isComplete && completionStatus.completionPercentage === 100) {
+        notifications.show({
+          title: "Application Complete! 🎉",
+          message: `All ${completionStatus.totalFields} required fields have been filled. Your application is ready to submit!`,
+          color: "green",
+          icon: <IconCheck />,
+          autoClose: 5000,
+        });
+        setHasShownCompletionNotification(true);
+        console.log(`🎉 Application ${applicationId} is 100% complete - notification shown`);
+      }
+    }
+    
+    // Reset notification flag if application becomes incomplete
+    if (completionStatus && !completionStatus.isComplete) {
+      setHasShownCompletionNotification(false);
+    }
+  }, [completionStatus, applicationId, hasShownCompletionNotification]);
 
   // Auto-save functionality
   const autoSave = useCallback(async (questionKey: string, value: unknown) => {
