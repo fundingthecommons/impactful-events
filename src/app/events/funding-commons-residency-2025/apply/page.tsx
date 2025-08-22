@@ -1,32 +1,29 @@
-import { redirect } from "next/navigation";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
-import EventDetailClient from "../../[eventId]/EventDetailClient";
+import { redirect } from "next/navigation";
 import Link from "next/link";
+import ApplicationPageClient from "./ApplicationPageClient";
 
 export default async function FundingCommonsResidencyApplicationPage() {
-  // Check authentication
+  // Check authentication but don't redirect
   const session = await auth();
-  
-  // Must be authenticated to view event details
-  if (!session?.user) {
-    redirect(`/api/auth/signin?callbackUrl=/events/funding-commons-residency-2025/apply`);
-  }
 
   // Fetch event details for the specific residency
   const event = await db.event.findUnique({
     where: { id: "funding-commons-residency-2025" },
     include: {
-      applications: {
-        where: { userId: session.user.id },
-        include: {
-          responses: {
+      applications: session?.user
+        ? {
+            where: { userId: session.user.id },
             include: {
-              question: true,
+              responses: {
+                include: {
+                  question: true,
+                },
+              },
             },
-          },
-        },
-      },
+          }
+        : false, // Don't fetch applications if not authenticated
     },
   });
 
@@ -35,8 +32,16 @@ export default async function FundingCommonsResidencyApplicationPage() {
     redirect("/events/funding-commons-residency-2025");
   }
 
-  // Check if user has an existing application
-  const userApplication = event.applications[0] ?? null;
+  // Check if user has an existing application (only if authenticated)  
+  const userApplication = session?.user && Array.isArray(event.applications) 
+    ? (event.applications[0] ?? null) 
+    : null;
+
+  // Create a properly typed event for ApplicationPageClient
+  const typedEvent = {
+    ...event,
+    applications: Array.isArray(event.applications) ? event.applications : []
+  };
 
   return (
     <div>
@@ -79,10 +84,10 @@ export default async function FundingCommonsResidencyApplicationPage() {
         </div>
       </div>
 
-      <EventDetailClient 
-        event={event} 
-        userApplication={userApplication}
-        userId={session.user.id}
+      <ApplicationPageClient 
+        event={typedEvent} 
+        initialUserApplication={userApplication}
+        initialUserId={session?.user?.id}
       />
     </div>
   );
