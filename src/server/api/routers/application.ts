@@ -275,8 +275,13 @@ export const applicationRouter = createTRPCRouter({
       try {
         const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId);
         
-        // Update completion status in database
-        await updateApplicationCompletionStatus(ctx.db, input.applicationId, completionResult);
+        // Update completion status in database (may also revert SUBMITTED to DRAFT)
+        const updateResult = await updateApplicationCompletionStatus(ctx.db, input.applicationId, completionResult);
+        
+        // Log status reversion for debugging
+        if (updateResult.statusReverted) {
+          console.log(`✏️ Application ${input.applicationId} status reverted from SUBMITTED to DRAFT due to field edit`);
+        }
         
         // Send completion notification if application just became complete
         if (completionResult.wasJustCompleted) {

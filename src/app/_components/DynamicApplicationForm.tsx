@@ -73,6 +73,7 @@ export default function DynamicApplicationForm({
   const [applicationId, setApplicationId] = useState<string | null>(existingApplication?.id ?? null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [wasRecentlyReverted, setWasRecentlyReverted] = useState(false);
   const saveTimeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Fetch questions for the event
@@ -145,6 +146,31 @@ export default function DynamicApplicationForm({
     }
   }, [questions, existingApplication]);
 
+  // Use fresh completionStatus data instead of stale existingApplication prop
+  const currentStatus = completionStatus?.status ?? freshApplicationData?.status ?? existingApplication?.status ?? "DRAFT";
+  
+  // Status validation safeguard
+  const validStatuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"];
+  const safeCurrentStatus = validStatuses.includes(currentStatus) ? currentStatus : "DRAFT";
+  
+  const canEdit = safeCurrentStatus === "DRAFT" || safeCurrentStatus === "SUBMITTED";
+  const isSubmitted = Boolean(safeCurrentStatus !== "DRAFT");
+
+  // Track status changes to detect reversion from SUBMITTED to DRAFT
+  const prevStatusRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevStatusRef.current === "SUBMITTED" && safeCurrentStatus === "DRAFT") {
+      setWasRecentlyReverted(true);
+      console.log('📝 Status reverted from SUBMITTED to DRAFT - application needs re-submission');
+      
+      // Clear the reversion flag after a few seconds
+      setTimeout(() => {
+        setWasRecentlyReverted(false);
+      }, 10000);
+    }
+    prevStatusRef.current = safeCurrentStatus;
+  }, [safeCurrentStatus]);
+
   // Auto-save functionality
   const autoSave = useCallback(async (questionKey: string, value: unknown) => {
     if (!applicationId || !questions) return;
@@ -176,6 +202,23 @@ export default function DynamicApplicationForm({
       // Refetch both completion status and fresh application data
       void refetchCompletion();
       void refetchApplication();
+      
+      // Check if status might have been reverted and show notification
+      if (safeCurrentStatus === "SUBMITTED") {
+        // Small delay to let the refetch complete, then check if status changed
+        setTimeout(() => {
+          void refetchCompletion().then((result) => {
+            if (result.data?.status === "DRAFT" && safeCurrentStatus === "SUBMITTED") {
+              notifications.show({
+                title: "Application Status Updated",
+                message: "Your application has been moved back to draft status. Please review and re-submit when ready.",
+                color: "blue",
+                icon: <IconAlertCircle />,
+              });
+            }
+          });
+        }, 1000);
+      }
     } catch (error: unknown) {
       console.error('Error saving response:', error);
       
@@ -193,7 +236,7 @@ export default function DynamicApplicationForm({
     } finally {
       setIsSaving(false);
     }
-  }, [applicationId, questions, updateResponse, onUpdated, refetchCompletion, refetchApplication]);
+  }, [applicationId, questions, updateResponse, onUpdated, refetchCompletion, refetchApplication, safeCurrentStatus]);
 
   // Debounced auto-save function
   const debouncedAutoSave = useCallback((questionKey: string, value: unknown) => {
@@ -256,16 +299,6 @@ export default function DynamicApplicationForm({
       timeouts.clear();
     };
   }, []);
-
-  // Use fresh completionStatus data instead of stale existingApplication prop
-  const currentStatus = completionStatus?.status ?? freshApplicationData?.status ?? existingApplication?.status ?? "DRAFT";
-  
-  // Status validation safeguard
-  const validStatuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"];
-  const safeCurrentStatus = validStatuses.includes(currentStatus) ? currentStatus : "DRAFT";
-  
-  const canEdit = safeCurrentStatus === "DRAFT" || safeCurrentStatus === "SUBMITTED";
-  const isSubmitted = Boolean(safeCurrentStatus !== "DRAFT");
 
   // Consistency check - warn if different data sources disagree
   useEffect(() => {
@@ -589,6 +622,7 @@ export default function DynamicApplicationForm({
             isSubmitted={safeCurrentStatus !== "DRAFT"}
             missingFields={completionStatus.missingFields}
             onSubmit={handleSubmit}
+            wasReverted={wasRecentlyReverted}
           />
         )}
 

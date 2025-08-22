@@ -8,6 +8,7 @@ interface ApplicationCompletionStatusProps {
   missingFields: string[];
   onSubmit?: () => void;
   onContinueEditing?: () => void;
+  wasReverted?: boolean;
   className?: string;
 }
 
@@ -17,6 +18,7 @@ export default function ApplicationCompletionStatus({
   missingFields,
   onSubmit,
   onContinueEditing,
+  wasReverted,
   className = "",
 }: ApplicationCompletionStatusProps) {
   // Don't show anything if already submitted
@@ -39,9 +41,14 @@ export default function ApplicationCompletionStatus({
             <IconCheck className="w-5 h-5 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-green-900">Application Complete! 🎉</h3>
+            <h3 className="font-semibold text-green-900">
+              {wasReverted ? "Application Ready for Re-submission! ✏️" : "Application Complete! 🎉"}
+            </h3>
             <p className="text-green-700 text-sm mt-1">
-              All required fields have been filled. You can now submit your application or continue making edits.
+              {wasReverted 
+                ? "You made changes to a submitted application. All required fields are complete - you can re-submit or continue editing."
+                : "All required fields have been filled. You can now submit your application or continue making edits."
+              }
             </p>
           </div>
         </div>

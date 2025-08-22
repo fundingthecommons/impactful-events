@@ -76,14 +76,35 @@ export async function updateApplicationCompletionStatus(
   db: PrismaClient,
   applicationId: string,
   completionResult: ApplicationCompletionResult
-): Promise<void> {
+): Promise<{ statusReverted: boolean }> {
+  // First get the current application to check its status
+  const currentApplication = await db.application.findUnique({
+    where: { id: applicationId },
+    select: { status: true, isComplete: true }
+  });
+
+  if (!currentApplication) {
+    throw new Error('Application not found');
+  }
+
   const updateData: {
     isComplete: boolean;
     completedAt?: Date;
     lastIncompleteAt?: Date;
+    status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED";
   } = {
     isComplete: completionResult.isComplete,
   };
+
+  let statusReverted = false;
+
+  // If application is SUBMITTED and user is making changes that affect completion,
+  // revert it back to DRAFT so they need to re-submit
+  if (currentApplication.status === "SUBMITTED") {
+    updateData.status = "DRAFT";
+    statusReverted = true;
+    console.log(`🔄 Reverting SUBMITTED application ${applicationId} back to DRAFT due to field changes`);
+  }
 
   if (completionResult.wasJustCompleted) {
     updateData.completedAt = new Date();
@@ -95,6 +116,8 @@ export async function updateApplicationCompletionStatus(
     where: { id: applicationId },
     data: updateData,
   });
+
+  return { statusReverted };
 }
 
 /**
