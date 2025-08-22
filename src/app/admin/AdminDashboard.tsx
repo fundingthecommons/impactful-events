@@ -24,7 +24,8 @@ import {
   IconUserPlus,
   IconSend,
   IconEye,
-  IconArrowRight
+  IconArrowRight,
+  IconMailOpened
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -204,7 +205,7 @@ export default function AdminDashboard() {
       </SimpleGrid>
 
       {/* Management Sections */}
-      <SimpleGrid cols={{ base: 1, md: 3 }}>
+      <SimpleGrid cols={{ base: 1, md: 4 }}>
         <Card withBorder>
           <Stack>
             <Group>
@@ -222,6 +223,28 @@ export default function AdminDashboard() {
             <Link href="/admin/events" style={{ textDecoration: 'none' }}>
               <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
                 View Events
+              </Button>
+            </Link>
+          </Stack>
+        </Card>
+
+        <Card withBorder>
+          <Stack>
+            <Group>
+              <ThemeIcon size="md" color="indigo" variant="light">
+                <IconMailOpened size={18} />
+              </ThemeIcon>
+              <Text fw={600}>Sent Emails</Text>
+            </Group>
+            <Text size="sm" c="dimmed">
+              View all emails sent from the platform
+            </Text>
+            <Text size="xs" c="dimmed">
+              Email history and tracking
+            </Text>
+            <Link href="/admin/emails" style={{ textDecoration: 'none' }}>
+              <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
+                View Emails
               </Button>
             </Link>
           </Stack>
