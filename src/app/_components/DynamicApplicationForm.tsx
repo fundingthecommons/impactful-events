@@ -650,6 +650,11 @@ export default function DynamicApplicationForm({
             missingFields={completionStatus.missingFields}
             onSubmit={handleSubmit}
             wasReverted={wasRecentlyReverted}
+            shouldShowMissingFields={
+              Boolean(submitAttempted) || // Show if they tried to submit
+              Boolean(existingApplication && completionStatus.completedFields > 1) || // Show if they have existing progress (more than 1 field)
+              Boolean(wasRecentlyReverted) // Show if application was reverted from submitted
+            }
           />
         )}
 

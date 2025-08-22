@@ -9,6 +9,7 @@ interface ApplicationCompletionStatusProps {
   onSubmit?: () => void;
   onContinueEditing?: () => void;
   wasReverted?: boolean;
+  shouldShowMissingFields?: boolean;
   className?: string;
 }
 
@@ -19,6 +20,7 @@ export default function ApplicationCompletionStatus({
   onSubmit,
   onContinueEditing,
   wasReverted,
+  shouldShowMissingFields = true,
   className = "",
 }: ApplicationCompletionStatusProps) {
   // Don't show anything if already submitted
@@ -75,6 +77,11 @@ export default function ApplicationCompletionStatus({
         )}
       </div>
     );
+  }
+
+  // Only show missing fields alert when appropriate (submit attempt or existing progress)
+  if (!shouldShowMissingFields) {
+    return null;
   }
 
   // Application is not complete - show missing fields
