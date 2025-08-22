@@ -86,6 +86,12 @@ export default function DynamicApplicationForm({
     { enabled: !!applicationId }
   );
 
+  // Fetch fresh application data to ensure status is current
+  const { data: freshApplicationData, refetch: refetchApplication } = api.application.getApplication.useQuery(
+    { eventId },
+    { enabled: !!applicationId }
+  );
+
   // API mutations
   const createApplication = api.application.createApplication.useMutation();
   const updateResponse = api.application.updateResponse.useMutation();
@@ -167,8 +173,9 @@ export default function DynamicApplicationForm({
       setLastSaved(new Date());
       onUpdated?.();
       
-      // Refetch completion status after updating response
+      // Refetch both completion status and fresh application data
       void refetchCompletion();
+      void refetchApplication();
     } catch (error: unknown) {
       console.error('Error saving response:', error);
       
@@ -186,7 +193,7 @@ export default function DynamicApplicationForm({
     } finally {
       setIsSaving(false);
     }
-  }, [applicationId, questions, updateResponse, onUpdated, refetchCompletion]);
+  }, [applicationId, questions, updateResponse, onUpdated, refetchCompletion, refetchApplication]);
 
   // Debounced auto-save function
   const debouncedAutoSave = useCallback((questionKey: string, value: unknown) => {
@@ -249,6 +256,45 @@ export default function DynamicApplicationForm({
       timeouts.clear();
     };
   }, []);
+
+  // Use fresh completionStatus data instead of stale existingApplication prop
+  const currentStatus = completionStatus?.status ?? freshApplicationData?.status ?? existingApplication?.status ?? "DRAFT";
+  
+  // Status validation safeguard
+  const validStatuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"];
+  const safeCurrentStatus = validStatuses.includes(currentStatus) ? currentStatus : "DRAFT";
+  
+  const canEdit = safeCurrentStatus === "DRAFT" || safeCurrentStatus === "SUBMITTED";
+  const isSubmitted = Boolean(safeCurrentStatus !== "DRAFT");
+
+  // Consistency check - warn if different data sources disagree
+  useEffect(() => {
+    if (completionStatus?.status && freshApplicationData?.status && completionStatus.status !== freshApplicationData.status) {
+      console.warn('⚠️ Status inconsistency detected:', {
+        completionStatus: completionStatus.status,
+        freshApplicationData: freshApplicationData.status,
+        existingApplication: existingApplication?.status
+      });
+    }
+  }, [completionStatus?.status, freshApplicationData?.status, existingApplication?.status]);
+
+  // Debug logging for status tracking
+  useEffect(() => {
+    if (applicationId) {
+      console.log('🐛 Application Status Debug:', {
+        applicationId,
+        existingApplicationStatus: existingApplication?.status,
+        completionStatusFromAPI: completionStatus?.status,
+        freshApplicationStatus: freshApplicationData?.status,
+        currentStatusUsed: safeCurrentStatus,
+        isSubmittedCalculation: isSubmitted,
+        canEditCalculation: canEdit,
+        completionStatusIsComplete: completionStatus?.isComplete,
+        dataSource: completionStatus?.status ? 'API' : freshApplicationData?.status ? 'freshAPI' : 'props',
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [applicationId, existingApplication?.status, completionStatus?.status, freshApplicationData?.status, safeCurrentStatus, isSubmitted, canEdit, completionStatus?.isComplete]);
 
   // Create application if it doesn't exist
   const ensureApplication = async () => {
@@ -320,9 +366,10 @@ export default function DynamicApplicationForm({
       return;
     }
     
-    // Refresh completion status to get latest application state
+    // Refresh both completion status and application data to get latest state
     try {
       await refetchCompletion();
+      await refetchApplication();
     } catch (error) {
       console.error('Error refreshing application status:', error);
     }
@@ -523,9 +570,6 @@ export default function DynamicApplicationForm({
     );
   }
 
-  const canEdit = !existingApplication || (existingApplication.status !== "UNDER_REVIEW" && existingApplication.status !== "ACCEPTED" && existingApplication.status !== "REJECTED" && existingApplication.status !== "WAITLISTED");
-  const isSubmitted = Boolean(existingApplication && existingApplication.status !== "DRAFT");
-
   return (
     <div>
       <Stack gap="lg">
@@ -542,7 +586,7 @@ export default function DynamicApplicationForm({
         {canEdit && applicationId && completionStatus && (
           <ApplicationCompletionStatus
             isComplete={completionStatus.isComplete ?? false}
-            isSubmitted={isSubmitted}
+            isSubmitted={safeCurrentStatus !== "DRAFT"}
             missingFields={completionStatus.missingFields}
             onSubmit={handleSubmit}
           />
@@ -595,9 +639,9 @@ export default function DynamicApplicationForm({
         {/* Form actions */}
         {canEdit && !isSubmitted && completionStatus && (
           <Stack gap="sm" mt="xl">
-            {(!completionStatus.isComplete || completionStatus.status !== "DRAFT") && (
+            {(!completionStatus.isComplete || safeCurrentStatus !== "DRAFT") && (
               <Text size="sm" c="dimmed" ta="right">
-                {completionStatus.status !== "DRAFT" 
+                {safeCurrentStatus !== "DRAFT" 
                   ? "Application has already been submitted"
                   : "Complete all required fields to submit"}
               </Text>
@@ -608,7 +652,7 @@ export default function DynamicApplicationForm({
                 size="lg"
                 leftSection={<IconSend size={16} />}
                 loading={submitApplication.isPending}
-                disabled={!completionStatus.isComplete || completionStatus.status !== "DRAFT"}
+                disabled={!completionStatus.isComplete || safeCurrentStatus !== "DRAFT"}
               >
                 {language === "es" ? "Enviar Aplicación" : "Submit Application"}
               </Button>
@@ -619,9 +663,17 @@ export default function DynamicApplicationForm({
         {isSubmitted && (
           <Alert color="blue" icon={<IconCheck />}>
             {language === "es" 
-              ? "Tu aplicación ha sido enviada y está siendo revisada."
-              : "Your application has been submitted and is under review."
+              ? `Tu aplicación está en estado: ${safeCurrentStatus.replace("_", " ")}`
+              : `Your application status: ${safeCurrentStatus.replace("_", " ")}`
             }
+            {safeCurrentStatus === "SUBMITTED" && (
+              <Text size="sm" mt="xs">
+                {language === "es" 
+                  ? "Tu aplicación ha sido enviada y está pendiente de revisión."
+                  : "Your application has been submitted and is pending review."
+                }
+              </Text>
+            )}
           </Alert>
         )}
       </Stack>
