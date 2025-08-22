@@ -444,8 +444,27 @@ export const applicationRouter = createTRPCRouter({
         },
       });
 
-      // TODO: Send notification email when status changes
-      console.log(`Application ${input.applicationId} status updated to ${input.status}`);
+      // Send notification email when status changes to accepted, rejected, or waitlisted
+      if (['ACCEPTED', 'REJECTED', 'WAITLISTED'].includes(input.status)) {
+        try {
+          const { getEmailService } = await import('~/server/email/emailService');
+          const emailService = getEmailService(ctx.db);
+          
+          const result = await emailService.sendApplicationStatusEmail(
+            application,
+            input.status as 'ACCEPTED' | 'REJECTED' | 'WAITLISTED'
+          );
+          
+          if (result.success) {
+            console.log(`Status change email sent for application ${input.applicationId} (${input.status})`);
+          } else {
+            console.error(`Failed to send status change email: ${result.error}`);
+          }
+        } catch (error) {
+          console.error('Error sending status change email:', error);
+          // Don't fail the status update if email fails
+        }
+      }
 
       return application;
     }),
@@ -467,8 +486,51 @@ export const applicationRouter = createTRPCRouter({
         },
       });
 
-      // TODO: Send notification emails for status changes
-      console.log(`Bulk updated ${applications.count} applications to status ${input.status}`);
+      // Send notification emails for status changes
+      if (['ACCEPTED', 'REJECTED', 'WAITLISTED'].includes(input.status)) {
+        try {
+          const { getEmailService } = await import('~/server/email/emailService');
+          const emailService = getEmailService(ctx.db);
+          
+          // Fetch full application data for emails
+          const fullApplications = await ctx.db.application.findMany({
+            where: {
+              id: {
+                in: input.applicationIds,
+              },
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+              event: true,
+            },
+          });
+
+          // Send emails in parallel
+          const emailPromises = fullApplications.map(app => 
+            emailService.sendApplicationStatusEmail(
+              app,
+              input.status as 'ACCEPTED' | 'REJECTED' | 'WAITLISTED'
+            ).catch(error => {
+              console.error(`Failed to send email for application ${app.id}:`, error);
+              return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+            })
+          );
+
+          const results = await Promise.allSettled(emailPromises);
+          const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+          
+          console.log(`Bulk status emails: ${successCount}/${fullApplications.length} sent successfully`);
+        } catch (error) {
+          console.error('Error sending bulk status change emails:', error);
+          // Don't fail the status update if emails fail
+        }
+      }
 
       return applications;
     }),

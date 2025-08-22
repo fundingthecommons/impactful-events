@@ -56,9 +56,6 @@ export async function sendEmail(params: SendEmailParams & {
   try {
     const emailMode: "development" | "staging" | "production" = EMAIL_MODE;
     const recipient = params.to;
-    const recipientDomain = recipient.split('@')[1] ?? '';
-    const senderDomain = "fundingthecommons.io";
-    const isSameDomain = recipientDomain === senderDomain;
     
     // Determine email handling strategy
     let finalRecipient: string;

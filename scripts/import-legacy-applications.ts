@@ -230,7 +230,7 @@ async function main() {
 
   // Get event ID for residency
   const residencyEvent = await prisma.event.findUnique({
-    where: { id: 'funding-commons-residency-2024' },
+    where: { id: 'funding-commons-residency-2025' },
   });
 
   if (!residencyEvent) {

@@ -19,7 +19,7 @@ export default async function SponsorResidencyPage({
   const resolvedSearchParams = await searchParams;
   
   // For now, use a default event ID. In production, this would be passed via searchParams
-  const eventId = resolvedSearchParams.eventId ?? "realfi-hackathon-2024";
+  const eventId = resolvedSearchParams.eventId ?? "realfi-hackathon-2025";
   
   try {
     // Get the event sponsor relationship

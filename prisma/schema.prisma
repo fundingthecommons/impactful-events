@@ -520,9 +520,25 @@ enum EmailStatus {
 }
 
 enum EmailType {
-  MISSING_INFO    // For incomplete application notifications
-  STATUS_UPDATE   // For application status notifications
-  GENERAL         // For general communications
+  // Application related
+  APPLICATION_SUBMITTED
+  APPLICATION_ACCEPTED
+  APPLICATION_REJECTED  
+  APPLICATION_WAITLISTED
+  APPLICATION_UNDER_REVIEW
+  APPLICATION_MISSING_INFO
+  
+  // Invitation related
+  INVITATION_EVENT_ROLE
+  INVITATION_ADMIN
+  
+  // General
+  GENERAL
+  TEST
+  
+  // Legacy (for backward compatibility)
+  MISSING_INFO    // Deprecated: Use APPLICATION_MISSING_INFO
+  STATUS_UPDATE   // Deprecated: Use specific status types
 }
 
 model Email {
@@ -543,6 +559,13 @@ model Email {
   sentAt        DateTime?   // When email was actually sent
   failureReason String?     // Error message if sending failed
   postmarkId    String?     // Postmark message ID for tracking
+  
+  // Template tracking
+  templateName    String?     // Which template was used (e.g., "application_accepted")
+  templateVersion String?     // Template version for tracking changes
+  templateData    Json?       // JSON data used to render template
+  openedAt        DateTime?   // When email was opened (if tracking enabled)
+  clickedAt       DateTime?   // When links were clicked (if tracking enabled)
   
   // Timestamps
   createdAt     DateTime    @default(now())

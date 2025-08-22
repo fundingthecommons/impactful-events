@@ -13,7 +13,7 @@ export default function FundingCommonsResidencyAboutPage() {
       <div className="bg-gradient-to-r from-blue-600 to-purple-700 text-white">
         <div className="container mx-auto px-4 py-16 max-w-6xl">
           <nav className="text-sm breadcrumbs mb-6 opacity-90">
-            <Link href="/events/funding-commons-residency-2024" className="hover:text-blue-200 transition-colors">
+            <Link href="/events/funding-commons-residency-2025" className="hover:text-blue-200 transition-colors">
               ← Back to Residency
             </Link>
           </nav>
@@ -285,13 +285,13 @@ export default function FundingCommonsResidencyAboutPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link 
-              href="/events/funding-commons-residency-2024"
+              href="/events/funding-commons-residency-2025"
               className="bg-white text-blue-700 px-8 py-4 rounded-xl font-semibold hover:bg-blue-50 transition-colors shadow-lg"
             >
               Apply Now
             </Link>
             <Link 
-              href="/events/funding-commons-residency-2024/faq"
+              href="/events/funding-commons-residency-2025/faq"
               className="bg-blue-500/20 backdrop-blur-sm border border-blue-300/30 text-white px-8 py-4 rounded-xl font-semibold hover:bg-blue-400/30 transition-colors"
             >
               View FAQ

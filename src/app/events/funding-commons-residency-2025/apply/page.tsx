@@ -10,12 +10,12 @@ export default async function FundingCommonsResidencyApplicationPage() {
   
   // Must be authenticated to view event details
   if (!session?.user) {
-    redirect(`/api/auth/signin?callbackUrl=/events/funding-commons-residency-2024/apply`);
+    redirect(`/api/auth/signin?callbackUrl=/events/funding-commons-residency-2025/apply`);
   }
 
   // Fetch event details for the specific residency
   const event = await db.event.findUnique({
-    where: { id: "funding-commons-residency-2024" },
+    where: { id: "funding-commons-residency-2025" },
     include: {
       applications: {
         where: { userId: session.user.id },
@@ -32,7 +32,7 @@ export default async function FundingCommonsResidencyApplicationPage() {
 
   if (!event) {
     // If specific event doesn't exist, fallback to the generic dynamic route
-    redirect("/events/funding-commons-residency-2024");
+    redirect("/events/funding-commons-residency-2025");
   }
 
   // Check if user has an existing application
@@ -57,19 +57,19 @@ export default async function FundingCommonsResidencyApplicationPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <Link 
-                href="/events/funding-commons-residency-2024"
+                href="/events/funding-commons-residency-2025"
                 className="bg-white hover:bg-gray-50 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-blue-200 text-center"
               >
                 ← Back to Overview
               </Link>
               <Link 
-                href="/events/funding-commons-residency-2024/about"
+                href="/events/funding-commons-residency-2025/about"
                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-center"
               >
                 Residency Focus
               </Link>
               <Link 
-                href="/events/funding-commons-residency-2024/faq"
+                href="/events/funding-commons-residency-2025/faq"
                 className="bg-white hover:bg-gray-50 text-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-blue-200 text-center"
               >
                 View FAQ

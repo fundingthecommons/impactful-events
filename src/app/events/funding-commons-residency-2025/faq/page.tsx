@@ -11,7 +11,7 @@ export default function FundingCommonsResidencyFAQPage() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
         <nav className="text-sm breadcrumbs mb-4">
-          <Link href="/events/funding-commons-residency-2024" className="text-blue-600 hover:text-blue-800">
+          <Link href="/events/funding-commons-residency-2025" className="text-blue-600 hover:text-blue-800">
             ← Back to Funding the Commons Residency 2025
           </Link>
         </nav>
@@ -182,13 +182,13 @@ export default function FundingCommonsResidencyFAQPage() {
       <div className="mt-12 pt-8 border-t border-gray-200">
         <div className="flex flex-col sm:flex-row gap-4">
           <Link 
-            href="/events/funding-commons-residency-2024"
+            href="/events/funding-commons-residency-2025"
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             ← Back to Residency
           </Link>
           <Link 
-            href="/events/funding-commons-residency-2024/about"
+            href="/events/funding-commons-residency-2025/about"
             className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
           >
             Learn About RealFi →

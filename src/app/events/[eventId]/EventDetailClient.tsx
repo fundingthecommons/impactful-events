@@ -232,7 +232,7 @@ export default function EventDetailClient({
         {userApplication && (
           <Alert 
             color={getStatusColor(userApplication.status)}
-            title={`Application Status: ${userApplication.status.replace("_", " ")}`}
+            title={`Application1 Status: ${userApplication.status.replace("_", " ")}`}
             icon={userApplication.status === "ACCEPTED" ? <IconCheck /> : <IconAlertCircle />}
           >
             {getStatusMessage(userApplication.status)}

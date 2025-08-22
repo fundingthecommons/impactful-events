@@ -14,11 +14,11 @@ async function seedSponsorResidency() {
     if (!event) {
       event = await prisma.event.create({
         data: {
-          id: 'realfi-hackathon-2024',
-          name: 'RealFi Hackathon 2024 - Builder Residency',
+          id: 'realfi-hackathon-2025',
+          name: 'RealFi Hackathon 2025 - Builder Residency',
           description: 'A 3-week intensive builder residency program',
-          startDate: new Date('2024-10-01'),
-          endDate: new Date('2024-10-21'),
+          startDate: new Date('2025-10-24'),
+          endDate: new Date('2025-11-14'),
           location: 'San Francisco, CA',
           type: 'RESIDENCY',
           isOnline: false,
@@ -127,14 +127,14 @@ async function seedSponsorResidency() {
           eventSponsorId: eventSponsor.id,
           visitType: 'KICKOFF',
           preferredDates: [
-            new Date('2024-10-02'),
-            new Date('2024-10-03')
+            new Date('2025-10-02'),
+            new Date('2025-10-03')
           ],
           numAttendees: 2,
           purpose: 'Technical workshop delivery',
           requirements: 'Need projector and whiteboard for technical deep-dive sessions',
           status: 'APPROVED',
-          scheduledDate: new Date('2024-10-02')
+          scheduledDate: new Date('2025-10-02')
         }
       });
       console.log('✅ Created sample visit request');

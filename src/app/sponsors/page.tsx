@@ -193,7 +193,7 @@ export default function SponsorKanbanBoard() {
   
   // Fetch event data from database
   const { data: event, isLoading } = api.event.getEvent.useQuery({
-    id: "realfi-hackathon-2024"
+    id: "realfi-hackathon-2025"
   });
 
   // Fetch all contacts
@@ -209,7 +209,7 @@ export default function SponsorKanbanBoard() {
   const addSponsorMutation = api.event.addSponsorToEvent.useMutation({
     onSuccess: (data) => {
       // Invalidate and refetch the event data to ensure consistency
-      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
+      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2025" });
       console.log(`✅ Successfully added ${data.sponsor.name} as a lead!`);
       // You could add a toast notification here for better UX
     },
@@ -226,7 +226,7 @@ export default function SponsorKanbanBoard() {
       // Invalidate contact, sponsor, and event data to update columns
       void utils.contact.getContacts.invalidate();
       void utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id ?? "" });
-      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
+      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2025" });
       setAddContactModalOpened(false);
       setSelectedContactId("");
     },
@@ -238,7 +238,7 @@ export default function SponsorKanbanBoard() {
       // Invalidate contact, sponsor, and event data to update columns
       void utils.contact.getContacts.invalidate();
       void utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id ?? "" });
-      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
+      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2025" });
     },
   });
 
@@ -254,7 +254,7 @@ export default function SponsorKanbanBoard() {
       }
       
       // Invalidate event and sponsor data to update status
-      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2024" });
+      void utils.event.getEvent.invalidate({ id: "realfi-hackathon-2025" });
       void utils.sponsor.getSponsor.invalidate({ id: selectedSponsor?.id ?? "" });
     },
   });

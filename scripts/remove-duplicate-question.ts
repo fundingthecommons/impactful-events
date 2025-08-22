@@ -10,7 +10,7 @@ async function removeDuplicateQuestion() {
     const duplicateQuestion = await prisma.applicationQuestion.findFirst({
       where: {
         questionKey: 'fully_available',
-        eventId: 'funding-commons-residency-2024',
+        eventId: 'funding-commons-residency-2025',
       },
     });
 

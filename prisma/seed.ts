@@ -70,7 +70,7 @@ async function main() {
 
   // Create RealFi event
   const realFiEvent = await prisma.event.upsert({
-    where: { id: 'realfi-hackathon-2024' },
+    where: { id: 'realfi-hackathon-2025' },
     update: {
       name: 'RealFi Hackathon',
       description: 'A hackathon focused on real-world financial applications using blockchain technology',
@@ -79,7 +79,7 @@ async function main() {
       location: 'San Francisco, CA',
     },
     create: {
-      id: 'realfi-hackathon-2024',
+      id: 'realfi-hackathon-2025',
       name: 'RealFi Hackathon',
       description: 'A hackathon focused on real-world financial applications using blockchain technology',
       startDate: new Date('2025-09-15T09:00:00Z'),
@@ -122,23 +122,23 @@ async function main() {
 
   // Create Residency event
   const residencyEvent = await prisma.event.upsert({
-    where: { id: 'funding-commons-residency-2024' },
+    where: { id: 'funding-commons-residency-2025' },
     update: {
       name: 'Funding the Commons Residency',
       description: 'Intensive residency program for selected participants to work on projects and build connections in the public goods and climate funding ecosystem.',
       type: 'residency',
       isOnline: false,
-      location: 'To be announced',
+      location: 'Buenos Aires, Argentina',
     },
     create: {
-      id: 'funding-commons-residency-2024',
+      id: 'funding-commons-residency-2025',
       name: 'Funding the Commons Residency',
       description: 'Intensive residency program for selected participants to work on projects and build connections in the public goods and climate funding ecosystem.',
       startDate: new Date('2025-10-24T09:00:00Z'),
       endDate: new Date('2025-11-14T18:00:00Z'),
       type: 'residency',
       isOnline: false,
-      location: 'To be announced',
+      location: 'Buenos Aires, Argentina',
       createdById: defaultUser.id,
     },
   })

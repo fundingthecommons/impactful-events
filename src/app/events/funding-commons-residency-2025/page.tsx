@@ -5,7 +5,7 @@ import { db } from "~/server/db";
 
 export const metadata: Metadata = {
   title: "FtC RealFi Builder Residency 2025 - Buenos Aires",
-  description: "Join a 3-week intensive residency in Buenos Aires building real-world blockchain applications. $2000 USD stipend, housing provided, expert mentorship.",
+  description: "Join a 3-week intensive residency in Buenos Aires building real-world blockchain applications. Free accommodation and meals provided, expert mentorship.",
   openGraph: {
     title: "FtC RealFi Builder Residency 2025 - Buenos Aires",
     description: "Build the future of financial inclusion with blockchain technology. Apply now for the Funding the Commons Builder Residency.",
@@ -19,7 +19,7 @@ export default async function FundingCommonsResidencyLandingPage() {
   
   // Get event details for displaying stats
   const event = await db.event.findUnique({
-    where: { id: "funding-commons-residency-2024" },
+    where: { id: "funding-commons-residency-2025" },
     select: {
       _count: {
         select: {
@@ -59,14 +59,14 @@ export default async function FundingCommonsResidencyLandingPage() {
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
                 {session?.user ? (
                   <Link 
-                    href="/events/funding-commons-residency-2024/apply"
+                    href="/events/funding-commons-residency-2025/apply"
                     className="bg-white text-blue-700 px-8 py-4 rounded-xl font-semibold hover:bg-yellow-300 hover:text-blue-900 transition-all duration-200 shadow-lg text-center transform hover:scale-105"
                   >
                     Continue to Application →
                   </Link>
                 ) : (
                   <Link 
-                    href="/api/auth/signin?callbackUrl=/events/funding-commons-residency-2024/apply"
+                    href="/api/auth/signin?callbackUrl=/events/funding-commons-residency-2025/apply"
                     className="bg-white text-blue-700 px-8 py-4 rounded-xl font-semibold hover:bg-yellow-300 hover:text-blue-900 transition-all duration-200 shadow-lg text-center transform hover:scale-105"
                   >
                     Start Your Application →
@@ -82,12 +82,12 @@ export default async function FundingCommonsResidencyLandingPage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                  <p className="text-3xl font-bold mb-1">Feb 10 - 28</p>
+                  <p className="text-3xl font-bold mb-1">Oct 24 - Nov 14</p>
                   <p className="text-sm opacity-90">2025 Program Dates</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
-                  <p className="text-3xl font-bold mb-1">$2,000</p>
-                  <p className="text-sm opacity-90">USD Monthly Stipend</p>
+                  <p className="text-3xl font-bold mb-1">Free</p>
+                  <p className="text-sm opacity-90">Accommodation & Food</p>
                 </div>
               </div>
             </div>
@@ -108,11 +108,11 @@ export default async function FundingCommonsResidencyLandingPage() {
                     </div>
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-blue-400 rounded-lg flex items-center justify-center">
-                        <span className="text-2xl">✈️</span>
+                        <span className="text-2xl">🍽️</span>
                       </div>
                       <div>
-                        <p className="font-semibold">Travel Support</p>
-                        <p className="text-sm opacity-90">Up to $1,000 travel stipend</p>
+                        <p className="font-semibold">Meals Included</p>
+                        <p className="text-sm opacity-90">All meals provided during residency</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
@@ -156,23 +156,23 @@ export default async function FundingCommonsResidencyLandingPage() {
               <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mb-6">
                 <span className="text-3xl">💰</span>
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-gray-900">Full Financial Support</h3>
+              <h3 className="text-2xl font-bold mb-4 text-gray-900">Residency Benefits</h3>
               <ul className="space-y-3 text-gray-700">
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2 mt-1">✓</span>
-                  <span>$2,000 USD monthly stipend for living expenses</span>
+                  <span>Free accommodation in Buenos Aires</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2 mt-1">✓</span>
-                  <span>Free housing in Buenos Aires</span>
+                  <span>All meals provided during the program</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2 mt-1">✓</span>
-                  <span>Up to $1,000 travel reimbursement</span>
+                  <span>Full access to workspace and facilities</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2 mt-1">✓</span>
-                  <span>Additional prizes for top projects</span>
+                  <span>Networking events and cultural activities</span>
                 </li>
               </ul>
             </div>
@@ -289,7 +289,7 @@ export default async function FundingCommonsResidencyLandingPage() {
           <div className="bg-white rounded-3xl p-8 shadow-xl">
             <h3 className="text-2xl font-bold mb-6 text-center text-gray-900">Choose Your Focus Area</h3>
             <div className="grid md:grid-cols-2 gap-6">
-              <Link href="/events/funding-commons-residency-2024/about" className="group">
+              <Link href="/events/funding-commons-residency-2025/about" className="group">
                 <div className="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-500 hover:shadow-lg transition-all duration-200">
                   <div className="flex items-center space-x-3 mb-3">
                     <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-500 transition-colors">
@@ -301,7 +301,7 @@ export default async function FundingCommonsResidencyLandingPage() {
                 </div>
               </Link>
               
-              <Link href="/events/funding-commons-residency-2024/about" className="group">
+              <Link href="/events/funding-commons-residency-2025/about" className="group">
                 <div className="border-2 border-gray-200 rounded-xl p-6 hover:border-blue-500 hover:shadow-lg transition-all duration-200">
                   <div className="flex items-center space-x-3 mb-3">
                     <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-500 transition-colors">
@@ -313,7 +313,7 @@ export default async function FundingCommonsResidencyLandingPage() {
                 </div>
               </Link>
               
-              <Link href="/events/funding-commons-residency-2024/about" className="group">
+              <Link href="/events/funding-commons-residency-2025/about" className="group">
                 <div className="border-2 border-gray-200 rounded-xl p-6 hover:border-purple-500 hover:shadow-lg transition-all duration-200">
                   <div className="flex items-center space-x-3 mb-3">
                     <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-500 transition-colors">
@@ -325,7 +325,7 @@ export default async function FundingCommonsResidencyLandingPage() {
                 </div>
               </Link>
               
-              <Link href="/events/funding-commons-residency-2024/about" className="group">
+              <Link href="/events/funding-commons-residency-2025/about" className="group">
                 <div className="border-2 border-gray-200 rounded-xl p-6 hover:border-pink-500 hover:shadow-lg transition-all duration-200">
                   <div className="flex items-center space-x-3 mb-3">
                     <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center group-hover:bg-pink-500 transition-colors">
@@ -339,7 +339,7 @@ export default async function FundingCommonsResidencyLandingPage() {
             </div>
             <div className="text-center mt-6">
               <Link 
-                href="/events/funding-commons-residency-2024/about"
+                href="/events/funding-commons-residency-2025/about"
                 className="text-blue-600 hover:text-blue-700 font-medium inline-flex items-center"
               >
                 Learn more about focus areas 
@@ -593,7 +593,7 @@ export default async function FundingCommonsResidencyLandingPage() {
             
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
               <h3 className="font-semibold text-gray-900 mb-2">What costs are covered?</h3>
-              <p className="text-gray-600">We provide housing, a $2,000 monthly stipend, and up to $1,000 in travel reimbursement. Food and personal expenses are your responsibility.</p>
+              <p className="text-gray-600">We provide free accommodation and all meals during the residency. Travel costs to and from Buenos Aires are your responsibility.</p>
             </div>
             
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
@@ -608,7 +608,7 @@ export default async function FundingCommonsResidencyLandingPage() {
             
             <div className="text-center mt-8">
               <Link 
-                href="/events/funding-commons-residency-2024/faq"
+                href="/events/funding-commons-residency-2025/faq"
                 className="text-blue-600 hover:text-blue-700 font-medium inline-flex items-center"
               >
                 View all FAQs 
@@ -628,8 +628,8 @@ export default async function FundingCommonsResidencyLandingPage() {
             Ready to Build the Future of Finance?
           </h2>
           <p className="text-xl lg:text-2xl mb-8 opacity-95">
-            Join 30 exceptional builders in Buenos Aires this February. 
-            Applications close January 15th, 2025.
+            Join 30 exceptional builders in Buenos Aires this October-November. 
+            Applications close October 1st, 2025.
           </p>
           
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-white/20">
@@ -639,11 +639,11 @@ export default async function FundingCommonsResidencyLandingPage() {
                 <p className="text-sm opacity-90">Spots Remaining</p>
               </div>
               <div>
-                <p className="text-3xl font-bold mb-2">Jan 15</p>
+                <p className="text-3xl font-bold mb-2">Oct 1</p>
                 <p className="text-sm opacity-90">Application Deadline</p>
               </div>
               <div>
-                <p className="text-3xl font-bold mb-2">Feb 10</p>
+                <p className="text-3xl font-bold mb-2">Oct 24</p>
                 <p className="text-sm opacity-90">Program Starts</p>
               </div>
             </div>
@@ -652,14 +652,14 @@ export default async function FundingCommonsResidencyLandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             {session?.user ? (
               <Link 
-                href="/events/funding-commons-residency-2024/apply"
+                href="/events/funding-commons-residency-2025/apply"
                 className="bg-white text-blue-700 px-10 py-5 rounded-xl font-semibold hover:bg-yellow-300 hover:text-blue-900 transition-all duration-200 shadow-lg transform hover:scale-105 text-lg"
               >
                 Complete Your Application →
               </Link>
             ) : (
               <Link 
-                href="/api/auth/signin?callbackUrl=/events/funding-commons-residency-2024/apply"
+                href="/api/auth/signin?callbackUrl=/events/funding-commons-residency-2025/apply"
                 className="bg-white text-blue-700 px-10 py-5 rounded-xl font-semibold hover:bg-yellow-300 hover:text-blue-900 transition-all duration-200 shadow-lg transform hover:scale-105 text-lg"
               >
                 Start Your Application →
