@@ -177,6 +177,143 @@ The project has pre-approved permissions in `.claude/settings.local.json` for:
 /generate-prp features/payment-integration.md
 ```
 
+## Email Template System
+
+### Overview
+
+The platform uses a centralized email template system built with React Email for all automated communications. All email templates are located in `/src/server/email/templates/` and use a unified EmailService for sending.
+
+### Email Templates Available
+
+- **Application Status Changes**:
+  - `applicationAccepted.tsx` - Congratulations email with program details
+  - `applicationRejected.tsx` - Respectful rejection with future opportunities
+  - `applicationWaitlisted.tsx` - Waitlist notification with timeline
+  - `applicationSubmitted.tsx` - Submission confirmation
+  - `applicationMissingInfo.tsx` - Request to complete missing fields
+
+- **System Communications**:
+  - `invitation.tsx` - Event role and admin invitations
+  - `base.tsx` - Shared template wrapper with consistent branding
+
+### Automatic Email Triggers
+
+**Application Status Changes**:
+- When admin updates application status to ACCEPTED/REJECTED/WAITLISTED
+- Bulk status updates automatically send emails to all affected applicants
+- Email sending happens asynchronously - status updates succeed even if emails fail
+
+**Integration Points**:
+- `src/server/api/routers/application.ts:448-467` - Single status updates
+- `src/server/api/routers/application.ts:489-533` - Bulk status updates
+
+### Email Service Usage
+
+```typescript
+// Import the service
+import { getEmailService } from '~/server/email/emailService';
+
+// Send status change email
+const emailService = getEmailService(db);
+const result = await emailService.sendApplicationStatusEmail(application, 'ACCEPTED');
+
+// Send custom template email
+const result = await emailService.sendEmail({
+  to: 'user@example.com',
+  templateName: 'applicationAccepted',
+  templateData: {
+    applicantName: 'John Doe',
+    eventName: 'FtC Residency',
+    // ... other props
+  },
+  applicationId: 'app-id',
+  eventId: 'event-id'
+});
+```
+
+### Database Tracking
+
+All emails are logged in the `Email` model with:
+- Template name and version used
+- Template data (JSON) for reproducing emails
+- Send status (QUEUED → SENT/FAILED)
+- Postmark message ID for delivery tracking
+- Engagement tracking fields (openedAt, clickedAt)
+
+### Admin Panel Access
+
+**View Sent Emails**: `/admin/emails`
+- Complete email history with filters
+- Preview email content and template data
+- Resend failed emails
+- Track delivery status via Postmark IDs
+
+### Development & Testing
+
+**Email Environment Modes**:
+- `EMAIL_MODE=development` - Redirects to `TEST_EMAIL_OVERRIDE`
+- `EMAIL_MODE=staging` - Redirects to test email with [STAGING] prefix
+- `EMAIL_MODE=production` - Sends to actual recipients
+
+**Testing Status Emails**:
+1. Create test application in admin panel
+2. Change status to ACCEPTED/REJECTED/WAITLISTED
+3. Check `/admin/emails` to verify email was sent
+4. In development mode, check `TEST_EMAIL_OVERRIDE` inbox
+
+### Adding New Templates
+
+1. **Create Template Component**:
+   ```typescript
+   // src/server/email/templates/newTemplate.tsx
+   export interface NewTemplateProps {
+     // Define props
+   }
+   
+   export const NewTemplate: React.FC<NewTemplateProps> = ({ props }) => (
+     <BaseTemplate previewText="Preview text">
+       {/* Template content */}
+     </BaseTemplate>
+   );
+   ```
+
+2. **Register Template**:
+   ```typescript
+   // src/server/email/templates/index.ts
+   export const templates = {
+     // ... existing templates
+     newTemplate: NewTemplate,
+   };
+   
+   export const templateToEmailType = {
+     // ... existing mappings
+     newTemplate: 'NEW_EMAIL_TYPE',
+   };
+   ```
+
+3. **Update EmailType Enum**:
+   ```prisma
+   // prisma/schema.prisma
+   enum EmailType {
+     // ... existing types
+     NEW_EMAIL_TYPE
+   }
+   ```
+
+4. **Create Migration**:
+   ```bash
+   bunx prisma migrate dev --name "add-new-email-type"
+   ```
+
+### Email Safety & Environment Handling
+
+The system includes multiple safety layers:
+- Development emails redirect to test address
+- Staging emails clearly labeled with [STAGING] prefix
+- Production emails sent to actual recipients
+- Failed emails logged with error details
+- Resend capability for failed deliveries
+
 ## CRITICAL DATABASE PROTECTION
 
 ### SAFE Migration Workflow (USE THESE):
