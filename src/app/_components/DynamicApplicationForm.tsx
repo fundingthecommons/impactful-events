@@ -74,6 +74,9 @@ export default function DynamicApplicationForm({
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [wasRecentlyReverted, setWasRecentlyReverted] = useState(false);
+  const [isSubmittingOrSubmitted, setIsSubmittingOrSubmitted] = useState(
+    Boolean(existingApplication?.status && existingApplication.status !== "DRAFT")
+  );
   const saveTimeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const prevCompletionPercentage = useRef<number>(-1); // -1 means uninitialized
 
@@ -155,14 +158,16 @@ export default function DynamicApplicationForm({
   const safeCurrentStatus = validStatuses.includes(currentStatus) ? currentStatus : "DRAFT";
   
   const canEdit = safeCurrentStatus === "DRAFT" || safeCurrentStatus === "SUBMITTED";
-  const isSubmitted = Boolean(safeCurrentStatus !== "DRAFT");
+  const isSubmitted = Boolean(safeCurrentStatus !== "DRAFT") || isSubmittingOrSubmitted;
 
   // Track status changes to detect reversion from SUBMITTED to DRAFT
   const prevStatusRef = useRef<string | null>(null);
   useEffect(() => {
     if (prevStatusRef.current === "SUBMITTED" && safeCurrentStatus === "DRAFT") {
       setWasRecentlyReverted(true);
-      console.log('📝 Status reverted from SUBMITTED to DRAFT - application needs re-submission');
+      // Reset local submission state to allow completion components to show again
+      setIsSubmittingOrSubmitted(false);
+      console.log('📝 Status reverted from SUBMITTED to DRAFT - application needs re-submission, UI re-enabled');
       
       // Clear the reversion flag after a few seconds
       setTimeout(() => {
@@ -449,6 +454,15 @@ export default function DynamicApplicationForm({
         applicationId: appId,
       });
 
+      // Immediately update local state to hide completion components
+      setIsSubmittingOrSubmitted(true);
+
+      // Force refresh of application status data
+      await Promise.all([
+        refetchCompletion(),
+        refetchApplication()
+      ]);
+
       notifications.show({
         title: "Success!",
         message: "Your application has been submitted successfully",
@@ -646,7 +660,7 @@ export default function DynamicApplicationForm({
         {canEdit && applicationId && completionStatus && (
           <ApplicationCompletionStatus
             isComplete={completionStatus.isComplete ?? false}
-            isSubmitted={safeCurrentStatus !== "DRAFT"}
+            isSubmitted={isSubmitted}
             missingFields={completionStatus.missingFields}
             onSubmit={handleSubmit}
             wasReverted={wasRecentlyReverted}
@@ -705,9 +719,9 @@ export default function DynamicApplicationForm({
         {/* Form actions */}
         {canEdit && !isSubmitted && completionStatus && (
           <Stack gap="sm" mt="xl">
-            {(!completionStatus.isComplete || safeCurrentStatus !== "DRAFT") && (
+            {(!completionStatus.isComplete || safeCurrentStatus !== "DRAFT" || isSubmittingOrSubmitted) && (
               <Text size="sm" c="dimmed" ta="right">
-                {safeCurrentStatus !== "DRAFT" 
+                {(safeCurrentStatus !== "DRAFT" || isSubmittingOrSubmitted)
                   ? "Application has already been submitted"
                   : "Complete all required fields to submit"}
               </Text>
@@ -718,7 +732,7 @@ export default function DynamicApplicationForm({
                 size="lg"
                 leftSection={<IconSend size={16} />}
                 loading={submitApplication.isPending}
-                disabled={!completionStatus.isComplete || safeCurrentStatus !== "DRAFT"}
+                disabled={!completionStatus.isComplete || safeCurrentStatus !== "DRAFT" || isSubmittingOrSubmitted}
               >
                 {language === "es" ? "Enviar Aplicación" : "Submit Application"}
               </Button>
