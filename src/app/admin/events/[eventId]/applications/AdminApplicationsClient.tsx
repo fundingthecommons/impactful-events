@@ -199,6 +199,25 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     app.user?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   ) ?? [];
 
+  // DEBUG: Log application data for investigation
+  console.log('DEBUG - All applications data:', {
+    totalApplications: applications?.length,
+    applications: applications?.map(app => ({
+      id: app.id,
+      email: app.email,
+      status: app.status,
+      totalResponses: app.responses?.length,
+      techSkillsResponses: app.responses?.filter(r => 
+        r.question.questionKey.includes('technical') || 
+        r.question.questionKey.includes('skill')
+      ).map(r => ({
+        questionKey: r.question.questionKey,
+        answer: r.answer,
+        questionText: r.question.questionEn
+      }))
+    }))
+  });
+
   // Handle individual application selection
   const toggleApplicationSelection = (applicationId: string) => {
     const newSelection = new Set(selectedApplications);
@@ -499,6 +518,33 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 <Text size="sm" c="dimmed">Rejected</Text>
               </Stack>
             </Group>
+          </Card>
+        )}
+
+        {/* DEBUG: Display application data */}
+        {applications && applications.length > 0 && (
+          <Card shadow="sm" padding="md" radius="md" withBorder mb="md" style={{ backgroundColor: '#f0f9ff' }}>
+            <Title order={4} mb="md" c="blue">🔍 DEBUG: Application Data</Title>
+            <ScrollArea h={300}>
+              <pre style={{ fontSize: '12px', overflow: 'auto' }}>
+                {JSON.stringify({
+                  totalApplications: applications.length,
+                  recentApplication: applications[0] ? {
+                    id: applications[0].id,
+                    email: applications[0].email,
+                    status: applications[0].status,
+                    submittedAt: applications[0].submittedAt,
+                    totalResponses: applications[0].responses?.length,
+                    allResponses: applications[0].responses?.map(r => ({
+                      questionKey: r.question.questionKey,
+                      questionText: r.question.questionEn,
+                      answer: r.answer,
+                      answerLength: r.answer?.length
+                    }))
+                  } : null
+                }, null, 2)}
+              </pre>
+            </ScrollArea>
           </Card>
         )}
 
