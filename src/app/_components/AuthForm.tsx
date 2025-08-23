@@ -172,7 +172,7 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
 
   return (
     <Paper className={className} radius="md" p="xl" withBorder>
-      <Stack gap="lg">
+      <Stack gap="md">
         {/* Header */}
         <div>
           <Text size="xl" fw={600} ta="center">
@@ -199,7 +199,7 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
         )}
 
         {/* Social Sign In */}
-        <Stack gap="sm">
+        <Stack gap="xs">
           <Button
             variant="outline"
             leftSection={<IconBrandDiscord size={18} />}
@@ -229,9 +229,9 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
             <Tabs.Tab value="signup">Sign Up</Tabs.Tab>
           </Tabs.List>
 
-          <Tabs.Panel value="signin" mt="md">
+          <Tabs.Panel value="signin" mt="sm">
             <form onSubmit={signInForm.onSubmit(handleSignIn)}>
-              <Stack gap="md">
+              <Stack gap="sm">
                 <TextInput
                   label="Email"
                   placeholder="your@email.com"
@@ -260,9 +260,9 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
             </form>
           </Tabs.Panel>
 
-          <Tabs.Panel value="signup" mt="md">
+          <Tabs.Panel value="signup" mt="sm">
             <form onSubmit={signUpForm.onSubmit(handleSignUp)}>
-              <Stack gap="md">
+              <Stack gap="sm">
                 <TextInput
                   label="Full Name"
                   placeholder="John Doe"

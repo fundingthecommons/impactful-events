@@ -38,30 +38,37 @@ export default function AuthModal({
           </div>
         </Group>
       }
-      size="md"
+      size="lg"
       radius="lg"
       centered
       overlayProps={{
         backgroundOpacity: 0.55,
         blur: 3,
       }}
+      styles={{
+        content: {
+          maxWidth: '600px',
+          width: '100%',
+          maxHeight: '90vh',
+        },
+        header: {
+          paddingBottom: '12px',
+          borderBottom: '1px solid var(--mantine-color-gray-2)',
+          marginBottom: '16px',
+        },
+        body: {
+          padding: '20px',
+          paddingTop: '0',
+          maxHeight: 'calc(90vh - 80px)',
+          overflowY: 'auto',
+        },
+      }}
       closeButtonProps={{
         icon: <IconX size={20} />,
         size: "md",
       }}
-      styles={{
-        header: {
-          paddingBottom: '16px',
-          borderBottom: '1px solid var(--mantine-color-gray-2)',
-          marginBottom: '24px',
-        },
-        body: {
-          padding: '24px',
-          paddingTop: '0',
-        },
-      }}
     >
-      <Stack gap="lg">
+      <Stack gap="md">
         <AuthForm 
           callbackUrl={callbackUrl ?? "/"}
           className="border-0 shadow-none p-0"
