@@ -70,7 +70,7 @@ export default function ForgotPasswordPage() {
             <Text size="sm" c="dimmed">
               Didn&apos;t receive an email? Check your spam folder or try again with a different email address.
             </Text>
-            <Link href="/api/auth/signin">
+            <Link href="/signin">
               <Button variant="light" leftSection={<IconArrowLeft size={16} />}>
                 Back to Sign In
               </Button>
@@ -127,7 +127,7 @@ export default function ForgotPasswordPage() {
             <Text size="sm" c="dimmed">
               Remember your password?
             </Text>
-            <Link href="/api/auth/signin">
+            <Link href="/signin">
               <Anchor size="sm">Sign in</Anchor>
             </Link>
           </Group>

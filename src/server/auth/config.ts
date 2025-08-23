@@ -126,6 +126,7 @@ export const authConfig = {
   adapter: PrismaAdapter(db),
   // Account linking will be handled by the signIn callback
   pages: {
+    signIn: '/signin', // Custom sign-in page
     error: '/auth/error', // Custom error page
   },
   session: {
