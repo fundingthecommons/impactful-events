@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { 
   Container, 
@@ -21,6 +22,7 @@ import {
   IconHeart,
   IconArrowRight,
 } from "@tabler/icons-react";
+import AuthModal from "./AuthModal";
 
 function FeatureCard({ 
   icon: Icon, 
@@ -51,6 +53,8 @@ function FeatureCard({
 }
 
 export default function PublicHomepage() {
+  const [authModalOpened, setAuthModalOpened] = useState(false);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b">
       <Container size="xl" py="xl">
@@ -81,17 +85,16 @@ export default function PublicHomepage() {
 
           {/* CTA Buttons */}
           <Group gap="md">
-            <Link href="/api/auth/signin" style={{ textDecoration: 'none' }}>
-              <Button 
-                size="lg" 
-                radius="xl"
-                variant="gradient" 
-                gradient={{ from: 'blue', to: 'purple' }}
-                rightSection={<IconArrowRight size={20} />}
-              >
-                Get Started
-              </Button>
-            </Link>
+            <Button 
+              size="lg" 
+              radius="xl"
+              variant="gradient" 
+              gradient={{ from: 'blue', to: 'purple' }}
+              rightSection={<IconArrowRight size={20} />}
+              onClick={() => setAuthModalOpened(true)}
+            >
+              Get Started
+            </Button>
             <Link href="/events" style={{ textDecoration: 'none' }}>
               <Button 
                 size="lg" 
@@ -182,19 +185,27 @@ export default function PublicHomepage() {
               <Text c="dimmed">
                 Sign in to access your personalized dashboard and connect with the community
               </Text>
-              <Link href="/api/auth/signin" style={{ textDecoration: 'none' }}>
-                <Button 
-                  size="md"
-                  variant="outline"
-                  radius="xl"
-                >
-                  Sign In / Create Account
-                </Button>
-              </Link>
+              <Button 
+                size="md"
+                variant="outline"
+                radius="xl"
+                onClick={() => setAuthModalOpened(true)}
+              >
+                Sign In / Create Account
+              </Button>
             </Stack>
           </Paper>
         </Stack>
       </Container>
+
+      {/* Auth Modal */}
+      <AuthModal
+        opened={authModalOpened}
+        onClose={() => setAuthModalOpened(false)}
+        callbackUrl="/"
+        title="Welcome to Funding the Commons"
+        subtitle="Join our community of builders, funders, and impact creators"
+      />
     </main>
   );
 }
