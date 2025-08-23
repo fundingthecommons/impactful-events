@@ -131,26 +131,55 @@ export const applicationRouter = createTRPCRouter({
         return existing;
       }
 
-      // Create new application
-      const application = await ctx.db.application.create({
-        data: {
-          userId: ctx.session.user.id,
-          eventId: input.eventId,
-          email: ctx.session.user.email!,
-          language: input.language,
-          status: "DRAFT",
-        },
-        include: {
-          event: true,
-          responses: {
-            include: {
-              question: true,
+      // Create new application with race condition handling
+      try {
+        const application = await ctx.db.application.create({
+          data: {
+            userId: ctx.session.user.id,
+            eventId: input.eventId,
+            email: ctx.session.user.email!,
+            language: input.language,
+            status: "DRAFT",
+          },
+          include: {
+            event: true,
+            responses: {
+              include: {
+                question: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      return application;
+        return application;
+      } catch (error: any) {
+        // Handle race condition where application was created between our check and create attempt
+        if (error.code === 'P2002') { // Unique constraint error
+          const existingAfterRace = await ctx.db.application.findUnique({
+            where: {
+              userId_eventId: {
+                userId: ctx.session.user.id,
+                eventId: input.eventId,
+              },
+            },
+            include: {
+              event: true,
+              responses: {
+                include: {
+                  question: true,
+                },
+              },
+            },
+          });
+          
+          if (existingAfterRace) {
+            return existingAfterRace;
+          }
+        }
+        
+        // Re-throw if it's not a race condition we can handle
+        throw error;
+      }
     }),
 
   // Get application completion status
@@ -327,12 +356,22 @@ export const applicationRouter = createTRPCRouter({
         });
       }
 
-      // Check required questions are answered
-      const requiredQuestions = await ctx.db.applicationQuestion.findMany({
+      // Check required questions are answered (excluding conditional fields)
+      const allRequiredQuestions = await ctx.db.applicationQuestion.findMany({
         where: {
           eventId: application.eventId,
           required: true,
         },
+      });
+
+      // Filter out conditional fields that shouldn't be required
+      const requiredQuestions = allRequiredQuestions.filter(question => {
+        const questionText = question.questionEn.toLowerCase();
+        const isConditionalField = questionText.includes("specify") || 
+                                   questionText.includes("if you answered") ||
+                                   questionText.includes("if you did not select") ||
+                                   questionText.includes("other") && questionText.includes("please");
+        return !isConditionalField;
       });
 
       const answeredQuestionIds = new Set(
