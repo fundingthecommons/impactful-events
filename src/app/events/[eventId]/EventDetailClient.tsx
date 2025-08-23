@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { 
   Container, 
   Title, 
@@ -111,6 +112,7 @@ export default function EventDetailClient({
 }: EventDetailClientProps) {
   const [language, setLanguage] = useState<"en" | "es">("en");
   const [activeTab, setActiveTab] = useState<string | null>("overview");
+  const { data: session } = useSession();
 
   const utils = api.useUtils();
 
@@ -316,6 +318,7 @@ export default function EventDetailClient({
                     eventId={event.id}
                     existingApplication={userApplication}
                     language={language}
+                    userEmail={session?.user?.email ?? undefined}
                     onSubmitted={handleApplicationSubmitted}
                     onUpdated={handleApplicationUpdated}
                   />
@@ -335,6 +338,7 @@ export default function EventDetailClient({
                   <DynamicApplicationForm
                     eventId={event.id}
                     language={language}
+                    userEmail={session?.user?.email ?? undefined}
                     onSubmitted={handleApplicationSubmitted}
                     onUpdated={handleApplicationUpdated}
                   />

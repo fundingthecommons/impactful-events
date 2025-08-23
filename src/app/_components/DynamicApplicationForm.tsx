@@ -57,6 +57,7 @@ interface DynamicApplicationFormProps {
   eventId: string;
   existingApplication?: ExistingApplication;
   language: "en" | "es";
+  userEmail?: string;
   onSubmitted?: () => void;
   onUpdated?: () => void;
 }
@@ -65,6 +66,7 @@ export default function DynamicApplicationForm({
   eventId,
   existingApplication,
   language,
+  userEmail,
   onSubmitted,
   onUpdated,
 }: DynamicApplicationFormProps) {
@@ -132,7 +134,10 @@ export default function DynamicApplicationForm({
             initialValue = existingResponse.answer;
           }
         } else {
-          if (question.questionType === "MULTISELECT") {
+          // Auto-fill email field with user's email
+          if (question.questionKey === "email" && userEmail) {
+            initialValue = userEmail;
+          } else if (question.questionType === "MULTISELECT") {
             initialValue = [];
           } else if (question.questionType === "CHECKBOX") {
             initialValue = false;
@@ -512,12 +517,61 @@ export default function DynamicApplicationForm({
     }
   };
 
+  // Comprehensive list of countries for nationality dropdown
+  const countries = [
+    "Afghanistan", "Albania", "Algeria", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan",
+    "Bahrain", "Bangladesh", "Belarus", "Belgium", "Bolivia", "Bosnia and Herzegovina", "Brazil", "Bulgaria",
+    "Cambodia", "Canada", "Chile", "China", "Colombia", "Croatia", "Czech Republic", "Denmark", 
+    "Dominican Republic", "Ecuador", "Egypt", "Estonia", "Ethiopia", "Finland", "France", "Germany",
+    "Ghana", "Greece", "Guatemala", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran",
+    "Iraq", "Ireland", "Israel", "Italy", "Japan", "Jordan", "Kazakhstan", "Kenya", "South Korea",
+    "Kuwait", "Latvia", "Lebanon", "Lithuania", "Luxembourg", "Malaysia", "Mexico", "Morocco",
+    "Netherlands", "New Zealand", "Nigeria", "Norway", "Pakistan", "Peru", "Philippines", "Poland",
+    "Portugal", "Romania", "Russia", "Saudi Arabia", "Serbia", "Singapore", "Slovakia", "Slovenia",
+    "South Africa", "Spain", "Sri Lanka", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine",
+    "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Venezuela", "Vietnam",
+    "Other"
+  ];
+
   // Render individual question
   const renderQuestion = (question: Question) => {
     const questionText = language === "es" ? question.questionEs : question.questionEn;
     const currentValue = formValues[question.questionKey] ?? "";
     const hasError = submitAttempted && validationErrors[question.questionKey];
     const errorMessage = validationErrors[question.questionKey];
+
+    // Handle nationality field specially
+    if (question.questionKey === "nationality" || questionText.toLowerCase().includes("nationality")) {
+      return (
+        <Select
+          key={question.id}
+          data={countries}
+          searchable
+          clearable={!question.required}
+          label={questionText}
+          required={question.required}
+          value={typeof currentValue === "string" ? currentValue : ""}
+          onChange={(value) => void handleFieldChange(question.questionKey, value ?? "")}
+          error={hasError ? errorMessage : undefined}
+          styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+        />
+      );
+    }
+
+    // Handle "specify other" fields (make them non-required)
+    if (questionText.toLowerCase().includes("specify") || questionText.toLowerCase().includes("other")) {
+      return (
+        <TextInput
+          key={question.id}
+          label={questionText}
+          required={false} // Override to make non-required
+          value={typeof currentValue === "string" ? currentValue : ""}
+          onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
+          error={hasError ? errorMessage : undefined}
+          styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+        />
+      );
+    }
 
     switch (question.questionType) {
       case "TEXT":
