@@ -153,7 +153,7 @@ export default function DynamicApplicationForm({
 
       setFormValues(initialValues);
     }
-  }, [questions, existingApplication]);
+  }, [questions, existingApplication, userEmail]);
 
   // Check if this is the first time viewing this application in this session
   const isFirstTimeInSession = !sessionStorage.getItem(`app-${eventId}-viewed`);
@@ -479,8 +479,10 @@ export default function DynamicApplicationForm({
           });
           // Focus the input after scroll
           setTimeout(() => {
-            const input = element.querySelector('input, select, textarea') as HTMLElement;
-            input?.focus();
+            const input = element.querySelector('input, select, textarea');
+            if (input) {
+              (input as HTMLElement).focus();
+            }
           }, 500);
         }
       }
