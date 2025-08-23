@@ -2,9 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import type { Metadata } from "next";
 import {
   Container,
   Stack,
@@ -52,7 +51,7 @@ function FeatureHighlight({
   );
 }
 
-export default function SignInPage() {
+function SignInContent() {
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -219,5 +218,17 @@ export default function SignInPage() {
         }
       `}</style>
     </main>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }

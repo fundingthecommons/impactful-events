@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
     },
   });
 
-  const handleSubmit = async (values: ForgotPasswordFormData) => {
+  const handleSubmit = async (_values: ForgotPasswordFormData) => {
     setIsLoading(true);
     setError(null);
 
