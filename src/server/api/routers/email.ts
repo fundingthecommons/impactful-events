@@ -120,7 +120,25 @@ export const emailRouter = createTRPCRouter({
             
             // For MULTISELECT, check each selected option
             if (question.questionType === "MULTISELECT") {
-              const selectedOptions = answer.split(',').map(opt => opt.toLowerCase().trim());
+              let selectedOptions: string[] = [];
+              
+              // Handle JSON array format (e.g., ["Project Manager", "Developer"])
+              if (answer.startsWith('[') && answer.endsWith(']')) {
+                try {
+                  const parsed = JSON.parse(answer);
+                  if (Array.isArray(parsed)) {
+                    selectedOptions = parsed.map(opt => String(opt).toLowerCase().trim());
+                  } else {
+                    return true; // Invalid JSON array
+                  }
+                } catch {
+                  return true; // Malformed JSON
+                }
+              } else {
+                // Handle comma-separated format (e.g., "Project Manager, Developer")
+                selectedOptions = answer.split(',').map(opt => opt.toLowerCase().trim());
+              }
+              
               const hasInvalidOption = selectedOptions.some(opt => !validOptions.includes(opt));
               if (hasInvalidOption || selectedOptions.length === 0) {
                 return true;
