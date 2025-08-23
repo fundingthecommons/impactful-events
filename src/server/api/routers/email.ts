@@ -280,10 +280,11 @@ export const emailRouter = createTRPCRouter({
       });
 
       if (missingQuestions.length === 0) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "No missing required fields found",
-        });
+        return {
+          message: "Application is complete - no missing fields found",
+          missingFields: [],
+          isComplete: true
+        };
       }
 
       // Generate application URL (you'll need to adjust this based on your routing)
