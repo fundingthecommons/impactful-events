@@ -6,7 +6,7 @@ export default async function AdminEmailsPage() {
   const session = await auth();
 
   if (!session?.user) {
-    redirect("/api/auth/signin");
+    redirect("/signin");
   }
 
   if (session.user.role !== "admin" && session.user.role !== "staff") {

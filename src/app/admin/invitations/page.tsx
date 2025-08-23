@@ -8,7 +8,7 @@ export default async function InvitationsPage() {
   
   // Must be authenticated
   if (!session?.user) {
-    redirect("/api/auth/signin?callbackUrl=/admin/invitations");
+    redirect("/signin?callbackUrl=/admin/invitations");
   }
   
   // Must have staff or admin role

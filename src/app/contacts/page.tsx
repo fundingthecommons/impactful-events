@@ -10,7 +10,7 @@ export default async function ContactsPage() {
     
     // Must be authenticated
     if (!session?.user) {
-        redirect("/api/auth/signin?callbackUrl=/contacts");
+        redirect("/signin?callbackUrl=/contacts");
     }
     
     // Must have staff or admin role

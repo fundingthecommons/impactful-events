@@ -45,7 +45,7 @@ function AuthErrorContent() {
           )}
           
           <Stack gap="sm">
-            <Link href="/api/auth/signin" style={{ textDecoration: 'none' }}>
+            <Link href="/signin" style={{ textDecoration: 'none' }}>
               <Button size="lg" fullWidth>
                 Try Sign In Again
               </Button>

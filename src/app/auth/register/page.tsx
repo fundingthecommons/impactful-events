@@ -99,7 +99,7 @@ export default function RegisterPage() {
 
       // Wait a bit before redirecting to ensure the notification is visible
       setTimeout(() => {
-        router.push("/api/auth/signin");
+        router.push("/signin");
       }, 1500);
     } catch (error) {
       console.error("Registration error:", error);
@@ -123,7 +123,7 @@ export default function RegisterPage() {
       </Title>
       <Text c="dimmed" size="sm" ta="center" mb="xl">
         Already have an account?{" "}
-        <Link href="/api/auth/signin" style={{ color: "var(--mantine-color-blue-6)" }}>
+        <Link href="/signin" style={{ color: "var(--mantine-color-blue-6)" }}>
           Sign in
         </Link>
       </Text>
