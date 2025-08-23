@@ -194,30 +194,6 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
           </Alert>
         )}
 
-        {/* Social Sign In */}
-        <Stack gap="xs">
-          <Button
-            variant="outline"
-            leftSection={<IconBrandDiscord size={18} />}
-            onClick={() => handleProviderSignIn("discord")}
-            loading={isLoading}
-            fullWidth
-          >
-            Continue with Discord
-          </Button>
-          <Button
-            variant="outline"
-            leftSection={<IconBrandGoogle size={18} />}
-            onClick={() => handleProviderSignIn("google")}
-            loading={isLoading}
-            fullWidth
-          >
-            Continue with Google
-          </Button>
-        </Stack>
-
-        <Divider label="Or continue with email" labelPosition="center" />
-
         {/* Two-Column Layout */}
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xl">
           {/* Sign In Column */}
@@ -228,6 +204,30 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
             <Text size="sm" c="dimmed" ta="center" mb="sm">
               Welcome back! Sign in to continue
             </Text>
+
+            {/* Social Sign In */}
+            <Stack gap="xs">
+              <Button
+                variant="outline"
+                leftSection={<IconBrandDiscord size={18} />}
+                onClick={() => handleProviderSignIn("discord")}
+                loading={isLoading}
+                fullWidth
+              >
+                Continue with Discord
+              </Button>
+              <Button
+                variant="outline"
+                leftSection={<IconBrandGoogle size={18} />}
+                onClick={() => handleProviderSignIn("google")}
+                loading={isLoading}
+                fullWidth
+              >
+                Continue with Google
+              </Button>
+            </Stack>
+
+            <Divider label="Or use email" labelPosition="center" />
             
             <form onSubmit={signInForm.onSubmit(handleSignIn)}>
               <Stack gap="sm">
