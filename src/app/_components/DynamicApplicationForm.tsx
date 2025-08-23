@@ -150,6 +150,16 @@ export default function DynamicApplicationForm({
     }
   }, [questions, existingApplication]);
 
+  // Check if this is the first time viewing this application in this session
+  const isFirstTimeInSession = !sessionStorage.getItem(`app-${eventId}-viewed`);
+
+  // Mark that this application has been viewed in this session
+  useEffect(() => {
+    if (existingApplication && !isFirstTimeInSession) {
+      sessionStorage.setItem(`app-${eventId}-viewed`, 'true');
+    }
+  }, [existingApplication, eventId, isFirstTimeInSession]);
+
   // Use fresh completionStatus data instead of stale existingApplication prop
   const currentStatus = completionStatus?.status ?? freshApplicationData?.status ?? existingApplication?.status ?? "DRAFT";
   
@@ -666,7 +676,11 @@ export default function DynamicApplicationForm({
             wasReverted={wasRecentlyReverted}
             shouldShowMissingFields={
               Boolean(submitAttempted) || // Show if they tried to submit
-              Boolean(existingApplication && completionStatus.completedFields > 1) || // Show if they have existing progress (more than 1 field)
+              Boolean(
+                existingApplication && 
+                completionStatus.completedFields > 1 && 
+                !isFirstTimeInSession
+              ) || // Show if returning to in-progress application (not first time in session)
               Boolean(wasRecentlyReverted) // Show if application was reverted from submitted
             }
           />
