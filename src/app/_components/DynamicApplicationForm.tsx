@@ -403,7 +403,14 @@ export default function DynamicApplicationForm({
     if (!questions) return false;
     
     const errors: Record<string, string> = {};
-    const requiredQuestions = questions.filter(q => q.required);
+    const requiredQuestions = questions.filter(q => {
+      // Filter out conditional fields even if marked as required in DB
+      const questionText = language === "es" ? q.questionEs : q.questionEn;
+      const isConditionalField = questionText.toLowerCase().includes("specify") || 
+                                 questionText.toLowerCase().includes("if you answered") ||
+                                 questionText.toLowerCase().includes("if you did not select");
+      return q.required && !isConditionalField;
+    });
     
     for (const question of requiredQuestions) {
       const value = formValues[question.questionKey];
@@ -591,13 +598,17 @@ export default function DynamicApplicationForm({
       );
     }
 
-    // Handle "specify other" fields (make them non-required)
-    if (questionText.toLowerCase().includes("specify") || questionText.toLowerCase().includes("other")) {
+    // Handle "specify other" or conditional fields (make them non-required)
+    if (questionText.toLowerCase().includes("specify") || 
+        questionText.toLowerCase().includes("other") ||
+        questionText.toLowerCase().includes("if you answered") ||
+        questionText.toLowerCase().includes("if you did not select")) {
       return (
         <div key={question.id} id={`field-${question.questionKey}`}>
           <TextInput
             label={questionText}
             required={false} // Override to make non-required
+            placeholder={questionText.toLowerCase().includes("n/a") ? "Enter N/A if not applicable" : undefined}
             value={typeof currentValue === "string" ? currentValue : ""}
             onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
             error={hasError ? errorMessage : undefined}
@@ -651,7 +662,7 @@ export default function DynamicApplicationForm({
           <div key={question.id} id={`field-${question.questionKey}`}>
             <Select
               data={question.options}
-              searchable
+              searchable={false}
               clearable={!question.required}
               label={questionText}
               required={question.required}
@@ -668,7 +679,7 @@ export default function DynamicApplicationForm({
           <div key={question.id} id={`field-${question.questionKey}`}>
             <MultiSelect
               data={question.options}
-              searchable
+              searchable={false}
               clearable={!question.required}
               label={questionText}
               required={question.required}
