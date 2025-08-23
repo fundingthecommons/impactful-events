@@ -57,7 +57,7 @@ function getPasswordStrengthColor(strength: number): string {
 }
 
 export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
-  const [activeTab, setActiveTab] = useState<string | null>("signin");
+  const [activeTab, setActiveTab] = useState<string | null>("signup");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -198,39 +198,11 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
           </Alert>
         )}
 
-        {/* Social Sign In - Only show on Sign In tab */}
-        {activeTab === "signin" && (
-          <>
-            <Stack gap="xs">
-              <Button
-                variant="outline"
-                leftSection={<IconBrandDiscord size={18} />}
-                onClick={() => handleProviderSignIn("discord")}
-                loading={isLoading}
-                fullWidth
-              >
-                Continue with Discord
-              </Button>
-              <Button
-                variant="outline"
-                leftSection={<IconBrandGoogle size={18} />}
-                onClick={() => handleProviderSignIn("google")}
-                loading={isLoading}
-                fullWidth
-              >
-                Continue with Google
-              </Button>
-            </Stack>
-
-            <Divider label="Or use email" labelPosition="center" />
-          </>
-        )}
-
         {/* Auth Tabs */}
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List grow>
-            <Tabs.Tab value="signin">Sign In</Tabs.Tab>
             <Tabs.Tab value="signup">Join the Commons</Tabs.Tab>
+            <Tabs.Tab value="signin">Sign In</Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="signin" mt="sm">
@@ -261,6 +233,29 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
                 <Button type="submit" loading={isLoading} fullWidth>
                   Sign In
                 </Button>
+                
+                <Divider label="Or continue with" labelPosition="center" />
+                
+                <Stack gap="xs">
+                  <Button
+                    variant="outline"
+                    leftSection={<IconBrandDiscord size={18} />}
+                    onClick={() => handleProviderSignIn("discord")}
+                    loading={isLoading}
+                    fullWidth
+                  >
+                    Continue with Discord
+                  </Button>
+                  <Button
+                    variant="outline"
+                    leftSection={<IconBrandGoogle size={18} />}
+                    onClick={() => handleProviderSignIn("google")}
+                    loading={isLoading}
+                    fullWidth
+                  >
+                    Continue with Google
+                  </Button>
+                </Stack>
               </Stack>
             </form>
           </Tabs.Panel>
@@ -327,6 +322,29 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
                 <Button type="submit" loading={isLoading} fullWidth>
                   Create Account
                 </Button>
+                
+                <Divider label="Or continue with" labelPosition="center" />
+                
+                <Stack gap="xs">
+                  <Button
+                    variant="outline"
+                    leftSection={<IconBrandDiscord size={18} />}
+                    onClick={() => handleProviderSignIn("discord")}
+                    loading={isLoading}
+                    fullWidth
+                  >
+                    Continue with Discord
+                  </Button>
+                  <Button
+                    variant="outline"
+                    leftSection={<IconBrandGoogle size={18} />}
+                    onClick={() => handleProviderSignIn("google")}
+                    loading={isLoading}
+                    fullWidth
+                  >
+                    Continue with Google
+                  </Button>
+                </Stack>
               </Stack>
             </form>
           </Tabs.Panel>
