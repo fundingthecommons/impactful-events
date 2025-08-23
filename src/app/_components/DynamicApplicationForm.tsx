@@ -155,6 +155,22 @@ export default function DynamicApplicationForm({
     }
   }, [questions, existingApplication, userEmail]);
 
+  // Auto-save email field when it's auto-filled for new applications  
+  useEffect(() => {
+    if (userEmail && questions && applicationId && !existingApplication) {
+      const emailQuestion = questions.find(q => q.questionKey === "email");
+      
+      if (emailQuestion && formValues["email"] === userEmail) {
+        // Auto-save the email field after application is created
+        const timer = setTimeout(() => {
+          void handleFieldChange("email", userEmail);
+        }, 2000);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [userEmail, questions, applicationId, existingApplication, formValues, handleFieldChange]);
+
   // Check if this is the first time viewing this application in this session
   const isFirstTimeInSession = !sessionStorage.getItem(`app-${eventId}-viewed`);
 
@@ -824,9 +840,12 @@ export default function DynamicApplicationForm({
                       {language === "es" ? question.questionEs : question.questionEn}
                     </Text>
                     <Text c="dimmed" size="sm">
-                      {existingApplication?.responses.find(
-                        r => r.question.questionKey === question.questionKey
-                      )?.answer ?? "No response"}
+                      {formValues[question.questionKey] ? 
+                        String(formValues[question.questionKey]) : 
+                        existingApplication?.responses.find(
+                          r => r.question.questionKey === question.questionKey
+                        )?.answer ?? "No response"
+                      }
                     </Text>
                   </Stack>
                 )}
