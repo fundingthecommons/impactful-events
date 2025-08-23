@@ -47,7 +47,7 @@ export default function AuthModal({
       }}
       styles={{
         content: {
-          maxWidth: '1000px',
+          maxWidth: '400px',
           width: '100%',
           maxHeight: '90vh',
         },

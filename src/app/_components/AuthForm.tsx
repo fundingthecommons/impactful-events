@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import {
   Paper,
+  Tabs,
   TextInput,
   PasswordInput,
   Button,
@@ -15,7 +16,6 @@ import {
   Checkbox,
   Progress,
   Anchor,
-  SimpleGrid,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconBrandDiscord, IconBrandGoogle, IconCheck, IconAlertCircle } from "@tabler/icons-react";
@@ -57,6 +57,7 @@ function getPasswordStrengthColor(strength: number): string {
 }
 
 export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
+  const [activeTab, setActiveTab] = useState<string | null>("signin");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -175,10 +176,13 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
         {/* Header */}
         <div>
           <Text size="xl" fw={600} ta="center">
-            Get Started
+            {activeTab === "signin" ? "Welcome Back" : "Join the Commons"}
           </Text>
           <Text size="sm" c="dimmed" ta="center" mt="xs">
-            Sign in to your account or create a new one
+            {activeTab === "signin" 
+              ? "Sign in to continue your journey" 
+              : "Create your account to get started"
+            }
           </Text>
         </div>
 
@@ -194,18 +198,9 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
           </Alert>
         )}
 
-        {/* Two-Column Layout */}
-        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xl">
-          {/* Sign In Column */}
-          <Stack gap="sm">
-            <Text size="lg" fw={600} ta="center" c="blue">
-              Sign In
-            </Text>
-            <Text size="sm" c="dimmed" ta="center" mb="sm">
-              Welcome back! Sign in to continue
-            </Text>
-
-            {/* Social Sign In */}
+        {/* Social Sign In - Only show on Sign In tab */}
+        {activeTab === "signin" && (
+          <>
             <Stack gap="xs">
               <Button
                 variant="outline"
@@ -228,7 +223,17 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
             </Stack>
 
             <Divider label="Or use email" labelPosition="center" />
-            
+          </>
+        )}
+
+        {/* Auth Tabs */}
+        <Tabs value={activeTab} onChange={setActiveTab}>
+          <Tabs.List grow>
+            <Tabs.Tab value="signin">Sign In</Tabs.Tab>
+            <Tabs.Tab value="signup">Join the Commons</Tabs.Tab>
+          </Tabs.List>
+
+          <Tabs.Panel value="signin" mt="sm">
             <form onSubmit={signInForm.onSubmit(handleSignIn)}>
               <Stack gap="sm">
                 <TextInput
@@ -258,17 +263,9 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
                 </Button>
               </Stack>
             </form>
-          </Stack>
+          </Tabs.Panel>
 
-          {/* Sign Up Column */}
-          <Stack gap="sm">
-            <Text size="lg" fw={600} ta="center" c="purple">
-              Create Account
-            </Text>
-            <Text size="sm" c="dimmed" ta="center" mb="sm">
-              New here? Join our community
-            </Text>
-            
+          <Tabs.Panel value="signup" mt="sm">
             <form onSubmit={signUpForm.onSubmit(handleSignUp)}>
               <Stack gap="sm">
                 <TextInput
@@ -316,7 +313,7 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
                     <Text size="sm">
                       I agree to the{" "}
                       <Anchor href="/terms" target="_blank" size="sm">
-                        Terms
+                        Terms of Service
                       </Anchor>{" "}
                       and{" "}
                       <Anchor href="/privacy" target="_blank" size="sm">
@@ -332,8 +329,23 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
                 </Button>
               </Stack>
             </form>
-          </Stack>
-        </SimpleGrid>
+          </Tabs.Panel>
+        </Tabs>
+
+        {/* Footer */}
+        <Text size="xs" c="dimmed" ta="center">
+          {activeTab === "signin" ? (
+            <>
+              Don&apos;t have an account?{" "}
+              <Anchor onClick={() => setActiveTab("signup")}>Join the Commons</Anchor>
+            </>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <Anchor onClick={() => setActiveTab("signin")}>Sign in</Anchor>
+            </>
+          )}
+        </Text>
       </Stack>
     </Paper>
   );
