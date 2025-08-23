@@ -8,7 +8,7 @@ export default async function CryptoNomadsImportPage() {
   
   // Must be authenticated
   if (!session?.user) {
-    redirect("/api/auth/signin?callbackUrl=/crypto-nomads-import");
+    redirect("/signin?callbackUrl=/crypto-nomads-import");
   }
   
   // Must have staff or admin role

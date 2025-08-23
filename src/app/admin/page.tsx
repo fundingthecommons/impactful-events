@@ -8,7 +8,7 @@ export default async function AdminPage() {
   
   // Must be authenticated
   if (!session?.user) {
-    redirect("/api/auth/signin?callbackUrl=/admin");
+    redirect("/signin?callbackUrl=/admin");
   }
   
   // Must have staff or admin role

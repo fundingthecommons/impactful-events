@@ -8,7 +8,7 @@ export default async function EventsPage() {
   
   // Must be authenticated
   if (!session?.user) {
-    redirect("/api/auth/signin?callbackUrl=/admin/events");
+    redirect("/signin?callbackUrl=/admin/events");
   }
   
   // Must have staff or admin role

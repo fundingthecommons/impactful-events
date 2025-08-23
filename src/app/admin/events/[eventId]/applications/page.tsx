@@ -16,7 +16,7 @@ export default async function AdminApplicationsPage({ params }: AdminApplication
   
   // Must be authenticated
   if (!session?.user) {
-    redirect(`/api/auth/signin?callbackUrl=/admin/events/${eventId}/applications`);
+    redirect(`/signin?callbackUrl=/admin/events/${eventId}/applications`);
   }
   
   // Must have staff or admin role

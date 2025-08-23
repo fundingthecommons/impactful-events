@@ -16,7 +16,7 @@ export default async function EventPage({ params }: EventPageProps) {
   
   // Must be authenticated to view event details
   if (!session?.user) {
-    redirect(`/api/auth/signin?callbackUrl=/events/${eventId}`);
+    redirect(`/signin?callbackUrl=/events/${eventId}`);
   }
 
   // Fetch event details

@@ -8,7 +8,7 @@ export default async function EventsPage() {
   
   // Must be authenticated to view events
   if (!session?.user) {
-    redirect("/api/auth/signin?callbackUrl=/events");
+    redirect("/signin?callbackUrl=/events");
   }
   
   return <ParticipantEventsClient />;
