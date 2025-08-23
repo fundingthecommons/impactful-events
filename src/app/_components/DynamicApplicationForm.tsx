@@ -155,21 +155,7 @@ export default function DynamicApplicationForm({
     }
   }, [questions, existingApplication, userEmail]);
 
-  // Auto-save email field when it's auto-filled for new applications  
-  useEffect(() => {
-    if (userEmail && questions && applicationId && !existingApplication) {
-      const emailQuestion = questions.find(q => q.questionKey === "email");
-      
-      if (emailQuestion && formValues["email"] === userEmail) {
-        // Auto-save the email field after application is created
-        const timer = setTimeout(() => {
-          void handleFieldChange("email", userEmail);
-        }, 2000);
-        
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [userEmail, questions, applicationId, existingApplication, formValues, handleFieldChange]);
+  // TODO: Add auto-save logic for email field after fixing dependency ordering
 
   // Check if this is the first time viewing this application in this session
   const isFirstTimeInSession = !sessionStorage.getItem(`app-${eventId}-viewed`);
