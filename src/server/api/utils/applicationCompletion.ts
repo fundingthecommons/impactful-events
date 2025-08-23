@@ -81,9 +81,53 @@ export async function checkApplicationCompleteness(
   
   const answeredQuestionIds = new Set(
     application.responses
-      .filter(r => r.answer && r.answer.trim() !== '') // Filter out empty responses
+      .filter(r => {
+        if (!r.answer) return false;
+        const trimmed = r.answer.trim();
+        if (!trimmed) return false;
+        
+        // For JSON arrays (multiselect fields), check if array has content
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            return Array.isArray(parsed) && parsed.length > 0;
+          } catch {
+            return false;
+          }
+        }
+        
+        // For regular text, just check if not empty
+        return true;
+      })
       .map(r => r.questionId)
   );
+
+  // DEBUG: Enhanced logging for missing field detection
+  console.log('🔍 MISSING FIELD DETECTION DEBUG:', {
+    applicationId: applicationId,
+    totalRequiredQuestions: requiredQuestions.length,
+    totalResponses: application.responses.length,
+    requiredQuestions: requiredQuestions.map(q => ({
+      id: q.id,
+      questionKey: q.questionKey,
+      questionText: q.questionEn.substring(0, 50) + '...',
+      isAnswered: answeredQuestionIds.has(q.id)
+    })),
+    responses: application.responses.map(r => ({
+      questionId: r.questionId,
+      questionKey: r.question.questionKey,
+      answer: r.answer?.substring(0, 100) + (r.answer?.length > 100 ? '...' : ''),
+      answerLength: r.answer?.length,
+      passesFilter: r.answer && r.answer.trim() !== ''
+    })),
+    answeredQuestionIds: Array.from(answeredQuestionIds),
+    techSkillsSpecific: {
+      techSkillsQuestion: requiredQuestions.find(q => q.questionKey === 'technical_skills'),
+      techSkillsResponse: application.responses.find(r => r.question.questionKey === 'technical_skills'),
+      techSkillsOtherQuestion: requiredQuestions.find(q => q.questionKey === 'technical_skills_other'),
+      techSkillsOtherResponse: application.responses.find(r => r.question.questionKey === 'technical_skills_other')
+    }
+  });
 
   const isCurrentlyComplete = requiredQuestions.length > 0 && 
     requiredQuestions.every(q => answeredQuestionIds.has(q.id));
@@ -93,6 +137,12 @@ export async function checkApplicationCompleteness(
   const missingFields = requiredQuestions
     .filter(q => !answeredQuestionIds.has(q.id))
     .map(q => q.questionKey);
+
+  console.log('🔍 MISSING FIELDS RESULT:', {
+    missingFields,
+    isCurrentlyComplete,
+    wasJustCompleted
+  });
 
   const completedFields = requiredQuestions.length - missingFields.length;
   const totalFields = requiredQuestions.length;
