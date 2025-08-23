@@ -455,6 +455,36 @@ export default function DynamicApplicationForm({
     }
     
     if (!validateForm()) {
+      // Find first missing required field for scroll-to-error
+      const requiredQuestions = questions?.filter(q => q.required) ?? [];
+      const firstMissingQuestion = requiredQuestions.find(question => {
+        const value = formValues[question.questionKey];
+        if (question.questionType === "MULTISELECT") {
+          return !Array.isArray(value) || value.length === 0;
+        } else if (question.questionType === "CHECKBOX") {
+          return !value;
+        } else {
+          return !value || (typeof value === "string" && !value.trim());
+        }
+      });
+
+      // Scroll to first missing field
+      if (firstMissingQuestion) {
+        const element = document.getElementById(`field-${firstMissingQuestion.questionKey}`);
+        if (element) {
+          element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+          // Focus the input after scroll
+          setTimeout(() => {
+            const input = element.querySelector('input, select, textarea') as HTMLElement;
+            input?.focus();
+          }, 500);
+        }
+      }
+
       notifications.show({
         title: "Please Complete Required Fields",
         message: "All fields marked in red must be completed before submitting",
@@ -543,78 +573,9 @@ export default function DynamicApplicationForm({
     // Handle nationality field specially
     if (question.questionKey === "nationality" || questionText.toLowerCase().includes("nationality")) {
       return (
-        <Select
-          key={question.id}
-          data={countries}
-          searchable
-          clearable={!question.required}
-          label={questionText}
-          required={question.required}
-          value={typeof currentValue === "string" ? currentValue : ""}
-          onChange={(value) => void handleFieldChange(question.questionKey, value ?? "")}
-          error={hasError ? errorMessage : undefined}
-          styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
-        />
-      );
-    }
-
-    // Handle "specify other" fields (make them non-required)
-    if (questionText.toLowerCase().includes("specify") || questionText.toLowerCase().includes("other")) {
-      return (
-        <TextInput
-          key={question.id}
-          label={questionText}
-          required={false} // Override to make non-required
-          value={typeof currentValue === "string" ? currentValue : ""}
-          onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
-          error={hasError ? errorMessage : undefined}
-          styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
-        />
-      );
-    }
-
-    switch (question.questionType) {
-      case "TEXT":
-      case "EMAIL":
-      case "PHONE":
-      case "URL":
-        return (
-          <TextInput
-            key={question.id}
-            label={questionText}
-            required={question.required}
-            type={question.questionType === "EMAIL" ? "email" : 
-                  question.questionType === "URL" ? "url" : 
-                  question.questionType === "PHONE" ? "tel" : "text"}
-            value={typeof currentValue === "string" ? currentValue : ""}
-            onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
-            error={hasError ? errorMessage : undefined}
-            styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
-          />
-        );
-
-      case "TEXTAREA":
-        return (
-          <Textarea
-            key={question.id}
-            label={questionText}
-            required={question.required}
-            rows={4}
-            autosize
-            minRows={3}
-            maxRows={10}
-            value={typeof currentValue === "string" ? currentValue : ""}
-            onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
-            error={hasError ? errorMessage : undefined}
-            styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
-          />
-        );
-
-      case "SELECT":
-        return (
+        <div key={question.id} id={`field-${question.questionKey}`}>
           <Select
-            key={question.id}
-            data={question.options}
+            data={countries}
             searchable
             clearable={!question.required}
             label={questionText}
@@ -624,42 +585,118 @@ export default function DynamicApplicationForm({
             error={hasError ? errorMessage : undefined}
             styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
           />
+        </div>
+      );
+    }
+
+    // Handle "specify other" fields (make them non-required)
+    if (questionText.toLowerCase().includes("specify") || questionText.toLowerCase().includes("other")) {
+      return (
+        <div key={question.id} id={`field-${question.questionKey}`}>
+          <TextInput
+            label={questionText}
+            required={false} // Override to make non-required
+            value={typeof currentValue === "string" ? currentValue : ""}
+            onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
+            error={hasError ? errorMessage : undefined}
+            styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+          />
+        </div>
+      );
+    }
+
+    switch (question.questionType) {
+      case "TEXT":
+      case "EMAIL":
+      case "PHONE":
+      case "URL":
+        return (
+          <div key={question.id} id={`field-${question.questionKey}`}>
+            <TextInput
+              label={questionText}
+              required={question.required}
+              type={question.questionType === "EMAIL" ? "email" : 
+                    question.questionType === "URL" ? "url" : 
+                    question.questionType === "PHONE" ? "tel" : "text"}
+              value={typeof currentValue === "string" ? currentValue : ""}
+              onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
+              error={hasError ? errorMessage : undefined}
+              styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+            />
+          </div>
+        );
+
+      case "TEXTAREA":
+        return (
+          <div key={question.id} id={`field-${question.questionKey}`}>
+            <Textarea
+              label={questionText}
+              required={question.required}
+              rows={4}
+              autosize
+              minRows={3}
+              maxRows={10}
+              value={typeof currentValue === "string" ? currentValue : ""}
+              onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
+              error={hasError ? errorMessage : undefined}
+              styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+            />
+          </div>
+        );
+
+      case "SELECT":
+        return (
+          <div key={question.id} id={`field-${question.questionKey}`}>
+            <Select
+              data={question.options}
+              searchable
+              clearable={!question.required}
+              label={questionText}
+              required={question.required}
+              value={typeof currentValue === "string" ? currentValue : ""}
+              onChange={(value) => void handleFieldChange(question.questionKey, value ?? "")}
+              error={hasError ? errorMessage : undefined}
+              styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+            />
+          </div>
         );
 
       case "MULTISELECT":
         return (
-          <MultiSelect
-            key={question.id}
-            data={question.options}
-            searchable
-            clearable={!question.required}
-            label={questionText}
-            required={question.required}
-            value={Array.isArray(currentValue) ? currentValue : []}
-            onChange={(value) => void handleFieldChange(question.questionKey, value)}
-            error={hasError ? errorMessage : undefined}
-            styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
-          />
+          <div key={question.id} id={`field-${question.questionKey}`}>
+            <MultiSelect
+              data={question.options}
+              searchable
+              clearable={!question.required}
+              label={questionText}
+              required={question.required}
+              value={Array.isArray(currentValue) ? currentValue : []}
+              onChange={(value) => void handleFieldChange(question.questionKey, value)}
+              error={hasError ? errorMessage : undefined}
+              styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+            />
+          </div>
         );
 
       case "NUMBER":
         return (
-          <NumberInput
-            key={question.id}
-            min={0}
-            max={10}
-            label={questionText}
-            required={question.required}
-            value={typeof currentValue === "number" ? currentValue : ""}
-            onChange={(value) => void handleFieldChange(question.questionKey, value || 0)}
-            error={hasError ? errorMessage : undefined}
-            styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
-          />
+          <div key={question.id} id={`field-${question.questionKey}`}>
+            <NumberInput
+              min={0}
+              max={10}
+              label={questionText}
+              required={question.required}
+              value={typeof currentValue === "number" ? currentValue : ""}
+              onChange={(value) => void handleFieldChange(question.questionKey, value || 0)}
+              error={hasError ? errorMessage : undefined}
+              styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+            />
+          </div>
         );
 
       case "CHECKBOX":
         return (
-          <div key={question.id}>
+          <div key={question.id} id={`field-${question.questionKey}`}>
             <Checkbox
               label={questionText}
               checked={Boolean(currentValue)}
@@ -676,15 +713,16 @@ export default function DynamicApplicationForm({
 
       default:
         return (
-          <TextInput
-            key={question.id}
-            label={questionText}
-            required={question.required}
-            value={typeof currentValue === "string" ? currentValue : ""}
-            onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
-            error={hasError ? errorMessage : undefined}
-            styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
-          />
+          <div key={question.id} id={`field-${question.questionKey}`}>
+            <TextInput
+              label={questionText}
+              required={question.required}
+              value={typeof currentValue === "string" ? currentValue : ""}
+              onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
+              error={hasError ? errorMessage : undefined}
+              styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+            />
+          </div>
         );
     }
   };
@@ -800,7 +838,7 @@ export default function DynamicApplicationForm({
                 size="lg"
                 leftSection={<IconSend size={16} />}
                 loading={submitApplication.isPending}
-                disabled={!completionStatus.isComplete || safeCurrentStatus !== "DRAFT" || isSubmittingOrSubmitted}
+                disabled={safeCurrentStatus !== "DRAFT" || isSubmittingOrSubmitted}
               >
                 {language === "es" ? "Enviar Aplicación" : "Submit Application"}
               </Button>
