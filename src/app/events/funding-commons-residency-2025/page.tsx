@@ -66,7 +66,7 @@ export default async function FundingCommonsResidencyLandingPage() {
                   </Link>
                 ) : (
                   <Link 
-                    href="/api/auth/signin?callbackUrl=/events/funding-commons-residency-2025/apply"
+                    href="/signin?callbackUrl=/events/funding-commons-residency-2025/apply"
                     className="bg-white text-blue-700 px-8 py-4 rounded-xl font-semibold hover:bg-yellow-300 hover:text-blue-900 transition-all duration-200 shadow-lg text-center transform hover:scale-105"
                   >
                     Start Your Application →
@@ -659,7 +659,7 @@ export default async function FundingCommonsResidencyLandingPage() {
               </Link>
             ) : (
               <Link 
-                href="/api/auth/signin?callbackUrl=/events/funding-commons-residency-2025/apply"
+                href="/signin?callbackUrl=/events/funding-commons-residency-2025/apply"
                 className="bg-white text-blue-700 px-10 py-5 rounded-xl font-semibold hover:bg-yellow-300 hover:text-blue-900 transition-all duration-200 shadow-lg transform hover:scale-105 text-lg"
               >
                 Start Your Application →
