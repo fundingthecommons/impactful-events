@@ -80,12 +80,59 @@ export const emailRouter = createTRPCRouter({
       });
 
       // Get all required questions for this event
-      const requiredQuestions = await ctx.db.applicationQuestion.findMany({
+      const allRequiredQuestions = await ctx.db.applicationQuestion.findMany({
         where: {
           eventId: application.eventId,
           required: true,
         },
         orderBy: { order: "asc" },
+      });
+
+      // Filter out conditional fields that shouldn't be required
+      const requiredQuestions = allRequiredQuestions.filter(question => {
+        const questionText = question.questionEn.toLowerCase();
+        const isConditionalField = questionText.includes("specify") || 
+                                   questionText.includes("if you answered") ||
+                                   questionText.includes("if you did not select") ||
+                                   questionText.includes("in the previous question");
+        
+        if (!isConditionalField) {
+          return true; // Always required
+        }
+        
+        console.log(`🔍 DEBUG: Found conditional field "${question.questionKey}":`, {
+          questionText: question.questionEn.substring(0, 80),
+          isConditionalField,
+          questionKey: question.questionKey
+        });
+        
+        // Special handling for technical_skills_other
+        if (question.questionKey === "technical_skills_other") {
+          const techSkillsResponse = application.responses.find(r => 
+            r.question.questionKey === "technical_skills"
+          );
+          
+          if (techSkillsResponse?.answer) {
+            try {
+              const selectedSkills = JSON.parse(techSkillsResponse.answer);
+              const includesOther = Array.isArray(selectedSkills) && selectedSkills.includes("Other");
+              console.log(`🔍 DEBUG: technical_skills_other conditional check:`, {
+                techSkillsAnswer: techSkillsResponse.answer,
+                selectedSkills,
+                includesOther,
+                shouldBeRequired: includesOther
+              });
+              return includesOther;
+            } catch {
+              // If not JSON, check string contains "Other"
+              return techSkillsResponse.answer.includes("Other");
+            }
+          }
+          
+          return false; // Don't require if no technical_skills response
+        }
+        
+        return false; // Other conditional fields not required
       });
 
       console.log('🔍 DEBUG: Required questions fetched:', {
