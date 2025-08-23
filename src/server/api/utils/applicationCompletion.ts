@@ -33,13 +33,52 @@ export async function checkApplicationCompleteness(
   }
 
   // Get required questions for this event separately
-  const requiredQuestions = await db.applicationQuestion.findMany({
+  const allRequiredQuestions = await db.applicationQuestion.findMany({
     where: {
       eventId: application.eventId,
       required: true,
     },
     orderBy: { order: 'asc' }
   });
+  
+  // Filter out conditional fields that shouldn't be required based on user responses
+  const requiredQuestions = allRequiredQuestions.filter(question => {
+    // Check for conditional fields using the same logic as the application router
+    const questionText = question.questionEn.toLowerCase();
+    const isConditionalField = questionText.includes("specify") || 
+                               questionText.includes("if you answered") ||
+                               questionText.includes("if you did not select") ||
+                               questionText.includes("other") && questionText.includes("please");
+    
+    // If it's not a conditional field, it's always required
+    if (!isConditionalField) {
+      return true;
+    }
+    
+    // Special handling for technical_skills_other field
+    if (question.questionKey === "technical_skills_other") {
+      // Only require if "Other" is selected in technical_skills
+      const technicalSkillsResponse = application.responses.find(r => 
+        r.question.questionKey === "technical_skills" && r.answer?.trim()
+      );
+      
+      if (technicalSkillsResponse) {
+        try {
+          const selectedSkills: unknown = JSON.parse(technicalSkillsResponse.answer);
+          return Array.isArray(selectedSkills) && selectedSkills.includes("Other");
+        } catch {
+          // If not valid JSON, treat as single value
+          return technicalSkillsResponse.answer.includes("Other");
+        }
+      }
+      
+      return false; // Don't require if technical_skills is not answered
+    }
+    
+    // For other conditional fields, don't require them (future enhancement could add more logic here)
+    return false;
+  });
+  
   const answeredQuestionIds = new Set(
     application.responses
       .filter(r => r.answer && r.answer.trim() !== '') // Filter out empty responses

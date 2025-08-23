@@ -163,7 +163,7 @@ export default function DynamicApplicationForm({
 
       setFormValues(initialValues);
     }
-  }, [questions, existingApplication, userEmail]);
+  }, [questions, existingApplication?.id, userEmail]); // Simplified dependencies - only re-run if questions or application changes
 
   // TODO: Add auto-save logic for email field after fixing dependency ordering
 
@@ -349,6 +349,24 @@ export default function DynamicApplicationForm({
     debouncedAutoSave(questionKey, value);
   };
 
+  // Auto-save email field when auto-filled (after handleFieldChange is defined)
+  useEffect(() => {
+    if (userEmail && questions && applicationId) {
+      const emailQuestion = questions.find(q => q.questionKey === "email");
+      const hasEmailInDB = existingApplication?.responses.some(r => r.question.questionKey === "email");
+      
+      if (emailQuestion && !hasEmailInDB && formValues["email"] === userEmail) {
+        console.log('Auto-saving email field to database:', userEmail);
+        // Auto-save email to database after 1 second
+        const timer = setTimeout(() => {
+          handleFieldChange("email", userEmail).catch(console.error);
+        }, 1000);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [userEmail, questions, applicationId, existingApplication, formValues, handleFieldChange]);
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     const timeouts = saveTimeoutRefs.current;
@@ -425,7 +443,7 @@ export default function DynamicApplicationForm({
     }
   };
 
-  // Validate form fields
+  // Enhanced form validation that's resilient to state changes
   const validateForm = () => {
     if (!questions) return false;
     
@@ -435,7 +453,8 @@ export default function DynamicApplicationForm({
       const questionText = language === "es" ? q.questionEs : q.questionEn;
       const isConditionalField = questionText.toLowerCase().includes("specify") || 
                                  questionText.toLowerCase().includes("if you answered") ||
-                                 questionText.toLowerCase().includes("if you did not select");
+                                 questionText.toLowerCase().includes("if you did not select") ||
+                                 (questionText.toLowerCase().includes("other") && questionText.toLowerCase().includes("please"));
       return q.required && !isConditionalField;
     });
     
@@ -443,7 +462,20 @@ export default function DynamicApplicationForm({
       const value = formValues[question.questionKey];
       const questionText = language === "es" ? question.questionEs : question.questionEn;
       
-      if (question.questionType === "MULTISELECT") {
+      // Special handling for email field - check if it's the user's email
+      if (question.questionKey === "email") {
+        if (!value || (typeof value === "string" && !value.trim())) {
+          // If email field is empty but we have userEmail, auto-fill it
+          if (userEmail) {
+            setFormValues(prev => ({ ...prev, email: userEmail }));
+            // Auto-save to database
+            handleFieldChange("email", userEmail).catch(console.error);
+            continue; // Skip error for this field
+          } else {
+            errors[question.questionKey] = `${questionText} is required`;
+          }
+        }
+      } else if (question.questionType === "MULTISELECT") {
         if (!Array.isArray(value) || value.length === 0) {
           errors[question.questionKey] = `${questionText} is required`;
         }
@@ -480,13 +512,20 @@ export default function DynamicApplicationForm({
       return;
     }
     
-    // Refresh both completion status and application data to get latest state
+    // Preserve current form state before validation
+    const currentFormState = { ...formValues };
+    
+    // Refresh completion status to get latest validation state
     try {
       await refetchCompletion();
-      await refetchApplication();
+      // Don't refetch application during validation to prevent form data loss
+      // await refetchApplication();
     } catch (error) {
       console.error('Error refreshing application status:', error);
     }
+    
+    // Restore form state after potential refetch-induced reinitialization
+    setFormValues(currentFormState);
     
     if (!validateForm()) {
       // Find first missing required field for scroll-to-error
@@ -650,6 +689,7 @@ export default function DynamicApplicationForm({
       case "EMAIL":
       case "PHONE":
       case "URL":
+        const isEmailField = question.questionKey === "email" || question.questionType === "EMAIL";
         return (
           <div key={question.id} id={`field-${question.questionKey}`}>
             <TextInput
@@ -659,9 +699,17 @@ export default function DynamicApplicationForm({
                     question.questionType === "URL" ? "url" : 
                     question.questionType === "PHONE" ? "tel" : "text"}
               value={typeof currentValue === "string" ? currentValue : ""}
-              onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
+              readOnly={isEmailField}
+              placeholder={isEmailField ? "Your account email (cannot be changed)" : undefined}
+              onChange={isEmailField ? undefined : (event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
               error={hasError ? errorMessage : undefined}
-              styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+              styles={{
+                input: {
+                  backgroundColor: isEmailField ? "#f9fafb" : undefined,
+                  cursor: isEmailField ? "not-allowed" : undefined,
+                  ...(hasError ? { borderColor: "var(--mantine-color-red-6)" } : {})
+                }
+              }}
             />
           </div>
         );

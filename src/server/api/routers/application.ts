@@ -152,9 +152,9 @@ export const applicationRouter = createTRPCRouter({
         });
 
         return application;
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Handle race condition where application was created between our check and create attempt
-        if (error.code === 'P2002') { // Unique constraint error
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') { // Unique constraint error
           const existingAfterRace = await ctx.db.application.findUnique({
             where: {
               userId_eventId: {
