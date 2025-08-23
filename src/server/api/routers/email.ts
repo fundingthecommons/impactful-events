@@ -72,6 +72,13 @@ export const emailRouter = createTRPCRouter({
         });
       }
 
+      console.log('🔍 DEBUG: createMissingInfoEmail called for application:', {
+        applicationId: input.applicationId,
+        email: application.email,
+        status: application.status,
+        totalResponses: application.responses.length
+      });
+
       // Get all required questions for this event
       const requiredQuestions = await ctx.db.applicationQuestion.findMany({
         where: {
@@ -81,21 +88,56 @@ export const emailRouter = createTRPCRouter({
         orderBy: { order: "asc" },
       });
 
+      console.log('🔍 DEBUG: Required questions fetched:', {
+        totalRequired: requiredQuestions.length,
+        technicalSkillsQuestions: requiredQuestions.filter(q => 
+          q.questionKey.includes('technical') || q.questionKey.includes('skill')
+        ).map(q => ({
+          id: q.id,
+          questionKey: q.questionKey,
+          questionText: q.questionEn.substring(0, 60) + '...',
+          questionType: q.questionType,
+          options: q.options?.slice(0, 3) // Show first 3 options
+        }))
+      });
+
       // Find missing or inadequately answered required questions
       const responseMap = new Map(
         application.responses.map(r => [r.questionId, r])
       );
 
+      console.log('🔍 DEBUG: Response mapping:', {
+        responseMapSize: responseMap.size,
+        responseEntries: Array.from(responseMap.entries()).map(([questionId, response]) => ({
+          questionId,
+          questionKey: response.question.questionKey,
+          answer: response.answer?.substring(0, 100) + (response.answer?.length > 100 ? '...' : ''),
+          answerLength: response.answer?.length
+        }))
+      });
+
       const missingQuestions = requiredQuestions.filter(question => {
         const response = responseMap.get(question.id);
         
+        console.log(`🔍 DEBUG: Checking question "${question.questionKey}":`, {
+          questionId: question.id,
+          questionType: question.questionType,
+          hasResponse: !!response,
+          responseQuestionId: response?.questionId,
+          answer: response?.answer,
+          answerLength: response?.answer?.length,
+          questionText: question.questionEn.substring(0, 50) + '...'
+        });
+        
         // No response at all
         if (!response) {
+          console.log(`❌ Missing: No response for ${question.questionKey}`);
           return true;
         }
         
         // Empty or whitespace-only answer
         if (!response.answer || response.answer.trim() === "") {
+          console.log(`❌ Missing: Empty answer for ${question.questionKey}`);
           return true;
         }
         
@@ -120,6 +162,13 @@ export const emailRouter = createTRPCRouter({
             
             // For MULTISELECT, check each selected option
             if (question.questionType === "MULTISELECT") {
+              console.log(`🔍 DEBUG: MULTISELECT validation for "${question.questionKey}":`, {
+                originalAnswer: answer,
+                validOptions: validOptions,
+                startsWithBracket: answer.startsWith('['),
+                endsWithBracket: answer.endsWith(']')
+              });
+              
               let selectedOptions: string[] = [];
               
               // Handle JSON array format (e.g., ["Project Manager", "Developer"])
@@ -128,21 +177,37 @@ export const emailRouter = createTRPCRouter({
                   const parsed = JSON.parse(answer);
                   if (Array.isArray(parsed)) {
                     selectedOptions = parsed.map(opt => String(opt).toLowerCase().trim());
+                    console.log(`✅ JSON parsing successful:`, { parsed, selectedOptions });
                   } else {
+                    console.log(`❌ JSON parsing failed: not an array`, { parsed });
                     return true; // Invalid JSON array
                   }
-                } catch {
+                } catch (error) {
+                  console.log(`❌ JSON parsing failed with error:`, error);
                   return true; // Malformed JSON
                 }
               } else {
                 // Handle comma-separated format (e.g., "Project Manager, Developer")
                 selectedOptions = answer.split(',').map(opt => opt.toLowerCase().trim());
+                console.log(`✅ Comma-split parsing:`, { selectedOptions });
               }
               
               const hasInvalidOption = selectedOptions.some(opt => !validOptions.includes(opt));
+              console.log(`🔍 Validation result for "${question.questionKey}":`, {
+                selectedOptions,
+                validOptions,
+                hasInvalidOption,
+                isEmpty: selectedOptions.length === 0,
+                isMissing: hasInvalidOption || selectedOptions.length === 0
+              });
+              
               if (hasInvalidOption || selectedOptions.length === 0) {
+                console.log(`❌ Missing: Invalid or empty MULTISELECT for ${question.questionKey}`);
                 return true;
               }
+              
+              console.log(`✅ Valid: MULTISELECT for ${question.questionKey}`);
+              return false;
             } else {
               // For SELECT, check if the answer is one of the valid options
               if (!validOptions.includes(answerLower)) {
@@ -152,7 +217,19 @@ export const emailRouter = createTRPCRouter({
           }
         }
         
+        console.log(`✅ Valid: Question ${question.questionKey} passed all checks`);
         return false;
+      });
+
+      console.log('🔍 DEBUG: Final missing questions result:', {
+        totalMissingQuestions: missingQuestions.length,
+        missingQuestionKeys: missingQuestions.map(q => q.questionKey),
+        missingQuestions: missingQuestions.map(q => ({
+          id: q.id,
+          questionKey: q.questionKey,
+          questionText: q.questionEn.substring(0, 50) + '...',
+          questionType: q.questionType
+        }))
       });
 
       if (missingQuestions.length === 0) {
