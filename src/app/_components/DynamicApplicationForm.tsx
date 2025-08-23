@@ -75,6 +75,7 @@ export default function DynamicApplicationForm({
   const [applicationId, setApplicationId] = useState<string | null>(existingApplication?.id ?? null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [isCreatingApplication, setIsCreatingApplication] = useState(false);
   const [wasRecentlyReverted, setWasRecentlyReverted] = useState(false);
   const [isSubmittingOrSubmitted, setIsSubmittingOrSubmitted] = useState(
     Boolean(existingApplication?.status && existingApplication.status !== "DRAFT")
@@ -140,7 +141,16 @@ export default function DynamicApplicationForm({
           } else if (question.questionType === "MULTISELECT") {
             initialValue = [];
           } else if (question.questionType === "CHECKBOX") {
-            initialValue = false;
+            // Set default values for common agreement/availability questions
+            const questionText = (language === "es" ? question.questionEs : question.questionEn).toLowerCase();
+            if (questionText.includes("terms") || 
+                questionText.includes("conditions") ||
+                questionText.includes("available") ||
+                questionText.includes("duration")) {
+              initialValue = true; // Default to "yes/agree"
+            } else {
+              initialValue = false;
+            }
           } else if (question.questionType === "NUMBER") {
             initialValue = 0;
           } else {
@@ -381,7 +391,15 @@ export default function DynamicApplicationForm({
   // Create application if it doesn't exist
   const ensureApplication = async () => {
     if (applicationId) return applicationId;
+    
+    // Prevent multiple simultaneous creation attempts
+    if (isCreatingApplication) {
+      // Wait for existing creation to complete, then retry
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return ensureApplication();
+    }
 
+    setIsCreatingApplication(true);
     try {
       const application = await createApplication.mutateAsync({
         eventId,
@@ -390,13 +408,20 @@ export default function DynamicApplicationForm({
       setApplicationId(application.id);
       return application.id;
     } catch (error) {
+      // Backend now handles race conditions gracefully, so we shouldn't get errors
+      // Only log for debugging, don't show user error notifications
+      console.warn('Application creation handled by backend:', error);
+      
+      // If we still get an error, it's likely a real issue
       notifications.show({
         title: "Error",
-        message: "Failed to create application",
+        message: "Unable to initialize application. Please refresh and try again.",
         color: "red",
         icon: <IconAlertCircle />,
       });
       throw error;
+    } finally {
+      setIsCreatingApplication(false);
     }
   };
 
