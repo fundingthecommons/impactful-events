@@ -57,12 +57,12 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
             <Column style={detailValue}>{location}</Column>
           </Row>
           
-          {stipend && (
+          {/* {stipend && (
             <Row style={detailRow}>
               <Column style={detailLabel}>💰 Stipend:</Column>
               <Column style={detailValue}>{stipend}</Column>
             </Row>
-          )}
+          )} */}
         </Section>
 
         <Text style={subheading}>Next Steps</Text>
@@ -72,28 +72,21 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
         </Text>
         
         <ol style={list}>
-          <li>Confirm your attendance by clicking the button below</li>
-          <li>Complete the onboarding forms</li>
-          <li>Book your travel arrangements (if applicable)</li>
-          <li>Join our participant Slack channel</li>
+          <li>Book your travel</li>
+          <li>Reply to this email with proof of travel</li>
+          <li>Join the telegram group {process.env.RESIDENCY_TELEGRAM_URL}</li>
         </ol>
 
         {confirmationDeadline && (
           <Text style={warning}>
-            ⏰ Please confirm your attendance by <strong>{confirmationDeadline}</strong> or your spot may be offered to someone on the waitlist.
+            ⏰ Please confirm your attendance with proof of travel by <strong>{confirmationDeadline}</strong> or your spot may be offered to someone on the waitlist.
           </Text>
         )}
 
-        <Section style={buttonContainer}>
-          <Button style={button} href={nextStepsUrl}>
-            Confirm Your Attendance
-          </Button>
-        </Section>
-
         <Text style={paragraph}>
           If you have any questions or concerns, please don&apos;t hesitate to reach out to us at{' '}
-          <a href="mailto:residency@fundingthecommons.io" style={link}>
-            residency@fundingthecommons.io
+          <a href={`mailto:${process.env.RESIDENCY_CONTACT_EMAIL}`} style={link}>
+            {process.env.RESIDENCY_CONTACT_EMAIL}
           </a>
         </Text>
 
@@ -103,7 +96,7 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
 
         <Text style={signature}>
           Best regards,<br />
-          The {eventName} Team
+          James and the The {eventName} Team
         </Text>
       </Section>
     </BaseTemplate>

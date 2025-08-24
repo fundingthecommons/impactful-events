@@ -171,7 +171,7 @@ export class EmailService {
           location: 'Buenos Aires, Argentina',
           stipend: '$2,000 USD',
           nextStepsUrl: dashboardUrl,
-          confirmationDeadline: 'January 20, 2025',
+          confirmationDeadline: 'August 7th, 2025',
         } satisfies ApplicationAcceptedProps;
         break;
 
