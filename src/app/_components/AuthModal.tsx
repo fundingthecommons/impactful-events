@@ -1,6 +1,7 @@
 "use client";
 
 import { Modal, Stack, Text, Group, ThemeIcon } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import { IconX, IconUserPlus } from "@tabler/icons-react";
 import AuthForm from "./AuthForm";
 
@@ -19,6 +20,10 @@ export default function AuthModal({
   title = "Get Started",
   subtitle = "Sign in to your account or create a new one",
 }: AuthModalProps) {
+  // Detect mobile devices for responsive behavior
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isSmallMobile = useMediaQuery('(max-width: 480px)');
+
   return (
     <Modal
       opened={opened}
@@ -45,27 +50,29 @@ export default function AuthModal({
         backgroundOpacity: 0.55,
         blur: 3,
       }}
+      fullScreen={isSmallMobile}
       styles={{
         content: {
-          maxWidth: "600px",
-          width: "100%",
-          maxHeight: "90vh",
+          maxWidth: isSmallMobile ? "100%" : "600px",
+          width: isSmallMobile ? "100%" : isMobile ? "calc(100vw - 32px)" : "100%",
+          maxHeight: isSmallMobile ? "100vh" : "95vh",
+          margin: isSmallMobile ? "0" : isMobile ? "16px" : "auto",
         },
         header: {
           paddingBottom: "12px",
           borderBottom: "1px solid var(--mantine-color-gray-2)",
           marginBottom: "16px",
+          padding: isMobile ? "16px 16px 12px 16px" : "20px 20px 12px 20px",
         },
         body: {
-          padding: "20px",
-          paddingTop: "0",
-          maxHeight: "calc(90vh - 80px)",
+          padding: isMobile ? "0 16px 16px 16px" : "0 20px 20px 20px",
+          maxHeight: isSmallMobile ? "calc(100vh - 100px)" : "calc(95vh - 140px)",
           overflowY: "auto",
         },
       }}
       closeButtonProps={{
         icon: <IconX size={20} />,
-        size: "md",
+        size: isMobile ? "lg" : "md",
       }}
     >
       <Stack gap="md">

@@ -770,7 +770,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                               <IconEdit size={16} />
                             </ActionIcon>
 
-                            {(application.status === "UNDER_REVIEW" || application.status === "SUBMITTED") && (() => {
+                            {(application.status === "UNDER_REVIEW" || application.status === "SUBMITTED" || application.status === "ACCEPTED") && (() => {
                               const checkStatus = getCheckStatus(application.id);
                               
                               // Determine icon, color, and tooltip based on status
@@ -972,11 +972,48 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                         <Stack gap="md">
                           <Group gap="xs" align="center">
                             <IconCheck size={20} color="green" />
-                            <Text fw={600} color="green.7">Application Accepted</Text>
+                            <Text fw={600} color="green.7">Post-Acceptance Requirements</Text>
                           </Group>
                           <Text size="sm" c="dimmed">
-                            This applicant has been accepted. Consider sending a welcome email or onboarding information.
+                            Check if accepted applicant has completed all required post-acceptance information 
+                            (travel details, emergency contacts, onboarding documents, etc.).
                           </Text>
+                          <Group gap="sm">
+                            <Button
+                              size="sm"
+                              variant="filled"
+                              color="green"
+                              leftSection={<IconChecklist size={16} />}
+                              onClick={() => void handleCheckApplication(viewingApplication.id)}
+                              loading={checkMissingInfoMutation.isPending}
+                            >
+                              Check for Missing Information
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              color="blue"
+                              leftSection={<IconMail size={16} />}
+                              onClick={() => void handleCreateEmailDraft(viewingApplication.id)}
+                              loading={createMissingInfoEmail.isPending}
+                              disabled={(() => {
+                                const checkStatus = getCheckStatus(viewingApplication.id);
+                                return !checkStatus.checked || checkStatus.isComplete;
+                              })()}
+                              title={(() => {
+                                const checkStatus = getCheckStatus(viewingApplication.id);
+                                if (!checkStatus.checked) {
+                                  return "Click 'Check for Missing Information' first";
+                                }
+                                if (checkStatus.isComplete) {
+                                  return "Application is complete - no email draft needed";
+                                }
+                                return `Create email draft for ${checkStatus.missingFieldsCount} missing fields`;
+                              })()}
+                            >
+                              Create Email Draft
+                            </Button>
+                          </Group>
                         </Stack>
                       ) : viewingApplication.status === "REJECTED" ? (
                         <Stack gap="md">
