@@ -129,6 +129,7 @@ function getStatusIcon(status: string) {
 export default function AdminApplicationsClient({ event }: AdminApplicationsClientProps) {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [hideRejected, setHideRejected] = useState<boolean>(false);
   const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
   const [viewingApplication, setViewingApplication] = useState<ApplicationWithUser | null>(null);
   const [editingApplication, setEditingApplication] = useState<ApplicationWithUser | null>(null);
@@ -210,12 +211,18 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const deleteEmail = api.email.deleteEmail.useMutation();
   const { data: emailSafety } = api.email.getEmailSafety.useQuery();
 
-  // Filter applications based on search
-  const filteredApplications = applications?.filter(app => 
-    !searchQuery || 
-    app.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    app.user?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  ) ?? [];
+  // Filter applications based on search and hide rejected setting
+  const filteredApplications = applications?.filter(app => {
+    // Search filter
+    const matchesSearch = !searchQuery || 
+      app.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      app.user?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Hide rejected filter (only applies when on "all" tab)
+    const shouldHideRejected = hideRejected && activeTab === "all" && app.status === "REJECTED";
+    
+    return matchesSearch && !shouldHideRejected;
+  }) ?? [];
 
 
   // Handle individual application selection
@@ -474,7 +481,6 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   };
 
   const statusOptions = [
-    { value: "SUBMITTED", label: "Submitted" },
     { value: "UNDER_REVIEW", label: "Under Review" },
     { value: "ACCEPTED", label: "Accepted" },
     { value: "REJECTED", label: "Rejected" },
@@ -609,6 +615,13 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 onChange={(e) => setSearchQuery(e.currentTarget.value)}
                 style={{ minWidth: 200 }}
               />
+              {activeTab === "all" && (
+                <Checkbox
+                  label="Hide rejected"
+                  checked={hideRejected}
+                  onChange={(e) => setHideRejected(e.currentTarget.checked)}
+                />
+              )}
             </Group>
             
             <Group gap="md">
