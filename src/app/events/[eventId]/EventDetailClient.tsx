@@ -175,9 +175,11 @@ export default function EventDetailClient({
         {/* Event Header */}
         <Card shadow="lg" padding="xl" radius="md" withBorder>
           <Group align="flex-start" gap="lg">
-            <ThemeIcon size={80} radius="md" variant="gradient" gradient={{ from: 'blue', to: 'purple' }}>
-              <IconCalendarEvent size={40} />
-            </ThemeIcon>
+            <div className="hidden-mobile">
+              <ThemeIcon size={80} radius="md" variant="gradient" gradient={{ from: 'blue', to: 'purple' }}>
+                <IconCalendarEvent size={40} />
+              </ThemeIcon>
+            </div>
             
             <Stack gap="sm" style={{ flex: 1 }}>
               <Group justify="space-between" align="flex-start">

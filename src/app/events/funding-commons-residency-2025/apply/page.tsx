@@ -49,8 +49,8 @@ export default async function FundingCommonsResidencyApplicationPage() {
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-blue-200 px-4 py-4">
         <div className="container mx-auto max-w-6xl">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-start space-x-3">
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-2 mt-0.5">
+            <div className="flex items-start space-x-0 sm:space-x-3">
+              <div className="hidden sm:flex bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-2 mt-0.5">
                 <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
                 </svg>

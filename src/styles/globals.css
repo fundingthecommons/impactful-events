@@ -70,3 +70,14 @@
 .border-theme-light {
   border-color: var(--theme-border-light);
 }
+
+/* Mobile responsive utilities */
+.hidden-mobile {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .hidden-mobile {
+    display: none;
+  }
+}
