@@ -163,7 +163,7 @@ export default function DynamicApplicationForm({
 
       setFormValues(initialValues);
     }
-  }, [questions, existingApplication?.id, userEmail]); // Simplified dependencies - only re-run if questions or application changes
+  }, [questions, existingApplication?.id, existingApplication?.responses, userEmail, language]); // Include all dependencies
 
   // TODO: Add auto-save logic for email field after fixing dependency ordering
 
@@ -297,6 +297,43 @@ export default function DynamicApplicationForm({
     }
   }, [applicationId, questions, updateResponse, onUpdated, refetchCompletion, refetchApplication, safeCurrentStatus]);
 
+  // Create application if it doesn't exist
+  const ensureApplication = useCallback(async () => {
+    if (applicationId) return applicationId;
+    
+    // Prevent multiple simultaneous creation attempts
+    if (isCreatingApplication) {
+      // Wait for existing creation to complete, then retry
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return ensureApplication();
+    }
+
+    setIsCreatingApplication(true);
+    try {
+      const application = await createApplication.mutateAsync({
+        eventId,
+        language,
+      });
+      setApplicationId(application.id);
+      return application.id;
+    } catch (error) {
+      // Backend now handles race conditions gracefully, so we shouldn't get errors
+      // Only log for debugging, don't show user error notifications
+      console.warn('Application creation handled by backend:', error);
+      
+      // If we still get an error, it's likely a real issue
+      notifications.show({
+        title: "Error",
+        message: "Unable to initialize application. Please refresh and try again.",
+        color: "red",
+        icon: <IconAlertCircle />,
+      });
+      throw error;
+    } finally {
+      setIsCreatingApplication(false);
+    }
+  }, [applicationId, isCreatingApplication, createApplication, eventId, language]);
+
   // Debounced auto-save function
   const debouncedAutoSave = useCallback((questionKey: string, value: unknown) => {
     // Clear any existing timeout for this field
@@ -315,7 +352,7 @@ export default function DynamicApplicationForm({
   }, [autoSave]);
 
   // Handle form field changes
-  const handleFieldChange = async (questionKey: string, value: unknown) => {
+  const handleFieldChange = useCallback(async (questionKey: string, value: unknown) => {
     setFormValues(prev => ({ ...prev, [questionKey]: value }));
     
     // Clear validation error for this field if it now has a value
@@ -347,7 +384,7 @@ export default function DynamicApplicationForm({
     
     // Use debounced auto-save to prevent race conditions
     debouncedAutoSave(questionKey, value);
-  };
+  }, [validationErrors, applicationId, ensureApplication, debouncedAutoSave]);
 
   // Auto-save email field when auto-filled (after handleFieldChange is defined)
   useEffect(() => {
@@ -355,7 +392,7 @@ export default function DynamicApplicationForm({
       const emailQuestion = questions.find(q => q.questionKey === "email");
       const hasEmailInDB = existingApplication?.responses.some(r => r.question.questionKey === "email");
       
-      if (emailQuestion && !hasEmailInDB && formValues["email"] === userEmail) {
+      if (emailQuestion && !hasEmailInDB && formValues.email === userEmail) {
         console.log('Auto-saving email field to database:', userEmail);
         // Auto-save email to database after 1 second
         const timer = setTimeout(() => {
@@ -406,42 +443,6 @@ export default function DynamicApplicationForm({
     }
   }, [applicationId, existingApplication?.status, completionStatus?.status, freshApplicationData?.status, safeCurrentStatus, isSubmitted, canEdit, completionStatus?.isComplete]);
 
-  // Create application if it doesn't exist
-  const ensureApplication = async () => {
-    if (applicationId) return applicationId;
-    
-    // Prevent multiple simultaneous creation attempts
-    if (isCreatingApplication) {
-      // Wait for existing creation to complete, then retry
-      await new Promise(resolve => setTimeout(resolve, 100));
-      return ensureApplication();
-    }
-
-    setIsCreatingApplication(true);
-    try {
-      const application = await createApplication.mutateAsync({
-        eventId,
-        language,
-      });
-      setApplicationId(application.id);
-      return application.id;
-    } catch (error) {
-      // Backend now handles race conditions gracefully, so we shouldn't get errors
-      // Only log for debugging, don't show user error notifications
-      console.warn('Application creation handled by backend:', error);
-      
-      // If we still get an error, it's likely a real issue
-      notifications.show({
-        title: "Error",
-        message: "Unable to initialize application. Please refresh and try again.",
-        color: "red",
-        icon: <IconAlertCircle />,
-      });
-      throw error;
-    } finally {
-      setIsCreatingApplication(false);
-    }
-  };
 
   // Enhanced form validation that's resilient to state changes
   const validateForm = () => {

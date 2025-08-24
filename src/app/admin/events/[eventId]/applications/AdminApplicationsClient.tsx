@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Container, 
   Title, 
@@ -37,6 +37,7 @@ import {
   IconUsers,
   IconEdit,
   IconChecklist,
+  IconAlertTriangle,
   IconMail,
   IconSend,
   IconTrash,
@@ -136,6 +137,22 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [actionsTab, setActionsTab] = useState<string>("next");
   const [emailPreviewOpened, { open: openEmailPreview, close: closeEmailPreview }] = useDisclosure(false);
   const [previewingEmail, setPreviewingEmail] = useState<EmailType | null>(null);
+  
+  // Track missing info check results per application
+  const [missingInfoResults, setMissingInfoResults] = useState<Map<string, { isComplete: boolean; missingFields: string[] }>>(new Map());
+
+  // Clear missing info results when switching applications
+  useEffect(() => {
+    if (viewingApplication) {
+      // Keep only the current application's result, clear others to save memory
+      setMissingInfoResults(prev => {
+        const currentResult = prev.get(viewingApplication.id);
+        return currentResult 
+          ? new Map([[viewingApplication.id, currentResult]])
+          : new Map();
+      });
+    }
+  }, [viewingApplication?.id, viewingApplication]);
 
   // Fetch emails for the currently viewing application
   const { data: applicationEmails } = api.email.getApplicationEmails.useQuery(
@@ -187,6 +204,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // API mutations
   const updateStatus = api.application.updateApplicationStatus.useMutation();
   const bulkUpdateStatus = api.application.bulkUpdateApplicationStatus.useMutation();
+  const checkMissingInfoMutation = api.email.checkMissingInfo.useMutation();
   const createMissingInfoEmail = api.email.createMissingInfoEmail.useMutation();
   const sendEmail = api.email.sendEmail.useMutation();
   const deleteEmail = api.email.deleteEmail.useMutation();
@@ -310,6 +328,44 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // Check application for missing information
   const handleCheckApplication = async (applicationId: string) => {
     try {
+      const result = await checkMissingInfoMutation.mutateAsync({
+        applicationId,
+      });
+      
+      // Store the result for this application
+      setMissingInfoResults(prev => new Map(prev).set(applicationId, {
+        isComplete: result.isComplete,
+        missingFields: result.missingFields.map((f: { questionKey: string }) => f.questionKey)
+      }));
+      
+      if (result.isComplete) {
+        notifications.show({
+          title: "Application Complete",
+          message: "✅ No missing information found - application is complete!",
+          color: "green",
+          icon: <IconChecklist />,
+        });
+      } else {
+        notifications.show({
+          title: "Missing Information Found",
+          message: `❌ ${result.missingFields.length} required field(s) missing: ${result.missingFields.map((f: { questionKey: string }) => f.questionKey).join(", ")}`,
+          color: "yellow",
+          icon: <IconAlertTriangle />,
+        });
+      }
+    } catch (error: unknown) {
+      notifications.show({
+        title: "Error",
+        message: (error as { message?: string }).message ?? "Failed to check application",
+        color: "red",
+        icon: <IconX />,
+      });
+    }
+  };
+
+  // Create email draft for missing information
+  const handleCreateEmailDraft = async (applicationId: string) => {
+    try {
       await createMissingInfoEmail.mutateAsync({
         applicationId,
       });
@@ -318,7 +374,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         title: "Email Draft Created",
         message: "Missing information email draft has been created and can be reviewed in the application details.",
         color: "blue",
-        icon: <IconChecklist />,
+        icon: <IconMail />,
       });
       
       // Refresh emails if viewing this application
@@ -721,7 +777,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 variant="subtle"
                                 color="orange"
                                 onClick={() => void handleCheckApplication(application.id)}
-                                loading={createMissingInfoEmail.isPending}
+                                loading={checkMissingInfoMutation.isPending}
                                 title="Check for missing information"
                                 data-status={application.status}
                               >
@@ -852,16 +908,36 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             Review the application for completeness and missing information. If fields are missing, 
                             you can create and send an email to request additional information from the applicant.
                           </Text>
-                          <Button
-                            size="sm"
-                            variant="filled"
-                            color="orange"
-                            leftSection={<IconChecklist size={16} />}
-                            onClick={() => void handleCheckApplication(viewingApplication.id)}
-                            loading={createMissingInfoEmail.isPending}
-                          >
-                            Check for Missing Information
-                          </Button>
+                          <Group gap="sm">
+                            <Button
+                              size="sm"
+                              variant="filled"
+                              color="orange"
+                              leftSection={<IconChecklist size={16} />}
+                              onClick={() => void handleCheckApplication(viewingApplication.id)}
+                              loading={checkMissingInfoMutation.isPending}
+                            >
+                              Check for Missing Information
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              color="blue"
+                              leftSection={<IconMail size={16} />}
+                              onClick={() => void handleCreateEmailDraft(viewingApplication.id)}
+                              loading={createMissingInfoEmail.isPending}
+                              disabled={!missingInfoResults.get(viewingApplication.id) || missingInfoResults.get(viewingApplication.id)?.isComplete}
+                              title={
+                                !missingInfoResults.get(viewingApplication.id) 
+                                  ? "Click 'Check for Missing Information' first"
+                                  : missingInfoResults.get(viewingApplication.id)?.isComplete
+                                  ? "Application is complete - no email draft needed"
+                                  : "Create email draft for missing fields"
+                              }
+                            >
+                              Create Email Draft
+                            </Button>
+                          </Group>
                         </Stack>
                       ) : viewingApplication.status === "ACCEPTED" ? (
                         <Stack gap="md">
