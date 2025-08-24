@@ -80,12 +80,12 @@ function SignInContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <main className="min-h-screen bg-theme-gradient">
       {/* Background Pattern */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-40 left-40 w-80 h-80 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-theme-blob-1 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-theme-blob-2 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-40 left-40 w-80 h-80 bg-theme-blob-3 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
       </div>
 
       <Container size="xl" py="xl" style={{ position: 'relative', zIndex: 1 }}>
@@ -100,7 +100,7 @@ function SignInContent() {
                     size="3rem" 
                     fw={800} 
                     style={{ 
-                      background: 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)',
+                      background: 'var(--theme-text-gradient)',
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
                       backgroundClip: 'text',
@@ -122,7 +122,7 @@ function SignInContent() {
 
               {/* Feature Highlights */}
               <Stack gap="md">
-                <Text size="lg" fw={600} c="dark">
+                <Text size="lg" fw={600}>
                   What You&apos;ll Get Access To
                 </Text>
                 
@@ -159,8 +159,8 @@ function SignInContent() {
                 p="lg" 
                 radius="lg" 
                 style={{ 
-                  background: 'linear-gradient(135deg, var(--mantine-color-blue-0) 0%, var(--mantine-color-purple-0) 100%)',
-                  border: '1px solid var(--mantine-color-blue-2)'
+                  background: 'var(--theme-mantine-gradient-bg)',
+                  border: '1px solid var(--theme-mantine-border)'
                 }}
               >
                 <Group justify="center" gap="xs" mb="md">
@@ -184,7 +184,7 @@ function SignInContent() {
             <div className="w-full max-w-md">
               <AuthForm 
                 callbackUrl={callbackUrl}
-                className="shadow-xl border-2 border-white/50 backdrop-blur-sm"
+                className="shadow-xl border-2 border-theme-light backdrop-blur-sm"
               />
             </div>
           </div>

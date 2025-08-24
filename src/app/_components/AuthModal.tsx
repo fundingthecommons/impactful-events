@@ -12,12 +12,12 @@ interface AuthModalProps {
   subtitle?: string;
 }
 
-export default function AuthModal({ 
-  opened, 
-  onClose, 
+export default function AuthModal({
+  opened,
+  onClose,
   callbackUrl,
   title = "Get Started",
-  subtitle = "Sign in to your account or create a new one"
+  subtitle = "Sign in to your account or create a new one",
 }: AuthModalProps) {
   return (
     <Modal
@@ -47,20 +47,20 @@ export default function AuthModal({
       }}
       styles={{
         content: {
-          maxWidth: '600px',
-          width: '100%',
-          maxHeight: '90vh',
+          maxWidth: "600px",
+          width: "100%",
+          maxHeight: "90vh",
         },
         header: {
-          paddingBottom: '12px',
-          borderBottom: '1px solid var(--mantine-color-gray-2)',
-          marginBottom: '16px',
+          paddingBottom: "12px",
+          borderBottom: "1px solid var(--mantine-color-gray-2)",
+          marginBottom: "16px",
         },
         body: {
-          padding: '20px',
-          paddingTop: '0',
-          maxHeight: 'calc(90vh - 80px)',
-          overflowY: 'auto',
+          padding: "20px",
+          paddingTop: "0",
+          maxHeight: "calc(90vh - 80px)",
+          overflowY: "auto",
         },
       }}
       closeButtonProps={{
@@ -69,18 +69,32 @@ export default function AuthModal({
       }}
     >
       <Stack gap="md">
-        <AuthForm 
+        <AuthForm
           callbackUrl={callbackUrl ?? "/"}
-          className="border-0 shadow-none p-0"
+          className="border-0 p-0 shadow-none"
         />
-        
+
         <Text size="xs" ta="center" c="dimmed">
           By continuing, you agree to our{" "}
-          <Text component="a" href="/terms" target="_blank" td="underline" c="blue" size="xs">
+          <Text
+            component="a"
+            href="/terms"
+            target="_blank"
+            td="underline"
+            c="blue"
+            size="xs"
+          >
             Terms of Service
-          </Text>
-          {" "}and{" "}
-          <Text component="a" href="/privacy" target="_blank" td="underline" c="blue" size="xs">
+          </Text>{" "}
+          and{" "}
+          <Text
+            component="a"
+            href="/privacy"
+            target="_blank"
+            td="underline"
+            c="blue"
+            size="xs"
+          >
             Privacy Policy
           </Text>
         </Text>

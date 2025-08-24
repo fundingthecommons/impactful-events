@@ -4,3 +4,69 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
+
+/* Theme-aware CSS custom properties */
+:root,
+[data-theme="light"] {
+  /* Primary background gradients */
+  --theme-bg-primary: linear-gradient(135deg, #dbeafe 0%, #ffffff 50%, #faf5ff 100%);
+  --theme-bg-gradient-main: linear-gradient(135deg, #eff6ff 0%, #ffffff 30%, #fdf4ff 100%);
+  
+  /* Background colors for decorative elements */
+  --theme-bg-blob-1: #ddd6fe;
+  --theme-bg-blob-2: #bfdbfe;
+  --theme-bg-blob-3: #fce7f3;
+  
+  /* Surface colors */
+  --theme-surface-primary: #ffffff;
+  --theme-surface-secondary: #f8fafc;
+  --theme-border-light: rgba(255, 255, 255, 0.5);
+  
+  /* Mantine color overrides for gradients */
+  --theme-mantine-gradient-bg: linear-gradient(135deg, var(--mantine-color-blue-0) 0%, var(--mantine-color-purple-0) 100%);
+  --theme-mantine-border: var(--mantine-color-blue-2);
+}
+
+[data-theme="dark"] {
+  /* Primary background gradients - dark versions */
+  --theme-bg-primary: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e1b4b 100%);
+  --theme-bg-gradient-main: linear-gradient(135deg, #0f172a 0%, #1e293b 30%, #312e81 100%);
+  
+  /* Background colors for decorative elements - darker versions */
+  --theme-bg-blob-1: #4c1d95;
+  --theme-bg-blob-2: #1e3a8a;
+  --theme-bg-blob-3: #be185d;
+  
+  /* Surface colors */
+  --theme-surface-primary: #1e293b;
+  --theme-surface-secondary: #0f172a;
+  --theme-border-light: rgba(0, 0, 0, 0.3);
+  
+  /* Mantine color overrides for gradients */
+  --theme-mantine-gradient-bg: linear-gradient(135deg, var(--mantine-color-dark-6) 0%, var(--mantine-color-dark-5) 100%);
+  --theme-mantine-border: var(--mantine-color-dark-4);
+  
+  /* Text gradients */
+  --theme-text-gradient: linear-gradient(45deg, #4a5568 0%, #2d3748 100%);
+}
+
+/* Theme-aware utility classes */
+.bg-theme-gradient {
+  background: var(--theme-bg-gradient-main);
+}
+
+.bg-theme-blob-1 {
+  background-color: var(--theme-bg-blob-1);
+}
+
+.bg-theme-blob-2 {
+  background-color: var(--theme-bg-blob-2);
+}
+
+.bg-theme-blob-3 {
+  background-color: var(--theme-bg-blob-3);
+}
+
+.border-theme-light {
+  border-color: var(--theme-border-light);
+}
