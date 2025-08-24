@@ -285,7 +285,7 @@ export default function FundingCommonsResidencyAboutPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link 
-              href="/events/funding-commons-residency-2025"
+              href="/events/funding-commons-residency-2025/apply"
               className="bg-white text-blue-700 px-8 py-4 rounded-xl font-semibold hover:bg-blue-50 transition-colors shadow-lg"
             >
               Apply Now

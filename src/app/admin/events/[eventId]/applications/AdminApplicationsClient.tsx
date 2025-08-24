@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Container, 
   Title, 
@@ -139,27 +139,30 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [emailPreviewOpened, { open: openEmailPreview, close: closeEmailPreview }] = useDisclosure(false);
   const [previewingEmail, setPreviewingEmail] = useState<EmailType | null>(null);
   
-  // Track missing info check results per application
-  const [missingInfoResults, setMissingInfoResults] = useState<Map<string, { isComplete: boolean; missingFields: string[] }>>(new Map());
+  // Track missing info check results per application with timestamps
+  const [missingInfoResults, setMissingInfoResults] = useState<Map<string, { 
+    isComplete: boolean; 
+    missingFields: string[];
+    checkedAt: Date;
+  }>>(new Map());
 
-  // Clear missing info results when switching applications
+  // Clear missing info results only when changing tabs (preserve across application switches)
   useEffect(() => {
-    if (viewingApplication) {
-      // Keep only the current application's result, clear others to save memory
-      setMissingInfoResults(prev => {
-        const currentResult = prev.get(viewingApplication.id);
-        return currentResult 
-          ? new Map([[viewingApplication.id, currentResult]])
-          : new Map();
-      });
-    }
-  }, [viewingApplication?.id, viewingApplication]);
+    // Clear results when switching tabs to free memory
+    setMissingInfoResults(new Map());
+  }, [activeTab]);
 
   // Fetch emails for the currently viewing application
   const { data: applicationEmails } = api.email.getApplicationEmails.useQuery(
     { applicationId: viewingApplication?.id ?? "" },
     { enabled: !!viewingApplication?.id && viewDrawerOpened }
   );
+
+  // Fetch all event emails to show reminder status in main table
+  const { data: eventEmails } = api.email.getEventEmails.useQuery({
+    eventId: event.id,
+    status: "SENT"
+  });
 
   // Determine status filter based on active tab
   const getStatusForTab = (tab: string) => {
@@ -210,6 +213,31 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const sendEmail = api.email.sendEmail.useMutation();
   const deleteEmail = api.email.deleteEmail.useMutation();
   const { data: emailSafety } = api.email.getEmailSafety.useQuery();
+
+  // Helper function to find latest MISSING_INFO email for an application
+  const getLatestMissingInfoEmail = (applicationId: string) => {
+    return eventEmails?.filter(email => 
+      email.applicationId === applicationId && 
+      email.type === "MISSING_INFO" && 
+      email.status === "SENT"
+    ).sort((a, b) => new Date(b.sentAt ?? 0).getTime() - new Date(a.sentAt ?? 0).getTime())[0];
+  };
+
+  // Helper function to get comprehensive check status for an application
+  const getCheckStatus = (applicationId: string) => {
+    const checkResult = missingInfoResults.get(applicationId);
+    const lastEmail = getLatestMissingInfoEmail(applicationId);
+    
+    return {
+      checked: !!checkResult,
+      isComplete: checkResult?.isComplete ?? false,
+      missingFieldsCount: checkResult?.missingFields.length ?? 0,
+      checkedAt: checkResult?.checkedAt,
+      lastEmailDate: lastEmail?.sentAt,
+      hasEmailSent: !!lastEmail,
+      lastEmail
+    };
+  };
 
   // Filter applications based on search and hide rejected setting
   const filteredApplications = applications?.filter(app => {
@@ -321,10 +349,11 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         applicationId,
       });
       
-      // Store the result for this application
+      // Store the result for this application with timestamp
       setMissingInfoResults(prev => new Map(prev).set(applicationId, {
         isComplete: result.isComplete,
-        missingFields: result.missingFields.map((f: { questionKey: string }) => f.questionKey)
+        missingFields: result.missingFields.map((f: { questionKey: string }) => f.questionKey),
+        checkedAt: new Date()
       }));
       
       if (result.isComplete) {
@@ -741,18 +770,43 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                               <IconEdit size={16} />
                             </ActionIcon>
 
-                            {(application.status === "UNDER_REVIEW" || application.status === "SUBMITTED") && (
-                              <ActionIcon
-                                variant="subtle"
-                                color="orange"
-                                onClick={() => void handleCheckApplication(application.id)}
-                                loading={checkMissingInfoMutation.isPending}
-                                title="Check for missing information"
-                                data-status={application.status}
-                              >
-                                <IconChecklist size={16} />
-                              </ActionIcon>
-                            )}
+                            {(application.status === "UNDER_REVIEW" || application.status === "SUBMITTED") && (() => {
+                              const checkStatus = getCheckStatus(application.id);
+                              
+                              // Determine icon, color, and tooltip based on status
+                              let icon = IconChecklist;
+                              let color = "orange";
+                              let tooltip = "Check for missing information";
+                              
+                              if (checkStatus.checked) {
+                                if (checkStatus.isComplete) {
+                                  icon = IconCheck;
+                                  color = "green";
+                                  tooltip = `Complete - checked ${checkStatus.checkedAt?.toLocaleDateString()}${checkStatus.hasEmailSent ? ` • Last reminder: ${checkStatus.lastEmailDate ? new Date(checkStatus.lastEmailDate).toLocaleDateString() : 'Unknown'}` : ''}`;
+                                } else {
+                                  icon = IconAlertTriangle;
+                                  color = "red";
+                                  tooltip = `${checkStatus.missingFieldsCount} missing fields - checked ${checkStatus.checkedAt?.toLocaleDateString()}${checkStatus.hasEmailSent ? ` • Last reminder: ${checkStatus.lastEmailDate ? new Date(checkStatus.lastEmailDate).toLocaleDateString() : 'Unknown'}` : ''}`;
+                                }
+                              } else if (checkStatus.hasEmailSent) {
+                                icon = IconMail;
+                                color = "blue";
+                                tooltip = `Reminder sent ${checkStatus.lastEmailDate ? new Date(checkStatus.lastEmailDate).toLocaleDateString() : 'Unknown'} - click to re-check`;
+                              }
+                              
+                              return (
+                                <ActionIcon
+                                  variant="subtle"
+                                  color={color}
+                                  onClick={() => void handleCheckApplication(application.id)}
+                                  loading={checkMissingInfoMutation.isPending}
+                                  title={tooltip}
+                                  data-status={application.status}
+                                >
+                                  {React.createElement(icon, { size: 16 })}
+                                </ActionIcon>
+                              );
+                            })()}
                             
                             <Menu position="bottom-end">
                               <Menu.Target>
@@ -895,14 +949,20 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                               leftSection={<IconMail size={16} />}
                               onClick={() => void handleCreateEmailDraft(viewingApplication.id)}
                               loading={createMissingInfoEmail.isPending}
-                              disabled={!missingInfoResults.get(viewingApplication.id) || missingInfoResults.get(viewingApplication.id)?.isComplete}
-                              title={
-                                !missingInfoResults.get(viewingApplication.id) 
-                                  ? "Click 'Check for Missing Information' first"
-                                  : missingInfoResults.get(viewingApplication.id)?.isComplete
-                                  ? "Application is complete - no email draft needed"
-                                  : "Create email draft for missing fields"
-                              }
+                              disabled={(() => {
+                                const checkStatus = getCheckStatus(viewingApplication.id);
+                                return !checkStatus.checked || checkStatus.isComplete;
+                              })()}
+                              title={(() => {
+                                const checkStatus = getCheckStatus(viewingApplication.id);
+                                if (!checkStatus.checked) {
+                                  return "Click 'Check for Missing Information' first";
+                                }
+                                if (checkStatus.isComplete) {
+                                  return "Application is complete - no email draft needed";
+                                }
+                                return `Create email draft for ${checkStatus.missingFieldsCount} missing fields`;
+                              })()}
                             >
                               Create Email Draft
                             </Button>
