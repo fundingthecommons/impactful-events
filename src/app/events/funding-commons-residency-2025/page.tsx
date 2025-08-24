@@ -160,7 +160,7 @@ export default async function FundingCommonsResidencyLandingPage() {
               <ul className="space-y-3 text-gray-700">
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2 mt-1">✓</span>
-                  <span>Free accommodation in Buenos Aires</span>
+                  <span>Free accommodation near Buenos Aires</span>
                 </li>
                 <li className="flex items-start">
                   <span className="text-green-500 mr-2 mt-1">✓</span>
