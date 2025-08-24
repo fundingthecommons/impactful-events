@@ -110,6 +110,80 @@ bun run format:write    # Format code with Prettier
    import { Button } from '@mantine/core';
    ```
 
+7. **Proper Async/Await Usage (@typescript-eslint/await-thenable)**
+   ```typescript
+   // ❌ WRONG - fails Vercel build
+   await someNonPromiseValue;
+   await 42;
+   
+   // ✅ CORRECT - passes Vercel build
+   await somePromise;
+   await fetch('/api/data');
+   const value = someNonPromiseValue; // Don't await non-promises
+   ```
+
+8. **Promise Misuse Prevention (@typescript-eslint/no-misused-promises)**
+   ```typescript
+   // ❌ WRONG - fails Vercel build
+   if (fetchData()) { } // Promise in boolean context
+   array.forEach(async item => await process(item)); // Async callback issues
+   
+   // ✅ CORRECT - passes Vercel build
+   if (await fetchData()) { }
+   await Promise.all(array.map(async item => await process(item)));
+   ```
+
+9. **TypeScript Comment Usage (@typescript-eslint/ban-ts-comment)**
+   ```typescript
+   // ❌ WRONG - fails Vercel build
+   // @ts-ignore
+   const result = someApi();
+   
+   // ✅ CORRECT - passes Vercel build
+   const result = someApi() as ExpectedType;
+   // @ts-expect-error: Legacy API compatibility
+   const result = legacyApi();
+   ```
+
+10. **Consistent Type Imports (@typescript-eslint/consistent-type-imports)**
+    ```typescript
+    // ❌ WRONG - fails Vercel build
+    import { User, createUser } from './user';
+    
+    // ✅ CORRECT - passes Vercel build
+    import { type User, createUser } from './user';
+    import type { User } from './user';
+    import { createUser } from './user';
+    ```
+
+11. **No Unsafe Type Assertions (@typescript-eslint/no-unsafe-assignment)**
+    ```typescript
+    // ❌ WRONG - fails Vercel build
+    const user: any = getUser();
+    const name = user.name; // Unsafe access
+    
+    // ✅ CORRECT - passes Vercel build
+    const user = getUser() as User;
+    const name = user.name;
+    // Or with proper typing
+    interface User { name: string }
+    const user: User = getUser();
+    ```
+
+12. **Prefer Modern Array Methods (@typescript-eslint/prefer-for-of)**
+    ```typescript
+    // ❌ WRONG - fails Vercel build
+    for (let i = 0; i < array.length; i++) {
+      console.log(array[i]);
+    }
+    
+    // ✅ CORRECT - passes Vercel build
+    for (const item of array) {
+      console.log(item);
+    }
+    array.forEach(item => console.log(item));
+    ```
+
 ### Pre-Deployment Validation
 
 **ALWAYS run these commands before considering any implementation complete:**
@@ -176,6 +250,179 @@ The project has pre-approved permissions in `.claude/settings.local.json` for:
 # Generate comprehensive feature plan
 /generate-prp features/payment-integration.md
 ```
+
+## Theme System Best Practices
+
+### Overview
+This project uses a comprehensive theme system with CSS custom properties and Mantine integration for consistent light/dark mode support across all pages and components.
+
+### Core Architecture
+- **CSS Custom Properties**: Theme-aware colors defined in `src/styles/globals.css`
+- **Theme Provider**: `src/app/_components/ThemeProvider.tsx` manages theme state and sets `data-theme` attribute
+- **Theme Hook**: `src/hooks/useTheme.ts` provides theme state management
+- **Mantine Integration**: Seamlessly works with existing Mantine components
+
+### ✅ Theme-Aware Coding Guidelines
+
+#### 1. Use Theme-Aware Classes Instead of Hardcoded Colors
+```tsx
+// ❌ WRONG - Hardcoded light colors that won't adapt to dark theme
+<div className="bg-gradient-to-br from-blue-50 via-white to-purple-50">
+<div className="bg-purple-200 rounded-full">
+<div className="border-white/50">
+
+// ✅ CORRECT - Use theme-aware classes
+<div className="bg-theme-gradient">
+<div className="bg-theme-blob-1 rounded-full">  
+<div className="border-theme-light">
+```
+
+#### 2. Prefer Mantine Semantic Colors
+```tsx
+// ❌ WRONG - Hardcoded text colors
+<Text className="text-blue-900">
+<Text style={{ color: '#1e293b' }}>
+
+// ✅ CORRECT - Use Mantine semantic colors
+<Text c="dimmed">  {/* Automatically adapts to theme */}
+<Text fw={600}>    {/* Uses theme-aware font weight */}
+<Text c="blue.7">  {/* Theme-aware blue shade */}
+```
+
+#### 3. Use CSS Custom Properties for Complex Styling
+```tsx
+// ❌ WRONG - Hardcoded gradients and colors
+<Paper style={{ 
+  background: 'linear-gradient(135deg, #dbeafe 0%, #faf5ff 100%)',
+  border: '1px solid #bfdbfe'
+}}>
+
+// ✅ CORRECT - Theme-aware CSS custom properties
+<Paper style={{ 
+  background: 'var(--theme-mantine-gradient-bg)',
+  border: '1px solid var(--theme-mantine-border)'
+}}>
+```
+
+#### 4. Available Theme CSS Custom Properties
+```css
+/* Background gradients */
+--theme-bg-gradient-main      /* Main page background gradient */
+--theme-bg-primary            /* Alternative background gradient */
+
+/* Decorative blob colors */
+--theme-bg-blob-1             /* Purple blob color */
+--theme-bg-blob-2             /* Blue blob color */ 
+--theme-bg-blob-3             /* Pink blob color */
+
+/* Surface colors */
+--theme-surface-primary       /* Primary surface color */
+--theme-surface-secondary     /* Secondary surface color */
+--theme-border-light          /* Light border color */
+
+/* Mantine integration */
+--theme-mantine-gradient-bg   /* Mantine-compatible gradient */
+--theme-mantine-border        /* Mantine-compatible border */
+```
+
+#### 5. Available Utility Classes
+```css
+.bg-theme-gradient     /* Main background gradient */
+.bg-theme-blob-1       /* Purple decorative background */
+.bg-theme-blob-2       /* Blue decorative background */
+.bg-theme-blob-3       /* Pink decorative background */
+.border-theme-light    /* Theme-aware light border */
+```
+
+### 🚫 Common Theming Mistakes to Avoid
+
+#### 1. Never Use Hardcoded Light/Dark Colors
+```tsx
+// ❌ These will NOT adapt to dark theme
+className="bg-blue-50 text-gray-900"
+className="bg-white border-gray-200"  
+className="from-blue-50 to-purple-50"
+style={{ backgroundColor: '#ffffff' }}
+```
+
+#### 2. Don't Mix Theming Approaches
+```tsx
+// ❌ Mixing hardcoded and theme-aware styles
+<div className="bg-blue-50">  {/* Hardcoded */}
+  <Text c="dimmed">Content</Text>  {/* Theme-aware */}
+</div>
+
+// ✅ Use consistent theme-aware approach
+<div className="bg-theme-gradient">
+  <Text c="dimmed">Content</Text>
+</div>
+```
+
+#### 3. Avoid Component-Specific Color Overrides
+```tsx
+// ❌ Don't override component colors manually
+<Button style={{ backgroundColor: '#3b82f6' }}>
+
+// ✅ Use Mantine's color system
+<Button color="blue" variant="filled">
+```
+
+### 🔧 Adding New Theme Colors
+
+#### 1. Add to CSS Custom Properties
+```css
+/* In src/styles/globals.css */
+:root, [data-theme="light"] {
+  --theme-new-color: #your-light-color;
+}
+
+[data-theme="dark"] {
+  --theme-new-color: #your-dark-color;
+}
+```
+
+#### 2. Create Utility Class
+```css
+.bg-theme-new-color {
+  background-color: var(--theme-new-color);
+}
+```
+
+#### 3. Document in This File
+Update the available properties list above when adding new theme colors.
+
+### 🧪 Testing Theme Implementation
+
+#### Always Test Both Themes
+```bash
+# After implementing theme-aware styling, always test:
+SKIP_ENV_VALIDATION=1 bun run build  # Ensure build succeeds
+SKIP_ENV_VALIDATION=1 bun run check  # Validate code quality
+```
+
+1. **Manual Testing**: Use the theme toggle to switch between light/dark modes
+2. **Visual Inspection**: Ensure no mixed light/dark elements appear
+3. **Build Validation**: Run build and typecheck to catch any issues
+
+### 📚 When to Use Each Approach
+
+| Use Case | Recommended Approach |
+|----------|---------------------|
+| Page backgrounds | `bg-theme-gradient` utility class |
+| Decorative elements | `bg-theme-blob-*` utility classes |
+| Text content | Mantine `c="dimmed"` or `c="primary"` |
+| Interactive elements | Mantine color system (`color="blue"`) |
+| Complex gradients | CSS custom properties |
+| Status colors (green/red/yellow) | Keep hardcoded (semantic consistency) |
+
+### 🛡️ Prevention Measures
+
+1. **Code Review Checklist**: Always check for hardcoded colors in new code
+2. **Search Before Writing**: Use existing theme utilities before creating new ones
+3. **Test Early**: Switch themes during development, not just at the end
+4. **Component Consistency**: Keep theming approach consistent within components
+
+This theme system ensures a seamless user experience across light and dark modes while maintaining visual consistency and developer productivity.
 
 ## Email Template System
 

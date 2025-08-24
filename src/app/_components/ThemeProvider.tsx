@@ -1,7 +1,7 @@
 'use client';
 
 import { MantineProvider, type MantineColorScheme } from '@mantine/core';
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { useTheme, type UseThemeReturn } from '~/hooks/useTheme';
 
 const ThemeContext = createContext<UseThemeReturn | null>(null);
@@ -23,6 +23,13 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   
   // Convert our theme to Mantine's color scheme
   const mantineColorScheme: MantineColorScheme = themeState.resolvedTheme;
+
+  // Update document data-theme attribute for CSS custom properties
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', themeState.resolvedTheme);
+    }
+  }, [themeState.resolvedTheme]);
 
   return (
     <ThemeContext.Provider value={themeState}>
