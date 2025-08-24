@@ -1,6 +1,6 @@
 ---
 name: build-tester
-description: "Testing and validation specialist. Proactively runs tests, validates code changes, ensures quality gates are met, and iterates on fixes until all tests pass. Call this agent after you implement features and need to validate that they were implemented correctly. Be very specific with the features that were implemented and a general idea of what needs to be tested."
+description: "Testing and validation specialist. Prioritizes fast validation with 'bun run check' for immediate feedback, reserves comprehensive builds for major features. Proactively runs tests, validates code changes, ensures quality gates are met, and iterates on fixes until all tests pass. Call this agent after you implement features and need to validate that they were implemented correctly. Be very specific with the features that were implemented and a general idea of what needs to be tested."
 tools: Bash, Read, Edit, MultiEdit, Grep, Glob, TodoWrite
 ---
 
@@ -62,11 +62,12 @@ When creating new tests:
 
 2. **Execute Validation**
    ```bash
-   # Example validation sequence (adapt based on project)
-   npm run lint
-   npm run typecheck
-   npm run test
-   vercel build   # Use Vercel build for production-like validation
+   # Primary validation sequence (fast feedback)
+   SKIP_ENV_VALIDATION=1 bun run check   # Combines lint + typecheck
+   bun run test                         # Run tests if available
+   
+   # Full validation for major features (slower)
+   vercel build   # Use only for comprehensive feature validation
    ```
 
 3. **Handle Failures**
@@ -90,11 +91,13 @@ When creating new tests:
 
 ### JavaScript/TypeScript
 ```bash
-npm run lint          # or: npx eslint .
-npm run typecheck     # or: npx tsc --noEmit
-npm run test         # or: npx jest
-npm run test:coverage # Check coverage
-vercel build         # Verify production build (preferred over npm run build)
+# Primary validation (use for most code changes)
+SKIP_ENV_VALIDATION=1 bun run check  # Fast lint + typecheck
+bun run test                         # or: npx jest
+bun run test:coverage                # Check coverage
+
+# Full validation (use for major features only)
+vercel build                         # Comprehensive production build
 ```
 
 ### Python

@@ -211,6 +211,15 @@ This project includes custom Claude Code agents in `.claude/agents/`:
 - **log-analyzer**: Log analysis and debugging specialist for monitoring application health, analyzing errors, and providing debugging insights. Use this agent for all log analysis tasks.
 - **build-tester**: Testing and validation specialist that runs tests, validates code changes, and ensures quality gates are met. Use after implementing features to validate correctness.
 
+### Automatic Code Validation
+This project implements triple-protection ESLint integration:
+
+1. **Prevention**: Comprehensive ESLint guidelines above prevent violations during code generation
+2. **Immediate Feedback**: Post-edit hooks automatically run `bun run check` after file changes
+3. **Comprehensive Validation**: Build-tester agent provides thorough validation for major features
+
+The post-edit hook is configured in `.claude/settings.json` and runs automatically - no manual intervention required.
+
 ### Custom Commands
 Custom Claude Code commands are available in `.claude/commands/`:
 
@@ -604,6 +613,14 @@ bunx prisma migrate reset
 4. **Ask the user** before running any command that might lose data
 
 **WHY:** Using `db push` instead of `migrate dev` is what causes migration drift. Always create proper migration files to keep the database in sync.
+
+## Automatic ESLint Validation
+
+**CRITICAL: Post-edit hooks automatically run `bun run check` after file changes.**
+
+- **No manual validation needed** - hooks provide immediate ESLint feedback
+- **Fast feedback loop** - catches violations instantly without slow builds
+- **Build-tester integration** - use for comprehensive feature validation only
 
 ## Log Analysis Policy
 
