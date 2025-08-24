@@ -269,10 +269,11 @@ export function isEmailSendingSafe(): { safe: boolean; reason: string; mode: str
 export function generateMissingInfoEmail(params: {
   applicantName: string;
   eventName: string;
+  eventId: string;
   missingFields: string[];
   applicationUrl: string;
 }): { subject: string; htmlContent: string; textContent: string } {
-  const { applicantName, eventName, missingFields, applicationUrl } = params;
+  const { applicantName, eventName, eventId, missingFields, applicationUrl } = params;
   
   const subject = `Complete Your Application for ${eventName}`;
   
@@ -308,7 +309,7 @@ export function generateMissingInfoEmail(params: {
         </a>
       </div>
       
-      <p>If you have any questions or need assistance, please visit our <a href="/events/${eventName.toLowerCase().replace(/\s+/g, '-')}/faq" style="color: #007bff; text-decoration: none;">FAQ page</a> or don't hesitate to reach out to us.</p>
+      <p>If you have any questions or need assistance, please visit our <a href="/events/${eventId}/faq" style="color: #007bff; text-decoration: none;">FAQ page</a> or don't hesitate to reach out to us.</p>
       
       <p>Best regards,<br>
       The ${eventName} Team</p>
@@ -338,7 +339,7 @@ To complete your application, please:
 2. Fill in the missing information listed above
 3. Submit your updated application
 
-If you have any questions or need assistance, please visit our FAQ page at /events/${eventName.toLowerCase().replace(/\s+/g, '-')}/faq or don't hesitate to reach out to us.
+If you have any questions or need assistance, please visit our FAQ page at /events/${eventId}/faq or don't hesitate to reach out to us.
 
 Best regards,
 The ${eventName} Team

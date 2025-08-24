@@ -382,6 +382,7 @@ export const emailRouter = createTRPCRouter({
       const emailContent = generateMissingInfoEmail({
         applicantName: validation.application.user?.name ?? "Applicant",
         eventName: validation.application.event.name,
+        eventId: validation.application.eventId,
         missingFields: validation.missingQuestions.map(q => q.questionKey),
         applicationUrl,
       });
