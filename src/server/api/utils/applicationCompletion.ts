@@ -89,7 +89,7 @@ export async function checkApplicationCompleteness(
         // For JSON arrays (multiselect fields), check if array has content
         if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
           try {
-            const parsed = JSON.parse(trimmed);
+            const parsed = JSON.parse(trimmed) as unknown;
             return Array.isArray(parsed) && parsed.length > 0;
           } catch {
             return false;
