@@ -42,6 +42,7 @@ import {
   IconSend,
   IconTrash,
   IconAlertCircle,
+  IconBrandTelegram,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -167,6 +168,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // Determine status filter based on active tab
   const getStatusForTab = (tab: string) => {
     switch (tab) {
+      case "incomplete":
+        return "SUBMITTED" as const;
       case "under_review":
         return "UNDER_REVIEW" as const;
       case "accepted":
@@ -188,6 +191,10 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // Fetch counts for tab badges
   const { data: allApplications } = api.application.getEventApplications.useQuery({
     eventId: event.id,
+  });
+  const { data: incompleteApplications } = api.application.getEventApplications.useQuery({
+    eventId: event.id,
+    status: "SUBMITTED",
   });
   const { data: underReviewApplications } = api.application.getEventApplications.useQuery({
     eventId: event.id,
@@ -239,7 +246,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     };
   };
 
-  // Filter applications based on search and hide rejected setting
+  // Filter applications based on search, hide rejected setting, and incomplete tab logic
   const filteredApplications = applications?.filter(app => {
     // Search filter
     const matchesSearch = !searchQuery || 
@@ -249,9 +256,38 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     // Hide rejected filter (only applies when on "all" tab)
     const shouldHideRejected = hideRejected && activeTab === "all" && app.status === "REJECTED";
     
+    // For incomplete tab, only show applications that are SUBMITTED and have missing info
+    if (activeTab === "incomplete") {
+      const checkResult = missingInfoResults.get(app.id);
+      // Only show if we've checked and found missing info, OR if we haven't checked yet (potential incomplete)
+      const hasMissingInfo = !checkResult?.isComplete;
+      return matchesSearch && !shouldHideRejected && hasMissingInfo;
+    }
+    
     return matchesSearch && !shouldHideRejected;
   }) ?? [];
 
+  // Calculate incomplete applications count (SUBMITTED apps with missing info or unchecked)
+  const incompleteCount = incompleteApplications?.filter(app => {
+    const checkResult = missingInfoResults.get(app.id);
+    return !checkResult?.isComplete;
+  }).length ?? incompleteApplications?.length ?? 0;
+
+  // Helper function to generate Telegram link
+  const generateTelegramLink = (_applicantName: string) => {
+    const baseMessage = `I see you applied for the Funding the Commons residency in Buenos Aires in 2025! 
+
+I'm reviewing your application, and need to collect some more information from you.
+
+Could you please create an account on our platform with the same email address you applied with and fill in the missing information 🙏
+
+You can find our platform here
+
+Please let me know if you need any help?`;
+    
+    const encodedMessage = encodeURIComponent(baseMessage);
+    return `https://t.me/samueldanso?text=${encodedMessage}`;
+  };
 
   // Handle individual application selection
   const toggleApplicationSelection = (applicationId: string) => {
@@ -603,7 +639,6 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
           </Card>
         )}
 
-
         {/* Tabs for Application Status */}
         <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? "all")}>
           <Tabs.List grow>
@@ -612,6 +647,14 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
               {allApplications && (
                 <Badge size="sm" variant="light" ml="xs">
                   {allApplications.length}
+                </Badge>
+              )}
+            </Tabs.Tab>
+            <Tabs.Tab value="incomplete">
+              Incomplete
+              {incompleteCount > 0 && (
+                <Badge size="sm" variant="light" color="orange" ml="xs">
+                  {incompleteCount}
                 </Badge>
               )}
             </Tabs.Tab>
@@ -644,207 +687,221 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
           <Tabs.Panel value={activeTab} mt="md">
             {/* Filters and Actions */}
             <Card shadow="sm" padding="md" radius="md" withBorder>
-          <Group justify="space-between" wrap="wrap" gap="md">
-            <Group gap="md">
-              <TextInput
-                placeholder="Search by name or email..."
-                leftSection={<IconSearch size={16} />}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.currentTarget.value)}
-                style={{ minWidth: 200 }}
-              />
-              {activeTab === "all" && (
-                <Checkbox
-                  label="Hide rejected"
-                  checked={hideRejected}
-                  onChange={(e) => setHideRejected(e.currentTarget.checked)}
-                />
-              )}
-            </Group>
-            
-            <Group gap="md">
-              {selectedApplications.size > 0 && (
-                <Menu position="bottom-end">
-                  <Menu.Target>
-                    <Button 
-                      variant="outline"
-                      loading={bulkUpdateStatus.isPending}
-                    >
-                      Bulk Actions ({selectedApplications.size})
-                    </Button>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    {statusOptions.map((option) => (
-                      <Menu.Item
-                        key={option.value}
-                        onClick={() => handleBulkStatusChange(option.value)}
-                      >
-                        Set to {option.label}
-                      </Menu.Item>
-                    ))}
-                  </Menu.Dropdown>
-                </Menu>
-              )}
-              
-              <Button
-                variant="outline"
-                leftSection={<IconDownload size={16} />}
-                onClick={exportApplications}
-                disabled={!applications || applications.length === 0}
-              >
-                Export CSV
-              </Button>
-            </Group>
-          </Group>
-        </Card>
-
-        {/* Applications Table */}
-        <Paper shadow="sm" radius="md" withBorder>
-          {filteredApplications.length === 0 ? (
-            <Stack align="center" p="xl" gap="md">
-              <IconUsers size={48} stroke={1} color="var(--mantine-color-gray-5)" />
-              <Text c="dimmed">No applications found</Text>
-            </Stack>
-          ) : (
-            <Table.ScrollContainer minWidth={800}>
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>
-                      <Checkbox
-                        checked={selectedApplications.size === filteredApplications.length && filteredApplications.length > 0}
-                        indeterminate={selectedApplications.size > 0 && selectedApplications.size < filteredApplications.length}
-                        onChange={toggleSelectAll}
-                      />
-                    </Table.Th>
-                    <Table.Th>Applicant</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                    <Table.Th>Submitted</Table.Th>
-                    <Table.Th>Actions</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {filteredApplications.map((application) => {
-                    const StatusIcon = getStatusIcon(application.status);
-                    
-                    return (
-                      <Table.Tr key={application.id}>
-                        <Table.Td>
-                          <Checkbox
-                            checked={selectedApplications.has(application.id)}
-                            onChange={() => toggleApplicationSelection(application.id)}
-                          />
-                        </Table.Td>
-                        <Table.Td>
-                          <Stack gap={2}>
-                            <Text fw={500}>
-                              {application.user?.name ?? "No name provided"}
-                            </Text>
-                            <Text size="sm" c="dimmed">
-                              {application.email}
-                            </Text>
-                          </Stack>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge
-                            color={getStatusColor(application.status)}
-                            variant="light"
-                            leftSection={<StatusIcon size={12} />}
-                            title={`Debug: Status is "${application.status}"`}
+              <Group justify="space-between" wrap="wrap" gap="md">
+                <Group gap="md">
+                  <TextInput
+                    placeholder="Search by name or email..."
+                    leftSection={<IconSearch size={16} />}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    style={{ minWidth: 200 }}
+                  />
+                  {activeTab === "all" && (
+                    <Checkbox
+                      label="Hide rejected"
+                      checked={hideRejected}
+                      onChange={(e) => setHideRejected(e.currentTarget.checked)}
+                    />
+                  )}
+                </Group>
+                
+                <Group gap="md">
+                  {selectedApplications.size > 0 && (
+                    <Menu position="bottom-end">
+                      <Menu.Target>
+                        <Button 
+                          variant="outline"
+                          loading={bulkUpdateStatus.isPending}
+                        >
+                          Bulk Actions ({selectedApplications.size})
+                        </Button>
+                      </Menu.Target>
+                      <Menu.Dropdown>
+                        {statusOptions.map((option) => (
+                          <Menu.Item
+                            key={option.value}
+                            onClick={() => handleBulkStatusChange(option.value)}
                           >
-                            {application.status.replace("_", " ")}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">
-                            {application.submittedAt
-                              ? new Date(application.submittedAt).toLocaleDateString()
-                              : "Draft"
-                            }
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap="xs">
-                            <ActionIcon
-                              variant="subtle"
-                              onClick={() => viewApplication(application)}
-                            >
-                              <IconEye size={16} />
-                            </ActionIcon>
+                            Set to {option.label}
+                          </Menu.Item>
+                        ))}
+                      </Menu.Dropdown>
+                    </Menu>
+                  )}
+                  
+                  <Button
+                    variant="outline"
+                    leftSection={<IconDownload size={16} />}
+                    onClick={exportApplications}
+                    disabled={!applications || applications.length === 0}
+                  >
+                    Export CSV
+                  </Button>
+                </Group>
+              </Group>
+            </Card>
 
-                            <ActionIcon
-                              variant="subtle"
-                              onClick={() => editApplication(application)}
-                            >
-                              <IconEdit size={16} />
-                            </ActionIcon>
-
-                            {(application.status === "UNDER_REVIEW" || application.status === "SUBMITTED" || application.status === "ACCEPTED") && (() => {
-                              const checkStatus = getCheckStatus(application.id);
-                              
-                              // Determine icon, color, and tooltip based on status
-                              let icon = IconChecklist;
-                              let color = "orange";
-                              let tooltip = "Check for missing information";
-                              
-                              if (checkStatus.checked) {
-                                if (checkStatus.isComplete) {
-                                  icon = IconCheck;
-                                  color = "green";
-                                  tooltip = `Complete - checked ${checkStatus.checkedAt?.toLocaleDateString()}${checkStatus.hasEmailSent ? ` • Last reminder: ${checkStatus.lastEmailDate ? new Date(checkStatus.lastEmailDate).toLocaleDateString() : 'Unknown'}` : ''}`;
-                                } else {
-                                  icon = IconAlertTriangle;
-                                  color = "red";
-                                  tooltip = `${checkStatus.missingFieldsCount} missing fields - checked ${checkStatus.checkedAt?.toLocaleDateString()}${checkStatus.hasEmailSent ? ` • Last reminder: ${checkStatus.lastEmailDate ? new Date(checkStatus.lastEmailDate).toLocaleDateString() : 'Unknown'}` : ''}`;
+            {/* Applications Table */}
+            <Paper shadow="sm" radius="md" withBorder>
+              {filteredApplications.length === 0 ? (
+                <Stack align="center" p="xl" gap="md">
+                  <IconUsers size={48} stroke={1} color="var(--mantine-color-gray-5)" />
+                  <Text c="dimmed">No applications found</Text>
+                </Stack>
+              ) : (
+                <Table.ScrollContainer minWidth={800}>
+                  <Table striped highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>
+                          <Checkbox
+                            checked={selectedApplications.size === filteredApplications.length && filteredApplications.length > 0}
+                            indeterminate={selectedApplications.size > 0 && selectedApplications.size < filteredApplications.length}
+                            onChange={toggleSelectAll}
+                          />
+                        </Table.Th>
+                        <Table.Th>Applicant</Table.Th>
+                        <Table.Th>Status</Table.Th>
+                        <Table.Th>Submitted</Table.Th>
+                        <Table.Th>Actions</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {filteredApplications.map((application) => {
+                        const StatusIcon = getStatusIcon(application.status);
+                        
+                        return (
+                          <Table.Tr key={application.id}>
+                            <Table.Td>
+                              <Checkbox
+                                checked={selectedApplications.has(application.id)}
+                                onChange={() => toggleApplicationSelection(application.id)}
+                              />
+                            </Table.Td>
+                            <Table.Td>
+                              <Stack gap={2}>
+                                <Text fw={500}>
+                                  {application.user?.name ?? "No name provided"}
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                  {application.email}
+                                </Text>
+                              </Stack>
+                            </Table.Td>
+                            <Table.Td>
+                              <Badge
+                                color={getStatusColor(application.status)}
+                                variant="light"
+                                leftSection={<StatusIcon size={12} />}
+                                title={`Debug: Status is "${application.status}"`}
+                              >
+                                {application.status.replace("_", " ")}
+                              </Badge>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">
+                                {application.submittedAt
+                                  ? new Date(application.submittedAt).toLocaleDateString()
+                                  : "Draft"
                                 }
-                              } else if (checkStatus.hasEmailSent) {
-                                icon = IconMail;
-                                color = "blue";
-                                tooltip = `Reminder sent ${checkStatus.lastEmailDate ? new Date(checkStatus.lastEmailDate).toLocaleDateString() : 'Unknown'} - click to re-check`;
-                              }
-                              
-                              return (
+                              </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Group gap="xs">
                                 <ActionIcon
                                   variant="subtle"
-                                  color={color}
-                                  onClick={() => void handleCheckApplication(application.id)}
-                                  loading={checkMissingInfoMutation.isPending}
-                                  title={tooltip}
-                                  data-status={application.status}
+                                  onClick={() => viewApplication(application)}
                                 >
-                                  {React.createElement(icon, { size: 16 })}
+                                  <IconEye size={16} />
                                 </ActionIcon>
-                              );
-                            })()}
-                            
-                            <Menu position="bottom-end">
-                              <Menu.Target>
-                                <ActionIcon variant="subtle">
-                                  <IconDots size={16} />
+
+                                <ActionIcon
+                                  variant="subtle"
+                                  onClick={() => editApplication(application)}
+                                >
+                                  <IconEdit size={16} />
                                 </ActionIcon>
-                              </Menu.Target>
-                              <Menu.Dropdown>
-                                {statusOptions.map((option) => (
-                                  <Menu.Item
-                                    key={option.value}
-                                    onClick={() => void handleStatusChange(application.id, option.value)}
-                                    disabled={application.status === option.value || updateStatus.isPending}
+
+                                {/* Telegram icon - only show on Incomplete tab */}
+                                {activeTab === "incomplete" && (
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="blue"
+                                    component="a"
+                                    href={generateTelegramLink(application.user?.name ?? "applicant")}
+                                    target="_blank"
+                                    title="Contact via Telegram"
                                   >
-                                    Set to {option.label}
-                                  </Menu.Item>
-                                ))}
-                              </Menu.Dropdown>
-                            </Menu>
-                          </Group>
-                        </Table.Td>
-                      </Table.Tr>
-                    );
-                  })}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-          )}
-        </Paper>
+                                    <IconBrandTelegram size={16} />
+                                  </ActionIcon>
+                                )}
+
+                                {(application.status === "UNDER_REVIEW" || application.status === "SUBMITTED" || application.status === "ACCEPTED") && (() => {
+                                  const checkStatus = getCheckStatus(application.id);
+                                  
+                                  // Determine icon, color, and tooltip based on status
+                                  let icon = IconChecklist;
+                                  let color = "orange";
+                                  let tooltip = "Check for missing information";
+                                  
+                                  if (checkStatus.checked) {
+                                    if (checkStatus.isComplete) {
+                                      icon = IconCheck;
+                                      color = "green";
+                                      tooltip = `Complete - checked ${checkStatus.checkedAt?.toLocaleDateString()}${checkStatus.hasEmailSent ? ` • Last reminder: ${checkStatus.lastEmailDate ? new Date(checkStatus.lastEmailDate).toLocaleDateString() : 'Unknown'}` : ''}`;
+                                    } else {
+                                      icon = IconAlertTriangle;
+                                      color = "red";
+                                      tooltip = `${checkStatus.missingFieldsCount} missing fields - checked ${checkStatus.checkedAt?.toLocaleDateString()}${checkStatus.hasEmailSent ? ` • Last reminder: ${checkStatus.lastEmailDate ? new Date(checkStatus.lastEmailDate).toLocaleDateString() : 'Unknown'}` : ''}`;
+                                    }
+                                  } else if (checkStatus.hasEmailSent) {
+                                    icon = IconMail;
+                                    color = "blue";
+                                    tooltip = `Reminder sent ${checkStatus.lastEmailDate ? new Date(checkStatus.lastEmailDate).toLocaleDateString() : 'Unknown'} - click to re-check`;
+                                  }
+                                  
+                                  return (
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color={color}
+                                      onClick={() => void handleCheckApplication(application.id)}
+                                      loading={checkMissingInfoMutation.isPending}
+                                      title={tooltip}
+                                      data-status={application.status}
+                                    >
+                                      {React.createElement(icon, { size: 16 })}
+                                    </ActionIcon>
+                                  );
+                                })()}
+                                
+                                <Menu position="bottom-end">
+                                  <Menu.Target>
+                                    <ActionIcon variant="subtle">
+                                      <IconDots size={16} />
+                                    </ActionIcon>
+                                  </Menu.Target>
+                                  <Menu.Dropdown>
+                                    {statusOptions.map((option) => (
+                                      <Menu.Item
+                                        key={option.value}
+                                        onClick={() => void handleStatusChange(application.id, option.value)}
+                                        disabled={application.status === option.value || updateStatus.isPending}
+                                      >
+                                        Set to {option.label}
+                                      </Menu.Item>
+                                    ))}
+                                  </Menu.Dropdown>
+                                </Menu>
+                              </Group>
+                            </Table.Td>
+                          </Table.Tr>
+                        );
+                      })}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              )}
+            </Paper>
           </Tabs.Panel>
         </Tabs>
       </Stack>
@@ -1051,7 +1108,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             <Text fw={600} color="blue.7">Application Submitted</Text>
                           </Group>
                           <Text size="sm" c="dimmed">
-                            This application has been submitted and is ready for review. Change status to &ldquo;Under Review&rdquo; to begin evaluation.
+                            This application has been submitted and is ready for review. Change status to &quot;Under Review&quot; to begin evaluation.
                           </Text>
                         </Stack>
                       )}
