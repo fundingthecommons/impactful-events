@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { 
   Stack, 
   Text, 
@@ -69,22 +69,51 @@ export default function EditableApplicationForm({
   eventId,
   onSaved,
 }: EditableApplicationFormProps) {
+  console.log('🔍 EditableApplicationForm: Component rendered', {
+    applicationId: application.id,
+    eventId,
+    userEmail: application.email,
+    responseCount: application.responses.length
+  });
+
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
   const [userName, setUserName] = useState(application.user?.name ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
   // Fetch questions for the event
-  const { data: questions, isLoading: questionsLoading } = api.application.getEventQuestions.useQuery({
+  const { data: questions, isLoading: questionsLoading, error: questionsError } = api.application.getEventQuestions.useQuery({
     eventId,
+  });
+
+  console.log('🔍 EditableApplicationForm: Questions query state', {
+    questionsLoading,
+    questionsCount: questions?.length,
+    questionsError: questionsError?.message,
+    eventId
   });
 
   // API mutations
   const updateResponse = api.application.updateResponse.useMutation();
   const updateUserName = api.application.updateApplicationUserName.useMutation();
 
+  // Create stable dependency to prevent infinite loops
+  const responsesHash = useMemo(() => {
+    return JSON.stringify(application.responses.map(r => ({
+      questionKey: r.question.questionKey,
+      answer: r.answer
+    })));
+  }, [application.responses]);
+
   // Initialize form values with existing responses
   useEffect(() => {
+    console.log('🔍 EditableApplicationForm: useEffect triggered', {
+      hasQuestions: !!questions,
+      questionsLength: questions?.length,
+      applicationResponsesLength: application.responses.length
+    });
+
     if (questions && questions.length > 0) {
+      console.log('🔍 EditableApplicationForm: Initializing form values');
       const initialValues: Record<string, unknown> = {};
 
       questions.forEach((question) => {
@@ -92,12 +121,40 @@ export default function EditableApplicationForm({
           r => r.question.questionKey === question.questionKey
         );
         
+        console.log(`🔍 Processing question ${question.questionKey}:`, {
+          questionType: question.questionType,
+          hasExistingResponse: !!existingResponse,
+          existingAnswer: existingResponse?.answer?.substring(0, 100)
+        });
+        
         if (existingResponse) {
           if (question.questionType === "MULTISELECT") {
             try {
-              initialValues[question.questionKey] = JSON.parse(existingResponse.answer) as unknown[];
+              // Try JSON parsing first
+              const parsed = JSON.parse(existingResponse.answer) as unknown[];
+              if (Array.isArray(parsed)) {
+                initialValues[question.questionKey] = parsed;
+                console.log(`✅ MULTISELECT ${question.questionKey} JSON parsed:`, parsed);
+              } else {
+                throw new Error("Not an array");
+              }
             } catch {
-              initialValues[question.questionKey] = [];
+              // Fallback: Handle plain text format (e.g., "Developer / Desarrollador")
+              console.log(`🔄 MULTISELECT ${question.questionKey} JSON failed, parsing as text:`, existingResponse.answer);
+              
+              // Extract the English part before " / " if bilingual format
+              let cleanAnswer = existingResponse.answer;
+              if (cleanAnswer.includes(" / ")) {
+                cleanAnswer = cleanAnswer.split(" / ")[0]?.trim() ?? cleanAnswer;
+              }
+              
+              // Handle comma-separated values or single value
+              const textValues = cleanAnswer.includes(",") 
+                ? cleanAnswer.split(",").map(v => v.trim()).filter(v => v.length > 0)
+                : [cleanAnswer.trim()].filter(v => v.length > 0);
+              
+              initialValues[question.questionKey] = textValues;
+              console.log(`✅ MULTISELECT ${question.questionKey} text parsed:`, textValues);
             }
           } else if (question.questionType === "CHECKBOX") {
             initialValues[question.questionKey] = existingResponse.answer === "true";
@@ -120,9 +177,15 @@ export default function EditableApplicationForm({
         }
       });
 
+      console.log('🔍 EditableApplicationForm: Setting form values', {
+        initialValuesKeys: Object.keys(initialValues),
+        initialValuesCount: Object.keys(initialValues).length
+      });
       setFormValues(initialValues);
+      console.log('✅ EditableApplicationForm: Form values set successfully');
     }
-  }, [questions, application.responses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions, responsesHash]); // responsesHash prevents infinite loops by hashing application.responses
 
   // Handle form field changes
   const handleFieldChange = (questionKey: string, value: unknown) => {
@@ -239,6 +302,13 @@ export default function EditableApplicationForm({
 
   // Render individual question
   const renderQuestion = (question: Question) => {
+    console.log(`🔍 Rendering question ${question.questionKey}:`, {
+      questionType: question.questionType,
+      currentValue: formValues[question.questionKey],
+      hasOptions: !!question.options,
+      optionsLength: question.options?.length
+    });
+
     const questionText = question.questionEn; // Use English for admin interface
     const currentValue = formValues[question.questionKey] ?? "";
 
@@ -366,6 +436,7 @@ export default function EditableApplicationForm({
   };
 
   if (questionsLoading) {
+    console.log('🔍 EditableApplicationForm: Showing loading state');
     return (
       <Stack align="center" gap="md" p="xl">
         <Text c="dimmed">Loading application form...</Text>
@@ -374,12 +445,19 @@ export default function EditableApplicationForm({
   }
 
   if (!questions || questions.length === 0) {
+    console.log('🔍 EditableApplicationForm: No questions found');
     return (
       <Alert color="yellow" icon={<IconAlertCircle />}>
         No questions found for this event.
       </Alert>
     );
   }
+
+  console.log('🔍 EditableApplicationForm: About to render main form', {
+    questionsCount: questions.length,
+    formValuesCount: Object.keys(formValues).length,
+    isSaving
+  });
 
   return (
     <Stack gap="xl">

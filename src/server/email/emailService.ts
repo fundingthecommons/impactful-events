@@ -169,8 +169,8 @@ export class EmailService {
           eventName: application.event.name,
           programDates: 'February 10-28, 2025', // You'd fetch this from event
           location: 'Buenos Aires, Argentina',
-          stipend: '$2,000 USD',
-          nextStepsUrl: dashboardUrl,
+          _stipend: '$2,000 USD',
+          _nextStepsUrl: dashboardUrl,
           confirmationDeadline: 'August 7th, 2025',
         } satisfies ApplicationAcceptedProps;
         break;

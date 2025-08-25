@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Section,
   Text,
-  Button,
   Row,
   Column,
 } from '@react-email/components';
@@ -13,8 +12,8 @@ export interface ApplicationAcceptedProps {
   eventName: string;
   programDates: string;
   location: string;
-  stipend?: string;
-  nextStepsUrl: string;
+  _stipend?: string;
+  _nextStepsUrl: string;
   confirmationDeadline?: string;
 }
 
@@ -23,8 +22,8 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
   eventName,
   programDates,
   location,
-  stipend,
-  nextStepsUrl,
+  _stipend,
+  _nextStepsUrl,
   confirmationDeadline,
 }) => {
   const previewText = `🎉 Congratulations! You've been accepted to ${eventName}`;
@@ -186,22 +185,22 @@ const warning = {
   margin: '24px 0',
 };
 
-const buttonContainer = {
-  textAlign: 'center' as const,
-  margin: '32px 0',
-};
+// const buttonContainer = {
+//   textAlign: 'center' as const,
+//   margin: '32px 0',
+// };
 
-const button = {
-  backgroundColor: '#2563eb',
-  borderRadius: '8px',
-  color: '#fff',
-  fontSize: '16px',
-  fontWeight: 'bold',
-  textDecoration: 'none',
-  textAlign: 'center' as const,
-  display: 'inline-block',
-  padding: '12px 32px',
-};
+// const button = {
+//   backgroundColor: '#2563eb',
+//   borderRadius: '8px',
+//   color: '#fff',
+//   fontSize: '16px',
+//   fontWeight: 'bold',
+//   textDecoration: 'none',
+//   textAlign: 'center' as const,
+//   display: 'inline-block',
+//   padding: '12px 32px',
+// };
 
 const link = {
   color: '#2563eb',

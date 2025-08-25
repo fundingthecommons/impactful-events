@@ -338,8 +338,17 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
 
   // Edit application
   const editApplication = (application: ApplicationWithUser) => {
+    console.log('🔍 AdminApplicationsClient: Edit application clicked', {
+      applicationId: application.id,
+      userEmail: application.email,
+      status: application.status,
+      responseCount: application.responses.length
+    });
+    
     setEditingApplication(application);
+    console.log('🔍 AdminApplicationsClient: Opening edit drawer');
     openEditDrawer();
+    console.log('✅ AdminApplicationsClient: Edit drawer opened');
   };
 
   // Check application for missing information

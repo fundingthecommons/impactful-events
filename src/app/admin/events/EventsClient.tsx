@@ -12,7 +12,8 @@ import {
   Button,
   ThemeIcon,
   Box,
-  Paper
+  Paper,
+  Loader
 } from "@mantine/core";
 import { 
   IconUsers, 
@@ -20,65 +21,59 @@ import {
   IconCalendarEvent,
   IconHome,
   IconTrophy,
-  IconMicrophone,
-  IconUmbrella
+  IconMicrophone
 } from "@tabler/icons-react";
 import Link from "next/link";
+import { api } from "~/trpc/react";
 
-// Event data - in a real app this would come from your database
-const events = [
-  {
-    id: "residency",
-    name: "Residency",
-    description: "Intensive residency program for selected participants to work on projects and build connections.",
-    type: "residency",
-    status: "active",
-    icon: IconHome,
-    gradient: { from: "blue", to: "cyan" },
-    participantsCount: 45,
-    sponsorsCount: 12
-  },
-  {
-    id: "hackathon", 
-    name: "Hackathon",
-    description: "48-hour intensive hackathon where teams compete to build innovative solutions.",
-    type: "hackathon",
-    status: "active", 
-    icon: IconTrophy,
-    gradient: { from: "orange", to: "red" },
-    participantsCount: 128,
-    sponsorsCount: 8
-  },
-  {
-    id: "conference",
-    name: "Conference", 
-    description: "Multi-day conference featuring keynotes, panels, and networking opportunities.",
-    type: "conference",
-    status: "active",
-    icon: IconMicrophone,
-    gradient: { from: "green", to: "teal" },
-    participantsCount: 350,
-    sponsorsCount: 25
-  },
-  {
-    id: "umbrella",
-    name: "Umbrella",
-    description: "Overarching program that encompasses multiple events and ongoing initiatives.",
-    type: "umbrella", 
-    status: "active",
-    icon: IconUmbrella,
-    gradient: { from: "purple", to: "pink" },
-    participantsCount: 500,
-    sponsorsCount: 40
+// Helper function to get icon based on event type
+function getEventIcon(eventType: string) {
+  switch (eventType.toLowerCase()) {
+    case "residency":
+      return IconHome;
+    case "hackathon":
+      return IconTrophy;
+    case "conference":
+      return IconMicrophone;
+    default:
+      return IconCalendarEvent;
   }
-];
+}
+
+// Helper function to get gradient based on event type
+function getEventGradient(eventType: string) {
+  switch (eventType.toLowerCase()) {
+    case "residency":
+      return { from: "blue", to: "cyan" };
+    case "hackathon":
+      return { from: "orange", to: "red" };
+    case "conference":
+      return { from: "green", to: "teal" };
+    default:
+      return { from: "purple", to: "pink" };
+  }
+}
 
 interface EventCardProps {
-  event: typeof events[0];
+  event: {
+    id: string;
+    name: string;
+    description: string | null;
+    type: string;
+    startDate: Date;
+    endDate: Date;
+    location: string | null;
+    isOnline: boolean;
+    _count?: {
+      applications?: number;
+      eventSponsors?: number;
+    };
+  };
 }
 
 function EventCard({ event }: EventCardProps) {
-  const Icon = event.icon;
+  const Icon = getEventIcon(event.type);
+  const gradient = getEventGradient(event.type);
   
   return (
     <Card shadow="lg" padding="xl" radius="md" withBorder h="100%">
@@ -86,7 +81,7 @@ function EventCard({ event }: EventCardProps) {
         <Box
           h={120}
           style={{
-            background: `linear-gradient(135deg, var(--mantine-color-${event.gradient.from}-6) 0%, var(--mantine-color-${event.gradient.to}-6) 100%)`,
+            background: `linear-gradient(135deg, var(--mantine-color-${gradient.from}-6) 0%, var(--mantine-color-${gradient.to}-6) 100%)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -110,12 +105,12 @@ function EventCard({ event }: EventCardProps) {
               size="sm"
               tt="uppercase"
             >
-              {event.status}
+              Active
             </Badge>
           </Group>
           
           <Text size="sm" c="dimmed" style={{ lineHeight: 1.5 }}>
-            {event.description}
+            {event.description ?? "No description available"}
           </Text>
         </Stack>
 
@@ -126,7 +121,7 @@ function EventCard({ event }: EventCardProps) {
                 <IconUsers size={12} />
               </ThemeIcon>
               <Text size="sm" fw={500}>
-                Applications
+                {event._count?.applications ?? 0} Applications
               </Text>
             </Group>
             <Link href={`/admin/events/${event.id}/applications`} style={{ textDecoration: 'none' }}>
@@ -142,7 +137,7 @@ function EventCard({ event }: EventCardProps) {
                 <IconBuilding size={12} />
               </ThemeIcon>
               <Text size="sm" fw={500}>
-                {event.sponsorsCount} Sponsors
+                {event._count?.eventSponsors ?? 0} Sponsors
               </Text>
             </Group>
             <Link href={`/admin/events/${event.id}/sponsors`} style={{ textDecoration: 'none' }}>
@@ -157,7 +152,38 @@ function EventCard({ event }: EventCardProps) {
   );
 }
 
+type EventWithCounts = {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  startDate: Date;
+  endDate: Date;
+  location: string | null;
+  isOnline: boolean;
+  _count?: {
+    applications?: number;
+    eventSponsors?: number;
+  };
+};
+
 export default function EventsClient() {
+  // Fetch real events from database
+  const { data: events, isLoading } = api.event.getEvents.useQuery();
+
+  if (isLoading) {
+    return (
+      <Container size="xl" py="xl">
+        <Stack align="center" gap="lg">
+          <Loader size="lg" />
+          <Text c="dimmed">Loading events...</Text>
+        </Stack>
+      </Container>
+    );
+  }
+
+  const eventsWithCounts: EventWithCounts[] = events ?? [];
+
   return (
     <Container size="xl" py="xl">
       <Stack gap="xl">
@@ -181,19 +207,23 @@ export default function EventsClient() {
           <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="lg">
             <Stack gap={0} ta="center">
               <Text size="xl" fw={700} c="blue">
-                {events.length}
+                {eventsWithCounts.length}
               </Text>
               <Text size="sm" c="dimmed">Active Events</Text>
             </Stack>
             <Stack gap={0} ta="center">
               <Text size="xl" fw={700} c="green">
-                {events.reduce((sum, event) => sum + event.participantsCount, 0)}
+                {eventsWithCounts.reduce((sum: number, event: EventWithCounts) => {
+                  return sum + (event._count?.applications ?? 0);
+                }, 0)}
               </Text>
-              <Text size="sm" c="dimmed">Total Participants</Text>
+              <Text size="sm" c="dimmed">Total Applications</Text>
             </Stack>
             <Stack gap={0} ta="center">
               <Text size="xl" fw={700} c="orange">
-                {events.reduce((sum, event) => sum + event.sponsorsCount, 0)}
+                {eventsWithCounts.reduce((sum: number, event: EventWithCounts) => {
+                  return sum + (event._count?.eventSponsors ?? 0);
+                }, 0)}
               </Text>
               <Text size="sm" c="dimmed">Total Sponsors</Text>
             </Stack>
@@ -208,7 +238,7 @@ export default function EventsClient() {
 
         {/* Events Grid */}
         <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
-          {events.map((event) => (
+          {eventsWithCounts.map((event) => (
             <EventCard key={event.id} event={event} />
           ))}
         </SimpleGrid>

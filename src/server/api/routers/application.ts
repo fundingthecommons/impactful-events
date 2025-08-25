@@ -212,15 +212,26 @@ export const applicationRouter = createTRPCRouter({
   updateResponse: protectedProcedure
     .input(UpdateApplicationResponseSchema)
     .mutation(async ({ ctx, input }) => {
-      // Verify the application belongs to the current user
+      // Verify the application exists and user has access (owner or admin/staff)
       const application = await ctx.db.application.findUnique({
         where: { id: input.applicationId },
       });
 
-      if (!application || application.userId !== ctx.session.user.id) {
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Application not found",
+        });
+      }
+
+      // Allow access if user owns the application OR user is admin/staff
+      const isOwner = application.userId === ctx.session.user.id;
+      const isAdmin = ctx.session.user.role === "admin" || ctx.session.user.role === "staff";
+      
+      if (!isOwner && !isAdmin) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Application not found or access denied",
+          message: "Access denied - you can only edit your own applications",
         });
       }
 
