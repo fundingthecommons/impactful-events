@@ -481,15 +481,8 @@ export default function DynamicApplicationForm({
     if (!questions) return false;
     
     const errors: Record<string, string> = {};
-    const requiredQuestions = questions.filter(q => {
-      // Filter out conditional fields even if marked as required in DB
-      const questionText = language === "es" ? q.questionEs : q.questionEn;
-      const isConditionalField = questionText.toLowerCase().includes("specify") || 
-                                 questionText.toLowerCase().includes("if you answered") ||
-                                 questionText.toLowerCase().includes("if you did not select") ||
-                                 (questionText.toLowerCase().includes("other") && questionText.toLowerCase().includes("please"));
-      return q.required && !isConditionalField;
-    });
+    // Use the same required questions as completion validation
+    const requiredQuestions = actuallyRequiredQuestions;
     
     for (const question of requiredQuestions) {
       const value = formValues[question.questionKey];
@@ -548,9 +541,8 @@ export default function DynamicApplicationForm({
     // Use client-side validation (no server round trips needed)
     
     if (!validateForm()) {
-      // Find first missing required field for scroll-to-error
-      const requiredQuestions = questions?.filter(q => q.required) ?? [];
-      const firstMissingQuestion = requiredQuestions.find(question => {
+      // Find first missing required field for scroll-to-error (use same filtering as validation)
+      const firstMissingQuestion = actuallyRequiredQuestions.find(question => {
         const value = formValues[question.questionKey];
         if (question.questionType === "MULTISELECT") {
           return !Array.isArray(value) || value.length === 0;
