@@ -138,8 +138,9 @@ export default function EventDetailClient({
 
   // Handle application update
   const handleApplicationUpdated = async () => {
-    // Refetch data to update UI
-    await utils.application.getApplication.invalidate({ eventId: event.id });
+    // No need to refetch on every auto-save - trust the optimistic updates
+    // Only refetch on page load, explicit refresh, or form submission
+    console.log('🔍 EventDetailClient: Application updated (no refetch needed)');
   };
 
   return (
