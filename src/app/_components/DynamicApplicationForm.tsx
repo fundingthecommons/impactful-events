@@ -446,21 +446,24 @@ export default function DynamicApplicationForm({
 
   // Note: Removed debug logging and consistency check effects to simplify component
 
+  // Shared function to detect conditional fields (used by validation and scroll logic)
+  const isConditionalField = useCallback((question: Question) => {
+    const questionText = language === "es" ? question.questionEs : question.questionEn;
+    return questionText.toLowerCase().includes("specify") || 
+           questionText.toLowerCase().includes("if you answered") ||
+           questionText.toLowerCase().includes("if you did not select") ||
+           (questionText.toLowerCase().includes("other") && questionText.toLowerCase().includes("please"));
+  }, [language]);
+
+  // Get actually required questions (excluding conditional fields)
+  const actuallyRequiredQuestions = useMemo(() => {
+    if (!questions) return [];
+    return questions.filter(q => q.required && !isConditionalField(q));
+  }, [questions, isConditionalField]);
+
   // Client-side form completion validation (single source of truth during editing)
   const isFormComplete = useMemo(() => {
-    if (!questions) return false;
-    
-    const requiredQuestions = questions.filter(q => {
-      // Filter out conditional fields even if marked as required in DB
-      const questionText = language === "es" ? q.questionEs : q.questionEn;
-      const isConditionalField = questionText.toLowerCase().includes("specify") || 
-                                 questionText.toLowerCase().includes("if you answered") ||
-                                 questionText.toLowerCase().includes("if you did not select") ||
-                                 (questionText.toLowerCase().includes("other") && questionText.toLowerCase().includes("please"));
-      return q.required && !isConditionalField;
-    });
-    
-    return requiredQuestions.every(question => {
+    return actuallyRequiredQuestions.every(question => {
       const value = formValues[question.questionKey];
       
       if (question.questionType === "MULTISELECT") {
@@ -471,7 +474,7 @@ export default function DynamicApplicationForm({
         return value && (typeof value === "string" ? value.trim() : true);
       }
     });
-  }, [formValues, questions, language]);
+  }, [formValues, actuallyRequiredQuestions]);
 
   // Enhanced form validation that's resilient to state changes
   const validateForm = () => {
