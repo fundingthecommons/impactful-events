@@ -90,7 +90,7 @@ export default function DynamicApplicationForm({
     Boolean(existingApplication?.status && existingApplication.status !== "DRAFT")
   );
   const [hasInitialized, setHasInitialized] = useState(false);
-  const saveTimeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // Removed timeout refs - no longer needed with onBlur saving
   const prevCompletionPercentage = useRef<number>(-1); // -1 means uninitialized
 
   console.log('🔍 DynamicApplicationForm: State initialized', {
@@ -292,57 +292,7 @@ export default function DynamicApplicationForm({
     }
   }, [completionStatus, applicationId]);
 
-  // Auto-save functionality
-  const autoSave = useCallback(async (questionKey: string, value: unknown) => {
-    if (!applicationId || !questions) return;
-
-    const question = questions.find(q => q.questionKey === questionKey);
-    if (!question) return;
-
-    setIsSaving(true);
-    
-    try {
-      let answerValue: string;
-      if (question.questionType === "MULTISELECT") {
-        answerValue = JSON.stringify(value);
-      } else if (question.questionType === "CHECKBOX") {
-        answerValue = String(value);
-      } else {
-        answerValue = String(value);
-      }
-
-      await updateResponse.mutateAsync({
-        applicationId,
-        questionId: question.id,
-        answer: answerValue,
-      });
-
-      setLastSaved(new Date());
-      onUpdated?.();
-      
-      // Only refetch completion status occasionally to avoid data loss
-      // Don't refetch application data as it can overwrite user input
-      
-      // Note: Removed status reversion check to prevent unnecessary refetches
-      // Status changes will be detected on next page load or manual refresh
-    } catch (error: unknown) {
-      console.error('Error saving response:', error);
-      
-      // Show user-friendly error message
-      const errorMessage = error && typeof error === 'object' && 'message' in error 
-        ? String(error.message)
-        : "Failed to save your response";
-        
-      notifications.show({
-        title: "Error",
-        message: errorMessage,
-        color: "red",
-        icon: <IconAlertCircle />,
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  }, [applicationId, questions, updateResponse, onUpdated, refetchCompletion, refetchApplication, safeCurrentStatus]);
+  // Removed complex auto-save functionality - now using simple onBlur saving
 
   // Create application if it doesn't exist
   const ensureApplication = useCallback(async () => {
@@ -381,25 +331,53 @@ export default function DynamicApplicationForm({
     }
   }, [applicationId, isCreatingApplication, createApplication, eventId, language]);
 
-  // Debounced auto-save function
-  const debouncedAutoSave = useCallback((questionKey: string, value: unknown) => {
-    // Clear any existing timeout for this field
-    const existingTimeout = saveTimeoutRefs.current.get(questionKey);
-    if (existingTimeout) {
-      clearTimeout(existingTimeout);
-    }
-    
-    // Set new timeout
-    const newTimeout = setTimeout(() => {
-      void autoSave(questionKey, value);
-      saveTimeoutRefs.current.delete(questionKey);
-    }, 1500); // Increased debounce delay to reduce race conditions
-    
-    saveTimeoutRefs.current.set(questionKey, newTimeout);
-  }, [autoSave]);
+  // Simple field save function (no debouncing, called onBlur)
+  const saveField = useCallback(async (questionKey: string, value: unknown) => {
+    if (!applicationId || !questions) return;
 
-  // Handle form field changes
-  const handleFieldChange = useCallback(async (questionKey: string, value: unknown) => {
+    const question = questions.find(q => q.questionKey === questionKey);
+    if (!question) return;
+
+    setIsSaving(true);
+    
+    try {
+      let answerValue: string;
+      if (question.questionType === "MULTISELECT") {
+        answerValue = JSON.stringify(value);
+      } else if (question.questionType === "CHECKBOX") {
+        answerValue = String(value);
+      } else {
+        answerValue = String(value);
+      }
+
+      await updateResponse.mutateAsync({
+        applicationId,
+        questionId: question.id,
+        answer: answerValue,
+      });
+
+      setLastSaved(new Date());
+      onUpdated?.();
+    } catch (error: unknown) {
+      console.error('Error saving field:', error);
+      
+      const errorMessage = error && typeof error === 'object' && 'message' in error 
+        ? String(error.message)
+        : "Failed to save your response";
+        
+      notifications.show({
+        title: "Error",
+        message: errorMessage,
+        color: "red",
+        icon: <IconAlertCircle />,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [applicationId, questions, updateResponse, onUpdated]);
+
+  // Handle form field changes (local state only, no auto-save)
+  const handleFieldChange = useCallback((questionKey: string, value: unknown) => {
     setFormValues(prev => ({ ...prev, [questionKey]: value }));
     
     // Clear validation error for this field if it now has a value
@@ -419,47 +397,11 @@ export default function DynamicApplicationForm({
         });
       }
     }
-    
-    // Create application if it doesn't exist yet
-    if (!applicationId) {
-      try {
-        await ensureApplication();
-      } catch (error) {
-        console.error('Failed to create application:', error);
-      }
-    }
-    
-    // Use debounced auto-save to prevent race conditions
-    debouncedAutoSave(questionKey, value);
-  }, [validationErrors, applicationId, ensureApplication, debouncedAutoSave]);
+  }, [validationErrors]);
 
-  // Auto-save email field when auto-filled (after handleFieldChange is defined)
-  useEffect(() => {
-    if (userEmail && questions && applicationId) {
-      const emailQuestion = questions.find(q => q.questionKey === "email");
-      const hasEmailInDB = existingApplication?.responses.some(r => r.question.questionKey === "email");
-      
-      if (emailQuestion && !hasEmailInDB && formValues.email === userEmail) {
-        console.log('Auto-saving email field to database:', userEmail);
-        // Auto-save email to database after 1 second
-        const timer = setTimeout(() => {
-          handleFieldChange("email", userEmail).catch(console.error);
-        }, 1000);
-        
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [userEmail, questions, applicationId, existingApplication, formValues, handleFieldChange]);
+  // Removed complex email auto-save - email is read-only and pre-filled
 
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    const timeouts = saveTimeoutRefs.current;
-    return () => {
-      // Clear all pending timeouts
-      timeouts.forEach(timeout => clearTimeout(timeout));
-      timeouts.clear();
-    };
-  }, []);
+  // Removed timeout cleanup - no longer needed
 
   // Note: Removed debug logging and consistency check effects to simplify component
 
@@ -677,7 +619,13 @@ export default function DynamicApplicationForm({
             label={questionText}
             required={question.required}
             value={typeof currentValue === "string" ? currentValue : ""}
-            onChange={(value) => void handleFieldChange(question.questionKey, value ?? "")}
+            onChange={async (value) => {
+              const newValue = value ?? "";
+              handleFieldChange(question.questionKey, newValue);
+              // Save immediately for select fields (single choice)
+              await ensureApplication();
+              void saveField(question.questionKey, newValue);
+            }}
             error={hasError ? errorMessage : undefined}
             styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
           />
@@ -697,7 +645,11 @@ export default function DynamicApplicationForm({
             required={false} // Override to make non-required
             placeholder={questionText.toLowerCase().includes("n/a") ? "Enter N/A if not applicable" : undefined}
             value={typeof currentValue === "string" ? currentValue : ""}
-            onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
+            onChange={(event) => handleFieldChange(question.questionKey, event.currentTarget.value)}
+            onBlur={async () => {
+              await ensureApplication();
+              void saveField(question.questionKey, currentValue);
+            }}
             error={hasError ? errorMessage : undefined}
             styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
           />
@@ -722,7 +674,8 @@ export default function DynamicApplicationForm({
               value={typeof currentValue === "string" ? currentValue : ""}
               readOnly={isEmailField}
               placeholder={isEmailField ? "Your account email (cannot be changed)" : undefined}
-              onChange={isEmailField ? undefined : (event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
+              onChange={isEmailField ? undefined : (event) => handleFieldChange(question.questionKey, event.currentTarget.value)}
+              onBlur={isEmailField ? undefined : () => void saveField(question.questionKey, currentValue)}
               error={hasError ? errorMessage : undefined}
               styles={{
                 input: {
@@ -746,7 +699,8 @@ export default function DynamicApplicationForm({
               minRows={3}
               maxRows={10}
               value={typeof currentValue === "string" ? currentValue : ""}
-              onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
+              onChange={(event) => handleFieldChange(question.questionKey, event.currentTarget.value)}
+              onBlur={() => void saveField(question.questionKey, currentValue)}
               error={hasError ? errorMessage : undefined}
               styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
             />
@@ -763,7 +717,13 @@ export default function DynamicApplicationForm({
               label={questionText}
               required={question.required}
               value={typeof currentValue === "string" ? currentValue : ""}
-              onChange={(value) => void handleFieldChange(question.questionKey, value ?? "")}
+              onChange={async (value) => {
+                const newValue = value ?? "";
+                handleFieldChange(question.questionKey, newValue);
+                // Save immediately for select fields (single choice)
+                await ensureApplication();
+                void saveField(question.questionKey, newValue);
+              }}
               error={hasError ? errorMessage : undefined}
               styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
             />
@@ -780,7 +740,12 @@ export default function DynamicApplicationForm({
               label={questionText}
               required={question.required}
               value={Array.isArray(currentValue) ? currentValue : []}
-              onChange={(value) => void handleFieldChange(question.questionKey, value)}
+              onChange={async (value) => {
+                handleFieldChange(question.questionKey, value);
+                // Save immediately for multiselect fields (selection change)
+                await ensureApplication();
+                void saveField(question.questionKey, value);
+              }}
               error={hasError ? errorMessage : undefined}
               styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
             />
@@ -796,7 +761,11 @@ export default function DynamicApplicationForm({
               label={questionText}
               required={question.required}
               value={typeof currentValue === "number" ? currentValue : ""}
-              onChange={(value) => void handleFieldChange(question.questionKey, value || 0)}
+              onChange={(value) => handleFieldChange(question.questionKey, value || 0)}
+              onBlur={async () => {
+                await ensureApplication();
+                void saveField(question.questionKey, currentValue);
+              }}
               error={hasError ? errorMessage : undefined}
               styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
             />
@@ -809,7 +778,13 @@ export default function DynamicApplicationForm({
             <Checkbox
               label={questionText}
               checked={Boolean(currentValue)}
-              onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.checked)}
+              onChange={async (event) => {
+                const newValue = event.currentTarget.checked;
+                handleFieldChange(question.questionKey, newValue);
+                // Save immediately for checkbox (single action)
+                await ensureApplication();
+                void saveField(question.questionKey, newValue);
+              }}
               error={hasError ? errorMessage : undefined}
             />
             {hasError && (
@@ -827,7 +802,11 @@ export default function DynamicApplicationForm({
               label={questionText}
               required={question.required}
               value={typeof currentValue === "string" ? currentValue : ""}
-              onChange={(event) => void handleFieldChange(question.questionKey, event.currentTarget.value)}
+              onChange={(event) => handleFieldChange(question.questionKey, event.currentTarget.value)}
+              onBlur={async () => {
+                await ensureApplication();
+                void saveField(question.questionKey, currentValue);
+              }}
               error={hasError ? errorMessage : undefined}
               styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
             />
