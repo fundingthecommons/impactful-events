@@ -145,6 +145,43 @@ export default function DynamicApplicationForm({
 
   // Removed stableResponses useMemo - using direct prop access during initialization only
 
+  // Create application if it doesn't exist
+  const ensureApplication = useCallback(async () => {
+    if (applicationId) return applicationId;
+    
+    // Prevent multiple simultaneous creation attempts
+    if (isCreatingApplication) {
+      // Wait for existing creation to complete, then retry
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return ensureApplication();
+    }
+
+    setIsCreatingApplication(true);
+    try {
+      const application = await createApplication.mutateAsync({
+        eventId,
+        language,
+      });
+      setApplicationId(application.id);
+      return application.id;
+    } catch (error) {
+      // Backend now handles race conditions gracefully, so we shouldn't get errors
+      // Only log for debugging, don't show user error notifications
+      console.warn('Application creation handled by backend:', error);
+      
+      // If we still get an error, it's likely a real issue
+      notifications.show({
+        title: "Error",
+        message: "Unable to initialize application. Please refresh and try again.",
+        color: "red",
+        icon: <IconAlertCircle />,
+      });
+      throw error;
+    } finally {
+      setIsCreatingApplication(false);
+    }
+  }, [applicationId, isCreatingApplication, createApplication, eventId, language]);
+
   // Initialize form values ONCE when questions load (prevent infinite loops)
   useEffect(() => {
     console.log('🔍 DynamicApplicationForm: Main useEffect triggered', {
@@ -232,10 +269,34 @@ export default function DynamicApplicationForm({
 
       setFormValues(initialValues);
       console.log('✅ DynamicApplicationForm: ONE-TIME form initialization complete');
+
+      // Auto-save read-only fields that are pre-populated (like email)
+      const emailQuestion = questions.find(q => q.questionKey === "email");
+      if (emailQuestion && userEmail && initialValues.email === userEmail) {
+        console.log('🔍 Auto-saving pre-populated email field:', userEmail);
+        // Auto-save email after form initialization (always save, backend will handle duplicates)
+        setTimeout(() => {
+          void (async () => {
+            try {
+              const appId = applicationId ?? await ensureApplication();
+            await updateResponse.mutateAsync({
+              applicationId: appId,
+              questionId: emailQuestion.id,
+              answer: userEmail,
+            });
+              console.log('✅ Email auto-save successful');
+              onUpdated?.(); // Trigger parent update
+            } catch (error) {
+              console.error('❌ Email auto-save failed:', error);
+            }
+          })();
+        }, 500); // Small delay to ensure form is fully initialized
+      }
     } else {
       console.log('🔍 DynamicApplicationForm: Skipping initialization - no questions, already initialized, or questions not loaded');
     }
-  }, [questions, hasInitialized, existingApplication?.id, existingApplication?.responses, language, userEmail]); // Include all dependencies
+  }, [questions, hasInitialized, userEmail, applicationId, updateResponse, ensureApplication, onUpdated]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Note: Intentionally excluding existingApplication?.responses to prevent infinite loops
 
   // Simplified: removed session tracking to reduce complexity
 
@@ -293,43 +354,6 @@ export default function DynamicApplicationForm({
   }, [completionStatus, applicationId]);
 
   // Removed complex auto-save functionality - now using simple onBlur saving
-
-  // Create application if it doesn't exist
-  const ensureApplication = useCallback(async () => {
-    if (applicationId) return applicationId;
-    
-    // Prevent multiple simultaneous creation attempts
-    if (isCreatingApplication) {
-      // Wait for existing creation to complete, then retry
-      await new Promise(resolve => setTimeout(resolve, 100));
-      return ensureApplication();
-    }
-
-    setIsCreatingApplication(true);
-    try {
-      const application = await createApplication.mutateAsync({
-        eventId,
-        language,
-      });
-      setApplicationId(application.id);
-      return application.id;
-    } catch (error) {
-      // Backend now handles race conditions gracefully, so we shouldn't get errors
-      // Only log for debugging, don't show user error notifications
-      console.warn('Application creation handled by backend:', error);
-      
-      // If we still get an error, it's likely a real issue
-      notifications.show({
-        title: "Error",
-        message: "Unable to initialize application. Please refresh and try again.",
-        color: "red",
-        icon: <IconAlertCircle />,
-      });
-      throw error;
-    } finally {
-      setIsCreatingApplication(false);
-    }
-  }, [applicationId, isCreatingApplication, createApplication, eventId, language]);
 
   // Simple field save function (no debouncing, called onBlur)
   const saveField = useCallback(async (questionKey: string, value: unknown) => {
