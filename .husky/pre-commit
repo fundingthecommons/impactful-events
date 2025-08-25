@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+
+echo "🧪 Running form tests before commit..."
+
+# Run form tests (core logic that must pass)
+bun run test:form
+
+# Check if tests passed
+if [ $? -ne 0 ]; then
+    echo "❌ Form tests failed! Fix issues before committing."
+    echo "Run 'bun run test:form' to see detailed results."
+    exit 1
+fi
+
+echo "✅ Form tests passed!"
+
+# Run linting on form component (skip full Next.js lint, just check the file)
+echo "🔍 Checking form component code quality..."
+npx eslint src/app/_components/DynamicApplicationForm.tsx
+
+if [ $? -ne 0 ]; then
+    echo "❌ Form linting failed! Fix code quality issues before committing."
+    exit 1
+fi
+
+echo "✅ Form code quality checks passed!"
+echo "🚀 Ready to commit!"

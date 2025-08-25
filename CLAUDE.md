@@ -538,8 +538,13 @@ Tests automatically detect:
 
 ### Quality Gates
 
-#### Mandatory Checks Before Deployment
-- [ ] All form tests passing (`bun run test:form`)
+#### Automated Quality Gates (Enforced)
+- ✅ **Pre-commit hooks**: Automatically run `bun run test:form` before every commit
+- ✅ **Pre-push hooks**: Run comprehensive test suite before pushing to remote
+- ✅ **GitHub Actions**: Form tests run automatically on PRs affecting form components
+- ✅ **Build validation**: Ensures deployment readiness before push
+
+#### Manual Checks Before Deployment
 - [ ] Build-tester agent review (`/form-quality-check`)
 - [ ] Console clean (no warnings/violations in development)
 - [ ] Complete user workflow tested manually

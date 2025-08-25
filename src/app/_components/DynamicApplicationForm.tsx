@@ -423,8 +423,8 @@ export default function DynamicApplicationForm({
 
     setIsSaving(true);
     try {
-      // Ensure application exists
-      const appId = applicationId || await ensureApplication();
+      // Ensure application exists before saving
+      await ensureApplication();
       
       // Save all non-empty form values
       const savePromises = [];
@@ -788,7 +788,7 @@ export default function DynamicApplicationForm({
         if (currentValue.startsWith("http")) {
           // Extract handle from URL
           const urlParts = currentValue.split("/");
-          displayValue = urlParts[urlParts.length - 1] || "";
+          displayValue = urlParts[urlParts.length - 1] ?? "";
         } else {
           // Already a handle
           displayValue = currentValue;

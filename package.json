@@ -38,7 +38,8 @@
     "test:form-scroll": "vitest run --config vitest.config.form.ts src/app/_components/__tests__/scroll-behavior.test.tsx",
     "test:form-validation": "vitest run --config vitest.config.form.ts src/app/_components/__tests__/form-validation.test.tsx",
     "test:form-watch": "vitest watch --config vitest.config.form.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.2",
@@ -87,6 +88,7 @@
     "eslint": "^9.23.0",
     "eslint-config-next": "^15.2.3",
     "happy-dom": "^18.0.1",
+    "husky": "^9.1.7",
     "msw": "^2.10.5",
     "postcss": "^8.5.3",
     "prettier": "^3.5.3",

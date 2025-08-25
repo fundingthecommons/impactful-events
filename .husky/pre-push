@@ -1,0 +1,24 @@
+#!/usr/bin/env sh
+
+echo "🚀 Running comprehensive checks before push..."
+
+# Run the complete form test suite
+echo "🧪 Running comprehensive form test suite..."
+./scripts/test-form.sh
+
+if [ $? -ne 0 ]; then
+    echo "❌ Comprehensive form tests failed! Fix issues before pushing."
+    echo "Run './scripts/test-form.sh' for detailed results."
+    exit 1
+fi
+
+# Run build check to ensure deployment readiness
+echo "🏗️ Validating build for deployment..."
+SKIP_ENV_VALIDATION=1 bun run build
+
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed! Fix build issues before pushing."
+    exit 1
+fi
+
+echo "✅ All checks passed! Safe to push to remote."
