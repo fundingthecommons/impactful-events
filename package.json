@@ -32,6 +32,12 @@
     "test:email": "vitest run --grep 'Email'",
     "test:coverage": "vitest run --coverage",
     "test:all": "bun run test:unit && bun run test:integration && bun run test:e2e",
+    "test:form": "vitest run --config vitest.config.form.ts src/app/_components/__tests__/core-form-logic.test.ts src/app/_components/__tests__/simple-validation.test.ts",
+    "test:form-performance": "vitest run --config vitest.config.form.ts src/app/_components/__tests__/performance.test.tsx",
+    "test:form-integration": "vitest run --config vitest.config.form.ts src/app/_components/__tests__/form-integration.test.tsx",
+    "test:form-scroll": "vitest run --config vitest.config.form.ts src/app/_components/__tests__/scroll-behavior.test.tsx",
+    "test:form-validation": "vitest run --config vitest.config.form.ts src/app/_components/__tests__/form-validation.test.tsx",
+    "test:form-watch": "vitest watch --config vitest.config.form.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

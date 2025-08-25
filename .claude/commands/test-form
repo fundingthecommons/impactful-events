@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Claude Code command: /test-form
+# Runs comprehensive form testing suite
+
+echo "🧪 Running Comprehensive Form Tests..."
+echo "======================================"
+
+# Check if we're in the right directory
+if [ ! -f "src/app/_components/DynamicApplicationForm.tsx" ]; then
+    echo "❌ Error: DynamicApplicationForm.tsx not found. Are you in the project root?"
+    exit 1
+fi
+
+# Run the comprehensive test script
+if [ -f "scripts/test-form.sh" ]; then
+    ./scripts/test-form.sh
+else
+    echo "❌ Error: scripts/test-form.sh not found"
+    exit 1
+fi

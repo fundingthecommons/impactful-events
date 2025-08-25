@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Claude Code command: /form-quality-check
+# Comprehensive form component review using specialized agents
+
+echo "🔍 Form Quality Check - Agent-Based Review"
+echo "========================================"
+
+echo ""
+echo "📊 1. Performance & Anti-Pattern Analysis"
+echo "----------------------------------------"
+claude-code task build-tester "Comprehensive review of DynamicApplicationForm for React anti-patterns, performance issues, and infinite loop risks. Focus on useEffect dependencies, state management, re-render optimization, and data flow patterns. Analyze src/app/_components/DynamicApplicationForm.tsx and related form components."
+
+echo ""
+echo "🏗️ 2. Architecture Analysis"  
+echo "-------------------------"
+claude-code task general-purpose "Analyze DynamicApplicationForm component architecture in src/app/_components/DynamicApplicationForm.tsx. Identify: multiple data sources, complex state management, potential race conditions, excessive API calls, and suggest architectural simplifications. Focus on hybrid data flow pattern compliance."
+
+echo ""
+echo "🧪 3. Testing Gap Analysis"
+echo "------------------------"
+claude-code task general-purpose "Review DynamicApplicationForm testing strategy in src/app/_components/__tests__/ directory. Identify testing gaps, suggest additional test cases based on component complexity, and recommend improvements to test coverage for form-specific scenarios."
+
+echo ""
+echo "✅ Form Quality Check Complete!"
+echo ""
+echo "Review agent recommendations above."
+echo "Address any high-priority issues before deployment."

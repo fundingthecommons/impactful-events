@@ -433,6 +433,161 @@ SKIP_ENV_VALIDATION=1 bun run check  # Validate code quality
 
 This theme system ensures a seamless user experience across light and dark modes while maintaining visual consistency and developer productivity.
 
+## Form Development & Testing Standards
+
+### Overview
+
+Form components require special attention due to complexity around state management, auto-save functionality, and user experience. This project has comprehensive testing and quality standards for forms based on lessons learned from performance issues and data synchronization problems.
+
+### Form Testing Requirements
+
+#### Before ANY Form Changes
+```bash
+# Required: Run existing form test suite
+bun run test:form
+
+# Required: Manual performance check  
+# Load form, check console for warnings/errors
+
+# Required: Test primary user journey
+# Fill form → Save draft → Submit workflow
+```
+
+#### After Form Changes
+```bash
+# Required: Comprehensive form testing
+./scripts/test-form.sh
+
+# Required: Agent-based review
+/form-quality-check
+
+# Required: Manual testing on real device
+# Test on mobile (onBlur behavior different)
+```
+
+### Form Development Standards
+
+#### Architecture Pattern: Hybrid Data Flow
+```
+Page Load: Server → Frontend (hydration)
+User Interaction: Frontend authority (single source of truth)  
+Form Submission: Frontend → Server (persistence)
+```
+
+#### Performance Requirements
+- **Maximum 2 useEffects** per form component
+- **Client-side validation** during editing (no server round trips)
+- **onBlur saving** for text inputs (not keystroke auto-save)
+- **Stable dependencies** in useEffect (no object references)
+
+#### React Anti-Patterns to Avoid
+```typescript
+// ❌ Bad: Unstable useEffect dependencies
+useEffect(() => {}, [existingApplication?.responses]);
+
+// ✅ Good: Stable primitive dependencies  
+useEffect(() => {}, [hasInitialized]);
+
+// ❌ Bad: Multiple conflicting data sources
+const serverData = api.getCompletion.useQuery();
+const serverData2 = api.getApplication.useQuery(); 
+const serverData3 = api.getStatus.useQuery();
+
+// ✅ Good: Single source of truth during editing
+const isComplete = useMemo(() => validateClientSide(), [formValues]);
+
+// ❌ Bad: Refetching after every save
+await saveField();
+void refetchData(); // Causes form reset!
+
+// ✅ Good: Trust optimistic updates
+await saveField();
+// No refetch needed
+```
+
+### Automated Testing
+
+#### Test Categories
+1. **Performance Tests**: Infinite loop prevention, re-render monitoring
+2. **Validation Tests**: Client-side logic verification, conditional fields
+3. **Scroll Tests**: Error targeting, field prioritization  
+4. **Integration Tests**: Complete user workflows, data persistence
+
+#### Test Scripts
+```bash
+# All form tests
+bun run test:form
+
+# Specific test suites
+bun run test:form-performance     # Critical: Infinite loop detection
+bun run test:form-validation      # Logic correctness
+bun run test:form-scroll         # UX behavior
+bun run test:form-integration    # End-to-end workflows
+
+# Development workflow
+bun run test:form-watch          # Live testing during development
+./scripts/test-form.sh           # Complete test suite
+```
+
+#### Performance Monitoring
+Tests automatically detect:
+- Infinite re-render loops (>10 renders in test period)
+- Console warnings/errors during normal use
+- Memory leaks from improper cleanup
+- Render timing regressions (>1 second load time)
+
+### Quality Gates
+
+#### Mandatory Checks Before Deployment
+- [ ] All form tests passing (`bun run test:form`)
+- [ ] Build-tester agent review (`/form-quality-check`)
+- [ ] Console clean (no warnings/violations in development)
+- [ ] Complete user workflow tested manually
+- [ ] Data integrity verified (frontend matches backend)
+
+#### Code Review Checklist
+- [ ] **Forms**: Submit workflow tested end-to-end
+- [ ] **Performance**: No infinite loops or excessive re-renders
+- [ ] **Data flow**: Hybrid pattern followed correctly
+- [ ] **Error handling**: Graceful failure modes implemented
+- [ ] **Testing**: New tests added for complex functionality
+
+### Custom Commands
+
+#### `/test-form`
+Runs comprehensive form test suite including performance, validation, scroll behavior, and integration tests.
+
+#### `/form-quality-check`  
+Uses specialized agents to review form components for React anti-patterns, performance issues, and architectural problems.
+
+### Common Form Issues & Prevention
+
+#### Issue: Infinite Re-render Loops
+**Prevention**: 
+- Use initialization guards (`hasInitialized` state)
+- Stable useEffect dependencies only
+- Performance tests catch excessive renders
+
+#### Issue: Data Disappearing During Auto-save
+**Prevention**:
+- No refetching after successful saves
+- Optimistic updates pattern
+- Data persistence tests validate behavior
+
+#### Issue: Frontend-Backend State Mismatch  
+**Prevention**:
+- Hybrid data flow pattern
+- Client-side validation during editing
+- Integration tests verify data integrity
+
+#### Issue: Poor Scroll-to-Error Behavior
+**Prevention**:
+- Shared conditional field detection logic
+- Consistent filtering across validation and scroll
+- Specific tests for scroll targeting
+
+This comprehensive framework prevents the form performance and data integrity issues previously encountered while ensuring reliable, maintainable form components.
+
 ## Email Template System
 
 ### Overview
