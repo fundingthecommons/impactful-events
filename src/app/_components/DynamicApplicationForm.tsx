@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { 
   Stack, 
   Text, 
@@ -235,7 +235,7 @@ export default function DynamicApplicationForm({
     } else {
       console.log('🔍 DynamicApplicationForm: Skipping initialization - no questions, already initialized, or questions not loaded');
     }
-  }, [questions, hasInitialized]); // Only essential dependencies - no more unstable references!
+  }, [questions, hasInitialized, existingApplication?.id, existingApplication?.responses, language, userEmail]); // Include all dependencies
 
   // Simplified: removed session tracking to reduce complexity
 
@@ -432,7 +432,7 @@ export default function DynamicApplicationForm({
           if (userEmail) {
             setFormValues(prev => ({ ...prev, email: userEmail }));
             // Auto-save to database
-            handleFieldChange("email", userEmail).catch(console.error);
+            void handleFieldChange("email", userEmail);
             continue; // Skip error for this field
           } else {
             errors[question.questionKey] = `${questionText} is required`;
