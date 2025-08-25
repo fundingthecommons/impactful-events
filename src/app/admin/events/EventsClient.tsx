@@ -66,7 +66,7 @@ interface EventCardProps {
     isOnline: boolean;
     _count?: {
       applications?: number;
-      eventSponsors?: number;
+      sponsors?: number;
     };
   };
 }
@@ -137,7 +137,7 @@ function EventCard({ event }: EventCardProps) {
                 <IconBuilding size={12} />
               </ThemeIcon>
               <Text size="sm" fw={500}>
-                {event._count?.eventSponsors ?? 0} Sponsors
+                {event._count?.sponsors ?? 0} Sponsors
               </Text>
             </Group>
             <Link href={`/admin/events/${event.id}/sponsors`} style={{ textDecoration: 'none' }}>
@@ -163,7 +163,7 @@ type EventWithCounts = {
   isOnline: boolean;
   _count?: {
     applications?: number;
-    eventSponsors?: number;
+    sponsors?: number;
   };
 };
 
@@ -222,7 +222,7 @@ export default function EventsClient() {
             <Stack gap={0} ta="center">
               <Text size="xl" fw={700} c="orange">
                 {eventsWithCounts.reduce((sum: number, event: EventWithCounts) => {
-                  return sum + (event._count?.eventSponsors ?? 0);
+                  return sum + (event._count?.sponsors ?? 0);
                 }, 0)}
               </Text>
               <Text size="sm" c="dimmed">Total Sponsors</Text>
@@ -237,7 +237,7 @@ export default function EventsClient() {
         </Paper>
 
         {/* Events Grid */}
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
           {eventsWithCounts.map((event) => (
             <EventCard key={event.id} event={event} />
           ))}

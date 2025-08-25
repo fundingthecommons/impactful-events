@@ -384,13 +384,20 @@ export const eventRouter = createTRPCRouter({
             },
           },
         },
+        _count: {
+          select: {
+            applications: true,
+            sponsors: true,
+          },
+        },
       },
     });
 
     console.log("🔍 getEvents query result:", {
       totalEvents: events.length,
       eventNames: events.map(e => e.name),
-      eventDates: events.map(e => ({ name: e.name, start: e.startDate, end: e.endDate }))
+      eventDates: events.map(e => ({ name: e.name, start: e.startDate, end: e.endDate })),
+      applicationCounts: events.map(e => ({ name: e.name, count: e._count.applications }))
     });
 
     return events;
