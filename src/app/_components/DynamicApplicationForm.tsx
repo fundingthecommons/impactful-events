@@ -333,10 +333,27 @@ export default function DynamicApplicationForm({
 
   // Simple field save function (no debouncing, called onBlur)
   const saveField = useCallback(async (questionKey: string, value: unknown) => {
-    if (!applicationId || !questions) return;
+    if (!questions) return;
 
     const question = questions.find(q => q.questionKey === questionKey);
     if (!question) return;
+
+    // Ensure application exists before saving
+    let appId = applicationId;
+    if (!appId) {
+      try {
+        appId = await ensureApplication();
+      } catch (error) {
+        console.error('Failed to create application before saving:', error);
+        notifications.show({
+          title: "Error",
+          message: "Unable to save data. Please refresh and try again.",
+          color: "red",
+          icon: <IconAlertCircle />,
+        });
+        return;
+      }
+    }
 
     setIsSaving(true);
     
@@ -351,7 +368,7 @@ export default function DynamicApplicationForm({
       }
 
       await updateResponse.mutateAsync({
-        applicationId,
+        applicationId: appId,
         questionId: question.id,
         answer: answerValue,
       });
@@ -374,7 +391,7 @@ export default function DynamicApplicationForm({
     } finally {
       setIsSaving(false);
     }
-  }, [applicationId, questions, updateResponse, onUpdated]);
+  }, [applicationId, questions, updateResponse, onUpdated, ensureApplication]);
 
   // Handle form field changes (local state only, no auto-save)
   const handleFieldChange = useCallback((questionKey: string, value: unknown) => {
@@ -405,6 +422,32 @@ export default function DynamicApplicationForm({
 
   // Note: Removed debug logging and consistency check effects to simplify component
 
+  // Client-side form completion validation (single source of truth during editing)
+  const isFormComplete = useMemo(() => {
+    if (!questions) return false;
+    
+    const requiredQuestions = questions.filter(q => {
+      // Filter out conditional fields even if marked as required in DB
+      const questionText = language === "es" ? q.questionEs : q.questionEn;
+      const isConditionalField = questionText.toLowerCase().includes("specify") || 
+                                 questionText.toLowerCase().includes("if you answered") ||
+                                 questionText.toLowerCase().includes("if you did not select") ||
+                                 (questionText.toLowerCase().includes("other") && questionText.toLowerCase().includes("please"));
+      return q.required && !isConditionalField;
+    });
+    
+    return requiredQuestions.every(question => {
+      const value = formValues[question.questionKey];
+      
+      if (question.questionType === "MULTISELECT") {
+        return Array.isArray(value) && value.length > 0;
+      } else if (question.questionType === "CHECKBOX") {
+        return Boolean(value);
+      } else {
+        return value && (typeof value === "string" ? value.trim() : true);
+      }
+    });
+  }, [formValues, questions, language]);
 
   // Enhanced form validation that's resilient to state changes
   const validateForm = () => {
@@ -475,20 +518,7 @@ export default function DynamicApplicationForm({
       return;
     }
     
-    // Preserve current form state before validation
-    const currentFormState = { ...formValues };
-    
-    // Refresh completion status to get latest validation state
-    try {
-      await refetchCompletion();
-      // Don't refetch application during validation to prevent form data loss
-      // await refetchApplication();
-    } catch (error) {
-      console.error('Error refreshing application status:', error);
-    }
-    
-    // Restore form state after potential refetch-induced reinitialization
-    setFormValues(currentFormState);
+    // Use client-side validation (no server round trips needed)
     
     if (!validateForm()) {
       // Find first missing required field for scroll-to-error
@@ -849,28 +879,25 @@ export default function DynamicApplicationForm({
     <div>
       <Stack gap="lg">
         {/* Progress Indicator */}
-        {canEdit && applicationId && completionStatus && (
+        {canEdit && applicationId && questions && (
           <ApplicationProgressIndicator
-            completedFields={completionStatus.completedFields}
-            totalFields={completionStatus.totalFields}
-            completionPercentage={completionStatus.completionPercentage}
+            completedFields={Object.values(formValues).filter(v => v && (typeof v === "string" ? v.trim() : true)).length}
+            totalFields={questions.filter(q => q.required).length}
+            completionPercentage={Math.round((Object.values(formValues).filter(v => v && (typeof v === "string" ? v.trim() : true)).length / questions.filter(q => q.required).length) * 100)}
           />
         )}
 
         {/* Completion Status */}
-        {canEdit && applicationId && completionStatus && (
+        {canEdit && applicationId && questions && (
           <ApplicationCompletionStatus
-            isComplete={completionStatus.isComplete ?? false}
+            isComplete={isFormComplete}
             isSubmitted={isSubmitted}
-            missingFields={completionStatus.missingFields}
+            missingFields={[]} // TODO: Calculate missing fields from frontend state
             onSubmit={handleSubmit}
             wasReverted={wasRecentlyReverted}
             shouldShowMissingFields={
               Boolean(submitAttempted) || // Show if they tried to submit
-              Boolean(
-                existingApplication && 
-                completionStatus.completedFields > 1
-              ) || // Show if returning to in-progress application
+              Boolean(existingApplication && Object.keys(formValues).length > 5) || // Show if has substantial progress
               Boolean(wasRecentlyReverted) // Show if application was reverted from submitted
             }
           />
