@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { 
   Stack, 
   Text, 
@@ -70,6 +70,15 @@ export default function DynamicApplicationForm({
   onSubmitted,
   onUpdated,
 }: DynamicApplicationFormProps) {
+  console.log('🔍 DynamicApplicationForm: Component rendering', {
+    eventId,
+    existingApplicationId: existingApplication?.id,
+    existingStatus: existingApplication?.status,
+    responseCount: existingApplication?.responses?.length,
+    userEmail,
+    language
+  });
+
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [applicationId, setApplicationId] = useState<string | null>(existingApplication?.id ?? null);
@@ -83,22 +92,47 @@ export default function DynamicApplicationForm({
   const saveTimeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const prevCompletionPercentage = useRef<number>(-1); // -1 means uninitialized
 
+  console.log('🔍 DynamicApplicationForm: State initialized', {
+    applicationId,
+    isSaving,
+    isSubmittingOrSubmitted
+  });
+
   // Fetch questions for the event
-  const { data: questions, isLoading: questionsLoading } = api.application.getEventQuestions.useQuery({
+  const { data: questions, isLoading: questionsLoading, error: questionsError } = api.application.getEventQuestions.useQuery({
     eventId,
   });
 
+  console.log('🔍 DynamicApplicationForm: Questions query', {
+    questionsLoading,
+    questionsCount: questions?.length,
+    questionsError: questionsError?.message
+  });
+
   // Fetch application completion status
-  const { data: completionStatus, refetch: refetchCompletion } = api.application.getApplicationCompletion.useQuery(
+  const { data: completionStatus, refetch: refetchCompletion, error: completionError } = api.application.getApplicationCompletion.useQuery(
     { applicationId: applicationId! },
     { enabled: !!applicationId }
   );
 
+  console.log('🔍 DynamicApplicationForm: Completion query', {
+    applicationId,
+    completionEnabled: !!applicationId,
+    completionStatus: completionStatus?.completionPercentage,
+    completionError: completionError?.message
+  });
+
   // Fetch fresh application data to ensure status is current
-  const { data: freshApplicationData, refetch: refetchApplication } = api.application.getApplication.useQuery(
+  const { data: freshApplicationData, refetch: refetchApplication, error: applicationError } = api.application.getApplication.useQuery(
     { eventId },
     { enabled: !!applicationId }
   );
+
+  console.log('🔍 DynamicApplicationForm: Application query', {
+    applicationEnabled: !!applicationId,
+    freshApplicationStatus: freshApplicationData?.status,
+    applicationError: applicationError?.message
+  });
 
   // API mutations
   const createApplication = api.application.createApplication.useMutation();
@@ -108,24 +142,69 @@ export default function DynamicApplicationForm({
   // Simple state management instead of Mantine form
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
 
-  // Initialize form values when questions load
+  // Create stable dependency to prevent unnecessary re-initialization
+  const stableResponses = useMemo(() => {
+    console.log('🔍 DynamicApplicationForm: useMemo stableResponses recalculating', {
+      existingResponsesLength: existingApplication?.responses?.length
+    });
+    
+    const result = existingApplication?.responses.map(r => ({
+      questionKey: r.question.questionKey,
+      answer: r.answer
+    })) ?? [];
+    
+    console.log('✅ DynamicApplicationForm: stableResponses created', {
+      stableResponsesLength: result.length
+    });
+    
+    return result;
+  }, [existingApplication?.responses]);
+
+  // Initialize form values when questions load (with stable dependencies)
   useEffect(() => {
+    console.log('🔍 DynamicApplicationForm: Main useEffect triggered', {
+      hasQuestions: !!questions,
+      questionsLength: questions?.length,
+      stableResponsesLength: stableResponses.length,
+      existingApplicationId: existingApplication?.id,
+      userEmail,
+      language
+    });
+
     if (questions && questions.length > 0) {
+      console.log('🔍 DynamicApplicationForm: Starting form initialization');
       const initialValues: Record<string, unknown> = {};
 
       questions.forEach((question) => {
         // Set initial value from existing response or empty
-        const existingResponse = existingApplication?.responses.find(
-          r => r.question.questionKey === question.questionKey
+        const existingResponse = stableResponses.find(
+          r => r.questionKey === question.questionKey
         );
         
         let initialValue: unknown = "";
         if (existingResponse) {
           if (question.questionType === "MULTISELECT") {
             try {
-              initialValue = JSON.parse(existingResponse.answer) as unknown[];
+              // Try JSON parsing first
+              const parsed = JSON.parse(existingResponse.answer) as unknown[];
+              if (Array.isArray(parsed)) {
+                initialValue = parsed;
+              } else {
+                throw new Error("Not an array");
+              }
             } catch {
-              initialValue = [];
+              // Fallback: Handle plain text format (e.g., "Developer / Desarrollador")
+              let cleanAnswer = existingResponse.answer;
+              if (cleanAnswer.includes(" / ")) {
+                cleanAnswer = cleanAnswer.split(" / ")[0]?.trim() ?? cleanAnswer;
+              }
+              
+              // Handle comma-separated values or single value
+              const textValues = cleanAnswer.includes(",") 
+                ? cleanAnswer.split(",").map(v => v.trim()).filter(v => v.length > 0)
+                : [cleanAnswer.trim()].filter(v => v.length > 0);
+              
+              initialValue = textValues;
             }
           } else if (question.questionType === "CHECKBOX") {
             initialValue = existingResponse.answer === "true";
@@ -161,21 +240,19 @@ export default function DynamicApplicationForm({
         initialValues[question.questionKey] = initialValue;
       });
 
+      console.log('🔍 DynamicApplicationForm: Setting form values', {
+        initialValuesCount: Object.keys(initialValues).length,
+        initialValuesKeys: Object.keys(initialValues).slice(0, 5) // First 5 keys for debugging
+      });
+
       setFormValues(initialValues);
+      console.log('✅ DynamicApplicationForm: Form initialization complete');
+    } else {
+      console.log('🔍 DynamicApplicationForm: Skipping initialization - no questions or questions not loaded');
     }
-  }, [questions, existingApplication?.id, existingApplication?.responses, userEmail, language]); // Include all dependencies
+  }, [questions, existingApplication?.id, stableResponses, userEmail, language]); // Use stable responses reference
 
-  // TODO: Add auto-save logic for email field after fixing dependency ordering
-
-  // Check if this is the first time viewing this application in this session
-  const isFirstTimeInSession = !sessionStorage.getItem(`app-${eventId}-viewed`);
-
-  // Mark that this application has been viewed in this session
-  useEffect(() => {
-    if (existingApplication && !isFirstTimeInSession) {
-      sessionStorage.setItem(`app-${eventId}-viewed`, 'true');
-    }
-  }, [existingApplication, eventId, isFirstTimeInSession]);
+  // Simplified: removed session tracking to reduce complexity
 
   // Use fresh completionStatus data instead of stale existingApplication prop
   const currentStatus = completionStatus?.status ?? freshApplicationData?.status ?? existingApplication?.status ?? "DRAFT";
@@ -258,26 +335,11 @@ export default function DynamicApplicationForm({
       setLastSaved(new Date());
       onUpdated?.();
       
-      // Refetch both completion status and fresh application data
-      void refetchCompletion();
-      void refetchApplication();
+      // Only refetch completion status occasionally to avoid data loss
+      // Don't refetch application data as it can overwrite user input
       
-      // Check if status might have been reverted and show notification
-      if (safeCurrentStatus === "SUBMITTED") {
-        // Small delay to let the refetch complete, then check if status changed
-        setTimeout(() => {
-          void refetchCompletion().then((result) => {
-            if (result.data?.status === "DRAFT" && safeCurrentStatus === "SUBMITTED") {
-              notifications.show({
-                title: "Application Status Updated",
-                message: "Your application has been moved back to draft status. Please review and re-submit when ready.",
-                color: "blue",
-                icon: <IconAlertCircle />,
-              });
-            }
-          });
-        }, 1000);
-      }
+      // Note: Removed status reversion check to prevent unnecessary refetches
+      // Status changes will be detected on next page load or manual refresh
     } catch (error: unknown) {
       console.error('Error saving response:', error);
       
@@ -414,34 +476,7 @@ export default function DynamicApplicationForm({
     };
   }, []);
 
-  // Consistency check - warn if different data sources disagree
-  useEffect(() => {
-    if (completionStatus?.status && freshApplicationData?.status && completionStatus.status !== freshApplicationData.status) {
-      console.warn('⚠️ Status inconsistency detected:', {
-        completionStatus: completionStatus.status,
-        freshApplicationData: freshApplicationData.status,
-        existingApplication: existingApplication?.status
-      });
-    }
-  }, [completionStatus?.status, freshApplicationData?.status, existingApplication?.status]);
-
-  // Debug logging for status tracking
-  useEffect(() => {
-    if (applicationId) {
-      console.log('🐛 Application Status Debug:', {
-        applicationId,
-        existingApplicationStatus: existingApplication?.status,
-        completionStatusFromAPI: completionStatus?.status,
-        freshApplicationStatus: freshApplicationData?.status,
-        currentStatusUsed: safeCurrentStatus,
-        isSubmittedCalculation: isSubmitted,
-        canEditCalculation: canEdit,
-        completionStatusIsComplete: completionStatus?.isComplete,
-        dataSource: completionStatus?.status ? 'API' : freshApplicationData?.status ? 'freshAPI' : 'props',
-        timestamp: new Date().toISOString()
-      });
-    }
-  }, [applicationId, existingApplication?.status, completionStatus?.status, freshApplicationData?.status, safeCurrentStatus, isSubmitted, canEdit, completionStatus?.isComplete]);
+  // Note: Removed debug logging and consistency check effects to simplify component
 
 
   // Enhanced form validation that's resilient to state changes
@@ -817,6 +852,7 @@ export default function DynamicApplicationForm({
   };
 
   if (questionsLoading) {
+    console.log('🔍 DynamicApplicationForm: Showing loading state');
     return (
       <Paper p="xl">
         <Stack align="center" gap="md">
@@ -828,12 +864,22 @@ export default function DynamicApplicationForm({
   }
 
   if (!questions || questions.length === 0) {
+    console.log('🔍 DynamicApplicationForm: No questions available');
     return (
       <Alert color="yellow" icon={<IconAlertCircle />}>
         No application questions are available for this event.
       </Alert>
     );
   }
+
+  console.log('🔍 DynamicApplicationForm: About to render main form', {
+    questionsCount: questions.length,
+    formValuesCount: Object.keys(formValues).length,
+    canEdit,
+    isSubmitted,
+    applicationId,
+    completionStatusExists: !!completionStatus
+  });
 
   return (
     <div>
@@ -859,9 +905,8 @@ export default function DynamicApplicationForm({
               Boolean(submitAttempted) || // Show if they tried to submit
               Boolean(
                 existingApplication && 
-                completionStatus.completedFields > 1 && 
-                !isFirstTimeInSession
-              ) || // Show if returning to in-progress application (not first time in session)
+                completionStatus.completedFields > 1
+              ) || // Show if returning to in-progress application
               Boolean(wasRecentlyReverted) // Show if application was reverted from submitted
             }
           />

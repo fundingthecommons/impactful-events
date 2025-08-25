@@ -61,7 +61,8 @@ const NOTION_FORM_MAPPING: Record<string, string> = {
   // Program specific questions
   "Will you be able to attend the full program from October 24th through November 14th? / ¿Estarás disponible durante todo el tiempo que duré la residencia?": "program_availability", // Column 33
   "What do you want to build during the residency? / ¿Qué proyecto quieres desarrollar durante la residencia?": "project_description", // Column 16
-  "What is your prior experience with cryptography/currency, decentralized technologies, and/or climate, and public goods funding systems?": "prior_experience", // Column 18-21 (multiline)
+  "What is your prior experience with cryptography/currency, decentralized technologies, and/or climate, and public goods funding systems?": "prior_experience", // Column 19 (English only)
+  "What is your prior experience with cryptography/currency, decentralized technologies, and/or climate, and public goods funding systems? / Cuéntanos más sobre tu experiencia en criptografía, criptomonedas, tecnologías descentralizadas y/o sistemas de financiación de bienes públicos.": "prior_experience", // Column 96 (English + Spanish)
   "Do you need financial support to attend the residency? / ¿Necesitas apoyo financiero para atender la residencia?": "financial_support", // Column 41
   "Do you need a visa?": "visa_needed", // Column 86
   "Do you agree to our terms and conditions?": "terms_agreement", // Column 55

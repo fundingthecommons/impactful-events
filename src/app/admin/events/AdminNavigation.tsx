@@ -56,7 +56,7 @@ export default function AdminNavigation() {
           value="residency" 
           leftSection={<IconMapPin size={16} />}
           component={Link}
-          href="/admin/events/residency/applications"
+          href="/admin/events/funding-commons-residency-2025/applications"
           style={{ textDecoration: 'none' }}
         >
           Residency
