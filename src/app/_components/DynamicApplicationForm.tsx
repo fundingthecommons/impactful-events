@@ -515,6 +515,23 @@ export default function DynamicApplicationForm({
     });
   }, [formValues, actuallyRequiredQuestions]);
 
+  // Client-side missing fields calculation (for yellow box display)
+  const missingFields = useMemo(() => {
+    return actuallyRequiredQuestions
+      .filter(question => {
+        const value = formValues[question.questionKey];
+        
+        if (question.questionType === "MULTISELECT") {
+          return !Array.isArray(value) || value.length === 0;
+        } else if (question.questionType === "CHECKBOX") {
+          return !Boolean(value);
+        } else {
+          return !value || (typeof value === "string" && !value.trim());
+        }
+      })
+      .map(q => q.questionKey);
+  }, [actuallyRequiredQuestions, formValues]);
+
   // Enhanced form validation that's resilient to state changes
   const validateForm = () => {
     if (!questions) return false;
@@ -1030,7 +1047,7 @@ export default function DynamicApplicationForm({
           <ApplicationCompletionStatus
             isComplete={isFormComplete}
             isSubmitted={isSubmitted}
-            missingFields={[]} // TODO: Calculate missing fields from frontend state
+            missingFields={missingFields}
             onSubmit={handleSubmit}
             wasReverted={wasRecentlyReverted}
             shouldShowMissingFields={
