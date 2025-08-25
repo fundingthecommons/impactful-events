@@ -129,7 +129,7 @@ function getStatusIcon(status: string) {
 export default function AdminApplicationsClient({ event }: AdminApplicationsClientProps) {
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [hideRejected, setHideRejected] = useState<boolean>(false);
+  const [hideRejected, setHideRejected] = useState<boolean>(true);
   const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
   const [viewingApplication, setViewingApplication] = useState<ApplicationWithUser | null>(null);
   const [editingApplication, setEditingApplication] = useState<ApplicationWithUser | null>(null);
