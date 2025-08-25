@@ -89,6 +89,7 @@ export default function DynamicApplicationForm({
   const [isSubmittingOrSubmitted, setIsSubmittingOrSubmitted] = useState(
     Boolean(existingApplication?.status && existingApplication.status !== "DRAFT")
   );
+  const [hasInitialized, setHasInitialized] = useState(false);
   const saveTimeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const prevCompletionPercentage = useRef<number>(-1); // -1 means uninitialized
 
@@ -142,43 +143,27 @@ export default function DynamicApplicationForm({
   // Simple state management instead of Mantine form
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
 
-  // Create stable dependency to prevent unnecessary re-initialization
-  const stableResponses = useMemo(() => {
-    console.log('🔍 DynamicApplicationForm: useMemo stableResponses recalculating', {
-      existingResponsesLength: existingApplication?.responses?.length
-    });
-    
-    const result = existingApplication?.responses.map(r => ({
-      questionKey: r.question.questionKey,
-      answer: r.answer
-    })) ?? [];
-    
-    console.log('✅ DynamicApplicationForm: stableResponses created', {
-      stableResponsesLength: result.length
-    });
-    
-    return result;
-  }, [existingApplication?.responses]);
+  // Removed stableResponses useMemo - using direct prop access during initialization only
 
-  // Initialize form values when questions load (with stable dependencies)
+  // Initialize form values ONCE when questions load (prevent infinite loops)
   useEffect(() => {
     console.log('🔍 DynamicApplicationForm: Main useEffect triggered', {
       hasQuestions: !!questions,
       questionsLength: questions?.length,
-      stableResponsesLength: stableResponses.length,
-      existingApplicationId: existingApplication?.id,
-      userEmail,
-      language
+      hasInitialized,
+      existingApplicationId: existingApplication?.id
     });
 
-    if (questions && questions.length > 0) {
-      console.log('🔍 DynamicApplicationForm: Starting form initialization');
+    if (questions && questions.length > 0 && !hasInitialized) {
+      console.log('🔍 DynamicApplicationForm: Starting ONE-TIME form initialization');
+      setHasInitialized(true);
+      
       const initialValues: Record<string, unknown> = {};
 
       questions.forEach((question) => {
-        // Set initial value from existing response or empty
-        const existingResponse = stableResponses.find(
-          r => r.questionKey === question.questionKey
+        // Set initial value from existing response or empty (use prop directly at initialization)
+        const existingResponse = existingApplication?.responses.find(
+          r => r.question.questionKey === question.questionKey
         );
         
         let initialValue: unknown = "";
@@ -246,11 +231,11 @@ export default function DynamicApplicationForm({
       });
 
       setFormValues(initialValues);
-      console.log('✅ DynamicApplicationForm: Form initialization complete');
+      console.log('✅ DynamicApplicationForm: ONE-TIME form initialization complete');
     } else {
-      console.log('🔍 DynamicApplicationForm: Skipping initialization - no questions or questions not loaded');
+      console.log('🔍 DynamicApplicationForm: Skipping initialization - no questions, already initialized, or questions not loaded');
     }
-  }, [questions, existingApplication?.id, stableResponses, userEmail, language]); // Use stable responses reference
+  }, [questions, hasInitialized]); // Only essential dependencies - no more unstable references!
 
   // Simplified: removed session tracking to reduce complexity
 
