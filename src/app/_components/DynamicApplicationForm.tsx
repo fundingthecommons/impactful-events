@@ -417,6 +417,45 @@ export default function DynamicApplicationForm({
     }
   }, [applicationId, questions, updateResponse, onUpdated, ensureApplication]);
 
+  // Save all current form data as draft
+  const saveDraft = useCallback(async () => {
+    if (!questions) return;
+
+    setIsSaving(true);
+    try {
+      // Ensure application exists
+      const appId = applicationId || await ensureApplication();
+      
+      // Save all non-empty form values
+      const savePromises = [];
+      for (const question of questions) {
+        const value = formValues[question.questionKey];
+        if (value && (typeof value === "string" ? value.trim() : true)) {
+          savePromises.push(saveField(question.questionKey, value));
+        }
+      }
+      
+      await Promise.all(savePromises);
+      
+      notifications.show({
+        title: "Draft Saved Successfully",
+        message: "All your progress has been saved. You can safely leave and return later.",
+        color: "green",
+        icon: <IconCheck />,
+      });
+    } catch (error: unknown) {
+      console.error('Error saving draft:', error);
+      notifications.show({
+        title: "Error Saving Draft",
+        message: "Some changes may not have been saved. Please try again.",
+        color: "red",
+        icon: <IconAlertCircle />,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [questions, formValues, applicationId, ensureApplication, saveField]);
+
   // Handle form field changes (local state only, no auto-save)
   const handleFieldChange = useCallback((questionKey: string, value: unknown) => {
     setFormValues(prev => ({ ...prev, [questionKey]: value }));
@@ -706,6 +745,86 @@ export default function DynamicApplicationForm({
       );
     }
 
+    // Handle social media fields specially (handle input with URL preview)
+    if (question.questionKey === "twitter" || question.questionKey === "github" || question.questionKey === "linkedin") {
+      let urlFormat = "";
+      let placeholder = "";
+      
+      switch (question.questionKey) {
+        case "twitter":
+          urlFormat = "https://x.com/[handle]";
+          placeholder = "yourusername";
+          break;
+        case "github":
+          urlFormat = "https://github.com/[handle]";
+          placeholder = "yourusername";
+          break;
+        case "linkedin":
+          urlFormat = "https://linkedin.com/in/[handle]";
+          placeholder = "yourprofile";
+          break;
+      }
+      
+      // Extract handle from existing URL if present
+      let displayValue = "";
+      if (typeof currentValue === "string" && currentValue) {
+        if (currentValue.startsWith("http")) {
+          // Extract handle from URL
+          const urlParts = currentValue.split("/");
+          displayValue = urlParts[urlParts.length - 1] || "";
+        } else {
+          // Already a handle
+          displayValue = currentValue;
+        }
+      }
+      
+      return (
+        <div key={question.id} id={`field-${question.questionKey}`}>
+          <TextInput
+            label={`${question.questionKey.charAt(0).toUpperCase() + question.questionKey.slice(1)} Handle → ${urlFormat}`}
+            required={question.required}
+            placeholder={placeholder}
+            value={displayValue}
+            onChange={(event) => {
+              const handle = event.currentTarget.value;
+              // Store as full URL for backend compatibility
+              const fullUrl = handle ? `${urlFormat.replace("[handle]", handle)}` : "";
+              handleFieldChange(question.questionKey, fullUrl);
+            }}
+            onBlur={async () => {
+              // Get current value from form state (the full URL)
+              const currentFormValue = formValues[question.questionKey] as string;
+              await ensureApplication();
+              void saveField(question.questionKey, currentFormValue || "");
+            }}
+            error={hasError ? errorMessage : undefined}
+            styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+          />
+        </div>
+      );
+    }
+
+    // Handle cohort contribution specially (always multiline)
+    if (question.questionKey === "cohort_contribution") {
+      return (
+        <div key={question.id} id={`field-${question.questionKey}`}>
+          <Textarea
+            label={questionText}
+            required={question.required}
+            rows={4}
+            autosize
+            minRows={3}
+            maxRows={8}
+            value={typeof currentValue === "string" ? currentValue : ""}
+            onChange={(event) => handleFieldChange(question.questionKey, event.currentTarget.value)}
+            onBlur={() => void saveField(question.questionKey, currentValue)}
+            error={hasError ? errorMessage : undefined}
+            styles={hasError ? { input: { borderColor: "var(--mantine-color-red-6)" } } : undefined}
+          />
+        </div>
+      );
+    }
+
     switch (question.questionType) {
       case "TEXT":
       case "EMAIL":
@@ -922,24 +1041,44 @@ export default function DynamicApplicationForm({
           />
         )}
 
-        {/* Auto-save indicator */}
+        {/* Enhanced auto-save indicator and Save Draft button */}
         {canEdit && applicationId && (
-          <Group justify="space-between">
+          <Group justify="space-between" align="center">
             <Group gap="xs">
               {isSaving ? (
                 <>
                   <Loader size="xs" />
-                  <Text size="sm" c="dimmed">Saving...</Text>
+                  <Text size="sm" c="blue">Auto-saving changes...</Text>
                 </>
               ) : lastSaved ? (
                 <>
-                  <IconDeviceFloppy size={16} />
-                  <Text size="sm" c="dimmed">
-                    Last saved at {lastSaved.toLocaleTimeString()}
+                  <IconCheck size={16} color="green" />
+                  <Text size="sm" c="green">
+                    Auto-saved at {lastSaved.toLocaleTimeString()}
                   </Text>
                 </>
-              ) : null}
+              ) : (
+                <>
+                  <IconDeviceFloppy size={16} color="orange" />
+                  <Text size="sm" c="dimmed">
+                    Changes save automatically when you leave each field
+                  </Text>
+                </>
+              )}
             </Group>
+            
+            <Button
+              variant="filled"
+              size="sm"
+              color="blue"
+              leftSection={<IconDeviceFloppy size={16} />}
+              onClick={saveDraft}
+              loading={isSaving}
+              disabled={isSubmitted}
+              title="Save all your current progress. Useful before recording video or taking a break."
+            >
+              Save Draft
+            </Button>
           </Group>
         )}
 
