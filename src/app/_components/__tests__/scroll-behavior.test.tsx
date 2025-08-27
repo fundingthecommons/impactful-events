@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-
+import DynamicApplicationForm from '../DynamicApplicationForm';
 // Mock scroll behavior
 const mockScrollIntoView = vi.fn();
 Element.prototype.scrollIntoView = mockScrollIntoView;
@@ -22,7 +22,7 @@ Object.defineProperty(document, 'getElementById', {
 const mockTRPC = {
   application: {
     getEventQuestions: {
-      useQuery: jest.fn(() => ({
+      useQuery: vi.fn(() => ({
         data: [
           { 
             id: '1', 
@@ -70,33 +70,33 @@ const mockTRPC = {
       }))
     },
     getApplicationCompletion: {
-      useQuery: jest.fn(() => ({
+      useQuery: vi.fn(() => ({
         data: null,
         isLoading: false,
         error: null
       }))
     },
     getApplication: {
-      useQuery: jest.fn(() => ({
+      useQuery: vi.fn(() => ({
         data: null,
         isLoading: false,
         error: null
       }))
     },
     createApplication: {
-      useMutation: jest.fn(() => ({
+      useMutation: vi.fn(() => ({
         mutateAsync: vi.fn().mockResolvedValue({ id: 'test-app-id' }),
         isPending: false
       }))
     },
     updateResponse: {
-      useMutation: jest.fn(() => ({
+      useMutation: vi.fn(() => ({
         mutateAsync: vi.fn().mockResolvedValue({}),
         isPending: false
       }))
     },
     submitApplication: {
-      useMutation: jest.fn(() => ({
+      useMutation: vi.fn(() => ({
         mutateAsync: vi.fn().mockRejectedValue(new Error('Please answer all required questions: full_name, project_description')),
         isPending: false
       }))
@@ -104,7 +104,7 @@ const mockTRPC = {
   }
 };
 
-jest.mock('~/trpc/react', () => ({
+vi.mock('~/trpc/react', () => ({
   api: mockTRPC
 }));
 
@@ -236,7 +236,7 @@ describe('Scroll-to-Error Behavior Tests', () => {
     expect(mockGetElementById).not.toHaveBeenCalledWith('field-technical_skills_other');
     
     // Should only scroll to actual required fields
-    const scrollCalls = mockGetElementById.mock.calls.map(call => call[0]);
+    const scrollCalls = (mockGetElementById.mock.calls as unknown[][]).map(call => call[0] as string);
     const conditionalScrolls = scrollCalls.filter(id => id === 'field-technical_skills_other');
     expect(conditionalScrolls).toHaveLength(0);
   });
@@ -246,7 +246,7 @@ describe('Scroll-to-Error Behavior Tests', () => {
     const user = userEvent.setup();
     const mockFocus = vi.fn();
     
-    mockGetElementById.mockImplementation((id: string) => ({
+    mockGetElementById.mockImplementation((_id: string) => ({
       scrollIntoView: mockScrollIntoView,
       querySelector: vi.fn().mockReturnValue({
         focus: mockFocus

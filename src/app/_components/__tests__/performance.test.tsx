@@ -1,16 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
+// Type definitions
+type Question = {
+  id: string;
+  questionKey: string;
+  questionEn: string;
+  questionEs: string;
+  questionType: "TEXT" | "TEXTAREA" | "EMAIL" | "PHONE" | "URL" | "SELECT" | "MULTISELECT" | "CHECKBOX" | "NUMBER";
+  required: boolean;
+  options: string[];
+  order: number;
+};
+
+// Helper functions  
+function calculateMissingFields(formValues: Record<string, unknown>, requiredQuestions: Question[]): string[] {
+  return requiredQuestions
+    .filter(question => {
+      const value = formValues[question.questionKey];
+      if (question.questionType === "MULTISELECT") {
+        return !Array.isArray(value) || value.length === 0;
+      } else if (question.questionType === "CHECKBOX") {
+        return !Boolean(value);
+      } else {
+        return !value || (typeof value === "string" && !value.trim());
+      }
+    })
+    .map(q => q.questionKey);
+}
+
+function isFormComplete(formValues: Record<string, unknown>, requiredQuestions: Question[]): boolean {
+  return requiredQuestions.every(question => {
+    const value = formValues[question.questionKey];
+    if (question.questionType === "MULTISELECT") {
+      return Array.isArray(value) && value.length > 0;
+    } else if (question.questionType === "CHECKBOX") {
+      return Boolean(value);
+    } else {
+      return value && (typeof value === "string" ? value.trim() : true);
+    }
+  });
+}
 // Mock tRPC with performance monitoring
 const createMockTRPC = () => ({
   application: {
     getEventQuestions: {
-      useQuery: jest.fn(() => ({
+      useQuery: vi.fn(() => ({
         data: [
           { id: '1', questionKey: 'test_field', questionEn: 'Test Field', questionEs: 'Campo de Prueba', questionType: 'TEXT', required: true, options: [], order: 1 }
         ],
@@ -19,33 +60,33 @@ const createMockTRPC = () => ({
       }))
     },
     getApplicationCompletion: {
-      useQuery: jest.fn(() => ({
+      useQuery: vi.fn(() => ({
         data: null,
         isLoading: false,
         error: null
       }))
     },
     getApplication: {
-      useQuery: jest.fn(() => ({
+      useQuery: vi.fn(() => ({
         data: null,
         isLoading: false,
         error: null
       }))
     },
     createApplication: {
-      useMutation: jest.fn(() => ({
+      useMutation: vi.fn(() => ({
         mutateAsync: vi.fn().mockResolvedValue({ id: 'test-app-id' }),
         isPending: false
       }))
     },
     updateResponse: {
-      useMutation: jest.fn(() => ({
+      useMutation: vi.fn(() => ({
         mutateAsync: vi.fn().mockResolvedValue({}),
         isPending: false
       }))
     },
     submitApplication: {
-      useMutation: jest.fn(() => ({
+      useMutation: vi.fn(() => ({
         mutateAsync: vi.fn().mockResolvedValue({}),
         isPending: false
       }))
@@ -93,12 +134,12 @@ const PerformanceMonitor: React.FC<{ onRender: () => void; children: React.React
 };
 
 describe('Form Performance Monitoring', () => {
-  let consoleSpy: jest.SpyInstance;
-  let consoleErrorSpy: jest.SpyInstance;
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+    consoleSpy = vi.spyOn(console, 'warn').mockImplementation();
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
   });
 
   afterEach(() => {
@@ -178,7 +219,7 @@ describe('Form Performance Monitoring', () => {
     );
 
     // Track initial state
-    const initialWarnings = console.warn.mock.calls.length;
+    const initialWarnings = (console.warn as ReturnType<typeof vi.fn>).mock.calls.length;
 
     // Unmount and wait
     unmount();

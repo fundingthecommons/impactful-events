@@ -14,7 +14,7 @@ type Question = {
 };
 
 // Function to test conditional field detection
-function isConditionalField(question: Question, language: string = "en"): boolean {
+function isConditionalField(question: Question, language = "en"): boolean {
   const questionText = language === "es" ? question.questionEs : question.questionEn;
   return questionText.toLowerCase().includes("specify") || 
          questionText.toLowerCase().includes("if you answered") ||

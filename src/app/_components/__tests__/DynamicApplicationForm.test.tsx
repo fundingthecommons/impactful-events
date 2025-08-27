@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
@@ -125,11 +125,13 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 describe('DynamicApplicationForm Performance Tests', () => {
-  let consoleSpy: jest.SpyInstance;
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
   let renderCount = 0;
 
   beforeEach(() => {
-    consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+    consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+      // Intentionally empty - suppress console warnings during tests
+    });
     renderCount = 0;
   });
 
@@ -141,7 +143,7 @@ describe('DynamicApplicationForm Performance Tests', () => {
   it('should not re-render infinitely on load', async () => {
     const TestComponent = () => {
       renderCount++;
-      return <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />;
+      return <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />;
     };
 
     render(
@@ -168,7 +170,7 @@ describe('DynamicApplicationForm Performance Tests', () => {
   it('should not generate excessive console warnings', async () => {
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -186,7 +188,7 @@ describe('DynamicApplicationForm Performance Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -215,7 +217,7 @@ describe('DynamicApplicationForm Performance Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -237,7 +239,7 @@ describe('DynamicApplicationForm Validation Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" />
+        <DynamicApplicationForm eventId="test-event" language="en" />
       </TestWrapper>
     );
 
@@ -261,7 +263,7 @@ describe('DynamicApplicationForm Validation Tests', () => {
   it('should show correct missing fields in completion status', async () => {
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" />
+        <DynamicApplicationForm eventId="test-event" language="en" />
       </TestWrapper>
     );
 
@@ -280,7 +282,7 @@ describe('DynamicApplicationForm Validation Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -310,7 +312,7 @@ describe('DynamicApplicationForm UX Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" />
+        <DynamicApplicationForm eventId="test-event" language="en" />
       </TestWrapper>
     );
 
@@ -338,7 +340,7 @@ describe('DynamicApplicationForm UX Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 

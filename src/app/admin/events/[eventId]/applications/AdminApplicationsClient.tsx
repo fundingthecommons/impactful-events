@@ -279,7 +279,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       response => response.question.questionKey === "telegram"
     );
     
-    if (!telegramResponse || !telegramResponse.answer?.trim()) {
+    if (!telegramResponse?.answer?.trim()) {
       return null;
     }
     
@@ -287,8 +287,9 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     
     // If it's a full Telegram URL, extract just the username
     if (handle.includes('t.me/')) {
-      const match = handle.match(/t\.me\/([^/?]+)/);
-      if (match && match[1]) {
+      const regex = /t\.me\/([^/?]+)/;
+      const match = regex.exec(handle);
+      if (match?.[1]) {
         handle = match[1];
       }
     }

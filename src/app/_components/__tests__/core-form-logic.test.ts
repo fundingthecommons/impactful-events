@@ -98,7 +98,7 @@ describe('Core Form Logic Tests', () => {
       }
     ];
 
-    testCases.forEach(({ name, formValues, requiredFields, expectedMissing }) => {
+    testCases.forEach(({ formValues, requiredFields, expectedMissing }) => {
       const missing = calculateMissingFields(formValues, requiredFields);
       expect(missing).toEqual(expectedMissing);
     });

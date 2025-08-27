@@ -1,16 +1,16 @@
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MantineProvider } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import DynamicApplicationForm from '../DynamicApplicationForm';
-
 // Mock Next.js router
-jest.mock('next/navigation', () => ({
+vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn(),
-    refresh: jest.fn(),
+    push: vi.fn(),
+    refresh: vi.fn(),
   }),
 }));
 
@@ -18,7 +18,7 @@ jest.mock('next/navigation', () => ({
 const mockTRPC = {
   application: {
     getEventQuestions: {
-      useQuery: jest.fn(() => ({
+      useQuery: vi.fn(() => ({
         data: [
           { 
             id: '1', 
@@ -86,41 +86,41 @@ const mockTRPC = {
       }))
     },
     getApplicationCompletion: {
-      useQuery: jest.fn(() => ({
+      useQuery: vi.fn(() => ({
         data: null,
         isLoading: false,
         error: null
       }))
     },
     getApplication: {
-      useQuery: jest.fn(() => ({
+      useQuery: vi.fn(() => ({
         data: null,
         isLoading: false,
         error: null
       }))
     },
     createApplication: {
-      useMutation: jest.fn(() => ({
-        mutateAsync: jest.fn().mockResolvedValue({ id: 'test-app-id' }),
+      useMutation: vi.fn(() => ({
+        mutateAsync: vi.fn().mockResolvedValue({ id: 'test-app-id' }),
         isPending: false
       }))
     },
     updateResponse: {
-      useMutation: jest.fn(() => ({
-        mutateAsync: jest.fn().mockResolvedValue({}),
+      useMutation: vi.fn(() => ({
+        mutateAsync: vi.fn().mockResolvedValue({}),
         isPending: false
       }))
     },
     submitApplication: {
-      useMutation: jest.fn(() => ({
-        mutateAsync: jest.fn().mockResolvedValue({}),
+      useMutation: vi.fn(() => ({
+        mutateAsync: vi.fn().mockResolvedValue({}),
         isPending: false
       }))
     }
   }
 };
 
-jest.mock('~/trpc/react', () => ({
+vi.mock('~/trpc/react', () => ({
   api: mockTRPC
 }));
 
@@ -145,7 +145,7 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 describe('Form Integration Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   // Complete User Journey Test
@@ -186,7 +186,7 @@ describe('Form Integration Tests', () => {
   // Save Draft Workflow Test
   it('should handle save draft workflow correctly', async () => {
     const user = userEvent.setup();
-    const updateResponseMock = mockTRPC.application.updateResponse.useMutation().mutateAsync as jest.Mock;
+    const updateResponseMock = mockTRPC.application.updateResponse.useMutation().mutateAsync ;
     
     render(
       <TestWrapper>
@@ -219,7 +219,7 @@ describe('Form Integration Tests', () => {
   // Social Media Handle Conversion Test
   it('should convert social media handles to URLs correctly', async () => {
     const user = userEvent.setup();
-    const updateResponseMock = mockTRPC.application.updateResponse.useMutation().mutateAsync as jest.Mock;
+    const updateResponseMock = mockTRPC.application.updateResponse.useMutation().mutateAsync ;
     
     render(
       <TestWrapper>
@@ -254,7 +254,7 @@ describe('Form Integration Tests', () => {
     const user = userEvent.setup();
     
     // Mock save failure
-    const updateResponseMock = mockTRPC.application.updateResponse.useMutation().mutateAsync as jest.Mock;
+    const updateResponseMock = mockTRPC.application.updateResponse.useMutation().mutateAsync ;
     updateResponseMock.mockRejectedValueOnce(new Error('Network error'));
     
     render(
@@ -299,8 +299,6 @@ describe('Form Integration Tests', () => {
     await user.type(screen.getByLabelText(/what can you offer/i), 'Experience with React');
 
     // Technical skills without "Other"
-    const skillsSelect = screen.getByLabelText(/technical skills/i);
-    // Note: Would need to implement multiselect interaction
 
     // Form should be submittable without filling "specify other" field
     const submitButton = screen.getByRole('button', { name: /submit/i });

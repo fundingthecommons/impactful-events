@@ -454,7 +454,7 @@ export default function DynamicApplicationForm({
     } finally {
       setIsSaving(false);
     }
-  }, [questions, formValues, applicationId, ensureApplication, saveField]);
+  }, [questions, formValues, ensureApplication, saveField]);
 
   // Handle form field changes (local state only, no auto-save)
   const handleFieldChange = useCallback((questionKey: string, value: unknown) => {

@@ -14,18 +14,18 @@ Object.defineProperty(global, 'HTMLElement', {
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
-  disconnect() {}
-  observe() {}
-  unobserve() {}
+  constructor() { /* Mock constructor */ }
+  disconnect() { /* Mock method */ }
+  observe() { /* Mock method */ }
+  unobserve() { /* Mock method */ }
 };
 
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
-  constructor() {}
-  disconnect() {}
-  observe() {}
-  unobserve() {}
+  constructor() { /* Mock constructor */ }
+  disconnect() { /* Mock method */ }
+  observe() { /* Mock method */ }
+  unobserve() { /* Mock method */ }
 };
 
 // Mock matchMedia
@@ -33,7 +33,7 @@ Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation(query => ({
     matches: false,
-    media: query,
+    media: query as string,
     onchange: null,
     addListener: vi.fn(),
     removeListener: vi.fn(),
