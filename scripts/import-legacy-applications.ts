@@ -289,4 +289,4 @@ async function main() {
 }
 
 // Run the main function directly
-main().catch(console.error);
+await main().catch(console.error);
