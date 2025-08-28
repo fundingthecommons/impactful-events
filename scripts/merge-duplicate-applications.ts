@@ -178,25 +178,17 @@ async function mergeDuplicateApplications(targetEmail?: string, dryRun: boolean 
             const existingResponse = keepAppResponses.find(r => r.questionId === response.questionId);
             
             if (hasConflict && existingResponse) {
-              const questionType = response.question.questionType;
-              const isSelectType = ['SELECT', 'MULTISELECT', 'CHECKBOX'].includes(questionType);
-              const isTextType = ['TEXT', 'TEXTAREA', 'EMAIL', 'URL', 'PHONE'].includes(questionType);
+              console.log(`         ⚠️  CONFLICT: ${response.question.questionKey}`);
               
-              console.log(`         🔄 CONFLICT: ${response.question.questionKey} (${questionType})`);
-              
-              if (isSelectType) {
-                // For select fields: always use the value from unlinked application (legacy data)
-                console.log(`            Keep: "${response.answer}" (from unlinked application)`);
-                console.log(`            Skip: "${existingResponse.answer}" (from linked application)`);
-              } else if (isTextType) {
-                // For text fields: append unlinked value to linked value
-                const combinedAnswer = `${existingResponse.answer}\n\n[Merged from duplicate]: ${response.answer}`;
-                console.log(`            Combine: "${existingResponse.answer.substring(0, 30)}..." + "${response.answer.substring(0, 30)}..."`);
+              if (keepApp.hasUserId) {
+                // Keeper app is linked to user - always prefer linked user's value
+                console.log(`            Keep: "${existingResponse.answer.substring(0, 60)}..." (linked user's value)`);
+                console.log(`            Skip: "${response.answer.substring(0, 60)}..." (unlinked duplicate)`);
               } else {
-                // For other types: keep longer answer
+                // Neither app is linked - use longer/better answer
                 const keepExisting = existingResponse.answer.length >= response.answer.length;
-                console.log(`            Keep: "${(keepExisting ? existingResponse.answer : response.answer).substring(0, 60)}..."`);
-                console.log(`            Skip: "${(keepExisting ? response.answer : existingResponse.answer).substring(0, 60)}..."`);
+                console.log(`            Keep: "${(keepExisting ? existingResponse.answer : response.answer).substring(0, 60)}..." (better answer)`);
+                console.log(`            Skip: "${(keepExisting ? response.answer : existingResponse.answer).substring(0, 60)}..." (shorter answer)`);
               }
             } else {
               console.log(`         ➕ ADD: ${response.question.questionKey} = "${response.answer.substring(0, 60)}..."`);
@@ -230,30 +222,17 @@ async function mergeDuplicateApplications(targetEmail?: string, dryRun: boolean 
           });
 
           if (existingResponse) {
-            // Apply conflict resolution rules
-            const questionType = response.question.questionType;
-            const isSelectType = ['SELECT', 'MULTISELECT', 'CHECKBOX'].includes(questionType);
-            const isTextType = ['TEXT', 'TEXTAREA', 'EMAIL', 'URL', 'PHONE'].includes(questionType);
+            // Conflict: both applications have this field
+            console.log(`         ⚠️  CONFLICT: ${response.question.questionKey}`);
             
-            if (isSelectType) {
-              // For select fields: always use the value from unlinked application (legacy data)
-              console.log(`         🔄 Updating ${response.question.questionKey} with legacy select value`);
-              await db.applicationResponse.update({
-                where: { id: existingResponse.id },
-                data: { answer: response.answer }
-              });
-            } else if (isTextType) {
-              // For text fields: append unlinked value to linked value
-              const combinedAnswer = `${existingResponse.answer}\n\n[Merged from duplicate]: ${response.answer}`;
-              console.log(`         🔄 Combining text for ${response.question.questionKey}`);
-              await db.applicationResponse.update({
-                where: { id: existingResponse.id },
-                data: { answer: combinedAnswer }
-              });
+            if (keepApp.hasUserId) {
+              // Keeper app is linked to user - always prefer linked user's value
+              console.log(`            ⏭️ SKIP: Keeping linked user's value for ${response.question.questionKey}`);
+              // No database update needed - keep existing response
             } else {
-              // For other types: keep longer answer
+              // Neither app is linked - use longer/better answer
               if (response.answer.length > existingResponse.answer.length) {
-                console.log(`         🔄 Updating response for ${response.question.questionKey} (more detailed answer)`);
+                console.log(`         🔄 Updating ${response.question.questionKey} (better answer)`);
                 await db.applicationResponse.update({
                   where: { id: existingResponse.id },
                   data: { answer: response.answer }
