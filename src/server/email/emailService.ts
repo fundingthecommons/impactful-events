@@ -167,7 +167,7 @@ export class EmailService {
         templateData = {
           applicantName,
           eventName: application.event.name,
-          programDates: 'February 10-28, 2025', // You'd fetch this from event
+          programDates: 'October 24 - November 14, 2025',
           location: 'Buenos Aires, Argentina',
           _stipend: '$2,000 USD',
           _nextStepsUrl: dashboardUrl,
@@ -190,7 +190,7 @@ export class EmailService {
         templateData = {
           applicantName,
           eventName: application.event.name,
-          notificationDate: 'January 25, 2025',
+          notificationDate: 'August 7th, 2025',
           dashboardUrl,
         } satisfies ApplicationWaitlistedProps;
         break;
