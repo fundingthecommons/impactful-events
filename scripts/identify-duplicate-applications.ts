@@ -49,7 +49,7 @@ async function identifyDuplicates(targetEmail?: string) {
         createdAt: app.createdAt,
         hasUserId: !!app.userId,
         source: app.googleFormId ? 'google_form' : app.notionPageId ? 'notion_form' : 'platform',
-        userName: app.user?.name
+        userName: app.user?.name ?? undefined
       };
 
       if (!groupedByEmailEvent.has(key)) {
@@ -72,7 +72,7 @@ async function identifyDuplicates(targetEmail?: string) {
         // Show the single application details
         const singleApp = groupedByEmailEvent.get(`${targetEmail}|funding-commons-residency-2025`);
         if (singleApp && singleApp.length === 1) {
-          const app = singleApp[0];
+          const app = singleApp[0]!;
           console.log(`📋 Single application for ${targetEmail}:`);
           console.log(`   ID: ${app.id}`);
           console.log(`   User: ${app.hasUserId ? `${app.userName} (${app.userId})` : 'Not linked'}`);
