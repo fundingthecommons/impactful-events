@@ -1,233 +1,185 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { Text, Code, Title, List, Blockquote, Divider, Anchor } from '@mantine/core';
-import { IconExternalLink } from '@tabler/icons-react';
+import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import { Text, Code, Title, List, Blockquote, Divider, Anchor, Alert, Paper } from '@mantine/core';
+import { IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
+import 'highlight.js/styles/github.css';
 
 interface MarkdownRendererProps {
   content: string;
 }
 
-interface MarkdownNode {
-  type: string;
-  content?: string;
-  children?: MarkdownNode[];
-  level?: number;
-  href?: string;
-  language?: string;
-  ordered?: boolean;
-}
-
-// Simple markdown parser for the most common elements
-function parseMarkdown(markdown: string): MarkdownNode[] {
-  const lines = markdown.split('\n');
-  const nodes: MarkdownNode[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    
-    // Skip empty lines
-    if (!line?.trim()) {
-      i++;
-      continue;
-    }
-    
-    // Headers
-    const headerMatch = /^(#{1,6})\s+(.+)$/.exec(line ?? '');
-    if (headerMatch) {
-      nodes.push({
-        type: 'heading',
-        level: headerMatch[1]?.length ?? 1,
-        content: headerMatch[2] ?? '',
-      });
-      i++;
-      continue;
-    }
-    
-    // Code blocks
-    if (line?.startsWith('```')) {
-      const language = line.slice(3).trim();
-      const codeLines: string[] = [];
-      i++;
-      
-      while (i < lines.length && !lines[i]?.startsWith('```')) {
-        codeLines.push(lines[i] ?? '');
-        i++;
-      }
-      
-      nodes.push({
-        type: 'codeblock',
-        content: codeLines.join('\n'),
-        language: language || 'text',
-      });
-      i++; // Skip closing ```
-      continue;
-    }
-    
-    // Lists
-    const listMatch = /^(\s*)[-*+]\s+(.+)$/.exec(line ?? '');
-    const orderedListMatch = /^(\s*)\d+\.\s+(.+)$/.exec(line ?? '');
-    
-    if (listMatch || orderedListMatch) {
-      const isOrdered = !!orderedListMatch;
-      const listItems: string[] = [];
-      
-      while (i < lines.length) {
-        const currentLine = lines[i];
-        const currentListMatch = currentLine?.match(/^(\s*)[-*+]\s+(.+)$/);
-        const currentOrderedMatch = currentLine?.match(/^(\s*)\d+\.\s+(.+)$/);
-        
-        if ((!isOrdered && currentListMatch) || (isOrdered && currentOrderedMatch)) {
-          const match = isOrdered ? currentOrderedMatch : currentListMatch;
-          listItems.push(match?.[2] ?? '');
-          i++;
-        } else {
-          break;
-        }
-      }
-      
-      nodes.push({
-        type: 'list',
-        ordered: isOrdered,
-        children: listItems.map(item => ({ type: 'listitem', content: item })),
-      });
-      continue;
-    }
-    
-    // Blockquotes
-    if (line?.startsWith('>')) {
-      const quoteLines: string[] = [];
-      
-      while (i < lines.length && lines[i]?.startsWith('>')) {
-        quoteLines.push(lines[i]?.slice(1).trim() ?? '');
-        i++;
-      }
-      
-      nodes.push({
-        type: 'blockquote',
-        content: quoteLines.join(' '),
-      });
-      continue;
-    }
-    
-    // Horizontal rules
-    if (/^[-*_]{3,}$/.exec(line ?? '')) {
-      nodes.push({ type: 'hr' });
-      i++;
-      continue;
-    }
-    
-    // Regular paragraphs
-    const paragraphLines: string[] = [];
-    
-    while (i < lines.length && lines[i]?.trim() && 
-           !lines[i]?.startsWith('#') && 
-           !lines[i]?.startsWith('```') &&
-           !lines[i]?.match(/^(\s*)[-*+]\s/) &&
-           !lines[i]?.match(/^(\s*)\d+\.\s/) &&
-           !lines[i]?.startsWith('>') &&
-           !lines[i]?.match(/^[-*_]{3,}$/)) {
-      paragraphLines.push(lines[i] ?? '');
-      i++;
-    }
-    
-    if (paragraphLines.length > 0) {
-      nodes.push({
-        type: 'paragraph',
-        content: paragraphLines.join(' '),
-      });
-    }
-  }
-  
-  return nodes;
-}
-
-// Simple inline markdown processing without regex loops
-function processInlineMarkdown(text: string): React.ReactElement {
-  // For now, return plain text to avoid the repetition bug
-  // TODO: Implement proper markdown parsing library
-  return <span>{text}</span>;
-}
-
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
-  const nodes = useMemo(() => parseMarkdown(content), [content]);
-  
+  // Preprocess content to handle HTML elements like <aside>
+  const preprocessedContent = content
+    // Convert <aside> tags to blockquotes with special marker
+    .replace(/<aside>\s*\n/g, '\n> **💡 Note**\n> \n> ')
+    .replace(/\n\s*<\/aside>/g, '\n\n')
+    // Handle nested content in aside tags
+    .replace(/<aside>([^<]*)<\/aside>/g, '\n> **💡 Note**\n> \n> $1\n\n');
+
   return (
-    <div style={{ lineHeight: 1.6 }}>
-      {nodes.map((node, index) => {
-        switch (node.type) {
-          case 'heading':
-            const HeadingComponent = node.level === 1 ? Title : 
-                                   node.level === 2 ? Title : 
-                                   Title;
-            const order = node.level as 1 | 2 | 3 | 4 | 5 | 6;
-            
-            return (
-              <HeadingComponent
-                key={index}
-                order={order}
-                mb="md"
-                mt={index > 0 ? "xl" : 0}
-              >
-                {node.content}
-              </HeadingComponent>
-            );
-            
-          case 'paragraph':
-            return (
-              <Text key={index} mb="md" size="md">
-                {processInlineMarkdown(node.content!)}
-              </Text>
-            );
-            
-          case 'codeblock':
-            return (
-              <Code
-                key={index}
-                block
-                mb="md"
-                p="md"
-                style={{
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  fontSize: '14px',
-                  lineHeight: 1.4,
-                }}
-              >
-                {node.content}
-              </Code>
-            );
-            
-          case 'list':
-            return (
-              <List
-                key={index}
-                mb="md"
-                type={node.ordered ? "ordered" : "unordered"}
-              >
-                {node.children?.map((item, itemIndex) => (
-                  <List.Item key={itemIndex}>
-                    {processInlineMarkdown(item.content!)}
-                  </List.Item>
-                ))}
-              </List>
-            );
-            
-          case 'blockquote':
-            return (
-              <Blockquote key={index} mb="md">
-                {processInlineMarkdown(node.content!)}
-              </Blockquote>
-            );
-            
-          case 'hr':
-            return <Divider key={index} my="xl" />;
-            
-          default:
-            return null;
-        }
-      })}
+    <div style={{ lineHeight: 1.6, fontSize: '16px' }}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={{
+          // Headers
+          h1: ({ children }) => (
+            <Title order={1} mb="lg" mt="xl">
+              {children}
+            </Title>
+          ),
+          h2: ({ children }) => (
+            <Title order={2} mb="md" mt="xl">
+              {children}
+            </Title>
+          ),
+          h3: ({ children }) => (
+            <Title order={3} mb="md" mt="lg">
+              {children}
+            </Title>
+          ),
+          h4: ({ children }) => (
+            <Title order={4} mb="sm" mt="md">
+              {children}
+            </Title>
+          ),
+          h5: ({ children }) => (
+            <Title order={5} mb="sm" mt="md">
+              {children}
+            </Title>
+          ),
+          h6: ({ children }) => (
+            <Title order={6} mb="sm" mt="md">
+              {children}
+            </Title>
+          ),
+          
+          // Paragraphs
+          p: ({ children }) => (
+            <Text mb="md" size="md" style={{ lineHeight: 1.7 }}>
+              {children}
+            </Text>
+          ),
+          
+          // Links
+          a: ({ href, children }) => (
+            <Anchor
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            >
+              {children}
+              <IconExternalLink size={14} />
+            </Anchor>
+          ),
+          
+          // Code blocks
+          pre: ({ children }) => (
+            <Code
+              block
+              mb="md"
+              p="md"
+              style={{
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                fontSize: '14px',
+                lineHeight: 1.4,
+                background: 'var(--mantine-color-gray-0)',
+                border: '1px solid var(--mantine-color-gray-3)',
+              }}
+            >
+              {children}
+            </Code>
+          ),
+          
+          // Inline code
+          code: ({ children, className }) => {
+            // If it has a className, it's a code block (handled by pre)
+            if (className) {
+              return <>{children}</>;
+            }
+            // Otherwise it's inline code
+            return <Code>{children}</Code>;
+          },
+          
+          // Lists
+          ul: ({ children }) => (
+            <List mb="md" spacing="sm">
+              {children}
+            </List>
+          ),
+          ol: ({ children }) => (
+            <List mb="md" spacing="sm" type="ordered">
+              {children}
+            </List>
+          ),
+          li: ({ children }) => (
+            <List.Item style={{ marginBottom: '4px' }}>
+              {children}
+            </List.Item>
+          ),
+          
+          // Blockquotes
+          blockquote: ({ children }) => (
+            <Blockquote mb="md" mt="md">
+              {children}
+            </Blockquote>
+          ),
+          
+          // Horizontal rules
+          hr: () => <Divider my="xl" />,
+          
+          // Strong/Bold
+          strong: ({ children }) => (
+            <Text component="strong" fw={700} style={{ display: 'inline' }}>
+              {children}
+            </Text>
+          ),
+          
+          // Emphasis/Italic
+          em: ({ children }) => (
+            <Text component="em" fs="italic" style={{ display: 'inline' }}>
+              {children}
+            </Text>
+          ),
+          
+          // Tables
+          table: ({ children }) => (
+            <Paper withBorder mb="md" style={{ overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                {children}
+              </table>
+            </Paper>
+          ),
+          th: ({ children }) => (
+            <th style={{ 
+              padding: '12px', 
+              background: 'var(--mantine-color-gray-0)',
+              borderBottom: '1px solid var(--mantine-color-gray-3)',
+              textAlign: 'left',
+              fontWeight: 600,
+            }}>
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td style={{ 
+              padding: '12px', 
+              borderBottom: '1px solid var(--mantine-color-gray-2)',
+            }}>
+              {children}
+            </td>
+          ),
+        }}
+      >
+        {preprocessedContent}
+      </ReactMarkdown>
     </div>
   );
 }
