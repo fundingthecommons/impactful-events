@@ -4,8 +4,8 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
-import { Text, Code, Title, List, Blockquote, Divider, Anchor, Alert, Paper } from '@mantine/core';
-import { IconExternalLink, IconInfoCircle } from '@tabler/icons-react';
+import { Text, Code, Title, List, Blockquote, Divider, Anchor, Paper } from '@mantine/core';
+import { IconExternalLink } from '@tabler/icons-react';
 import 'highlight.js/styles/github.css';
 
 interface MarkdownRendererProps {
