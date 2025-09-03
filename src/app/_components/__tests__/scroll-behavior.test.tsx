@@ -151,7 +151,7 @@ describe('Scroll-to-Error Behavior Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -188,7 +188,7 @@ describe('Scroll-to-Error Behavior Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -216,7 +216,7 @@ describe('Scroll-to-Error Behavior Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -255,7 +255,7 @@ describe('Scroll-to-Error Behavior Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -283,7 +283,7 @@ describe('Scroll-to-Error Behavior Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 

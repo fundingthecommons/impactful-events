@@ -138,8 +138,8 @@ describe('Form Performance Monitoring', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    consoleSpy = vi.spyOn(console, 'warn').mockImplementation();
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
+    consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
   afterEach(() => {

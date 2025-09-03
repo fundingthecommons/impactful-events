@@ -14,12 +14,16 @@ Object.defineProperty(global, 'HTMLElement', {
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
+  root = null;
+  rootMargin = '0px';
+  thresholds = [0];
+  
   constructor() { /* Mock constructor */ }
   disconnect() { /* Mock method */ }
   observe() { /* Mock method */ }
   unobserve() { /* Mock method */ }
+  takeRecords() { return []; }
 };
-
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
   constructor() { /* Mock constructor */ }

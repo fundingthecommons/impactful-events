@@ -154,7 +154,7 @@ describe('Form Integration Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -190,7 +190,7 @@ describe('Form Integration Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -223,7 +223,7 @@ describe('Form Integration Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" />
+        <DynamicApplicationForm eventId="test-event" language="en" />
       </TestWrapper>
     );
 
@@ -259,7 +259,7 @@ describe('Form Integration Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" />
+        <DynamicApplicationForm eventId="test-event" language="en" />
       </TestWrapper>
     );
 
@@ -286,7 +286,7 @@ describe('Form Integration Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" />
+        <DynamicApplicationForm eventId="test-event" userEmail="test@example.com" language="en" />
       </TestWrapper>
     );
 
@@ -319,7 +319,7 @@ describe('Form Integration Tests', () => {
     
     render(
       <TestWrapper>
-        <DynamicApplicationForm eventId="test-event" />
+        <DynamicApplicationForm eventId="test-event" language="en" />
       </TestWrapper>
     );
 
@@ -342,7 +342,8 @@ describe('Form Integration Tests', () => {
   it('should handle existing application data correctly', async () => {
     const existingApplication = {
       id: 'existing-app',
-      status: 'DRAFT',
+      status: 'DRAFT' as const,
+      language: 'en',
       responses: [
         {
           id: '1',
@@ -363,6 +364,7 @@ describe('Form Integration Tests', () => {
           eventId="test-event" 
           existingApplication={existingApplication}
           userEmail="jane@example.com"
+          language="en"
         />
       </TestWrapper>
     );

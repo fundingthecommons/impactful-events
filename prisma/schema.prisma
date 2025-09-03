@@ -653,3 +653,52 @@ model SponsorDeliverable {
   @@index([category])
   @@index([status])
 }
+
+// Project Ideas System Models
+enum SyncStatus {
+  PENDING
+  SYNCING
+  SUCCESS
+  FAILED
+}
+
+model ProjectIdea {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique  // URL-safe version of title
+  description   String?  // Extracted from markdown overview
+  content       String   @db.Text // Full markdown content
+  githubPath    String   // projects/filename.md
+  technologies  String[] // Extracted tech stack badges
+  difficulty    String?  // Easy, Medium, Hard (parsed from content)
+  category      String?  // DeFi, Infrastructure, etc.
+  
+  // GitHub sync metadata
+  githubSha     String?  // Git commit SHA for change detection
+  lastSynced    DateTime @default(now())
+  syncStatus    SyncStatus @default(PENDING)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([slug])
+  @@index([syncStatus])
+  @@index([lastSynced])
+  @@index([category])
+  @@index([difficulty])
+}
+
+model ProjectSync {
+  id            String   @id @default(cuid())
+  totalProjects Int
+  syncedCount   Int
+  failedCount   Int
+  status        SyncStatus
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  errorMessage  String?
+  lastCommitSha String?  // Track repository state
+  
+  @@index([status])
+  @@index([startedAt])
+}

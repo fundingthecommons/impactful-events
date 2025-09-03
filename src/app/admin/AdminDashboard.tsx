@@ -25,7 +25,8 @@ import {
   IconSend,
   IconEye,
   IconArrowRight,
-  IconMailOpened
+  IconMailOpened,
+  IconBrandGithub,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -205,7 +206,7 @@ export default function AdminDashboard() {
       </SimpleGrid>
 
       {/* Management Sections */}
-      <SimpleGrid cols={{ base: 1, md: 4 }}>
+      <SimpleGrid cols={{ base: 1, md: 3 }} mb="lg">
         <Card withBorder>
           <Stack>
             <Group>
@@ -267,6 +268,30 @@ export default function AdminDashboard() {
             <Link href="/contacts" style={{ textDecoration: 'none' }}>
               <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
                 View Contacts
+              </Button>
+            </Link>
+          </Stack>
+        </Card>
+      </SimpleGrid>
+
+      <SimpleGrid cols={{ base: 1, md: 2 }}>
+        <Card withBorder>
+          <Stack>
+            <Group>
+              <ThemeIcon size="md" color="teal" variant="light">
+                <IconBrandGithub size={18} />
+              </ThemeIcon>
+              <Text fw={600}>Project Ideas</Text>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Sync and manage project ideas from GitHub repository
+            </Text>
+            <Text size="xs" c="dimmed">
+              GitHub integration and content sync
+            </Text>
+            <Link href="/admin/project-sync" style={{ textDecoration: 'none' }}>
+              <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
+                Manage Sync
               </Button>
             </Link>
           </Stack>
