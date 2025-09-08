@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { ProjectDetailClient } from './ProjectDetailClient';
 import { createCaller } from '~/server/api/root';
@@ -12,7 +11,7 @@ interface ProjectDetailPageProps {
 }
 
 export async function generateMetadata({ params }: ProjectDetailPageProps): Promise<Metadata> {
-  const caller = createCaller({ headers: await headers(), db, session: null });
+  const caller = createCaller({ headers: new Headers(), db, session: null });
   const resolvedParams = await params;
   
   try {
@@ -42,7 +41,7 @@ export async function generateMetadata({ params }: ProjectDetailPageProps): Prom
 
 export default async function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Pre-fetch the project on the server to check if it exists
-  const caller = createCaller({ headers: await headers(), db, session: null });
+  const caller = createCaller({ headers: new Headers(), db, session: null });
   const resolvedParams = await params;
   
   try {
@@ -58,7 +57,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
 // Generate static params for better performance (optional)
 export async function generateStaticParams() {
   try {
-    const caller = createCaller({ headers: await headers(), db, session: null });
+    const caller = createCaller({ headers: new Headers(), db, session: null });
     const projects = await caller.projectIdea.getAll({ 
       limit: 100, // Limit to avoid overwhelming builds
       offset: 0 
