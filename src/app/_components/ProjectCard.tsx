@@ -4,6 +4,7 @@ import { Card, Text, Group, Stack, Badge, Anchor } from '@mantine/core';
 import { IconExternalLink, IconBrandGithub } from '@tabler/icons-react';
 import Link from 'next/link';
 import { TechnologyBadge } from './TechnologyBadge';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ProjectCardProps {
   project: {
@@ -79,14 +80,20 @@ export function ProjectCard({ project }: ProjectCardProps) {
           </Group>
           
           {project.description && (
-            <Text 
-              size="sm" 
-              c="dimmed" 
-              lineClamp={3}
-              mt="xs"
+            <div 
+              style={{ 
+                fontSize: '14px',
+                color: 'var(--mantine-color-dimmed)', 
+                marginTop: 'var(--mantine-spacing-xs)',
+                overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                lineHeight: 1.4
+              }}
             >
-              {project.description}
-            </Text>
+              <MarkdownRenderer content={project.description.substring(0, 200) + (project.description.length > 200 ? '...' : '')} />
+            </div>
           )}
         </div>
 
