@@ -164,7 +164,8 @@ export async function checkApplicationCompleteness(
 export async function updateApplicationCompletionStatus(
   db: PrismaClient,
   applicationId: string,
-  completionResult: ApplicationCompletionResult
+  completionResult: ApplicationCompletionResult,
+  context?: { isUserIntentionalEdit?: boolean }
 ): Promise<{ statusReverted: boolean }> {
   // First get the current application to check its status
   const currentApplication = await db.application.findUnique({
@@ -187,12 +188,20 @@ export async function updateApplicationCompletionStatus(
 
   let statusReverted = false;
 
-  // If application is SUBMITTED and user is making changes that affect completion,
-  // revert it back to DRAFT so they need to re-submit
+  // Only revert SUBMITTED applications to DRAFT in specific cases:
+  // 1. The application becomes incomplete (missing required fields)
+  // 2. This is explicitly marked as an intentional user edit (not just auto-save)
   if (currentApplication.status === "SUBMITTED") {
-    updateData.status = "DRAFT";
-    statusReverted = true;
-    console.log(`🔄 Reverting SUBMITTED application ${applicationId} back to DRAFT due to field changes`);
+    const shouldRevert = !completionResult.isComplete || context?.isUserIntentionalEdit;
+    
+    if (shouldRevert) {
+      updateData.status = "DRAFT";
+      statusReverted = true;
+      const reason = !completionResult.isComplete ? "missing required fields" : "intentional field changes";
+      console.log(`🔄 Reverting SUBMITTED application ${applicationId} back to DRAFT due to ${reason}`);
+    } else {
+      console.log(`✅ Keeping SUBMITTED status for application ${applicationId} - no substantial changes detected`);
+    }
   }
 
   if (completionResult.wasJustCompleted) {

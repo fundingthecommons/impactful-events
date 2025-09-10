@@ -316,7 +316,10 @@ export const applicationRouter = createTRPCRouter({
         const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId);
         
         // Update completion status in database (may also revert SUBMITTED to DRAFT)
-        const updateResult = await updateApplicationCompletionStatus(ctx.db, input.applicationId, completionResult);
+        // For auto-save updates, don't treat as intentional edits to prevent aggressive reversion
+        const updateResult = await updateApplicationCompletionStatus(ctx.db, input.applicationId, completionResult, {
+          isUserIntentionalEdit: false // This is an auto-save update, not an intentional edit
+        });
         
         // Log status reversion for debugging
         if (updateResult.statusReverted) {

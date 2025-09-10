@@ -362,6 +362,12 @@ export default function DynamicApplicationForm({
     const question = questions.find(q => q.questionKey === questionKey);
     if (!question) return;
 
+    // Don't auto-save if application is already submitted (prevent reversion)
+    if (safeCurrentStatus !== "DRAFT") {
+      console.log(`🚫 Skipping auto-save for field ${questionKey} - application status is ${safeCurrentStatus}`);
+      return;
+    }
+
     // Ensure application exists before saving
     let appId = applicationId;
     if (!appId) {
@@ -415,7 +421,7 @@ export default function DynamicApplicationForm({
     } finally {
       setIsSaving(false);
     }
-  }, [applicationId, questions, updateResponse, onUpdated, ensureApplication]);
+  }, [applicationId, questions, updateResponse, onUpdated, ensureApplication, safeCurrentStatus]);
 
   // Save all current form data as draft
   const saveDraft = useCallback(async () => {
