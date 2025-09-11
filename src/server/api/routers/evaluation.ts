@@ -23,6 +23,15 @@ const CreateReviewerAssignmentSchema = z.object({
   notes: z.string().optional(),
 });
 
+const BulkCreateAssignmentsSchema = z.object({
+  applicationIds: z.array(z.string()).min(1),
+  reviewerId: z.string(),
+  stage: z.enum(['SCREENING', 'DETAILED_REVIEW', 'VIDEO_REVIEW', 'CONSENSUS', 'FINAL_DECISION']).default('SCREENING'),
+  priority: z.number().int().min(0).default(0),
+  dueDate: z.date().optional(),
+  notes: z.string().optional(),
+});
+
 const UpdateEvaluationSchema = z.object({
   evaluationId: z.string(),
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'REVIEWED']).optional(),
@@ -121,6 +130,93 @@ export const evaluationRouter = createTRPCRouter({
       });
 
       return assignment;
+    }),
+
+  // Create multiple reviewer assignments
+  bulkCreateAssignments: protectedProcedure
+    .input(BulkCreateAssignmentsSchema)
+    .mutation(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      const { applicationIds, reviewerId, stage, priority, dueDate, notes } = input;
+
+      // Check for existing assignments to prevent duplicates
+      const existingAssignments = await ctx.db.reviewerAssignment.findMany({
+        where: {
+          applicationId: { in: applicationIds },
+          reviewerId,
+          stage,
+        },
+        select: { applicationId: true },
+      });
+
+      const existingApplicationIds = new Set(existingAssignments.map(a => a.applicationId));
+      const newApplicationIds = applicationIds.filter(id => !existingApplicationIds.has(id));
+
+      if (newApplicationIds.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "All selected applications are already assigned to this reviewer for this stage",
+        });
+      }
+
+      // Create assignments in batch
+      const assignmentData = newApplicationIds.map(applicationId => ({
+        applicationId,
+        reviewerId,
+        stage,
+        priority,
+        dueDate,
+        notes: notes ?? `Bulk assigned for ${stage.replace('_', ' ').toLowerCase()} review`,
+      }));
+
+      const assignments = await ctx.db.$transaction(async (tx) => {
+        // Create assignments
+        await tx.reviewerAssignment.createMany({
+          data: assignmentData,
+        });
+
+        // Get created assignments with relations
+        const createdAssignments = await tx.reviewerAssignment.findMany({
+          where: {
+            applicationId: { in: newApplicationIds },
+            reviewerId,
+            stage,
+          },
+          include: {
+            reviewer: { select: { id: true, name: true, email: true } },
+            application: { 
+              select: { 
+                id: true,
+                user: { select: { name: true, email: true } },
+                event: { select: { name: true } }
+              }
+            },
+          },
+        });
+
+        // Create corresponding evaluation records
+        const evaluationData = createdAssignments.map(assignment => ({
+          applicationId: assignment.applicationId,
+          reviewerId: assignment.reviewerId,
+          assignmentId: assignment.id,
+          stage: assignment.stage,
+          status: 'PENDING' as const,
+        }));
+
+        await tx.applicationEvaluation.createMany({
+          data: evaluationData,
+        });
+
+        return createdAssignments;
+      });
+
+      return {
+        assignments,
+        created: assignments.length,
+        skipped: existingApplicationIds.size,
+        total: applicationIds.length,
+      };
     }),
 
   // Get assignments for a reviewer
@@ -361,7 +457,10 @@ export const evaluationRouter = createTRPCRouter({
 
   // Get review pipeline overview
   getReviewPipeline: protectedProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({
+      reviewerId: z.string().optional(),
+    }).optional())
+    .query(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);
 
       const applications = await ctx.db.application.findMany({
@@ -377,6 +476,7 @@ export const evaluationRouter = createTRPCRouter({
               status: true,
               overallScore: true,
               recommendation: true,
+              reviewerId: true,
               reviewer: { select: { name: true } }
             }
           },
@@ -390,24 +490,32 @@ export const evaluationRouter = createTRPCRouter({
         }
       });
 
-      // Group by review stage
+      // Filter by reviewer if specified
+      let filteredApplications = applications;
+      if (input?.reviewerId) {
+        filteredApplications = applications.filter(app =>
+          app.evaluations.some(evaluation => evaluation.reviewerId === input.reviewerId)
+        );
+      }
+
+      // Group by review stage (NEW ORDER: Screening → Video Review → Detailed Review → Consensus → Final Decision)
       const pipeline = {
-        screening: applications.filter(app => 
+        screening: filteredApplications.filter(app => 
           !app.evaluations.some(e => e.stage !== 'SCREENING')
         ),
-        detailedReview: applications.filter(app => 
+        videoReview: filteredApplications.filter(app => 
           app.evaluations.some(e => e.stage === 'SCREENING' && e.status === 'COMPLETED') &&
-          !app.evaluations.some(e => e.stage === 'DETAILED_REVIEW' && e.status === 'COMPLETED')
-        ),
-        videoReview: applications.filter(app =>
-          app.evaluations.some(e => e.stage === 'DETAILED_REVIEW' && e.status === 'COMPLETED') &&
           !app.evaluations.some(e => e.stage === 'VIDEO_REVIEW' && e.status === 'COMPLETED')
         ),
-        consensus: applications.filter(app =>
+        detailedReview: filteredApplications.filter(app =>
           app.evaluations.some(e => e.stage === 'VIDEO_REVIEW' && e.status === 'COMPLETED') &&
+          !app.evaluations.some(e => e.stage === 'DETAILED_REVIEW' && e.status === 'COMPLETED')
+        ),
+        consensus: filteredApplications.filter(app =>
+          app.evaluations.some(e => e.stage === 'DETAILED_REVIEW' && e.status === 'COMPLETED') &&
           !app.consensus?.finalDecision
         ),
-        finalDecision: applications.filter(app => app.consensus?.finalDecision)
+        finalDecision: filteredApplications.filter(app => app.consensus?.finalDecision)
       };
 
       return pipeline;

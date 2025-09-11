@@ -22,6 +22,7 @@ import {
   ScrollArea,
   Box,
   Anchor,
+  Avatar,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -42,6 +43,7 @@ import {
   IconSend,
   IconTrash,
   IconAlertCircle,
+  IconUserPlus,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -90,6 +92,17 @@ type ApplicationWithUser = {
       questionKey: string;
       questionEn: string;
       questionEs: string;
+    };
+  }>;
+  reviewerAssignments: Array<{
+    id: string;
+    stage: string;
+    assignedAt: Date;
+    reviewer: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      image: string | null;
     };
   }>;
 };
@@ -216,11 +229,13 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // API mutations
   const updateStatus = api.application.updateApplicationStatus.useMutation();
   const bulkUpdateStatus = api.application.bulkUpdateApplicationStatus.useMutation();
+  const bulkAssignReviewer = api.evaluation.bulkCreateAssignments.useMutation();
   const checkMissingInfoMutation = api.email.checkMissingInfo.useMutation();
   const createMissingInfoEmail = api.email.createMissingInfoEmail.useMutation();
   const sendEmail = api.email.sendEmail.useMutation();
   const deleteEmail = api.email.deleteEmail.useMutation();
   const { data: emailSafety } = api.email.getEmailSafety.useQuery();
+  const { data: reviewers } = api.user.getAdmins.useQuery();
 
   // Helper function to find latest MISSING_INFO email for an application
   const getLatestMissingInfoEmail = (applicationId: string) => {
@@ -346,6 +361,37 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       notifications.show({
         title: "Error",
         message: (error as { message?: string }).message ?? "Failed to update applications",
+        color: "red",
+        icon: <IconX />,
+      });
+    }
+  };
+
+  // Handle bulk reviewer assignment
+  const handleBulkAssignReviewer = async (reviewerId: string) => {
+    if (selectedApplications.size === 0) return;
+
+    try {
+      const result = await bulkAssignReviewer.mutateAsync({
+        applicationIds: Array.from(selectedApplications),
+        reviewerId,
+        stage: 'SCREENING',
+        priority: 0,
+        notes: `Bulk assigned for screening review`,
+      });
+      
+      notifications.show({
+        title: "Success",
+        message: `Assigned ${result.created} application(s) successfully${result.skipped > 0 ? ` (${result.skipped} already assigned)` : ''}`,
+        color: "green",
+        icon: <IconCheck />,
+      });
+      
+      setSelectedApplications(new Set());
+    } catch (error: unknown) {
+      notifications.show({
+        title: "Error",
+        message: (error as { message?: string }).message ?? "Failed to assign reviewer",
         color: "red",
         icon: <IconX />,
       });
@@ -696,26 +742,55 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 
                 <Group gap="md">
                   {selectedApplications.size > 0 && (
-                    <Menu position="bottom-end">
-                      <Menu.Target>
-                        <Button 
-                          variant="outline"
-                          loading={bulkUpdateStatus.isPending}
-                        >
-                          Bulk Actions ({selectedApplications.size})
-                        </Button>
-                      </Menu.Target>
-                      <Menu.Dropdown>
-                        {statusOptions.map((option) => (
-                          <Menu.Item
-                            key={option.value}
-                            onClick={() => handleBulkStatusChange(option.value)}
+                    <>
+                      <Menu position="bottom-end">
+                        <Menu.Target>
+                          <Button 
+                            variant="outline"
+                            loading={bulkUpdateStatus.isPending}
                           >
-                            Set to {option.label}
-                          </Menu.Item>
-                        ))}
-                      </Menu.Dropdown>
-                    </Menu>
+                            Bulk Actions ({selectedApplications.size})
+                          </Button>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          {statusOptions.map((option) => (
+                            <Menu.Item
+                              key={option.value}
+                              onClick={() => handleBulkStatusChange(option.value)}
+                            >
+                              Set to {option.label}
+                            </Menu.Item>
+                          ))}
+                        </Menu.Dropdown>
+                      </Menu>
+
+                      <Menu position="bottom-end">
+                        <Menu.Target>
+                          <Button 
+                            variant="outline"
+                            leftSection={<IconUserPlus size={16} />}
+                            loading={bulkAssignReviewer.isPending}
+                          >
+                            Assign Reviewer ({selectedApplications.size})
+                          </Button>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          {reviewers?.map((reviewer) => (
+                            <Menu.Item
+                              key={reviewer.id}
+                              onClick={() => handleBulkAssignReviewer(reviewer.id)}
+                            >
+                              {reviewer.name ?? 'Unknown'} ({reviewer.email})
+                            </Menu.Item>
+                          ))}
+                          {(!reviewers || reviewers.length === 0) && (
+                            <Menu.Item disabled>
+                              No reviewers available
+                            </Menu.Item>
+                          )}
+                        </Menu.Dropdown>
+                      </Menu>
+                    </>
                   )}
                   
                   <Button
@@ -752,6 +827,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                         <Table.Th>Applicant</Table.Th>
                         <Table.Th>Status</Table.Th>
                         <Table.Th>Submitted</Table.Th>
+                        <Table.Th>Reviewers</Table.Th>
                         <Table.Th>Actions</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -794,6 +870,25 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                   : "Draft"
                                 }
                               </Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Group gap="xs">
+                                {application.reviewerAssignments && application.reviewerAssignments.length > 0 ? (
+                                  application.reviewerAssignments.map((assignment) => (
+                                    <Avatar
+                                      key={assignment.id}
+                                      src={assignment.reviewer.image ?? ""}
+                                      size={24}
+                                      radius="xl"
+                                      title={`${assignment.reviewer.name ?? 'Unknown'} - ${assignment.stage.replace('_', ' ')}`}
+                                    >
+                                      {assignment.reviewer.name?.[0]?.toUpperCase() ?? assignment.reviewer.email?.[0]?.toUpperCase() ?? '?'}
+                                    </Avatar>
+                                  ))
+                                ) : (
+                                  <Text size="xs" c="dimmed">No reviewers</Text>
+                                )}
+                              </Group>
                             </Table.Td>
                             <Table.Td>
                               <Group gap="xs">

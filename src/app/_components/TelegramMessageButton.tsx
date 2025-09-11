@@ -62,7 +62,7 @@ function generateTelegramLink(application: ApplicationWithUser, customMessage?: 
     return null;
   }
   
-  const baseMessage = customMessage || `I see you applied for the Funding the Commons residency in Buenos Aires in 2025! 
+  const baseMessage = customMessage ?? `I see you applied for the Funding the Commons residency in Buenos Aires in 2025! 
 
 I'm reviewing your application, and need to collect some more information from you.
 

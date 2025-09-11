@@ -310,9 +310,15 @@ export default function ReviewPipelineDashboard() {
   const [assignApplicationId, setAssignApplicationId] = useState<string>("");
   const [assignStage, setAssignStage] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("pipeline");
+  const [selectedReviewer, setSelectedReviewer] = useState<string | null>(null);
 
-  // Fetch pipeline data
-  const { data: pipeline, refetch: refetchPipeline } = api.evaluation.getReviewPipeline.useQuery();
+  // Fetch reviewers for filter dropdown
+  const { data: reviewers } = api.user.getAdmins.useQuery();
+
+  // Fetch pipeline data (with optional reviewer filter)
+  const { data: pipeline, refetch: refetchPipeline } = api.evaluation.getReviewPipeline.useQuery({
+    reviewerId: selectedReviewer ?? undefined
+  });
 
   const handleApplicationClick = (applicationId: string, stage: string) => {
     setSelectedApplication(applicationId);
@@ -345,15 +351,6 @@ export default function ReviewPipelineDashboard() {
       description: 'Basic qualification check and initial assessment'
     },
     {
-      key: 'detailedReview',
-      title: 'Detailed Review',
-      icon: <IconEye size={20} />,
-      color: 'green', 
-      applications: pipeline.detailedReview,
-      stage: 'DETAILED_REVIEW' as const,
-      description: 'In-depth evaluation of technical and project criteria'
-    },
-    {
       key: 'videoReview',
       title: 'Video Review',
       icon: <IconVideo size={20} />,
@@ -361,6 +358,15 @@ export default function ReviewPipelineDashboard() {
       applications: pipeline.videoReview,
       stage: 'VIDEO_REVIEW' as const,
       description: 'Assessment of communication skills and presentation'
+    },
+    {
+      key: 'detailedReview',
+      title: 'Detailed Review',
+      icon: <IconEye size={20} />,
+      color: 'green', 
+      applications: pipeline.detailedReview,
+      stage: 'DETAILED_REVIEW' as const,
+      description: 'In-depth evaluation of technical and project criteria'
     },
     {
       key: 'consensus',
@@ -397,6 +403,20 @@ export default function ReviewPipelineDashboard() {
               </Text>
             </div>
             <Group>
+              <Select
+                placeholder="All Reviewers"
+                value={selectedReviewer}
+                onChange={setSelectedReviewer}
+                data={[
+                  { value: '', label: 'All Reviewers' },
+                  ...(reviewers?.map(reviewer => ({
+                    value: reviewer.id,
+                    label: `${reviewer.name ?? 'Unknown'} (${reviewer.email})`,
+                  })) ?? [])
+                ]}
+                clearable
+                style={{ minWidth: 200 }}
+              />
               <Badge size="lg" variant="light">
                 {totalApplications} Applications
               </Badge>
