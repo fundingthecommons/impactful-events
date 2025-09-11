@@ -537,6 +537,13 @@ export const evaluationRouter = createTRPCRouter({
                   name: true,
                   email: true,
                   image: true,
+                  reviewerCompetencies: {
+                    select: {
+                      category: true,
+                      competencyLevel: true,
+                      baseWeight: true,
+                    },
+                  },
                 },
               },
               scores: {
@@ -565,5 +572,177 @@ export const evaluationRouter = createTRPCRouter({
       }
 
       return application;
+    }),
+
+  // Reviewer Competency Management
+
+  // Get reviewer competencies
+  getReviewerCompetencies: protectedProcedure
+    .input(z.object({
+      reviewerId: z.string().optional(), // If omitted, gets current user's competencies
+    }))
+    .query(async ({ ctx, input }) => {
+      const reviewerId = input.reviewerId ?? ctx.session.user.id;
+      
+      // Only admins can view other reviewers' competencies
+      if (input.reviewerId && !ctx.session.user.role?.includes('admin')) {
+        checkAdminAccess(ctx.session.user.role);
+      }
+      
+      return await ctx.db.reviewerCompetency.findMany({
+        where: { reviewerId },
+        include: {
+          reviewer: { select: { name: true, email: true } },
+          assignedByUser: { select: { name: true, email: true } },
+        },
+        orderBy: { category: 'asc' },
+      });
+    }),
+
+  // Set reviewer competency
+  setReviewerCompetency: protectedProcedure
+    .input(z.object({
+      reviewerId: z.string(),
+      category: z.enum(['TECHNICAL', 'PROJECT', 'COMMUNITY_FIT', 'VIDEO', 'OVERALL']),
+      competencyLevel: z.number().int().min(1).max(5),
+      baseWeight: z.number().min(0.1).max(5.0).default(1.0),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      return await ctx.db.reviewerCompetency.upsert({
+        where: {
+          reviewerId_category: {
+            reviewerId: input.reviewerId,
+            category: input.category,
+          }
+        },
+        create: {
+          reviewerId: input.reviewerId,
+          category: input.category,
+          competencyLevel: input.competencyLevel,
+          baseWeight: input.baseWeight,
+          notes: input.notes,
+          assignedBy: ctx.session.user.id,
+        },
+        update: {
+          competencyLevel: input.competencyLevel,
+          baseWeight: input.baseWeight,
+          notes: input.notes,
+          assignedBy: ctx.session.user.id,
+          updatedAt: new Date(),
+        },
+        include: {
+          reviewer: { select: { name: true, email: true } },
+          assignedByUser: { select: { name: true, email: true } },
+        },
+      });
+    }),
+
+  // Bulk set reviewer competencies
+  bulkSetReviewerCompetencies: protectedProcedure
+    .input(z.object({
+      reviewerId: z.string(),
+      competencies: z.array(z.object({
+        category: z.enum(['TECHNICAL', 'PROJECT', 'COMMUNITY_FIT', 'VIDEO', 'OVERALL']),
+        competencyLevel: z.number().int().min(1).max(5),
+        baseWeight: z.number().min(0.1).max(5.0).default(1.0),
+        notes: z.string().optional(),
+      })),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      return await ctx.db.$transaction(async (tx) => {
+        const results = [];
+        
+        for (const competency of input.competencies) {
+          const result = await tx.reviewerCompetency.upsert({
+            where: {
+              reviewerId_category: {
+                reviewerId: input.reviewerId,
+                category: competency.category,
+              }
+            },
+            create: {
+              reviewerId: input.reviewerId,
+              category: competency.category,
+              competencyLevel: competency.competencyLevel,
+              baseWeight: competency.baseWeight,
+              notes: competency.notes,
+              assignedBy: ctx.session.user.id,
+            },
+            update: {
+              competencyLevel: competency.competencyLevel,
+              baseWeight: competency.baseWeight,
+              notes: competency.notes,
+              assignedBy: ctx.session.user.id,
+              updatedAt: new Date(),
+            },
+            include: {
+              reviewer: { select: { name: true, email: true } },
+              assignedByUser: { select: { name: true, email: true } },
+            },
+          });
+          results.push(result);
+        }
+        
+        return results;
+      });
+    }),
+
+  // Remove reviewer competency
+  removeReviewerCompetency: protectedProcedure
+    .input(z.object({
+      reviewerId: z.string(),
+      category: z.enum(['TECHNICAL', 'PROJECT', 'COMMUNITY_FIT', 'VIDEO', 'OVERALL']),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      return await ctx.db.reviewerCompetency.delete({
+        where: {
+          reviewerId_category: {
+            reviewerId: input.reviewerId,
+            category: input.category,
+          }
+        },
+      });
+    }),
+
+  // Get all reviewers with their competencies (for admin management)
+  getAllReviewersWithCompetencies: protectedProcedure
+    .query(async ({ ctx }) => {
+      checkAdminAccess(ctx.session.user.role);
+      
+      return await ctx.db.user.findMany({
+        where: {
+          OR: [
+            { role: { contains: 'admin' } },
+            { reviewerAssignments: { some: {} } },
+            { applicationEvaluations: { some: {} } },
+          ]
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          reviewerCompetencies: {
+            include: {
+              assignedByUser: { select: { name: true, email: true } },
+            },
+            orderBy: { category: 'asc' },
+          },
+          _count: {
+            select: {
+              reviewerAssignments: true,
+              applicationEvaluations: { where: { status: 'COMPLETED' } },
+            },
+          },
+        },
+        orderBy: { name: 'asc' },
+      });
     }),
 });

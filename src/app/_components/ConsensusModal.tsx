@@ -36,12 +36,15 @@ import {
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
 import {
-  calculateWeightedScores,
+  calculateEnhancedWeightedScores,
   getConsensusIndicator,
   getConfidenceColor,
   getConsensusColor,
-  type ReviewerScore,
+  type EnhancedReviewerScore,
   type WeightedReviewerScore,
+  getCompetencyColor,
+  getCompetencyLabel,
+  getCategoryDisplayName,
 } from "~/utils/confidenceWeighting";
 
 // Helper function to validate recommendation values from database
@@ -150,12 +153,59 @@ function ReviewerCard({ reviewer, onExpandToggle, expanded }: ReviewerCardProps)
             ))}
           </Group>
           <Text size="sm" c="dimmed">
-            ({reviewer.confidence}/5 • {Math.round(reviewer.confidenceWeight * 100)}% weight)
+            ({reviewer.confidence}/5 • {Math.round((reviewer.finalWeight ?? reviewer.confidenceWeight) * 100)}% final weight)
           </Text>
         </Group>
 
         <Collapse in={expanded}>
           <Divider my="sm" />
+          
+          {/* Weight Breakdown */}
+          <Stack gap="xs" mb="md">
+            <Text size="sm" fw={500}>Weight Breakdown:</Text>
+            <Group gap="md">
+              <Box>
+                <Text size="xs" c="dimmed">Confidence</Text>
+                <Text size="sm" fw={500} c={getConfidenceColor(reviewer.confidence)}>
+                  {Math.round(reviewer.confidenceWeight * 100)}%
+                </Text>
+              </Box>
+              {reviewer.competencyWeight !== undefined && reviewer.competencyWeight !== 1.0 && (
+                <Box>
+                  <Text size="xs" c="dimmed">Competency</Text>
+                  <Text size="sm" fw={500} c="blue">
+                    {Math.round(reviewer.competencyWeight * 100)}%
+                  </Text>
+                </Box>
+              )}
+              <Box>
+                <Text size="xs" c="dimmed">Final</Text>
+                <Text size="sm" fw={600} c="dark">
+                  {Math.round((reviewer.finalWeight ?? reviewer.confidenceWeight) * 100)}%
+                </Text>
+              </Box>
+            </Group>
+          </Stack>
+
+          {/* Competencies */}
+          {reviewer.competencies && reviewer.competencies.length > 0 && (
+            <Stack gap="xs" mb="md">
+              <Text size="sm" fw={500}>Reviewer Competencies:</Text>
+              <Group gap="xs">
+                {reviewer.competencies.map((comp) => (
+                  <Badge
+                    key={comp.category}
+                    color={getCompetencyColor(comp.competencyLevel)}
+                    variant="light"
+                    size="sm"
+                  >
+                    {getCategoryDisplayName(comp.category)}: {getCompetencyLabel(comp.competencyLevel)}
+                  </Badge>
+                ))}
+              </Group>
+            </Stack>
+          )}
+
           <Text size="sm" fw={500} mb="xs">Completed:</Text>
           <Text size="sm" c="dimmed">
             {reviewer.completedAt ? 
@@ -241,8 +291,8 @@ export default function ConsensusModal({
     );
   }
 
-  // Transform evaluation data to reviewer scores
-  const reviewerScores: ReviewerScore[] = consensusData.evaluations.map(evaluation => ({
+  // Transform evaluation data to enhanced reviewer scores with competencies
+  const reviewerScores: EnhancedReviewerScore[] = consensusData.evaluations.map(evaluation => ({
     reviewerId: evaluation.reviewer.id,
     reviewerName: evaluation.reviewer.name,
     reviewerEmail: evaluation.reviewer.email,
@@ -251,9 +301,14 @@ export default function ConsensusModal({
     confidence: evaluation.confidence ?? 3,
     recommendation: validateRecommendation(evaluation.recommendation),
     completedAt: evaluation.completedAt,
+    competencies: evaluation.reviewer.reviewerCompetencies?.map(comp => ({
+      category: comp.category,
+      competencyLevel: comp.competencyLevel,
+      baseWeight: comp.baseWeight,
+    })),
   }));
 
-  const weightedScores = calculateWeightedScores(reviewerScores);
+  const weightedScores = calculateEnhancedWeightedScores(reviewerScores);
   const consensusIndicator = getConsensusIndicator(weightedScores);
 
   return (
