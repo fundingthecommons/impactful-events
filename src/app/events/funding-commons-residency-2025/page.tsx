@@ -666,6 +666,12 @@ export default async function FundingCommonsResidencyLandingPage() {
               </Link>
             )}
             <Link 
+              href="/events/funding-commons-residency-2025/mentor"
+              className="bg-gradient-to-r from-emerald-500 to-blue-500 text-white px-10 py-5 rounded-xl font-semibold hover:from-emerald-600 hover:to-blue-600 transition-all duration-200 shadow-lg transform hover:scale-105 text-lg"
+            >
+              Mentor Onboarding →
+            </Link>
+            <Link 
               href="https://www.fundingthecommons.io/builderresidency2025"
               target="_blank"
               rel="noopener noreferrer"
