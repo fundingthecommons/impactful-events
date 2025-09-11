@@ -274,7 +274,29 @@ export default function AdminDashboard() {
         </Card>
       </SimpleGrid>
 
-      <SimpleGrid cols={{ base: 1, md: 2 }}>
+      <SimpleGrid cols={{ base: 1, md: 3 }}>
+        <Card withBorder>
+          <Stack>
+            <Group>
+              <ThemeIcon size="md" color="red" variant="light">
+                <IconUsers size={18} />
+              </ThemeIcon>
+              <Text fw={600}>Reviewer Competencies</Text>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Manage reviewer expertise levels for accurate consensus weighting
+            </Text>
+            <Text size="xs" c="dimmed">
+              Technical, project, community, and video assessment competencies
+            </Text>
+            <Link href="/admin/reviewers" style={{ textDecoration: 'none' }}>
+              <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
+                Manage Competencies
+              </Button>
+            </Link>
+          </Stack>
+        </Card>
+
         <Card withBorder>
           <Stack>
             <Group>

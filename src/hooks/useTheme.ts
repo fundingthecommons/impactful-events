@@ -20,7 +20,7 @@ function getSystemTheme(): ResolvedTheme {
 }
 
 function getStoredTheme(): ThemeMode {
-  if (typeof window === 'undefined') return 'auto';
+  if (typeof window === 'undefined') return 'light';
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'light' || stored === 'dark' || stored === 'auto') {
@@ -29,7 +29,7 @@ function getStoredTheme(): ThemeMode {
   } catch (error) {
     console.warn('Failed to read theme from localStorage:', error);
   }
-  return 'auto';
+  return 'light';
 }
 
 function resolveTheme(theme: ThemeMode, systemTheme: ResolvedTheme): ResolvedTheme {

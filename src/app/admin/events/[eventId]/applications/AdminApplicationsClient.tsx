@@ -185,7 +185,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const getStatusForTab = (tab: string) => {
     switch (tab) {
       case "incomplete":
-        return "SUBMITTED" as const;
+        return undefined; // Fetch all applications and filter client-side for DRAFT + SUBMITTED
       case "under_review":
         return "UNDER_REVIEW" as const;
       case "accepted":
@@ -207,10 +207,6 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // Fetch counts for tab badges
   const { data: allApplications } = api.application.getEventApplications.useQuery({
     eventId: event.id,
-  });
-  const { data: incompleteApplications } = api.application.getEventApplications.useQuery({
-    eventId: event.id,
-    status: "SUBMITTED",
   });
   const { data: underReviewApplications } = api.application.getEventApplications.useQuery({
     eventId: event.id,
@@ -327,8 +323,12 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     const shouldHideReviewingAccepted = hideReviewingAccepted && activeTab === "all" && 
       (app.status === "UNDER_REVIEW" || app.status === "ACCEPTED");
     
-    // For incomplete tab, only show applications that are SUBMITTED and have missing info
+    // For incomplete tab, only show applications that are DRAFT or SUBMITTED and have missing info
     if (activeTab === "incomplete") {
+      // Only show DRAFT or SUBMITTED applications
+      const isIncompleteStatus = app.status === "DRAFT" || app.status === "SUBMITTED";
+      if (!isIncompleteStatus) return false;
+      
       const checkResult = missingInfoResults.get(app.id);
       // Only show if we've checked and found missing info, OR if we haven't checked yet (potential incomplete)
       const hasMissingInfo = !checkResult?.isComplete;
@@ -338,11 +338,15 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted;
   }) ?? [];
 
-  // Calculate incomplete applications count (SUBMITTED apps with missing info or unchecked)
-  const incompleteCount = incompleteApplications?.filter(app => {
+  // Calculate incomplete applications count (DRAFT or SUBMITTED apps with missing info or unchecked)
+  const incompleteCount = allApplications?.filter(app => {
+    // Only count DRAFT or SUBMITTED applications as potentially incomplete
+    const isIncompleteStatus = app.status === "DRAFT" || app.status === "SUBMITTED";
+    if (!isIncompleteStatus) return false;
+    
     const checkResult = missingInfoResults.get(app.id);
     return !checkResult?.isComplete;
-  }).length ?? incompleteApplications?.length ?? 0;
+  }).length ?? 0;
 
 
   // Handle individual application selection
