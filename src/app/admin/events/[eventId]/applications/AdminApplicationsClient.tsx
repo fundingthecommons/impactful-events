@@ -672,7 +672,6 @@ Please let me know if you need any help?`;
             </Group>
           </Card>
         )}
-
         {/* Tabs for Application Status */}
         <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? "all")}>
           <Tabs.List grow>
@@ -721,7 +720,7 @@ Please let me know if you need any help?`;
             </Tabs.Tab>
           </Tabs.List>
 
-          <Tabs.Panel value={activeTab} mt="md" style={{ border: '1px solid blue'}}>
+          {activeTab !== "pipeline" && <Tabs.Panel value={activeTab} mt="md" style={{ border: '1px solid blue'}}>
             {/* Filters and Actions */}
             <Card shadow="sm" padding="md" radius="md" withBorder>
               <Group justify="space-between" wrap="wrap" gap="md">
@@ -957,10 +956,9 @@ Please let me know if you need any help?`;
                 </Table.ScrollContainer>
               )}
             </Paper>
-          </Tabs.Panel>
+          </Tabs.Panel>}
 
           <Tabs.Panel value="pipeline" mt="md" style={{ border: '1px solid red'}}>
-            Pipeline!!
             <ReviewPipelineDashboard />
           </Tabs.Panel>
         </Tabs>

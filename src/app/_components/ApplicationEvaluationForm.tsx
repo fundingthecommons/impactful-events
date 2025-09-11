@@ -13,7 +13,6 @@ import {
   NumberInput,
   Select,
   Divider,
-  Tabs,
   Alert,
   Progress,
   ActionIcon,
@@ -185,7 +184,6 @@ export default function ApplicationEvaluationForm({
   onEvaluationComplete,
 }: EvaluationFormProps) {
   // ✅ ALL hooks at the top - no exceptions
-  const [activeTab, setActiveTab] = useState<string | null>("application");
   const [overallComments, setOverallComments] = useState("");
   const [recommendation, setRecommendation] = useState<string>("");
   const [confidence, setConfidence] = useState<number>(3);
@@ -334,23 +332,14 @@ export default function ApplicationEvaluationForm({
         </Text>
       </Paper>
 
-      <Tabs value={activeTab} onChange={setActiveTab}>
-        <Tabs.List>
-          <Tabs.Tab value="application" leftSection={<IconUsers size={14} />}>
-            Application
-          </Tabs.Tab>
-          <Tabs.Tab value="evaluation" leftSection={<IconStarFilled size={14} />}>
-            Evaluation ({completedScores}/{totalCriteria})
-          </Tabs.Tab>
-          {stage === 'VIDEO_REVIEW' && (
-            <Tabs.Tab value="video" leftSection={<IconVideo size={14} />}>
-              Video Review
-            </Tabs.Tab>
-          )}
-        </Tabs.List>
-
-        <Tabs.Panel value="application" pt="lg">
+      <Grid>
+        {/* Left Column - Application Details */}
+        <Grid.Col span={{ base: 12, md: 6 }}>
           <Stack gap="md">
+            <Group>
+              <IconUsers size={20} />
+              <Title order={4}>Application Details</Title>
+            </Group>
             {application.responses
               ?.sort((a, b) => a.question.order - b.question.order)
               .map((response) => (
@@ -364,32 +353,37 @@ export default function ApplicationEvaluationForm({
                 </Card>
               ))}
           </Stack>
-        </Tabs.Panel>
+        </Grid.Col>
 
-        <Tabs.Panel value="evaluation" pt="lg">
+        {/* Right Column - Evaluation */}
+        <Grid.Col span={{ base: 12, md: 6 }}>
           <Stack gap="lg">
+            <Group>
+              <IconStarFilled size={20} />
+              <Title order={4}>Evaluation ({completedScores}/{totalCriteria})</Title>
+            </Group>
+            
             {Object.entries(criteriaByCategory).map(([category, categoryItems]) => (
               <div key={category}>
-                <Title order={4} mb="md" c="blue">
+                <Title order={5} mb="md" c="blue">
                   {category.replace('_', ' ')} Criteria
                 </Title>
-                <Grid>
+                <Stack gap="md">
                   {categoryItems.map((criteria) => {
                     const existingScore = evaluation.scores?.find(
                       (s) => s.criteriaId === criteria.id
                     );
                     return (
-                      <Grid.Col key={criteria.id} span={{ base: 12, md: 6 }}>
-                        <CriteriaScore
-                          criteria={criteria}
-                          score={existingScore}
-                          onScoreChange={handleScoreChange}
-                          readonly={isCompleted}
-                        />
-                      </Grid.Col>
+                      <CriteriaScore
+                        key={criteria.id}
+                        criteria={criteria}
+                        score={existingScore}
+                        onScoreChange={handleScoreChange}
+                        readonly={isCompleted}
+                      />
                     );
                   })}
-                </Grid>
+                </Stack>
               </div>
             ))}
 
@@ -397,7 +391,7 @@ export default function ApplicationEvaluationForm({
 
             {/* Overall Assessment */}
             <Card withBorder p="md">
-              <Title order={4} mb="md">Overall Assessment</Title>
+              <Title order={5} mb="md">Overall Assessment</Title>
               <Stack gap="md">
                 <Textarea
                   label="Overall Comments"
@@ -471,12 +465,16 @@ export default function ApplicationEvaluationForm({
               </Alert>
             )}
           </Stack>
-        </Tabs.Panel>
+        </Grid.Col>
 
+        {/* Video Review Section - Full Width when applicable */}
         {stage === 'VIDEO_REVIEW' && (
-          <Tabs.Panel value="video" pt="lg">
+          <Grid.Col span={12}>
             <Card withBorder p="md">
-              <Title order={4} mb="md">Video Review</Title>
+              <Group mb="md">
+                <IconVideo size={20} />
+                <Title order={4}>Video Review</Title>
+              </Group>
               <Text c="dimmed" mb="md">
                 Review the applicant&apos;s 1-minute introduction video and assess their communication skills,
                 passion, and presentation quality.
@@ -518,9 +516,9 @@ export default function ApplicationEvaluationForm({
                 minRows={4}
               />
             </Card>
-          </Tabs.Panel>
+          </Grid.Col>
         )}
-      </Tabs>
+      </Grid>
     </Stack>
   );
 }

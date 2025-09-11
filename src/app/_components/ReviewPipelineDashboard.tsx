@@ -473,7 +473,7 @@ export default function ReviewPipelineDashboard() {
         opened={!!selectedApplication}
         onClose={() => setSelectedApplication(null)}
         title="Application Evaluation"
-        size="xl"
+        size="100%"
         scrollAreaComponent={ScrollArea.Autosize}
         styles={{
           body: { padding: 0 },
