@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { hashPassword } from "~/utils/password";
 import { TRPCError } from "@trpc/server";
 
@@ -43,5 +43,58 @@ export const userRouter = createTRPCRouter({
       });
 
       return user;
+    }),
+
+  getAll: protectedProcedure
+    .query(async ({ ctx }) => {
+      // Only allow staff and admin users to fetch all users
+      if (ctx.session.user.role !== "staff" && ctx.session.user.role !== "admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only staff and admin users can access user list",
+        });
+      }
+
+      const users = await ctx.db.user.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+        orderBy: {
+          name: "asc",
+        },
+      });
+
+      return users;
+    }),
+
+  getAdmins: protectedProcedure
+    .query(async ({ ctx }) => {
+      // Only allow staff and admin users to fetch admin users
+      if (ctx.session.user.role !== "staff" && ctx.session.user.role !== "admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only staff and admin users can access admin user list",
+        });
+      }
+
+      const adminUsers = await ctx.db.user.findMany({
+        where: {
+          role: "admin",
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+        orderBy: {
+          name: "asc",
+        },
+      });
+
+      return adminUsers;
     }),
 });

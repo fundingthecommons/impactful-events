@@ -77,6 +77,11 @@ model User {
   userGlobalRoles UserGlobalRole[] // Keep for backward compatibility but use role field primarily
   createdEvents   Event[]              @relation("EventsCreatedBy")
   applications    Application[]
+  
+  // Evaluation system relations
+  reviewerAssignments    ReviewerAssignment[]     @relation("ReviewerAssignments")
+  applicationEvaluations ApplicationEvaluation[]  @relation("ApplicationEvaluations")
+  consensusDecisions     ReviewConsensus[]        @relation("ConsensusDecisions")
 }
 
 model VerificationToken {
@@ -442,6 +447,11 @@ model Application {
   responses     ApplicationResponse[]
   emails        Email[]  // Emails related to this application
   
+  // Evaluation system relations
+  reviewerAssignments   ReviewerAssignment[]
+  evaluations          ApplicationEvaluation[]
+  consensus            ReviewConsensus?
+  
   @@unique([userId, eventId]) // One application per user per event
   @@index([email])
   @@index([status])
@@ -701,4 +711,162 @@ model ProjectSync {
   
   @@index([status])
   @@index([startedAt])
+}
+
+// Application Evaluation System Models
+
+enum EvaluationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  REVIEWED
+}
+
+enum ReviewStage {
+  SCREENING         // Initial screening phase
+  DETAILED_REVIEW   // In-depth evaluation
+  VIDEO_REVIEW      // Video assessment phase
+  CONSENSUS         // Team consensus building
+  FINAL_DECISION    // Final decision stage
+}
+
+enum CriteriaCategory {
+  TECHNICAL         // Technical skills and experience
+  PROJECT          // Project quality and feasibility
+  COMMUNITY_FIT    // Community alignment and culture fit
+  VIDEO            // Video presentation assessment
+  OVERALL          // Overall impression
+}
+
+model EvaluationCriteria {
+  id            String          @id @default(cuid())
+  name          String          @unique // e.g., "Technical Skills", "Project Viability"
+  description   String          // Detailed description of what to evaluate
+  category      CriteriaCategory
+  weight        Float           @default(1.0) // Weight for final score calculation
+  minScore      Int             @default(1)
+  maxScore      Int             @default(10)
+  isActive      Boolean         @default(true)
+  order         Int             // Display order
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relations
+  scores        EvaluationScore[]
+
+  @@index([category])
+  @@index([isActive])
+  @@index([order])
+}
+
+model ReviewerAssignment {
+  id              String   @id @default(cuid())
+  applicationId   String
+  reviewerId      String   // User ID of the reviewer
+  stage           ReviewStage @default(SCREENING)
+  priority        Int      @default(0) // Higher priority = more urgent
+  assignedAt      DateTime @default(now())
+  dueDate         DateTime?
+  completedAt     DateTime?
+  notes           String?  // Assignment notes or instructions
+  
+  // Relations
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewer        User        @relation("ReviewerAssignments", fields: [reviewerId], references: [id], onDelete: Cascade)
+  evaluations     ApplicationEvaluation[]
+
+  @@unique([applicationId, reviewerId, stage]) // One assignment per reviewer per stage
+  @@index([reviewerId])
+  @@index([stage])
+  @@index([priority])
+  @@index([dueDate])
+}
+
+model ApplicationEvaluation {
+  id                  String          @id @default(cuid())
+  applicationId       String
+  reviewerId          String          // User ID of the reviewer
+  assignmentId        String          // Links to ReviewerAssignment
+  status              EvaluationStatus @default(PENDING)
+  stage               ReviewStage
+  overallScore        Float?          // Calculated weighted average
+  overallComments     String?         @db.Text // General comments about the application
+  recommendation      String?         // ACCEPT, REJECT, WAITLIST, NEEDS_MORE_INFO
+  confidence          Int?            // Reviewer confidence level (1-5)
+  timeSpentMinutes    Int?            // Time spent on evaluation
+  
+  // Video-specific fields
+  videoWatched        Boolean         @default(false)
+  videoTimestamp      String?         // JSON array of timestamp notes
+  videoQuality        Int?            // Video quality rating (1-5)
+  
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  completedAt         DateTime?
+
+  // Relations
+  application         Application            @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewer            User                   @relation("ApplicationEvaluations", fields: [reviewerId], references: [id], onDelete: Cascade)
+  assignment          ReviewerAssignment     @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  scores              EvaluationScore[]
+  comments            EvaluationComment[]
+
+  @@unique([applicationId, reviewerId, stage]) // One evaluation per reviewer per stage
+  @@index([reviewerId])
+  @@index([status])
+  @@index([stage])
+  @@index([overallScore])
+  @@index([recommendation])
+}
+
+model EvaluationScore {
+  id            String    @id @default(cuid())
+  evaluationId  String
+  criteriaId    String
+  score         Float     // The actual score given
+  reasoning     String?   @db.Text // Explanation for the score
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  evaluation    ApplicationEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  criteria      EvaluationCriteria    @relation(fields: [criteriaId], references: [id], onDelete: Cascade)
+
+  @@unique([evaluationId, criteriaId]) // One score per criteria per evaluation
+  @@index([score])
+}
+
+model EvaluationComment {
+  id            String    @id @default(cuid())
+  evaluationId  String
+  questionKey   String?   // Which application question this relates to
+  comment       String    @db.Text
+  isPrivate     Boolean   @default(true) // Private to reviewers or shared with applicant
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  evaluation    ApplicationEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@index([evaluationId])
+  @@index([questionKey])
+}
+
+model ReviewConsensus {
+  id              String    @id @default(cuid())
+  applicationId   String    @unique // One consensus per application
+  finalDecision   String?   // ACCEPT, REJECT, WAITLIST
+  consensusScore  Float?    // Aggregate consensus score
+  discussionNotes String?   @db.Text // Notes from consensus discussion
+  decidedBy       String?   // Final decision maker (User ID)
+  decidedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  decisionMaker   User?       @relation("ConsensusDecisions", fields: [decidedBy], references: [id])
+
+  @@index([finalDecision])
+  @@index([consensusScore])
 }

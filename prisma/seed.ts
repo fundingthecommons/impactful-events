@@ -421,6 +421,113 @@ async function main() {
     console.log(`✅ Created/updated question: ${questionData.questionKey}`)
   }
 
+  // Create evaluation criteria for residency vetting
+  const evaluationCriteria = [
+    // Technical Category (30% weight)
+    {
+      name: "Technical Skills Assessment",
+      description: "Evaluate technical capabilities based on self-reported skills, experience level (1-10), and GitHub/portfolio evidence. Consider depth vs breadth of skills.",
+      category: "TECHNICAL" as const,
+      weight: 0.12, // 12% of total
+      order: 1
+    },
+    {
+      name: "Open Source & Collaborative Experience",
+      description: "Assess quality of open source contributions, collaborative work experience, and ability to work in distributed teams based on their story and evidence.",
+      category: "TECHNICAL" as const,
+      weight: 0.10, // 10% of total
+      order: 2
+    },
+    {
+      name: "Learning & Adaptation Ability", 
+      description: "Evaluate growth mindset, ability to learn new technologies, and adaptability based on their experience descriptions and skill progression.",
+      category: "TECHNICAL" as const,
+      weight: 0.08, // 8% of total
+      order: 3
+    },
+
+    // Project Category (25% weight)
+    {
+      name: "Project Vision & Feasibility",
+      description: "Assess the clarity, innovation, and feasibility of their proposed residency project. Consider if it's appropriately scoped for the timeframe.",
+      category: "PROJECT" as const,
+      weight: 0.10, // 10% of total
+      order: 4
+    },
+    {
+      name: "Public Goods & RealFi Alignment",
+      description: "Evaluate how well their project aligns with public goods funding, RealFi solutions, and the residency's mission. Look for genuine understanding vs surface-level answers.",
+      category: "PROJECT" as const,
+      weight: 0.08, // 8% of total  
+      order: 5
+    },
+    {
+      name: "Impact Potential & Measurement Understanding",
+      description: "Assess their understanding of impact measurement, realistic expectations for project outcomes, and potential for meaningful contribution to the ecosystem.",
+      category: "PROJECT" as const,
+      weight: 0.07, // 7% of total
+      order: 6
+    },
+
+    // Community Fit Category (25% weight)
+    {
+      name: "Public Goods Ecosystem Understanding",
+      description: "Evaluate depth of understanding of public goods funding mechanisms, familiarity with the ecosystem, and genuine motivation vs opportunistic interest.",
+      category: "COMMUNITY_FIT" as const,
+      weight: 0.08, // 8% of total
+      order: 7
+    },
+    {
+      name: "Community Contribution Potential",
+      description: "Assess what unique value they can bring to the cohort, mentorship abilities, collaborative mindset, and cultural fit with FtC community values.",
+      category: "COMMUNITY_FIT" as const,
+      weight: 0.09, // 9% of total
+      order: 8
+    },
+    {
+      name: "Commitment & Availability",
+      description: "Evaluate their commitment level, availability for full program duration, ability to manage competing priorities, and likelihood of completion.",
+      category: "COMMUNITY_FIT" as const,
+      weight: 0.08, // 8% of total
+      order: 9
+    },
+
+    // Video Category (20% weight)
+    {
+      name: "Communication Skills",
+      description: "Assess clarity of expression, ability to articulate complex ideas, English proficiency, and overall communication effectiveness from the 1-minute video.",
+      category: "VIDEO" as const,
+      weight: 0.08, // 8% of total
+      order: 10
+    },
+    {
+      name: "Passion & Authenticity",
+      description: "Evaluate genuine enthusiasm for the mission, authentic interest vs scripted responses, energy level, and personal connection to the work.",
+      category: "VIDEO" as const,
+      weight: 0.07, // 7% of total
+      order: 11
+    },
+    {
+      name: "Professionalism & Presentation",
+      description: "Assess video quality, preparation level, time management (staying within 1 minute), and overall professionalism of presentation.",
+      category: "VIDEO" as const,
+      weight: 0.05, // 5% of total
+      order: 12
+    }
+  ]
+
+  console.log('🌱 Creating evaluation criteria for residency vetting...')
+  for (const criteriaData of evaluationCriteria) {
+    const criteria = await prisma.evaluationCriteria.upsert({
+      where: { 
+        name: criteriaData.name
+      },
+      update: criteriaData,
+      create: criteriaData,
+    })
+    console.log(`✅ Created/updated evaluation criteria: ${criteria.name} (${(criteria.weight * 100).toFixed(1)}%)`)
+  }
+
   console.log('🎉 Seeding completed successfully!')
 }
 

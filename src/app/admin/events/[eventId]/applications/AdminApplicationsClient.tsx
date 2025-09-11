@@ -48,6 +48,7 @@ import Link from "next/link";
 import { api } from "~/trpc/react";
 import EditableApplicationForm from "~/app/_components/EditableApplicationForm";
 import EmailPreviewModal from "~/app/_components/EmailPreviewModal";
+import ReviewPipelineDashboard from "~/app/_components/ReviewPipelineDashboard";
 
 type Event = {
   id: string;
@@ -715,9 +716,12 @@ Please let me know if you need any help?`;
                 </Badge>
               )}
             </Tabs.Tab>
+            <Tabs.Tab value="pipeline">
+              🌟 Review Pipeline
+            </Tabs.Tab>
           </Tabs.List>
 
-          <Tabs.Panel value={activeTab} mt="md">
+          <Tabs.Panel value={activeTab} mt="md" style={{ border: '1px solid blue'}}>
             {/* Filters and Actions */}
             <Card shadow="sm" padding="md" radius="md" withBorder>
               <Group justify="space-between" wrap="wrap" gap="md">
@@ -953,6 +957,11 @@ Please let me know if you need any help?`;
                 </Table.ScrollContainer>
               )}
             </Paper>
+          </Tabs.Panel>
+
+          <Tabs.Panel value="pipeline" mt="md" style={{ border: '1px solid red'}}>
+            Pipeline!!
+            <ReviewPipelineDashboard />
           </Tabs.Panel>
         </Tabs>
       </Stack>
