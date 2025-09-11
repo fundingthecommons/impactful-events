@@ -146,6 +146,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [hideRejected, setHideRejected] = useState<boolean>(true);
+  const [hideReviewingAccepted, setHideReviewingAccepted] = useState<boolean>(false);
   const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
   const [viewingApplication, setViewingApplication] = useState<ApplicationWithUser | null>(null);
   const [editingApplication, setEditingApplication] = useState<ApplicationWithUser | null>(null);
@@ -312,7 +313,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     return completionsMap;
   }, [applications, eventQuestions]);
 
-  // Filter applications based on search, hide rejected setting, and incomplete tab logic
+  // Filter applications based on search, hide rejected setting, hide reviewing/accepted setting, and incomplete tab logic
   const filteredApplications = applications?.filter(app => {
     // Search filter
     const matchesSearch = !searchQuery || 
@@ -322,15 +323,19 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     // Hide rejected filter (only applies when on "all" tab)
     const shouldHideRejected = hideRejected && activeTab === "all" && app.status === "REJECTED";
     
+    // Hide reviewing and accepted filter (only applies when on "all" tab)
+    const shouldHideReviewingAccepted = hideReviewingAccepted && activeTab === "all" && 
+      (app.status === "UNDER_REVIEW" || app.status === "ACCEPTED");
+    
     // For incomplete tab, only show applications that are SUBMITTED and have missing info
     if (activeTab === "incomplete") {
       const checkResult = missingInfoResults.get(app.id);
       // Only show if we've checked and found missing info, OR if we haven't checked yet (potential incomplete)
       const hasMissingInfo = !checkResult?.isComplete;
-      return matchesSearch && !shouldHideRejected && hasMissingInfo;
+      return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted && hasMissingInfo;
     }
     
-    return matchesSearch && !shouldHideRejected;
+    return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted;
   }) ?? [];
 
   // Calculate incomplete applications count (SUBMITTED apps with missing info or unchecked)
@@ -782,11 +787,18 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                     style={{ minWidth: 200 }}
                   />
                   {activeTab === "all" && (
-                    <Checkbox
-                      label="Hide rejected"
-                      checked={hideRejected}
-                      onChange={(e) => setHideRejected(e.currentTarget.checked)}
-                    />
+                    <>
+                      <Checkbox
+                        label="Hide rejected"
+                        checked={hideRejected}
+                        onChange={(e) => setHideRejected(e.currentTarget.checked)}
+                      />
+                      <Checkbox
+                        label="Hide reviewing and accepted"
+                        checked={hideReviewingAccepted}
+                        onChange={(e) => setHideReviewingAccepted(e.currentTarget.checked)}
+                      />
+                    </>
                   )}
                 </Group>
                 
