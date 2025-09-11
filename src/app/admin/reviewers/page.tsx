@@ -46,7 +46,6 @@ import {
   IconHeart,
   IconVideo,
   IconSparkles,
-  IconMagicWand,
   IconUserPlus,
 } from '@tabler/icons-react';
 import { api } from '~/trpc/react';
@@ -64,7 +63,7 @@ function getCategoryIcon(category: string) {
     case 'COMMUNITY_FIT': return <IconHeart size={14} />;
     case 'VIDEO': return <IconVideo size={14} />;
     case 'OVERALL': return <IconSparkles size={14} />;
-    default: return <IconMagicWand size={14} />;
+    default: return <IconStar size={14} />;
   }
 }
 
