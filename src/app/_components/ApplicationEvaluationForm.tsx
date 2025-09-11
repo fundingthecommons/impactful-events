@@ -19,6 +19,7 @@ import {
   Box,
   Paper,
   Grid,
+  Anchor,
 } from "@mantine/core";
 import {
   IconStarFilled,
@@ -54,6 +55,76 @@ interface EvaluationFormProps {
   applicationId: string;
   stage: 'SCREENING' | 'DETAILED_REVIEW' | 'VIDEO_REVIEW' | 'CONSENSUS' | 'FINAL_DECISION';
   onEvaluationComplete?: () => void;
+}
+
+// Utility function to extract YouTube video ID from various YouTube URL formats
+function extractYouTubeVideoId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /youtube\.com\/v\/([^&\n?#]+)/,
+    /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1] as string;
+    }
+  }
+  
+  return null;
+}
+
+// Component to render YouTube embed or regular link
+function VideoLinkRenderer({ url, questionText }: { url: string; questionText: string }) {
+  const videoId = extractYouTubeVideoId(url);
+  
+  if (videoId) {
+    return (
+      <Stack gap="md">
+        <Text>
+          <Anchor href={url} target="_blank" rel="noopener noreferrer">
+            {url}
+          </Anchor>
+        </Text>
+        <Box
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: 0,
+            paddingBottom: '56.25%', // 16:9 aspect ratio
+            overflow: 'hidden',
+            borderRadius: '8px',
+            border: '1px solid var(--mantine-color-gray-3)'
+          }}
+        >
+          <iframe
+            src={`https://www.youtube.com/embed/${videoId}`}
+            title={questionText}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              border: 0
+            }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </Box>
+      </Stack>
+    );
+  }
+  
+  // For non-YouTube links, show as regular link
+  return (
+    <Text>
+      <Anchor href={url} target="_blank" rel="noopener noreferrer">
+        {url}
+      </Anchor>
+    </Text>
+  );
 }
 
 interface CriteriaScoreProps {
@@ -332,139 +403,161 @@ export default function ApplicationEvaluationForm({
         </Text>
       </Paper>
 
-      <Grid>
+      <Grid gutter="lg">
         {/* Left Column - Application Details */}
-        <Grid.Col span={{ base: 12, md: 6 }}>
-          <Stack gap="md">
+        <Grid.Col span={{ base: 12, md: 8 }}>
+          <Stack gap="md" h="100%">
             <Group>
               <IconUsers size={20} />
               <Title order={4}>Application Details</Title>
             </Group>
-            {application.responses
-              ?.sort((a, b) => a.question.order - b.question.order)
-              .map((response) => (
-                <Card key={response.question.questionKey} withBorder p="md">
-                  <Title order={6} mb="xs">
-                    {response.question.questionEn}
-                  </Title>
-                  <Text>
-                    {response.answer || <Text c="dimmed" fs="italic">No answer provided</Text>}
-                  </Text>
-                </Card>
-              ))}
+            <Box style={{ flex: 1, overflowY: 'auto', maxHeight: '70vh' }}>
+              <Stack gap="md">
+                {application.responses
+                  ?.sort((a, b) => a.question.order - b.question.order)
+                  .map((response) => (
+                    <Card key={response.question.questionKey} withBorder p="md">
+                      <Title order={6} mb="xs">
+                        {response.question.questionEn}
+                      </Title>
+                      {response.answer ? (
+                        // Check if this is a video link question and the answer looks like a URL
+                        (response.question.questionKey === 'intro_video_link' || 
+                         response.question.questionEn.toLowerCase().includes('video')) &&
+                        (response.answer.startsWith('http://') || response.answer.startsWith('https://')) ? (
+                          <VideoLinkRenderer 
+                            url={response.answer} 
+                            questionText={response.question.questionEn}
+                          />
+                        ) : (
+                          <Text>{response.answer}</Text>
+                        )
+                      ) : (
+                        <Text c="dimmed" fs="italic">No answer provided</Text>
+                      )}
+                    </Card>
+                  ))}
+              </Stack>
+            </Box>
           </Stack>
         </Grid.Col>
 
         {/* Right Column - Evaluation */}
-        <Grid.Col span={{ base: 12, md: 6 }}>
-          <Stack gap="lg">
-            <Group>
-              <IconStarFilled size={20} />
-              <Title order={4}>Evaluation ({completedScores}/{totalCriteria})</Title>
-            </Group>
-            
-            {Object.entries(criteriaByCategory).map(([category, categoryItems]) => (
-              <div key={category}>
-                <Title order={5} mb="md" c="blue">
-                  {category.replace('_', ' ')} Criteria
-                </Title>
-                <Stack gap="md">
-                  {categoryItems.map((criteria) => {
-                    const existingScore = evaluation.scores?.find(
-                      (s) => s.criteriaId === criteria.id
-                    );
-                    return (
-                      <CriteriaScore
-                        key={criteria.id}
-                        criteria={criteria}
-                        score={existingScore}
-                        onScoreChange={handleScoreChange}
-                        readonly={isCompleted}
-                      />
-                    );
-                  })}
-                </Stack>
-              </div>
-            ))}
-
-            <Divider />
-
-            {/* Overall Assessment */}
-            <Card withBorder p="md">
-              <Title order={5} mb="md">Overall Assessment</Title>
-              <Stack gap="md">
-                <Textarea
-                  label="Overall Comments"
-                  placeholder="Provide your overall assessment of this application..."
-                  value={overallComments}
-                  onChange={(e) => setOverallComments(e.target.value)}
-                  disabled={isCompleted}
-                  autosize
-                  minRows={3}
-                  maxRows={6}
-                />
-
-                <Group grow>
-                  <Select
-                    label="Recommendation"
-                    placeholder="Select recommendation"
-                    value={recommendation}
-                    onChange={(value) => setRecommendation(value ?? "")}
-                    disabled={isCompleted}
-                    data={[
-                      { value: 'ACCEPT', label: 'Accept' },
-                      { value: 'REJECT', label: 'Reject' },
-                      { value: 'WAITLIST', label: 'Waitlist' },
-                      { value: 'NEEDS_MORE_INFO', label: 'Needs More Info' },
-                    ]}
-                  />
-
-                  <NumberInput
-                    label="Confidence Level"
-                    description="How confident are you in this assessment? (1-5)"
-                    min={1}
-                    max={5}
-                    value={confidence}
-                    onChange={(value) => setConfidence(Number(value) || 3)}
-                    disabled={isCompleted}
-                  />
-                </Group>
-              </Stack>
-            </Card>
-
-            {/* Action buttons */}
-            {!isCompleted && (
-              <Group justify="flex-end">
-                <Button
-                  variant="outline"
-                  leftSection={<IconClock size={16} />}
-                  onClick={() => handleSaveEvaluation('IN_PROGRESS')}
-                  loading={updateEvaluationMutation.isPending}
-                >
-                  Save Progress
-                </Button>
-                <Button
-                  leftSection={<IconCheck size={16} />}
-                  onClick={() => handleSaveEvaluation('COMPLETED')}
-                  loading={updateEvaluationMutation.isPending}
-                  disabled={progress < 100 || !recommendation}
-                >
-                  Complete Evaluation
-                </Button>
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <Paper bg="gray.0" p="md" radius="md" h="100%">
+            <Stack gap="lg" h="100%">
+              <Group>
+                <IconStarFilled size={20} />
+                <Title order={4}>Evaluation ({completedScores}/{totalCriteria})</Title>
               </Group>
-            )}
+              
+              <Box style={{ flex: 1, overflowY: 'auto', maxHeight: '70vh' }}>
+                <Stack gap="lg">
+                  {Object.entries(criteriaByCategory).map(([category, categoryItems]) => (
+                    <div key={category}>
+                      <Title order={5} mb="md" c="blue">
+                        {category.replace('_', ' ')} Criteria
+                      </Title>
+                      <Stack gap="md">
+                        {categoryItems.map((criteria) => {
+                          const existingScore = evaluation.scores?.find(
+                            (s) => s.criteriaId === criteria.id
+                          );
+                          return (
+                            <CriteriaScore
+                              key={criteria.id}
+                              criteria={criteria}
+                              score={existingScore}
+                              onScoreChange={handleScoreChange}
+                              readonly={isCompleted}
+                            />
+                          );
+                        })}
+                      </Stack>
+                    </div>
+                  ))}
 
-            {isCompleted && (
-              <Alert 
-                icon={<IconCheck size={16} />} 
-                color="green"
-                title="Evaluation Completed"
-              >
-                This evaluation was completed on {evaluation.completedAt ? new Date(evaluation.completedAt).toLocaleDateString() : 'Unknown date'}.
-                Time spent: {evaluation.timeSpentMinutes ?? 0} minutes.
-              </Alert>
-            )}
-          </Stack>
+                  <Divider />
+
+                  {/* Overall Assessment */}
+                  <Card withBorder p="md">
+                    <Title order={5} mb="md">Overall Assessment</Title>
+                    <Stack gap="md">
+                      <Textarea
+                        label="Overall Comments"
+                        placeholder="Provide your overall assessment of this application..."
+                        value={overallComments}
+                        onChange={(e) => setOverallComments(e.target.value)}
+                        disabled={isCompleted}
+                        autosize
+                        minRows={3}
+                        maxRows={6}
+                      />
+
+                      <Group grow>
+                        <Select
+                          label="Recommendation"
+                          placeholder="Select recommendation"
+                          value={recommendation}
+                          onChange={(value) => setRecommendation(value ?? "")}
+                          disabled={isCompleted}
+                          data={[
+                            { value: 'ACCEPT', label: 'Accept' },
+                            { value: 'REJECT', label: 'Reject' },
+                            { value: 'WAITLIST', label: 'Waitlist' },
+                            { value: 'NEEDS_MORE_INFO', label: 'Needs More Info' },
+                          ]}
+                        />
+
+                        <NumberInput
+                          label="Confidence Level"
+                          description="How confident are you in this assessment? (1-5)"
+                          min={1}
+                          max={5}
+                          value={confidence}
+                          onChange={(value) => setConfidence(Number(value) || 3)}
+                          disabled={isCompleted}
+                        />
+                      </Group>
+                    </Stack>
+                  </Card>
+
+                  {/* Action buttons */}
+                  {!isCompleted && (
+                    <Group justify="flex-end">
+                      <Button
+                        variant="outline"
+                        leftSection={<IconClock size={16} />}
+                        onClick={() => handleSaveEvaluation('IN_PROGRESS')}
+                        loading={updateEvaluationMutation.isPending}
+                      >
+                        Save Progress
+                      </Button>
+                      <Button
+                        leftSection={<IconCheck size={16} />}
+                        onClick={() => handleSaveEvaluation('COMPLETED')}
+                        loading={updateEvaluationMutation.isPending}
+                        disabled={progress < 100 || !recommendation}
+                      >
+                        Complete Evaluation
+                      </Button>
+                    </Group>
+                  )}
+
+                  {isCompleted && (
+                    <Alert 
+                      icon={<IconCheck size={16} />} 
+                      color="green"
+                      title="Evaluation Completed"
+                    >
+                      This evaluation was completed on {evaluation.completedAt ? new Date(evaluation.completedAt).toLocaleDateString() : 'Unknown date'}.
+                      Time spent: {evaluation.timeSpentMinutes ?? 0} minutes.
+                    </Alert>
+                  )}
+                </Stack>
+              </Box>
+            </Stack>
+          </Paper>
         </Grid.Col>
 
         {/* Video Review Section - Full Width when applicable */}
@@ -486,17 +579,12 @@ export default function ApplicationEvaluationForm({
                   r => r.question.questionKey === 'intro_video_link'
                 );
                 return videoResponse?.answer ? (
-                  <Group mb="md">
-                    <Button
-                      component="a"
-                      href={videoResponse.answer}
-                      target="_blank"
-                      leftSection={<IconVideo size={16} />}
-                      variant="outline"
-                    >
-                      Watch Introduction Video
-                    </Button>
-                  </Group>
+                  <Box mb="md">
+                    <VideoLinkRenderer 
+                      url={videoResponse.answer} 
+                      questionText="Introduction Video"
+                    />
+                  </Box>
                 ) : (
                   <Alert color="yellow" mb="md">
                     No video link provided by applicant

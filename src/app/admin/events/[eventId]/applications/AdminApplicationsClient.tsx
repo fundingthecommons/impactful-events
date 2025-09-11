@@ -958,7 +958,7 @@ Please let me know if you need any help?`;
             </Paper>
           </Tabs.Panel>}
 
-          <Tabs.Panel value="pipeline" mt="md" style={{ border: '1px solid red'}}>
+          <Tabs.Panel value="pipeline" mt="md">
             <ReviewPipelineDashboard />
           </Tabs.Panel>
         </Tabs>
