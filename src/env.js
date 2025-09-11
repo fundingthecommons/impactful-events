@@ -26,6 +26,7 @@ export const env = createEnv({
     POSTMARK_SANDBOX_TOKEN: z.string().optional(),
     EMAIL_MODE: z.enum(["development", "staging", "production"]).default("development"),
     TEST_EMAIL_OVERRIDE: z.string().email().default("james@fundingthecommons.io"),
+    MASTRA_API_KEY: z.string(),
   },
 
   /**
@@ -56,6 +57,7 @@ export const env = createEnv({
     POSTMARK_SANDBOX_TOKEN: process.env.POSTMARK_SANDBOX_TOKEN,
     EMAIL_MODE: process.env.EMAIL_MODE,
     TEST_EMAIL_OVERRIDE: process.env.TEST_EMAIL_OVERRIDE,
+    MASTRA_API_KEY: process.env.MASTRA_API_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
