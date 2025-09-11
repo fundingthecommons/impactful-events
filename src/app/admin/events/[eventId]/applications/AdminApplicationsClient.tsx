@@ -42,13 +42,13 @@ import {
   IconSend,
   IconTrash,
   IconAlertCircle,
-  IconBrandTelegram,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import EditableApplicationForm from "~/app/_components/EditableApplicationForm";
 import EmailPreviewModal from "~/app/_components/EmailPreviewModal";
 import ReviewPipelineDashboard from "~/app/_components/ReviewPipelineDashboard";
+import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
 
 type Event = {
   id: string;
@@ -274,54 +274,6 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     return !checkResult?.isComplete;
   }).length ?? incompleteApplications?.length ?? 0;
 
-  // Helper function to get user's telegram handle from application responses
-  const getUserTelegramHandle = (application: ApplicationWithUser): string | null => {
-    const telegramResponse = application.responses.find(
-      response => response.question.questionKey === "telegram"
-    );
-    
-    if (!telegramResponse?.answer?.trim()) {
-      return null;
-    }
-    
-    let handle = telegramResponse.answer.trim();
-    
-    // If it's a full Telegram URL, extract just the username
-    if (handle.includes('t.me/')) {
-      const regex = /t\.me\/([^/?]+)/;
-      const match = regex.exec(handle);
-      if (match?.[1]) {
-        handle = match[1];
-      }
-    }
-    
-    // Remove @ if present
-    handle = handle.replace(/^@/, '');
-    
-    return handle || null;
-  };
-
-  // Helper function to generate Telegram link
-  const generateTelegramLink = (application: ApplicationWithUser) => {
-    const telegramHandle = getUserTelegramHandle(application);
-    
-    if (!telegramHandle) {
-      return null;
-    }
-    
-    const baseMessage = `I see you applied for the Funding the Commons residency in Buenos Aires in 2025! 
-
-I'm reviewing your application, and need to collect some more information from you.
-
-Could you please create an account on our platform with the same email address you applied with and fill in the missing information 🙏
-
-You can find our platform here - https://platform.fundingthecommons.io/events/funding-commons-residency-2025/apply
-
-Please let me know if you need any help?`;
-    
-    const encodedMessage = encodeURIComponent(baseMessage);
-    return `https://t.me/${telegramHandle}?text=${encodedMessage}`;
-  };
 
   // Handle individual application selection
   const toggleApplicationSelection = (applicationId: string) => {
@@ -699,6 +651,9 @@ Please let me know if you need any help?`;
                 </Badge>
               )}
             </Tabs.Tab>
+            <Tabs.Tab value="pipeline">
+              🌟 Review Pipeline
+            </Tabs.Tab>
             <Tabs.Tab value="accepted">
               Accepted
               {acceptedApplications && (
@@ -715,12 +670,10 @@ Please let me know if you need any help?`;
                 </Badge>
               )}
             </Tabs.Tab>
-            <Tabs.Tab value="pipeline">
-              🌟 Review Pipeline
-            </Tabs.Tab>
+            
           </Tabs.List>
 
-          {activeTab !== "pipeline" && <Tabs.Panel value={activeTab} mt="md" style={{ border: '1px solid blue'}}>
+          {activeTab !== "pipeline" && <Tabs.Panel value={activeTab} mt="md">
             {/* Filters and Actions */}
             <Card shadow="sm" padding="md" radius="md" withBorder>
               <Group justify="space-between" wrap="wrap" gap="md">
@@ -859,36 +812,14 @@ Please let me know if you need any help?`;
                                 </ActionIcon>
 
                                 {/* Telegram icon - only show on Incomplete tab */}
-                                {activeTab === "incomplete" && (() => {
-                                  const telegramLink = generateTelegramLink(application);
-                                  const telegramHandle = getUserTelegramHandle(application);
-                                  
-                                  if (telegramHandle && telegramLink) {
-                                    return (
-                                      <ActionIcon
-                                        variant="subtle"
-                                        color="blue"
-                                        component="a"
-                                        href={telegramLink}
-                                        target="_blank"
-                                        title={`Contact via Telegram (@${telegramHandle})`}
-                                      >
-                                        <IconBrandTelegram size={16} />
-                                      </ActionIcon>
-                                    );
-                                  } else {
-                                    return (
-                                      <ActionIcon
-                                        variant="subtle"
-                                        color="red"
-                                        disabled
-                                        title="No Telegram handle provided"
-                                      >
-                                        <IconX size={16} />
-                                      </ActionIcon>
-                                    );
-                                  }
-                                })()}
+                                {activeTab === "incomplete" && (
+                                  <TelegramMessageButton
+                                    application={application}
+                                    size={16}
+                                    variant="subtle"
+                                    color="blue"
+                                  />
+                                )}
 
                                 {(application.status === "UNDER_REVIEW" || application.status === "SUBMITTED" || application.status === "ACCEPTED") && (() => {
                                   const checkStatus = getCheckStatus(application.id);

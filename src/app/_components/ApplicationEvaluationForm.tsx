@@ -21,6 +21,7 @@ import {
   Grid,
   Anchor,
 } from "@mantine/core";
+import TelegramMessageButton from "./TelegramMessageButton";
 import {
   IconStarFilled,
   IconStar,
@@ -60,8 +61,17 @@ interface EvaluationFormProps {
 // Utility function to extract YouTube video ID from various YouTube URL formats
 function extractYouTubeVideoId(url: string): string | null {
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    // YouTube Shorts: youtube.com/shorts/VIDEO_ID
+    /youtube\.com\/shorts\/([^&\n?#]+)/,
+    // Standard YouTube: youtube.com/watch?v=VIDEO_ID
+    /youtube\.com\/watch\?v=([^&\n?#]+)/,
+    // Short URL: youtu.be/VIDEO_ID
+    /youtu\.be\/([^&\n?#]+)/,
+    // Embed URL: youtube.com/embed/VIDEO_ID
+    /youtube\.com\/embed\/([^&\n?#]+)/,
+    // Legacy URL: youtube.com/v/VIDEO_ID
     /youtube\.com\/v\/([^&\n?#]+)/,
+    // Watch URL with additional parameters: youtube.com/watch?.*v=VIDEO_ID
     /youtube\.com\/watch\?.*v=([^&\n?#]+)/
   ];
   
@@ -132,9 +142,10 @@ interface CriteriaScoreProps {
   score?: EvaluationScore;
   onScoreChange: (criteriaId: string, score: number, reasoning?: string) => void;
   readonly?: boolean;
+  application?: ApplicationWithDetails;
 }
 
-function CriteriaScore({ criteria, score, onScoreChange, readonly = false }: CriteriaScoreProps) {
+function CriteriaScore({ criteria, score, onScoreChange, readonly = false, application }: CriteriaScoreProps) {
   const [currentScore, setCurrentScore] = useState(score?.score ?? 0);
   const [reasoning, setReasoning] = useState(score?.reasoning ?? "");
   const [showReasoning, setShowReasoning] = useState(false);
@@ -222,7 +233,7 @@ function CriteriaScore({ criteria, score, onScoreChange, readonly = false }: Cri
         />
 
         {/* Reasoning toggle and textarea */}
-        <Group>
+        <Group justify="space-between">
           <Button
             variant="subtle"
             size="xs"
@@ -231,6 +242,17 @@ function CriteriaScore({ criteria, score, onScoreChange, readonly = false }: Cri
           >
             {showReasoning ? 'Hide' : 'Add'} Reasoning
           </Button>
+          
+          {/* Telegram message button */}
+          {application && (
+            <TelegramMessageButton
+              application={application}
+              customMessage={`Hi! I'm reviewing your application for the Funding the Commons residency and have a question about your ${criteria.name.toLowerCase()}. Could you please tell me more about your skills and experience in this area?`}
+              size={16}
+              variant="subtle"
+              color="blue"
+            />
+          )}
         </Group>
 
         {showReasoning && (
@@ -293,6 +315,9 @@ export default function ApplicationEvaluationForm({
         score,
         reasoning,
       });
+      
+      // Refetch evaluation data to update the progress counter
+      await refetchEvaluation();
     } catch {
       notifications.show({
         title: "Error",
@@ -470,6 +495,7 @@ export default function ApplicationEvaluationForm({
                               score={existingScore}
                               onScoreChange={handleScoreChange}
                               readonly={isCompleted}
+                              application={application}
                             />
                           );
                         })}
