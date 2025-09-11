@@ -52,26 +52,197 @@ Each reviewer can be assigned competency levels (1-5 scale) across different eva
 | 4 | Advanced | High expertise, nuanced understanding | 1.15x |
 | 5 | Expert | World-class expertise, definitive authority | 1.25x |
 
+## Competency-to-Criteria Mapping
+
+### How Reviewer Competencies Apply to Individual Evaluation Criteria
+
+Each reviewer rates applications on **12 specific evaluation criteria** (the "star things" they click during review). Their competency level in each **category** determines the weight of their ratings for criteria within that category.
+
+### Current Evaluation Criteria Structure
+
+**Technical Category (30% total weight):**
+- Technical Skills Assessment (12%)
+- Open Source & Collaborative Experience (10%) 
+- Learning & Adaptation Ability (8%)
+
+**Project Category (25% total weight):**
+- Project Vision & Feasibility (10%)
+- Public Goods & RealFi Alignment (8%)
+- Impact Potential & Measurement Understanding (7%)
+
+**Community Fit Category (25% total weight):**
+- Public Goods Ecosystem Understanding (8%)
+- Community Contribution Potential (9%)
+- Commitment & Availability (8%)
+
+**Video Category (20% total weight):**
+- Communication Skills (8%)
+- Passion & Authenticity (7%)
+- Professionalism & Presentation (5%)
+
+### Competency Weight Application
+
+When a reviewer rates any evaluation criterion, the system applies their competency weight for that criterion's **category**:
+
+```typescript
+// Simplified weight calculation
+const getCriterionWeight = (reviewer, evaluationCriterion) => {
+  // Find reviewer's competency in this criterion's category
+  const relevantCompetency = reviewer.competencies.find(
+    comp => comp.category === evaluationCriterion.category
+  );
+  
+  // Calculate competency weight: 0.5 + (level × 0.15)
+  const competencyWeight = relevantCompetency 
+    ? 0.5 + (relevantCompetency.competencyLevel * 0.15)
+    : 1.0; // Default if no competency set
+    
+  return competencyWeight;
+}
+```
+
+### Practical Examples
+
+**Technical Expert (TECHNICAL competency level 5)**
+- Rating "Technical Skills Assessment" → Gets 1.25x weight
+- Rating "Open Source Experience" → Gets 1.25x weight  
+- Rating "Learning & Adaptation" → Gets 1.25x weight
+- Rating "Communication Skills" → Gets 1.0x weight (no VIDEO competency)
+- Rating "Project Vision" → Gets 1.0x weight (no PROJECT competency)
+
+**Community Manager (COMMUNITY_FIT competency level 4)**
+- Rating "Ecosystem Understanding" → Gets 1.15x weight
+- Rating "Community Contribution" → Gets 1.15x weight
+- Rating "Commitment & Availability" → Gets 1.15x weight
+- Rating "Technical Skills" → Gets 1.0x weight (no TECHNICAL competency)
+- Rating "Video Communication" → Gets 1.0x weight (no VIDEO competency)
+
+**Generalist Reviewer (OVERALL competency level 3)**
+- All criterion ratings → Get 1.0x weight (baseline)
+- Provides balanced perspective across all categories
+
+## How Reviewers Experience the System
+
+### The Review Process
+
+1. **Reviewer opens application** for evaluation
+2. **Sees 12 evaluation criteria** to rate on 1-10 scale (star ratings)
+3. **Rates each criterion** based on their assessment
+4. **System applies competency weights** automatically behind the scenes
+5. **Weighted scores contribute** to consensus calculation
+
+### What Reviewers See vs What Happens
+
+**Reviewer Interface:**
+```
+□ Technical Skills Assessment     [★★★★★★★★☆☆] (8/10)
+□ Open Source Experience          [★★★★★★★☆☆☆] (7/10)
+□ Communication Skills            [★★★★★★☆☆☆☆] (6/10)
+```
+
+**Behind the Scenes (Technical Expert with TECHNICAL=5):**
+```
+□ Technical Skills: 8.0 × 1.25 = 10.0 weighted points
+□ Open Source: 7.0 × 1.25 = 8.75 weighted points  
+□ Communication: 6.0 × 1.0 = 6.0 weighted points
+```
+
+### Multi-Domain Expert Example
+
+**Reviewer with TECHNICAL=5 and VIDEO=4 competencies:**
+- Technical criteria → Get 1.25x weight (expert level)
+- Video criteria → Get 1.15x weight (advanced level)
+- Project criteria → Get 1.0x weight (no competency)
+- Community criteria → Get 1.0x weight (no competency)
+
+## Weight Application Process
+
+### Technical Implementation
+
+```typescript
+// For each evaluation criterion the reviewer rates
+function calculateWeightedScore(reviewer, criterion, rawScore) {
+  // 1. Find relevant competency for this criterion's category
+  const competency = reviewer.competencies.find(
+    comp => comp.category === criterion.category
+  );
+  
+  // 2. Calculate competency weight
+  const competencyWeight = competency 
+    ? 0.5 + (competency.competencyLevel * 0.15)
+    : 1.0;
+  
+  // 3. Apply weight to raw score
+  const weightedScore = rawScore * competencyWeight;
+  
+  // 4. Also factor in confidence and base weights
+  const confidenceWeight = reviewer.confidenceLevel / 5;
+  const baseWeight = competency?.baseWeight ?? 1.0;
+  
+  const finalWeight = confidenceWeight * competencyWeight * baseWeight;
+  
+  return {
+    rawScore,
+    weightedScore: rawScore * finalWeight,
+    weights: { confidenceWeight, competencyWeight, baseWeight, finalWeight }
+  };
+}
+```
+
+### Category-Level Aggregation
+
+After all criteria within a category are weighted:
+
+```typescript
+// Aggregate category score
+const categoryScore = (
+  Σ(criterion.weightedScore × criterion.weight) / 
+  Σ(criterion.weight)
+);
+
+// Then combine categories for overall application score
+const overallScore = (
+  (technicalScore × 0.30) +
+  (projectScore × 0.25) + 
+  (communityScore × 0.25) +
+  (videoScore × 0.20)
+);
+```
+
 ## Scoring Algorithm
 
 ### Individual Score Calculation
 
 ```mermaid
 flowchart LR
-    A[Raw Scores by Criteria] --> B[Weighted Average by Criteria Weights]
-    B --> C[Overall Score 0-10]
+    A[Raw Scores by Criteria] --> B[Apply Competency Weights by Category]
+    B --> C[Weighted Average by Criteria Weights]
+    C --> D[Overall Score 0-10]
     
-    subgraph "Criteria Weighting"
-        D[Technical: 30%]
-        E[Project: 25%]
-        F[Community: 25%]
-        G[Video: 20%]
+    subgraph "Category Weighting"
+        E[Technical: 30%]
+        F[Project: 25%]
+        G[Community: 25%]
+        H[Video: 20%]
     end
     
-    A --> D
-    A --> E
-    A --> F
-    A --> G
+    subgraph "Competency Weights"
+        I[Expert: 1.25x]
+        J[Advanced: 1.15x]
+        K[Competent: 1.0x]
+        L[Developing: 0.8x]
+        M[Novice: 0.65x]
+    end
+    
+    A --> I
+    A --> J
+    A --> K
+    A --> L
+    A --> M
+    B --> E
+    B --> F
+    B --> G
+    B --> H
 ```
 
 **Formula**: `Overall Score = Σ(Individual Criteria Score × Criteria Weight) / Total Weight`
@@ -303,10 +474,121 @@ GET /api/trpc/evaluation.getConsensusData?applicationId=app_id
 - Gradual migration as competencies are assigned
 - No disruption to current processes
 
+## Real-World Scenarios
+
+### Scenario 1: Technical Project Review
+
+**Application:** Blockchain infrastructure project
+**Reviewers:**
+- Alice (TECHNICAL=5, Expert): Technical architect with 10+ years
+- Bob (COMMUNITY_FIT=4, Advanced): Community manager 
+- Carol (OVERALL=3, Competent): General reviewer
+
+**Review Results:**
+```
+Technical Skills Assessment:
+- Alice: 9/10 × 1.25 = 11.25 weighted points
+- Bob: 6/10 × 1.0 = 6.0 weighted points  
+- Carol: 7/10 × 1.0 = 7.0 weighted points
+→ Expert technical opinion heavily influences technical assessment
+
+Community Contribution Potential:
+- Alice: 5/10 × 1.0 = 5.0 weighted points
+- Bob: 9/10 × 1.15 = 10.35 weighted points
+- Carol: 7/10 × 1.0 = 7.0 weighted points  
+→ Community expert's assessment carries more weight here
+```
+
+### Scenario 2: Cross-Domain Expert
+
+**Reviewer:** David with TECHNICAL=5 and VIDEO=4 competencies
+**When reviewing any application:**
+- Technical criteria → 1.25x weight (world-class expertise)
+- Video criteria → 1.15x weight (advanced expertise)
+- Project criteria → 1.0x weight (baseline)
+- Community criteria → 1.0x weight (baseline)
+
+**Impact:** David's technical and communication assessments carry extra weight, while his project feasibility and community fit evaluations are weighted normally.
+
+### Scenario 3: Generalist vs Specialist Consensus
+
+**High-stakes technical project review:**
+- 3 Generalist reviewers (OVERALL=3): Each vote counts as 1.0x
+- 1 Technical expert (TECHNICAL=5): Vote counts as 1.25x
+- 1 Project expert (PROJECT=5): Vote counts as 1.25x for project criteria
+
+**Result:** Specialists' domain expertise appropriately influences the final decision while maintaining democratic participation.
+
+## RealFi Integration Readiness
+
+### Current System Strengths
+- **Flexible category system** can accommodate new competency domains
+- **Multi-factor weighting** already supports domain-specific expertise
+- **Database schema** designed for extensibility
+- **UI framework** can handle additional competency categories
+
+### Current Limitations for RealFi
+
+The existing 5 competency categories are **general-purpose** but don't capture the **specific RealFi focus domains**:
+
+**Current Categories:**
+- TECHNICAL (broad technical skills)
+- PROJECT (general project assessment)
+- COMMUNITY_FIT (general community alignment)
+- VIDEO (communication skills)
+- OVERALL (general evaluation)
+
+**RealFi Focus Domains Not Captured:**
+- **Secure Communications** expertise (Tor, Nym, censorship resistance)
+- **Decentralized Identity** knowledge (DIDs, ZK proofs, credentials)
+- **Confidential Compute** experience (ZK, MPC, FHE, privacy AI)
+- **Funding & Governance** understanding (quadratic funding, retroPGF)
+
+### Migration Path for RealFi Integration
+
+**Phase 1: Extend Competency Categories**
+```prisma
+enum CriteriaCategory {
+  TECHNICAL
+  PROJECT  
+  COMMUNITY_FIT
+  VIDEO
+  OVERALL
+  // New RealFi-specific categories
+  SECURE_COMMUNICATIONS     
+  DECENTRALIZED_IDENTITY    
+  CONFIDENTIAL_COMPUTE      
+  FUNDING_GOVERNANCE        
+}
+```
+
+**Phase 2: Domain-Specific Evaluation Criteria**
+- Add evaluation criteria targeting each RealFi domain
+- Maintain existing general criteria (60% weight)
+- Add RealFi-specific criteria (40% weight)
+
+**Phase 3: Expert Reviewer Assignment**
+- Cryptography experts → High CONFIDENTIAL_COMPUTE competency
+- Privacy protocol developers → High SECURE_COMMUNICATIONS competency  
+- DID specialists → High DECENTRALIZED_IDENTITY competency
+- Governance researchers → High FUNDING_GOVERNANCE competency
+
+**Phase 4: Enhanced Consensus**
+- Applications targeting specific domains get expert review
+- Domain experts have increased influence in their areas
+- Cross-domain projects benefit from multiple specialist perspectives
+
+**Benefits for RealFi Applications:**
+1. **Qualified Assessment:** Cryptography projects reviewed by crypto experts
+2. **Domain Coverage:** Each focus area has dedicated expert evaluation
+3. **Practical Focus:** "Building with friction in mind" gets proper assessment
+4. **Expert Recognition:** Specialists in emerging fields get appropriate weight
+
 ## Future Enhancements
 
-1. **Auto-Competency Detection**: ML-based competency level suggestions based on review history
-2. **Dynamic Weight Adjustment**: Competency levels that evolve based on review accuracy
-3. **Specialized Categories**: Additional competency categories for specific event types
+1. **RealFi Domain Integration**: Add the four focus domain competencies as outlined above
+2. **Auto-Competency Detection**: ML-based competency level suggestions based on review history
+3. **Dynamic Weight Adjustment**: Competency levels that evolve based on review accuracy
 4. **Cross-Event Learning**: Competency levels that transfer across different events
 5. **Reviewer Analytics**: Dashboard showing reviewer performance and competency trends
+6. **Domain-Specific Metrics**: Track consensus quality and expert coverage by RealFi domain

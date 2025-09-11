@@ -20,10 +20,18 @@ import {
   Alert,
   LoadingOverlay,
   Grid,
+  Box,
   Divider,
+  Paper,
+  SegmentedControl,
+  ColorSwatch,
+  Progress,
+  SimpleGrid,
+  NumberInput,
   RingProgress,
   Center,
   ThemeIcon,
+  Select,
 } from '@mantine/core';
 import {
   IconUsers,
@@ -48,32 +56,6 @@ import {
   getCategoryDisplayName,
 } from '~/utils/confidenceWeighting';
 
-type CriteriaCategory = 'TECHNICAL' | 'PROJECT' | 'COMMUNITY_FIT' | 'VIDEO' | 'OVERALL';
-
-interface ReviewerCompetency {
-  id: string;
-  category: CriteriaCategory;
-  competencyLevel: number;
-  baseWeight: number;
-  notes: string | null;
-  assignedByUser?: {
-    name: string | null;
-    email: string | null;
-  } | null;
-}
-
-interface Reviewer {
-  id: string;
-  name: string | null;
-  email: string | null;
-  role: string | null;
-  reviewerCompetencies: ReviewerCompetency[];
-  _count: {
-    reviewerAssignments: number;
-    applicationEvaluations: number;
-  };
-}
-
 function getCategoryIcon(category: string) {
   switch (category) {
     case 'TECHNICAL': return <IconBolt size={14} />;
@@ -90,16 +72,24 @@ interface CompetencyModalProps {
   onClose: () => void;
   reviewerId: string | null;
   reviewerName: string | null;
-  existingCompetencies: ReviewerCompetency[];
+  existingCompetencies: any[];
   onSuccess: () => void;
 }
 
 const COMPETENCY_CATEGORIES = [
-  { value: 'TECHNICAL' as const, label: 'Technical' },
-  { value: 'PROJECT' as const, label: 'Project' },
-  { value: 'COMMUNITY_FIT' as const, label: 'Community Fit' },
-  { value: 'VIDEO' as const, label: 'Video Assessment' },
-  { value: 'OVERALL' as const, label: 'Overall' },
+  { value: 'TECHNICAL', label: 'Technical' },
+  { value: 'PROJECT', label: 'Project' },
+  { value: 'COMMUNITY_FIT', label: 'Community Fit' },
+  { value: 'VIDEO', label: 'Video Assessment' },
+  { value: 'OVERALL', label: 'Overall' },
+];
+
+const COMPETENCY_LEVELS = [
+  { value: 1, label: '1 - Novice', description: 'Limited experience in this area' },
+  { value: 2, label: '2 - Developing', description: 'Some experience, still learning' },
+  { value: 3, label: '3 - Competent', description: 'Solid experience, reliable assessments' },
+  { value: 4, label: '4 - Advanced', description: 'High expertise, nuanced understanding' },
+  { value: 5, label: '5 - Expert', description: 'World-class expertise, definitive authority' },
 ];
 
 function CompetencyModal({ opened, onClose, reviewerId, reviewerName, existingCompetencies, onSuccess }: CompetencyModalProps) {
@@ -138,7 +128,7 @@ function CompetencyModal({ opened, onClose, reviewerId, reviewerName, existingCo
     if (!reviewerId) return;
 
     const competenciesToSet = Object.entries(competencies).map(([category, data]) => ({
-      category: category as CriteriaCategory,
+      category: category as 'TECHNICAL' | 'PROJECT' | 'COMMUNITY_FIT' | 'VIDEO' | 'OVERALL',
       competencyLevel: data.level,
       baseWeight: data.weight,
       notes: data.notes || undefined,
@@ -150,7 +140,7 @@ function CompetencyModal({ opened, onClose, reviewerId, reviewerName, existingCo
     });
   };
 
-  const updateCompetency = (category: string, field: 'level' | 'weight' | 'notes', value: string | number) => {
+  const updateCompetency = (category: string, field: 'level' | 'weight' | 'notes', value: any) => {
     setCompetencies(prev => ({
       ...prev,
       [category]: {
@@ -244,7 +234,7 @@ function CompetencyModal({ opened, onClose, reviewerId, reviewerName, existingCo
                             <Group gap="xs" justify="center">
                               <Rating
                                 value={existing.level}
-                                onChange={(value) => updateCompetency(category.value, 'level', value ?? 3)}
+                                onChange={(value) => updateCompetency(category.value, 'level', value)}
                                 count={5}
                                 size="sm"
                                 color={getCompetencyColor(existing.level)}
@@ -354,7 +344,7 @@ export default function ReviewerManagementPage() {
   const [selectedReviewer, setSelectedReviewer] = useState<{
     id: string;
     name: string;
-    competencies: ReviewerCompetency[];
+    competencies: any[];
   } | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
 
@@ -365,13 +355,35 @@ export default function ReviewerManagementPage() {
     reviewer.role === 'admin' || reviewer.role === 'staff'
   );
 
-  const handleEditCompetencies = (reviewer: Reviewer) => {
+  const removeMutation = api.evaluation.removeReviewerCompetency.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: 'Success',
+        message: 'Competency removed successfully',
+        color: 'green',
+      });
+      void refetch();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: 'Error',
+        message: error.message ?? 'Failed to remove competency',
+        color: 'red',
+      });
+    },
+  });
+
+  const handleEditCompetencies = (reviewer: any) => {
     setSelectedReviewer({
       id: reviewer.id,
       name: reviewer.name ?? reviewer.email ?? 'Unknown',
       competencies: reviewer.reviewerCompetencies ?? [],
     });
     setModalOpened(true);
+  };
+
+  const handleRemoveCompetency = (reviewerId: string, category: string) => {
+    removeMutation.mutate({ reviewerId, category: category as any });
   };
 
   const renderCompetencyStars = (level: number) => {
@@ -427,7 +439,7 @@ export default function ReviewerManagementPage() {
                   <Table.Td>
                     <div>
                       <Text fw={500}>{reviewer.name ?? 'Unknown'}</Text>
-                      <Text size="xs" c="dimmed">{reviewer.email ?? 'No email'}</Text>
+                      <Text size="xs" c="dimmed">{reviewer.email}</Text>
                     </div>
                   </Table.Td>
                   <Table.Td>
