@@ -22,6 +22,7 @@ import {
   ScrollArea,
   Box,
   Anchor,
+  Avatar,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -42,12 +43,14 @@ import {
   IconSend,
   IconTrash,
   IconAlertCircle,
-  IconBrandTelegram,
+  IconUserPlus,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import EditableApplicationForm from "~/app/_components/EditableApplicationForm";
 import EmailPreviewModal from "~/app/_components/EmailPreviewModal";
+import ReviewPipelineDashboard from "~/app/_components/ReviewPipelineDashboard";
+import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
 
 type Event = {
   id: string;
@@ -89,6 +92,17 @@ type ApplicationWithUser = {
       questionKey: string;
       questionEn: string;
       questionEs: string;
+    };
+  }>;
+  reviewerAssignments: Array<{
+    id: string;
+    stage: string;
+    assignedAt: Date;
+    reviewer: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      image: string | null;
     };
   }>;
 };
@@ -215,11 +229,13 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // API mutations
   const updateStatus = api.application.updateApplicationStatus.useMutation();
   const bulkUpdateStatus = api.application.bulkUpdateApplicationStatus.useMutation();
+  const bulkAssignReviewer = api.evaluation.bulkCreateAssignments.useMutation();
   const checkMissingInfoMutation = api.email.checkMissingInfo.useMutation();
   const createMissingInfoEmail = api.email.createMissingInfoEmail.useMutation();
   const sendEmail = api.email.sendEmail.useMutation();
   const deleteEmail = api.email.deleteEmail.useMutation();
   const { data: emailSafety } = api.email.getEmailSafety.useQuery();
+  const { data: reviewers } = api.user.getAdmins.useQuery();
 
   // Helper function to find latest MISSING_INFO email for an application
   const getLatestMissingInfoEmail = (applicationId: string) => {
@@ -273,54 +289,6 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     return !checkResult?.isComplete;
   }).length ?? incompleteApplications?.length ?? 0;
 
-  // Helper function to get user's telegram handle from application responses
-  const getUserTelegramHandle = (application: ApplicationWithUser): string | null => {
-    const telegramResponse = application.responses.find(
-      response => response.question.questionKey === "telegram"
-    );
-    
-    if (!telegramResponse?.answer?.trim()) {
-      return null;
-    }
-    
-    let handle = telegramResponse.answer.trim();
-    
-    // If it's a full Telegram URL, extract just the username
-    if (handle.includes('t.me/')) {
-      const regex = /t\.me\/([^/?]+)/;
-      const match = regex.exec(handle);
-      if (match?.[1]) {
-        handle = match[1];
-      }
-    }
-    
-    // Remove @ if present
-    handle = handle.replace(/^@/, '');
-    
-    return handle || null;
-  };
-
-  // Helper function to generate Telegram link
-  const generateTelegramLink = (application: ApplicationWithUser) => {
-    const telegramHandle = getUserTelegramHandle(application);
-    
-    if (!telegramHandle) {
-      return null;
-    }
-    
-    const baseMessage = `I see you applied for the Funding the Commons residency in Buenos Aires in 2025! 
-
-I'm reviewing your application, and need to collect some more information from you.
-
-Could you please create an account on our platform with the same email address you applied with and fill in the missing information 🙏
-
-You can find our platform here - https://platform.fundingthecommons.io/events/funding-commons-residency-2025/apply
-
-Please let me know if you need any help?`;
-    
-    const encodedMessage = encodeURIComponent(baseMessage);
-    return `https://t.me/${telegramHandle}?text=${encodedMessage}`;
-  };
 
   // Handle individual application selection
   const toggleApplicationSelection = (applicationId: string) => {
@@ -393,6 +361,37 @@ Please let me know if you need any help?`;
       notifications.show({
         title: "Error",
         message: (error as { message?: string }).message ?? "Failed to update applications",
+        color: "red",
+        icon: <IconX />,
+      });
+    }
+  };
+
+  // Handle bulk reviewer assignment
+  const handleBulkAssignReviewer = async (reviewerId: string) => {
+    if (selectedApplications.size === 0) return;
+
+    try {
+      const result = await bulkAssignReviewer.mutateAsync({
+        applicationIds: Array.from(selectedApplications),
+        reviewerId,
+        stage: 'SCREENING',
+        priority: 0,
+        notes: `Bulk assigned for screening review`,
+      });
+      
+      notifications.show({
+        title: "Success",
+        message: `Assigned ${result.created} application(s) successfully${result.skipped > 0 ? ` (${result.skipped} already assigned)` : ''}`,
+        color: "green",
+        icon: <IconCheck />,
+      });
+      
+      setSelectedApplications(new Set());
+    } catch (error: unknown) {
+      notifications.show({
+        title: "Error",
+        message: (error as { message?: string }).message ?? "Failed to assign reviewer",
         color: "red",
         icon: <IconX />,
       });
@@ -671,7 +670,6 @@ Please let me know if you need any help?`;
             </Group>
           </Card>
         )}
-
         {/* Tabs for Application Status */}
         <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? "all")}>
           <Tabs.List grow>
@@ -699,6 +697,9 @@ Please let me know if you need any help?`;
                 </Badge>
               )}
             </Tabs.Tab>
+            <Tabs.Tab value="pipeline">
+              🌟 Review Pipeline
+            </Tabs.Tab>
             <Tabs.Tab value="accepted">
               Accepted
               {acceptedApplications && (
@@ -715,9 +716,10 @@ Please let me know if you need any help?`;
                 </Badge>
               )}
             </Tabs.Tab>
+            
           </Tabs.List>
 
-          <Tabs.Panel value={activeTab} mt="md">
+          {activeTab !== "pipeline" && <Tabs.Panel value={activeTab} mt="md">
             {/* Filters and Actions */}
             <Card shadow="sm" padding="md" radius="md" withBorder>
               <Group justify="space-between" wrap="wrap" gap="md">
@@ -740,26 +742,55 @@ Please let me know if you need any help?`;
                 
                 <Group gap="md">
                   {selectedApplications.size > 0 && (
-                    <Menu position="bottom-end">
-                      <Menu.Target>
-                        <Button 
-                          variant="outline"
-                          loading={bulkUpdateStatus.isPending}
-                        >
-                          Bulk Actions ({selectedApplications.size})
-                        </Button>
-                      </Menu.Target>
-                      <Menu.Dropdown>
-                        {statusOptions.map((option) => (
-                          <Menu.Item
-                            key={option.value}
-                            onClick={() => handleBulkStatusChange(option.value)}
+                    <>
+                      <Menu position="bottom-end">
+                        <Menu.Target>
+                          <Button 
+                            variant="outline"
+                            loading={bulkUpdateStatus.isPending}
                           >
-                            Set to {option.label}
-                          </Menu.Item>
-                        ))}
-                      </Menu.Dropdown>
-                    </Menu>
+                            Bulk Actions ({selectedApplications.size})
+                          </Button>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          {statusOptions.map((option) => (
+                            <Menu.Item
+                              key={option.value}
+                              onClick={() => handleBulkStatusChange(option.value)}
+                            >
+                              Set to {option.label}
+                            </Menu.Item>
+                          ))}
+                        </Menu.Dropdown>
+                      </Menu>
+
+                      <Menu position="bottom-end">
+                        <Menu.Target>
+                          <Button 
+                            variant="outline"
+                            leftSection={<IconUserPlus size={16} />}
+                            loading={bulkAssignReviewer.isPending}
+                          >
+                            Assign Reviewer ({selectedApplications.size})
+                          </Button>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          {reviewers?.map((reviewer) => (
+                            <Menu.Item
+                              key={reviewer.id}
+                              onClick={() => handleBulkAssignReviewer(reviewer.id)}
+                            >
+                              {reviewer.name ?? 'Unknown'} ({reviewer.email})
+                            </Menu.Item>
+                          ))}
+                          {(!reviewers || reviewers.length === 0) && (
+                            <Menu.Item disabled>
+                              No reviewers available
+                            </Menu.Item>
+                          )}
+                        </Menu.Dropdown>
+                      </Menu>
+                    </>
                   )}
                   
                   <Button
@@ -796,6 +827,7 @@ Please let me know if you need any help?`;
                         <Table.Th>Applicant</Table.Th>
                         <Table.Th>Status</Table.Th>
                         <Table.Th>Submitted</Table.Th>
+                        <Table.Th>Reviewers</Table.Th>
                         <Table.Th>Actions</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -841,6 +873,25 @@ Please let me know if you need any help?`;
                             </Table.Td>
                             <Table.Td>
                               <Group gap="xs">
+                                {application.reviewerAssignments && application.reviewerAssignments.length > 0 ? (
+                                  application.reviewerAssignments.map((assignment) => (
+                                    <Avatar
+                                      key={assignment.id}
+                                      src={assignment.reviewer.image ?? ""}
+                                      size={24}
+                                      radius="xl"
+                                      title={`${assignment.reviewer.name ?? 'Unknown'} - ${assignment.stage.replace('_', ' ')}`}
+                                    >
+                                      {assignment.reviewer.name?.[0]?.toUpperCase() ?? assignment.reviewer.email?.[0]?.toUpperCase() ?? '?'}
+                                    </Avatar>
+                                  ))
+                                ) : (
+                                  <Text size="xs" c="dimmed">No reviewers</Text>
+                                )}
+                              </Group>
+                            </Table.Td>
+                            <Table.Td>
+                              <Group gap="xs">
                                 <ActionIcon
                                   variant="subtle"
                                   onClick={() => viewApplication(application)}
@@ -856,36 +907,14 @@ Please let me know if you need any help?`;
                                 </ActionIcon>
 
                                 {/* Telegram icon - only show on Incomplete tab */}
-                                {activeTab === "incomplete" && (() => {
-                                  const telegramLink = generateTelegramLink(application);
-                                  const telegramHandle = getUserTelegramHandle(application);
-                                  
-                                  if (telegramHandle && telegramLink) {
-                                    return (
-                                      <ActionIcon
-                                        variant="subtle"
-                                        color="blue"
-                                        component="a"
-                                        href={telegramLink}
-                                        target="_blank"
-                                        title={`Contact via Telegram (@${telegramHandle})`}
-                                      >
-                                        <IconBrandTelegram size={16} />
-                                      </ActionIcon>
-                                    );
-                                  } else {
-                                    return (
-                                      <ActionIcon
-                                        variant="subtle"
-                                        color="red"
-                                        disabled
-                                        title="No Telegram handle provided"
-                                      >
-                                        <IconX size={16} />
-                                      </ActionIcon>
-                                    );
-                                  }
-                                })()}
+                                {activeTab === "incomplete" && (
+                                  <TelegramMessageButton
+                                    application={application}
+                                    size={16}
+                                    variant="subtle"
+                                    color="blue"
+                                  />
+                                )}
 
                                 {(application.status === "UNDER_REVIEW" || application.status === "SUBMITTED" || application.status === "ACCEPTED") && (() => {
                                   const checkStatus = getCheckStatus(application.id);
@@ -953,6 +982,10 @@ Please let me know if you need any help?`;
                 </Table.ScrollContainer>
               )}
             </Paper>
+          </Tabs.Panel>}
+
+          <Tabs.Panel value="pipeline" mt="md">
+            <ReviewPipelineDashboard />
           </Tabs.Panel>
         </Tabs>
       </Stack>

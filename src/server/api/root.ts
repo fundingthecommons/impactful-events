@@ -10,6 +10,7 @@ import { invitationRouter } from "~/server/api/routers/invitation";
 import { mentorshipRouter } from "~/server/api/routers/mentorship";
 import { userRouter } from "~/server/api/routers/user";
 import { projectIdeaRouter } from "~/server/api/routers/projectIdea";
+import { evaluationRouter } from "~/server/api/routers/evaluation";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -30,6 +31,7 @@ export const appRouter = createTRPCRouter({
   mentorship: mentorshipRouter,
   user: userRouter,
   projectIdea: projectIdeaRouter,
+  evaluation: evaluationRouter,
 });
 
 // export type definition of API

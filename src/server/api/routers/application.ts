@@ -470,6 +470,21 @@ export const applicationRouter = createTRPCRouter({
               question: true,
             },
           },
+          reviewerAssignments: {
+            include: {
+              reviewer: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+            },
+            orderBy: {
+              assignedAt: 'desc',
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       });
