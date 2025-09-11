@@ -470,7 +470,7 @@ export default function ReviewPipelineDashboard() {
       </Stack>
 
       {/* Evaluation/Consensus Modal */}
-      {selectedStage === 'CONSENSUS' ? (
+      {selectedStage === 'CONSENSUS' || selectedStage === 'FINAL_DECISION' ? (
         <ConsensusModal
           opened={!!selectedApplication}
           onClose={() => setSelectedApplication(null)}
