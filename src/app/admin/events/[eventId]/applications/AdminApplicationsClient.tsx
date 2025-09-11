@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Container, 
   Title, 
@@ -51,6 +51,7 @@ import EditableApplicationForm from "~/app/_components/EditableApplicationForm";
 import EmailPreviewModal from "~/app/_components/EmailPreviewModal";
 import ReviewPipelineDashboard from "~/app/_components/ReviewPipelineDashboard";
 import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
+import ApplicationCompletionProgress from "~/app/_components/ApplicationCompletionProgress";
 
 type Event = {
   id: string;
@@ -223,6 +224,11 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     status: "REJECTED",
   });
 
+  // Fetch event questions for progress calculation
+  const { data: eventQuestions } = api.application.getEventQuestions.useQuery({
+    eventId: event.id,
+  });
+
   // Get tRPC utils for invalidation
   const utils = api.useUtils();
 
@@ -261,6 +267,50 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       lastEmail
     };
   };
+
+  // Calculate application completions for all applications
+  const applicationCompletions = useMemo(() => {
+    const completionsMap = new Map<string, { completionPercentage: number; completedFields: number; totalFields: number }>();
+    
+    if (!applications || !eventQuestions) return completionsMap;
+    
+    // Helper to calculate completion using the existing hook logic for each application
+    for (const application of applications) {
+      try {
+        // Simple completion calculation - count filled responses vs required questions
+        const requiredQuestions = eventQuestions.filter(q => q.required);
+        const responseMap = new Map(
+          application.responses?.map(r => [r.questionId, r]) ?? []
+        );
+        
+        let completedCount = 0;
+        for (const question of requiredQuestions) {
+          const response = responseMap.get(question.id);
+          if (response?.answer && response.answer.trim() !== "") {
+            completedCount++;
+          }
+        }
+        
+        const totalFields = requiredQuestions.length;
+        const completionPercentage = totalFields > 0 ? Math.round((completedCount / totalFields) * 100) : 100;
+        
+        completionsMap.set(application.id, {
+          completionPercentage,
+          completedFields: completedCount,
+          totalFields,
+        });
+      } catch {
+        // Fallback for any errors
+        completionsMap.set(application.id, {
+          completionPercentage: 0,
+          completedFields: 0,
+          totalFields: 0,
+        });
+      }
+    }
+    
+    return completionsMap;
+  }, [applications, eventQuestions]);
 
   // Filter applications based on search, hide rejected setting, and incomplete tab logic
   const filteredApplications = applications?.filter(app => {
@@ -813,7 +863,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                   <Text c="dimmed">No applications found</Text>
                 </Stack>
               ) : (
-                <Table.ScrollContainer minWidth={800}>
+                <Table.ScrollContainer minWidth={900}>
                   <Table striped highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
@@ -825,6 +875,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                           />
                         </Table.Th>
                         <Table.Th>Applicant</Table.Th>
+                        <Table.Th>Progress</Table.Th>
                         <Table.Th>Status</Table.Th>
                         <Table.Th>Submitted</Table.Th>
                         <Table.Th>Reviewers</Table.Th>
@@ -834,6 +885,13 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                     <Table.Tbody>
                       {filteredApplications.map((application) => {
                         const StatusIcon = getStatusIcon(application.status);
+                        
+                        // Get completion data from the pre-calculated map
+                        const completion = applicationCompletions.get(application.id) ?? { 
+                          completionPercentage: 0, 
+                          completedFields: 0, 
+                          totalFields: 0 
+                        };
                         
                         return (
                           <Table.Tr key={application.id}>
@@ -852,6 +910,15 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                   {application.email}
                                 </Text>
                               </Stack>
+                            </Table.Td>
+                            <Table.Td>
+                              <ApplicationCompletionProgress
+                                completionPercentage={completion.completionPercentage}
+                                completedFields={completion.completedFields}
+                                totalFields={completion.totalFields}
+                                size="sm"
+                                showTooltip={true}
+                              />
                             </Table.Td>
                             <Table.Td>
                               <Badge
