@@ -24,8 +24,6 @@ import {
 } from "@mantine/core";
 import {
   IconUsers,
-  IconEye,
-  IconVideo,
   IconMessageCircle,
   IconCheck,
   IconArrowRight,
@@ -37,6 +35,7 @@ import {
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
 import ApplicationEvaluationForm from "./ApplicationEvaluationForm";
+import ConsensusModal from "./ConsensusModal";
 import type { User } from "@prisma/client";
 
 interface PipelineApplication {
@@ -342,31 +341,13 @@ export default function ReviewPipelineDashboard() {
 
   const stages = [
     {
-      key: 'screening',
-      title: 'Initial Screening',
+      key: 'applicationReview',
+      title: 'Application Review',
       icon: <IconUsers size={20} />,
       color: 'blue',
-      applications: pipeline.screening,
-      stage: 'SCREENING' as const,
-      description: 'Basic qualification check and initial assessment'
-    },
-    {
-      key: 'videoReview',
-      title: 'Video Review',
-      icon: <IconVideo size={20} />,
-      color: 'orange',
-      applications: pipeline.videoReview,
-      stage: 'VIDEO_REVIEW' as const,
-      description: 'Assessment of communication skills and presentation'
-    },
-    {
-      key: 'detailedReview',
-      title: 'Detailed Review',
-      icon: <IconEye size={20} />,
-      color: 'green', 
-      applications: pipeline.detailedReview,
-      stage: 'DETAILED_REVIEW' as const,
-      description: 'In-depth evaluation of technical and project criteria'
+      applications: pipeline.applicationReview,
+      stage: 'SCREENING' as const, // Keep SCREENING as the stage for evaluations
+      description: 'Comprehensive review and evaluation of applications'
     },
     {
       key: 'consensus',
@@ -375,7 +356,7 @@ export default function ReviewPipelineDashboard() {
       color: 'purple',
       applications: pipeline.consensus,
       stage: 'CONSENSUS' as const,
-      description: 'Team discussion and consensus building'
+      description: 'Final decision making with all reviewer input'
     },
     {
       key: 'finalDecision',
@@ -384,7 +365,7 @@ export default function ReviewPipelineDashboard() {
       color: 'teal',
       applications: pipeline.finalDecision,
       stage: 'FINAL_DECISION' as const,
-      description: 'Final acceptance/rejection decisions'
+      description: 'Applications with final acceptance/rejection decisions'
     },
   ];
 
@@ -438,7 +419,7 @@ export default function ReviewPipelineDashboard() {
             {/* Pipeline stages */}
             <Grid>
               {stages.map((stage) => (
-                <Grid.Col key={stage.key} span={{ base: 12, sm: 6, lg: 4, xl: 2.4 }}>
+                <Grid.Col key={stage.key} span={{ base: 12, sm: 6, lg: 4 }}>
                   <PipelineStage
                     title={stage.title}
                     icon={stage.icon}
@@ -458,7 +439,7 @@ export default function ReviewPipelineDashboard() {
               <Title order={4} mb="md">Review Process</Title>
               <Grid>
                 {stages.map((stage, index) => (
-                  <Grid.Col key={stage.key} span={{ base: 12, md: 6, lg: 2.4 }}>
+                  <Grid.Col key={stage.key} span={{ base: 12, md: 6, lg: 4 }}>
                     <Group align="flex-start" gap="sm">
                       <Badge color={stage.color} variant="light" size="lg">
                         {index + 1}
@@ -488,28 +469,37 @@ export default function ReviewPipelineDashboard() {
         </Tabs>
       </Stack>
 
-      {/* Evaluation Modal */}
-      <Modal
-        opened={!!selectedApplication}
-        onClose={() => setSelectedApplication(null)}
-        title="Application Evaluation"
-        size="100%"
-        scrollAreaComponent={ScrollArea.Autosize}
-        styles={{
-          body: { padding: 0 },
-          content: { height: '90vh' },
-        }}
-      >
-        {selectedApplication && (
-          <Box p="md">
-            <ApplicationEvaluationForm
-              applicationId={selectedApplication}
-              stage={selectedStage as 'SCREENING' | 'DETAILED_REVIEW' | 'VIDEO_REVIEW' | 'CONSENSUS' | 'FINAL_DECISION'}
-              onEvaluationComplete={handleEvaluationComplete}
-            />
-          </Box>
-        )}
-      </Modal>
+      {/* Evaluation/Consensus Modal */}
+      {selectedStage === 'CONSENSUS' ? (
+        <ConsensusModal
+          opened={!!selectedApplication}
+          onClose={() => setSelectedApplication(null)}
+          applicationId={selectedApplication ?? ""}
+          onStatusUpdate={handleEvaluationComplete}
+        />
+      ) : (
+        <Modal
+          opened={!!selectedApplication}
+          onClose={() => setSelectedApplication(null)}
+          title="Application Evaluation"
+          size="100%"
+          scrollAreaComponent={ScrollArea.Autosize}
+          styles={{
+            body: { padding: 0 },
+            content: { height: '90vh' },
+          }}
+        >
+          {selectedApplication && (
+            <Box p="md">
+              <ApplicationEvaluationForm
+                applicationId={selectedApplication}
+                stage={selectedStage as 'SCREENING' | 'DETAILED_REVIEW' | 'VIDEO_REVIEW' | 'CONSENSUS' | 'FINAL_DECISION'}
+                onEvaluationComplete={handleEvaluationComplete}
+              />
+            </Box>
+          )}
+        </Modal>
+      )}
 
       {/* Assign Reviewer Modal */}
       <AssignReviewerModal

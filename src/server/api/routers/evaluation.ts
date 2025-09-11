@@ -498,26 +498,72 @@ export const evaluationRouter = createTRPCRouter({
         );
       }
 
-      // Group by review stage (NEW ORDER: Screening → Video Review → Detailed Review → Consensus → Final Decision)
+      // Simplified 2-stage pipeline: Application Review → Consensus
       const pipeline = {
-        screening: filteredApplications.filter(app => 
-          !app.evaluations.some(e => e.stage !== 'SCREENING')
-        ),
-        videoReview: filteredApplications.filter(app => 
-          app.evaluations.some(e => e.stage === 'SCREENING' && e.status === 'COMPLETED') &&
-          !app.evaluations.some(e => e.stage === 'VIDEO_REVIEW' && e.status === 'COMPLETED')
-        ),
-        detailedReview: filteredApplications.filter(app =>
-          app.evaluations.some(e => e.stage === 'VIDEO_REVIEW' && e.status === 'COMPLETED') &&
-          !app.evaluations.some(e => e.stage === 'DETAILED_REVIEW' && e.status === 'COMPLETED')
+        applicationReview: filteredApplications.filter(app => 
+          // Applications that have no completed evaluations or are still being reviewed
+          !app.evaluations.some(e => e.status === 'COMPLETED') && !app.consensus?.finalDecision
         ),
         consensus: filteredApplications.filter(app =>
-          app.evaluations.some(e => e.stage === 'DETAILED_REVIEW' && e.status === 'COMPLETED') &&
+          // Applications that have at least one completed evaluation but no final decision
+          app.evaluations.some(e => e.status === 'COMPLETED') &&
           !app.consensus?.finalDecision
         ),
         finalDecision: filteredApplications.filter(app => app.consensus?.finalDecision)
       };
 
       return pipeline;
+    }),
+
+  // Get consensus data for an application (all completed evaluations)
+  getConsensusData: protectedProcedure
+    .input(z.object({
+      applicationId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      const application = await ctx.db.application.findUnique({
+        where: { id: input.applicationId },
+        include: {
+          user: { select: { name: true, email: true } },
+          event: { select: { name: true } },
+          evaluations: {
+            where: { status: 'COMPLETED' },
+            include: {
+              reviewer: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+              scores: {
+                include: { criteria: true },
+                orderBy: { criteria: { order: 'asc' } }
+              },
+              comments: {
+                orderBy: { createdAt: 'desc' }
+              },
+            },
+            orderBy: { completedAt: 'desc' }
+          },
+          consensus: true,
+          responses: {
+            include: { question: true },
+            orderBy: { question: { order: 'asc' } }
+          },
+        }
+      });
+
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Application not found",
+        });
+      }
+
+      return application;
     }),
 });
