@@ -1,26 +1,4 @@
 #!/usr/bin/env sh
 
-echo "🚀 Running comprehensive checks before push..."
-
-# Run working form tests
-echo "🧪 Running form test suite..."
-bun run test:form
-
-if [ $? -ne 0 ]; then
-    echo "❌ Form tests failed! Fix issues before pushing."
-    exit 1
-fi
-
-# Run form validation tests
-echo "🔧 Running form validation tests..."
-bun run test:form-validation
-
-if [ $? -ne 0 ]; then
-    echo "❌ Form validation tests failed! Fix issues before pushing."
-    exit 1
-fi
-
-# Skip build check for now (complex test files have linting issues)
-# Tests are passing which ensures core functionality works
-echo "✅ Core form tests passed - form logic is validated"
-echo "✅ All checks passed! Safe to push to remote."
+# Use our optimized git-based selective checking system
+.claude/hooks/pre-push.sh

@@ -39,7 +39,11 @@
     "test:form-validation": "vitest run --config vitest.config.form.ts src/app/_components/__tests__/form-validation.test.tsx",
     "test:form-watch": "vitest watch --config vitest.config.form.ts",
     "typecheck": "tsc --noEmit",
-    "prepare": "husky"
+    "prepare": "husky",
+    "check:staged": "git diff --cached --name-only --diff-filter=ACM | grep -E '\\.(ts|tsx)$' | xargs -r bun run lint --",
+    "check:changed": "git diff HEAD --name-only --diff-filter=ACM | grep -E '\\.(ts|tsx)$' | xargs -r bun run lint --",
+    "typecheck:staged": "git diff --cached --name-only --diff-filter=ACM | grep -E '\\.(ts|tsx)$' | xargs -r bunx tsc --noEmit --skipLibCheck",
+    "typecheck:changed": "git diff HEAD --name-only --diff-filter=ACM | grep -E '\\.(ts|tsx)$' | xargs -r bunx tsc --noEmit --skipLibCheck"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.2",

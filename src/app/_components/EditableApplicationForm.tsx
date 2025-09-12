@@ -77,6 +77,7 @@ export default function EditableApplicationForm({
   });
 
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
+  const [originalValues, setOriginalValues] = useState<Record<string, unknown>>({});
   const [userName, setUserName] = useState(application.user?.name ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -95,6 +96,7 @@ export default function EditableApplicationForm({
   // API mutations
   const updateResponse = api.application.updateResponse.useMutation();
   const updateUserName = api.application.updateApplicationUserName.useMutation();
+  const bulkUpdateResponses = api.application.bulkUpdateApplicationResponses.useMutation();
 
   // Create stable dependency to prevent infinite loops
   const responsesHash = useMemo(() => {
@@ -182,6 +184,7 @@ export default function EditableApplicationForm({
         initialValuesCount: Object.keys(initialValues).length
       });
       setFormValues(initialValues);
+      setOriginalValues({ ...initialValues }); // Store original values for change tracking
       console.log('✅ EditableApplicationForm: Form values set successfully');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -264,25 +267,68 @@ export default function EditableApplicationForm({
     }
   };
 
-  // Save all changes
+  // Helper function to check if two values are different
+  const valuesAreDifferent = (original: unknown, current: unknown): boolean => {
+    if (Array.isArray(original) && Array.isArray(current)) {
+      return JSON.stringify(original.sort()) !== JSON.stringify(current.sort());
+    }
+    return original !== current;
+  };
+
+  // Save all changes using bulk update
   const saveAllChanges = async () => {
     if (!questions) return;
 
     setIsSaving(true);
-    let savedCount = 0;
 
     try {
-      for (const question of questions) {
-        const value = formValues[question.questionKey];
-        if (value !== undefined) {
-          await saveField(question.questionKey, value);
-          savedCount++;
-        }
+      // Find only changed fields
+      const changedResponses = questions
+        .filter(question => {
+          const currentValue = formValues[question.questionKey];
+          const originalValue = originalValues[question.questionKey];
+          return currentValue !== undefined && valuesAreDifferent(originalValue, currentValue);
+        })
+        .map(question => {
+          const value = formValues[question.questionKey];
+          let answerValue: string;
+          
+          if (question.questionType === "MULTISELECT") {
+            answerValue = JSON.stringify(value);
+          } else if (question.questionType === "CHECKBOX") {
+            answerValue = String(value);
+          } else {
+            answerValue = String(value);
+          }
+
+          return {
+            questionId: question.id,
+            answer: answerValue,
+          };
+        });
+
+      if (changedResponses.length === 0) {
+        notifications.show({
+          title: "No Changes",
+          message: "No fields have been modified",
+          color: "blue",
+          icon: <IconCheck />,
+        });
+        return;
       }
 
+      // Use bulk update mutation
+      await bulkUpdateResponses.mutateAsync({
+        applicationId: application.id,
+        responses: changedResponses,
+      });
+
+      // Update original values to match current values after successful save
+      setOriginalValues({ ...formValues });
+
       notifications.show({
-        title: "Success!",
-        message: `Saved ${savedCount} changes successfully`,
+        title: "Saved",
+        message: `Updated ${changedResponses.length} field${changedResponses.length === 1 ? '' : 's'} successfully`,
         color: "green",
         icon: <IconCheck />,
       });
@@ -291,7 +337,7 @@ export default function EditableApplicationForm({
     } catch {
       notifications.show({
         title: "Error",
-        message: "Failed to save some changes",
+        message: "Failed to save changes",
         color: "red",
         icon: <IconAlertCircle />,
       });

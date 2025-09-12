@@ -50,6 +50,9 @@ ftc.log
 one.log
 *.log
 
+# eslint cache
+.eslintcache
+
 # import data
 imports/
 

@@ -17,7 +17,7 @@
           "hooks": [
             {
               "type": "command",
-              "command": "SKIP_ENV_VALIDATION=1 bun run check"
+              "command": ".claude/hooks/post-edit.sh"
             }
           ]
         }

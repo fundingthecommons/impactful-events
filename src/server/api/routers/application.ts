@@ -38,6 +38,14 @@ const BulkUpdateApplicationStatusSchema = z.object({
   status: z.enum(["UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"]),
 });
 
+const BulkUpdateApplicationResponsesSchema = z.object({
+  applicationId: z.string(),
+  responses: z.array(z.object({
+    questionId: z.string(),
+    answer: z.string(),
+  })),
+});
+
 const CreateQuestionSchema = z.object({
   eventId: z.string(),
   questionKey: z.string(),
@@ -802,5 +810,70 @@ export const applicationRouter = createTRPCRouter({
           },
         },
       });
+    }),
+
+  // Bulk update application responses
+  bulkUpdateApplicationResponses: protectedProcedure
+    .input(BulkUpdateApplicationResponsesSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Verify the application exists and user has access (owner or admin/staff)
+      const application = await ctx.db.application.findUnique({
+        where: { id: input.applicationId },
+      });
+
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Application not found",
+        });
+      }
+
+      // Allow access if user owns the application OR user is admin/staff
+      const isOwner = application.userId === ctx.session.user.id;
+      const isAdmin = ctx.session.user.role === "admin" || ctx.session.user.role === "staff";
+      
+      if (!isOwner && !isAdmin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Access denied - you can only edit your own applications",
+        });
+      }
+
+      // Use transaction to update all responses atomically
+      const updatedResponses = await ctx.db.$transaction(
+        input.responses.map(response => 
+          ctx.db.applicationResponse.upsert({
+            where: {
+              applicationId_questionId: {
+                applicationId: input.applicationId,
+                questionId: response.questionId,
+              },
+            },
+            update: {
+              answer: response.answer,
+            },
+            create: {
+              applicationId: input.applicationId,
+              questionId: response.questionId,
+              answer: response.answer,
+            },
+            include: {
+              question: true,
+            },
+          })
+        )
+      );
+
+      // Auto-check and update completion status
+      const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId);
+      await updateApplicationCompletionStatus(ctx.db, input.applicationId, completionResult, {
+        isUserIntentionalEdit: true // This is a bulk save, treat as intentional edit
+      });
+
+      return {
+        success: true,
+        updatedCount: updatedResponses.length,
+        responses: updatedResponses,
+      };
     }),
 });
