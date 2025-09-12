@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, Text, Group, Stack, Badge, Anchor } from '@mantine/core';
-import { IconExternalLink, IconBrandGithub } from '@tabler/icons-react';
+import { IconBrandGithub } from '@tabler/icons-react';
 import Link from 'next/link';
 import { TechnologyBadge } from './TechnologyBadge';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -40,22 +40,24 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const githubUrl = `https://github.com/fundingthecommons/project-ideas/blob/main/projects/${project.slug}.md`;
   
   return (
-    <Card
-      shadow="sm"
-      padding="lg"
-      radius="md"
-      withBorder
-      style={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease',
-        background: 'var(--theme-surface-primary, var(--mantine-color-white))',
-        border: '1px solid var(--theme-border-light, var(--mantine-color-gray-3))',
-      }}
-      className="hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
-    >
+    <Link href={`/project-ideas/${project.slug}`} passHref legacyBehavior>
+      <a style={{ textDecoration: 'none', color: 'inherit' }}>
+        <Card
+          shadow="sm"
+          padding="lg"
+          radius="md"
+          withBorder
+          style={{
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            background: 'var(--theme-surface-primary, var(--mantine-color-white))',
+            border: '1px solid var(--theme-border-light, var(--mantine-color-gray-3))',
+          }}
+          className="hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+        >
       <Stack gap="md" style={{ flex: 1 }}>
         {/* Header with title and category */}
         <div>
@@ -137,14 +139,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
             >
               <IconBrandGithub size={16} />
             </Anchor>
-            <Link href={`/project-ideas/${project.slug}`} passHref legacyBehavior>
-              <Anchor onClick={(e) => e.stopPropagation()}>
-                <IconExternalLink size={16} />
-              </Anchor>
-            </Link>
           </Group>
         </Group>
-      </Stack>
-    </Card>
+        </Stack>
+        </Card>
+      </a>
+    </Link>
   );
 }

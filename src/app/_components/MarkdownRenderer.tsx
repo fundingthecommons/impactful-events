@@ -16,14 +16,14 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   // Preprocess content to handle HTML elements like <aside>
   const preprocessedContent = content
     // Convert <aside> tags to properly formatted info blocks
-    .replace(/<aside>([\s\S]*?)<\/aside>/g, (match, content) => {
+    .replace(/<aside>([\s\S]*?)<\/aside>/g, (_match: string, asideContent: string) => {
       // Clean up the content and format as an info block
-      const cleanContent = content.trim();
+      const cleanContent = asideContent.trim();
       if (!cleanContent) return '';
       
       // Split content by lines and create a formatted block
-      const lines = cleanContent.split('\n').filter(line => line.trim());
-      const formattedLines = lines.map(line => `> ${line.trim()}`).join('\n');
+      const lines = cleanContent.split('\n').filter((line: string) => line.trim());
+      const formattedLines = lines.map((line: string) => `> ${line.trim()}`).join('\n');
       
       return `\n\n> **ℹ️ Info**\n${formattedLines}\n\n`;
     });

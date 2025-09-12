@@ -1,8 +1,7 @@
-import { Group, Text, Avatar, Paper, Stack, Badge } from "@mantine/core";
-import { IconShield } from "@tabler/icons-react";
+import { Group, Paper } from "@mantine/core";
 import Image from "next/image";
 import { auth } from "~/server/auth";
-import SignOutButton from "./SignOutButton";
+import { UserDropdownMenu } from "~/app/_components/UserDropdownMenu";
 import AdminNavigation from "./AdminNavigation";
 
 export default async function HeaderBar() {
@@ -16,25 +15,7 @@ export default async function HeaderBar() {
           </Group>
           
           <Group gap={16}>
-            {session?.user && (
-              <Stack gap={0} align="flex-end">
-                <Group gap="xs">
-                  <Text size="sm" fw={500}>
-                    {session.user.name ?? session.user.email}
-                  </Text>
-                  <Avatar src={session.user.image ?? ""} radius="xl" size={32} />
-                </Group>
-                {session.user.role && session.user.role !== "user" && (
-                  <Group gap={4}>
-                    <IconShield size={12} color="green" />
-                    <Badge size="xs" color={session.user.role === "admin" ? "red" : "green"} variant="light">
-                      {session.user.role.toUpperCase()}
-                    </Badge>
-                  </Group>
-                )}
-              </Stack>
-            )}
-            {session && <SignOutButton />}
+            {session?.user && <UserDropdownMenu session={session} />}
           </Group>
         </Group>
       </Paper>
