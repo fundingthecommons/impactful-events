@@ -15,11 +15,18 @@ interface MarkdownRendererProps {
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   // Preprocess content to handle HTML elements like <aside>
   const preprocessedContent = content
-    // Convert <aside> tags to blockquotes with special marker
-    .replace(/<aside>\s*\n/g, '\n> **💡 Note**\n> \n> ')
-    .replace(/\n\s*<\/aside>/g, '\n\n')
-    // Handle nested content in aside tags
-    .replace(/<aside>([^<]*)<\/aside>/g, '\n> **💡 Note**\n> \n> $1\n\n');
+    // Convert <aside> tags to properly formatted info blocks
+    .replace(/<aside>([\s\S]*?)<\/aside>/g, (match, content) => {
+      // Clean up the content and format as an info block
+      const cleanContent = content.trim();
+      if (!cleanContent) return '';
+      
+      // Split content by lines and create a formatted block
+      const lines = cleanContent.split('\n').filter(line => line.trim());
+      const formattedLines = lines.map(line => `> ${line.trim()}`).join('\n');
+      
+      return `\n\n> **ℹ️ Info**\n${formattedLines}\n\n`;
+    });
 
   return (
     <div style={{ lineHeight: 1.6, fontSize: '16px' }}>
