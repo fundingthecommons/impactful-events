@@ -1,18 +1,21 @@
 import { ProfileDisplayClient } from "./ProfileDisplayClient";
 
 interface ProfilePageProps {
-  params: {
+  params: Promise<{
     userId: string;
-  };
+  }>;
 }
 
-export async function generateMetadata({ params: _params }: ProfilePageProps) {
+export async function generateMetadata({ params }: ProfilePageProps) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const resolvedParams = await params;
   return {
     title: `Profile - FtC Platform`,
     description: "View member profile",
   };
 }
 
-export default function ProfilePage({ params: _params }: ProfilePageProps) {
-  return <ProfileDisplayClient userId={_params.userId} />;
+export default async function ProfilePage({ params }: ProfilePageProps) {
+  const resolvedParams = await params;
+  return <ProfileDisplayClient userId={resolvedParams.userId} />;
 }
