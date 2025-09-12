@@ -711,6 +711,166 @@ export const evaluationRouter = createTRPCRouter({
       });
     }),
 
+  // Get available applications for self-assignment queue
+  getAvailableApplications: protectedProcedure
+    .input(z.object({
+      eventId: z.string().optional(), // Filter by specific event
+      stage: z.enum(['SCREENING', 'DETAILED_REVIEW', 'VIDEO_REVIEW']).optional(),
+      limit: z.number().int().positive().max(100).default(20),
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const { eventId, stage = 'SCREENING', limit = 20 } = input ?? {};
+      
+      return await ctx.db.application.findMany({
+        where: {
+          status: { in: ['SUBMITTED', 'UNDER_REVIEW'] },
+          ...(eventId && { eventId }),
+          // Exclude applications already assigned to current reviewer
+          NOT: {
+            reviewerAssignments: {
+              some: { 
+                reviewerId: userId,
+                stage: stage
+              }
+            }
+          }
+        },
+        select: {
+          id: true,
+          email: true,
+          status: true,
+          submittedAt: true,
+          createdAt: true,
+          user: { select: { name: true, email: true } },
+          event: { select: { id: true, name: true } },
+          // Count existing assignments for this stage
+          reviewerAssignments: {
+            where: { stage },
+            select: {
+              id: true,
+              reviewer: { select: { name: true } }
+            }
+          },
+          // Count existing evaluations for this stage
+          evaluations: {
+            where: { stage },
+            select: {
+              status: true,
+              reviewer: { select: { name: true } }
+            }
+          }
+        },
+        orderBy: [
+          { submittedAt: 'asc' }, // Oldest submissions first
+          { createdAt: 'asc' }
+        ],
+        take: limit,
+      });
+    }),
+
+  // Self-assign to an application for review
+  selfAssignToApplication: protectedProcedure
+    .input(z.object({
+      applicationId: z.string(),
+      stage: z.enum(['SCREENING', 'DETAILED_REVIEW', 'VIDEO_REVIEW']).default('SCREENING'),
+      priority: z.number().int().min(0).max(10).default(0),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const { applicationId, stage, priority, notes } = input;
+
+      // Check if application exists and is available for review
+      const application = await ctx.db.application.findUnique({
+        where: { id: applicationId },
+        select: { 
+          id: true, 
+          status: true,
+          user: { select: { name: true, email: true } },
+          event: { select: { name: true } }
+        }
+      });
+
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Application not found",
+        });
+      }
+
+      if (!['SUBMITTED', 'UNDER_REVIEW'].includes(application.status)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Application is not available for review",
+        });
+      }
+
+      // Check if already assigned to this reviewer for this stage
+      const existingAssignment = await ctx.db.reviewerAssignment.findUnique({
+        where: {
+          applicationId_reviewerId_stage: {
+            applicationId,
+            reviewerId: userId,
+            stage,
+          }
+        }
+      });
+
+      if (existingAssignment) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You are already assigned to review this application at this stage",
+        });
+      }
+
+      // Create assignment and evaluation in transaction
+      return await ctx.db.$transaction(async (tx) => {
+        // Create reviewer assignment
+        const assignment = await tx.reviewerAssignment.create({
+          data: {
+            applicationId,
+            reviewerId: userId,
+            stage,
+            priority,
+            notes: notes ?? 'Self-assigned from review queue',
+          },
+          include: {
+            reviewer: { select: { id: true, name: true, email: true } },
+            application: { 
+              select: { 
+                id: true,
+                user: { select: { name: true, email: true } },
+                event: { select: { name: true } }
+              }
+            },
+          },
+        });
+
+        // Create corresponding evaluation record
+        const evaluation = await tx.applicationEvaluation.create({
+          data: {
+            applicationId,
+            reviewerId: userId,
+            assignmentId: assignment.id,
+            stage,
+            status: 'PENDING',
+          },
+          include: {
+            application: {
+              select: {
+                id: true,
+                user: { select: { name: true, email: true } },
+                event: { select: { name: true } }
+              }
+            }
+          }
+        });
+
+        return { assignment, evaluation };
+      });
+    }),
+
   // Get all reviewers with their competencies (for admin management)
   getAllReviewersWithCompetencies: protectedProcedure
     .query(async ({ ctx }) => {

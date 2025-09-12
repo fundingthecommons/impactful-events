@@ -206,12 +206,7 @@ export default function EditableApplicationForm({
         name: userName.trim(),
       });
 
-      notifications.show({
-        title: "Saved",
-        message: "Applicant name updated successfully",
-        color: "green",
-        icon: <IconCheck />,
-      });
+      // Remove individual field notification - only show notification on bulk save
     } catch {
       notifications.show({
         title: "Error",
@@ -222,7 +217,7 @@ export default function EditableApplicationForm({
     } finally {
       setIsSaving(false);
     }
-  };
+  };;
 
   // Save a specific field
   const saveField = async (questionKey: string, value: unknown) => {
@@ -249,12 +244,7 @@ export default function EditableApplicationForm({
         answer: answerValue,
       });
 
-      notifications.show({
-        title: "Saved",
-        message: `Updated ${question.questionEn}`,
-        color: "green",
-        icon: <IconCheck />,
-      });
+      // Remove individual field notifications - only show notification on bulk save
     } catch {
       notifications.show({
         title: "Error",
@@ -265,7 +255,7 @@ export default function EditableApplicationForm({
     } finally {
       setIsSaving(false);
     }
-  };
+  };;
 
   // Helper function to check if two values are different
   const valuesAreDifferent = (original: unknown, current: unknown): boolean => {
@@ -280,6 +270,16 @@ export default function EditableApplicationForm({
     if (!questions) return;
 
     setIsSaving(true);
+
+    // Show immediate feedback that saving is in progress
+    const savingNotificationId = notifications.show({
+      title: "Saving...",
+      message: "Please wait while your changes are being saved",
+      color: "blue",
+      icon: <IconCheck />,
+      autoClose: false, // Don't auto-close while saving
+      loading: true,
+    });
 
     try {
       // Find only changed fields
@@ -308,6 +308,7 @@ export default function EditableApplicationForm({
         });
 
       if (changedResponses.length === 0) {
+        notifications.hide(savingNotificationId);
         notifications.show({
           title: "No Changes",
           message: "No fields have been modified",
@@ -317,7 +318,7 @@ export default function EditableApplicationForm({
         return;
       }
 
-      // Use bulk update mutation
+      // Use bulk update mutation with timeout handling
       await bulkUpdateResponses.mutateAsync({
         applicationId: application.id,
         responses: changedResponses,
@@ -326,25 +327,36 @@ export default function EditableApplicationForm({
       // Update original values to match current values after successful save
       setOriginalValues({ ...formValues });
 
+      // Hide saving notification and show success
+      notifications.hide(savingNotificationId);
       notifications.show({
         title: "Saved",
         message: `Updated ${changedResponses.length} field${changedResponses.length === 1 ? '' : 's'} successfully`,
         color: "green",
         icon: <IconCheck />,
+        autoClose: 4000,
       });
 
       onSaved();
-    } catch {
+    } catch (error) {
+      // Hide saving notification and show error
+      notifications.hide(savingNotificationId);
+      
+      const errorMessage = error instanceof Error ? error.message : "Failed to save changes";
+      
       notifications.show({
         title: "Error",
-        message: "Failed to save changes",
+        message: errorMessage,
         color: "red",
         icon: <IconAlertCircle />,
+        autoClose: 6000, // Show error longer
       });
+      
+      console.error('Save failed:', error);
     } finally {
       setIsSaving(false);
     }
-  };
+  };;
 
   // Render individual question
   const renderQuestion = (question: Question) => {
@@ -562,12 +574,13 @@ export default function EditableApplicationForm({
         <Group justify="flex-end">
           <Button
             onClick={saveAllChanges}
-            leftSection={<IconDeviceFloppy size={16} />}
+            leftSection={isSaving ? undefined : <IconDeviceFloppy size={16} />}
             loading={isSaving}
+            disabled={isSaving}
             color="green"
             size="md"
           >
-            Save All Changes
+            {isSaving ? "Saving..." : "Save All Changes"}
           </Button>
         </Group>
       </Paper>

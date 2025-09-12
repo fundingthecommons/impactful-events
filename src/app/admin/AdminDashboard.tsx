@@ -27,6 +27,7 @@ import {
   IconArrowRight,
   IconMailOpened,
   IconBrandGithub,
+  IconClipboardCheck,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -138,7 +139,7 @@ export default function AdminDashboard() {
       </SimpleGrid>
 
       {/* Quick Actions */}
-      <SimpleGrid cols={{ base: 1, md: 2 }} mb="xl">
+      <SimpleGrid cols={{ base: 1, md: 3 }} mb="xl">
         <Card withBorder>
           <Stack>
             <Group>
@@ -198,6 +199,37 @@ export default function AdminDashboard() {
               <Link href="/admin/invitations" style={{ textDecoration: 'none' }}>
                 <Button rightSection={<IconArrowRight size={16} />}>
                   Manage Invitations
+                </Button>
+              </Link>
+            </Group>
+          </Stack>
+        </Card>
+
+        <Card withBorder>
+          <Stack>
+            <Group>
+              <ThemeIcon size="md" color="violet" variant="light">
+                <IconClipboardCheck size={18} />
+              </ThemeIcon>
+              <div style={{ flex: 1 }}>
+                <Text fw={600} size="lg">Review Queue</Text>
+                <Text size="sm" c="dimmed">
+                  Pick applications to review from the queue
+                </Text>
+              </div>
+            </Group>
+            
+            <Group justify="space-between">
+              <Stack gap={4}>
+                <Text size="sm" c="dimmed">Quick Actions:</Text>
+                <Group gap="xs">
+                  <Badge size="sm" variant="light" color="violet">Self-Assign</Badge>
+                  <Badge size="sm" variant="light" color="blue">Review</Badge>
+                </Group>
+              </Stack>
+              <Link href="/admin/queue" style={{ textDecoration: 'none' }}>
+                <Button rightSection={<IconArrowRight size={16} />}>
+                  View Queue
                 </Button>
               </Link>
             </Group>

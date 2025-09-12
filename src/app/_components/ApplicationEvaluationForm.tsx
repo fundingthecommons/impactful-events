@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   Text,
@@ -39,6 +39,80 @@ import type {
   Application,
   User 
 } from "@prisma/client";
+
+interface SelfAssignmentPromptProps {
+  applicationId: string;
+  stage: 'SCREENING' | 'DETAILED_REVIEW' | 'VIDEO_REVIEW' | 'CONSENSUS' | 'FINAL_DECISION';
+}
+
+function SelfAssignmentPrompt({ applicationId, stage }: SelfAssignmentPromptProps) {
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // Self-assign mutation
+  const selfAssignMutation = api.evaluation.selfAssignToApplication.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: 'Application Assigned',
+        message: `Successfully assigned to application. You can now begin your review.`,
+        color: 'green'
+      });
+      // Reload the page to show the evaluation form
+      window.location.reload();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: 'Assignment Failed',
+        message: error.message || 'Failed to assign application. Please try again.',
+        color: 'red'
+      });
+      setIsAssigning(false);
+    }
+  });
+
+  const handleSelfAssign = async () => {
+    setIsAssigning(true);
+    await selfAssignMutation.mutateAsync({
+      applicationId,
+      stage: stage as 'SCREENING' | 'DETAILED_REVIEW' | 'VIDEO_REVIEW',
+      priority: 0,
+      notes: `Self-assigned via evaluation form`
+    });
+  };
+
+  return (
+    <Paper p="xl" className="text-center">
+      <Stack align="center" gap="md">
+        <Alert color="blue" icon={<IconUsers size="1rem" />}>
+          <Text fw={500}>No evaluation found for this application and stage</Text>
+          <Text size="sm" mt="xs">
+            You can assign yourself to review this application, or wait for an admin to assign it to you.
+          </Text>
+        </Alert>
+        
+        <Group gap="md">
+          <Button
+            onClick={handleSelfAssign}
+            loading={isAssigning}
+            disabled={isAssigning}
+            variant="filled"
+            color="blue"
+            leftSection={<IconCheck size="1rem" />}
+          >
+            {isAssigning ? 'Assigning...' : 'Assign to Me'}
+          </Button>
+          
+          <Button
+            onClick={() => window.history.back()}
+            variant="outline"
+            color="gray"
+          >
+            Go Back
+          </Button>
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
 
 interface ApplicationWithDetails extends Application {
   user: Pick<User, 'name' | 'email'> | null;
@@ -368,14 +442,7 @@ export default function ApplicationEvaluationForm({
   }
 
   if (!evaluation) {
-    return (
-      <Stack align="center" gap="md" p="xl">
-        <Text>No evaluation found for this application and stage.</Text>
-        <Text size="sm" c="dimmed">
-          An evaluation needs to be assigned by an admin before it can be completed.
-        </Text>
-      </Stack>
-    );
+    return <SelfAssignmentPrompt applicationId={applicationId} stage={stage} />;
   }
 
   const application = evaluation.application as ApplicationWithDetails;
