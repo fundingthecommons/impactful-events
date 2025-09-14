@@ -38,7 +38,7 @@ type Question = {
 type ApplicationWithUser = {
   id: string;
   email: string;
-  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED";
+  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
   submittedAt: Date | null;
   createdAt: Date;
   user: {

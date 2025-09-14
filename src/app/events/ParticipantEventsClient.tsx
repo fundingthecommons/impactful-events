@@ -43,7 +43,7 @@ interface EventCardProps {
     hasApplication: boolean;
     canApply: boolean;
     application?: {
-      status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED";
+      status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
     };
   };
 }
@@ -297,7 +297,7 @@ export default function ParticipantEventsClient() {
               hasApplication: !!application,
               canApply: !application,
               application: application ? {
-                status: application.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED"
+                status: application.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED"
               } : undefined
             };
 

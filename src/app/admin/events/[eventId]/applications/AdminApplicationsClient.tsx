@@ -77,7 +77,7 @@ type EmailType = {
 type ApplicationWithUser = {
   id: string;
   email: string;
-  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED";
+  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
   submittedAt: Date | null;
   createdAt: Date;
   user: {
@@ -126,6 +126,8 @@ function getStatusColor(status: string) {
       return "red";
     case "WAITLISTED":
       return "orange";
+    case "CANCELLED":
+      return "gray";
     default:
       return "gray";
   }
@@ -136,6 +138,8 @@ function getStatusIcon(status: string) {
     case "ACCEPTED":
       return IconCheck;
     case "REJECTED":
+      return IconX;
+    case "CANCELLED":
       return IconX;
     default:
       return IconClock;
@@ -374,7 +378,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     try {
       await updateStatus.mutateAsync({
         applicationId,
-        status: newStatus as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED",
+        status: newStatus as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
       });
       
       notifications.show({
@@ -403,7 +407,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     try {
       await bulkUpdateStatus.mutateAsync({
         applicationIds: Array.from(selectedApplications),
-        status: newStatus as "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED",
+        status: newStatus as "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
       });
       
       notifications.show({
@@ -650,6 +654,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     { value: "ACCEPTED", label: "Accepted" },
     { value: "REJECTED", label: "Rejected" },
     { value: "WAITLISTED", label: "Waitlisted" },
+    { value: "CANCELLED", label: "Cancelled" },
   ];
 
   const applicationStats = applications ? {

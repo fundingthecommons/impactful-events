@@ -33,7 +33,7 @@ import DynamicApplicationForm from "~/app/_components/DynamicApplicationForm";
 
 type Application = {
   id: string;
-  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED";
+  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
   language: string;
   submittedAt: Date | null;
   responses: Array<{

@@ -188,7 +188,7 @@ export default function MentorPageClient({
               type: event.type,
               applications: event.applications.map(app => ({
                 id: app.id,
-                status: app.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED",
+                status: app.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
                 language: app.language,
                 submittedAt: app.submittedAt,
                 responses: app.responses?.map(r => ({
@@ -207,7 +207,7 @@ export default function MentorPageClient({
             }}
             userApplication={initialUserApplication ? {
               id: initialUserApplication.id,
-              status: initialUserApplication.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED",
+              status: initialUserApplication.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
               language: initialUserApplication.language,
               submittedAt: initialUserApplication.submittedAt,
               responses: initialUserApplication.responses?.map(r => ({

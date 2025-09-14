@@ -19,7 +19,7 @@ interface ExtendedEvent extends Event {
 // Type for EventDetailClient compatibility
 interface EventDetailApplication {
   id: string;
-  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED";
+  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
   language: string;
   submittedAt: Date | null;
   responses: Array<{

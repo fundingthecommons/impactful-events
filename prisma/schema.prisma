@@ -404,6 +404,7 @@ enum ApplicationStatus {
   ACCEPTED
   REJECTED
   WAITLISTED
+  CANCELLED
 }
 
 enum QuestionType {

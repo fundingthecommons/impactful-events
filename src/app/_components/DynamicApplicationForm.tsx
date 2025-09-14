@@ -41,7 +41,7 @@ type Question = {
 
 type ExistingApplication = {
   id: string;
-  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED";
+  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
   language: string;
   responses: Array<{
     id: string;
@@ -304,7 +304,7 @@ export default function DynamicApplicationForm({
   const currentStatus = completionStatus?.status ?? freshApplicationData?.status ?? existingApplication?.status ?? "DRAFT";
   
   // Status validation safeguard
-  const validStatuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"];
+  const validStatuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"];
   const safeCurrentStatus = validStatuses.includes(currentStatus) ? currentStatus : "DRAFT";
   
   const canEdit = safeCurrentStatus === "DRAFT" || safeCurrentStatus === "SUBMITTED";

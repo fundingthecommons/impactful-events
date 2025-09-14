@@ -30,12 +30,12 @@ const SubmitApplicationSchema = z.object({
 
 const UpdateApplicationStatusSchema = z.object({
   applicationId: z.string(),
-  status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"]),
+  status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]),
 });
 
 const BulkUpdateApplicationStatusSchema = z.object({
   applicationIds: z.array(z.string()),
-  status: z.enum(["UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"]),
+  status: z.enum(["UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]),
 });
 
 const BulkUpdateApplicationResponsesSchema = z.object({
@@ -455,7 +455,7 @@ export const applicationRouter = createTRPCRouter({
   getEventApplications: protectedProcedure
     .input(z.object({ 
       eventId: z.string(),
-      status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"]).optional(),
+      status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);

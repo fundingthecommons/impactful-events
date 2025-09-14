@@ -181,7 +181,7 @@ export async function updateApplicationCompletionStatus(
     isComplete: boolean;
     completedAt?: Date;
     lastIncompleteAt?: Date;
-    status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED";
+    status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
   } = {
     isComplete: completionResult.isComplete,
   };
