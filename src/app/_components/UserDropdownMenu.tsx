@@ -73,17 +73,17 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
           Edit Profile
         </Menu.Item>
 
-        <Divider />
+        {/* <Divider />
 
-        <Menu.Label>Community</Menu.Label>
+        <Menu.Label>Community</Menu.Label> */}
         
-        <Menu.Item 
+        {/* <Menu.Item 
           leftSection={<IconUsers style={{ width: rem(14), height: rem(14) }} />}
           component={Link}
           href="/profiles"
         >
           Member Directory
-        </Menu.Item>
+        </Menu.Item> */}
 
         {/* Admin items */}
         {(session.user.role === "admin" || session.user.role === "staff") && (
