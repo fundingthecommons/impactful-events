@@ -307,7 +307,7 @@ export default function DynamicApplicationForm({
   const validStatuses = ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"];
   const safeCurrentStatus = validStatuses.includes(currentStatus) ? currentStatus : "DRAFT";
   
-  const canEdit = safeCurrentStatus === "DRAFT" || safeCurrentStatus === "SUBMITTED";
+  const canEdit = safeCurrentStatus === "DRAFT" || safeCurrentStatus === "SUBMITTED" || safeCurrentStatus === "UNDER_REVIEW";
   const isSubmitted = Boolean(safeCurrentStatus !== "DRAFT") || isSubmittingOrSubmitted;
 
   // Track status changes to detect reversion from SUBMITTED to DRAFT
@@ -362,8 +362,8 @@ export default function DynamicApplicationForm({
     const question = questions.find(q => q.questionKey === questionKey);
     if (!question) return;
 
-    // Don't auto-save if application is already submitted (prevent reversion)
-    if (safeCurrentStatus !== "DRAFT") {
+    // Don't auto-save if application is in final status (prevent reversion)
+    if (!["DRAFT", "SUBMITTED", "UNDER_REVIEW"].includes(safeCurrentStatus)) {
       console.log(`🚫 Skipping auto-save for field ${questionKey} - application status is ${safeCurrentStatus}`);
       return;
     }
