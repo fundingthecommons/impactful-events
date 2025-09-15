@@ -21,9 +21,13 @@ import {
   Box,
   Card,
   Text,
+  Modal,
+  Badge,
+  Checkbox,
+  Divider,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconX, IconArrowLeft } from "@tabler/icons-react";
+import { IconCheck, IconX, IconArrowLeft, IconDownload, IconEye } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -80,7 +84,9 @@ export function ProfileEditClient() {
         color: "green",
         icon: <IconCheck size={16} />,
       });
-      router.push("/profiles");
+      if (currentProfile?.user?.id) {
+        router.push(`/profiles/${currentProfile.user.id}`);
+      }
     },
     onError: (error) => {
       notifications.show({
@@ -173,9 +179,9 @@ export function ProfileEditClient() {
         leftSection={<IconArrowLeft size={16} />}
         mb="xl"
         component={Link}
-        href="/profiles"
+        href={currentProfile?.user?.id ? `/profiles/${currentProfile.user.id}` : "/profile"}
       >
-        Back to Directory
+        Back to My Profile
       </Button>
 
       <Title order={1} mb="xl">
@@ -349,6 +355,34 @@ export function ProfileEditClient() {
             </Stack>
           </Card>
 
+          {/* Application Import Section */}
+          <ApplicationImportSection onImportComplete={() => {
+            void refetchProfile();
+            // Reload current values into form
+            if (currentProfile) {
+              form.setValues({
+                bio: currentProfile.bio ?? "",
+                jobTitle: currentProfile.jobTitle ?? "",
+                company: currentProfile.company ?? "",
+                location: currentProfile.location ?? "",
+                website: currentProfile.website ?? "",
+                githubUrl: currentProfile.githubUrl ?? "",
+                linkedinUrl: currentProfile.linkedinUrl ?? "",
+                twitterUrl: currentProfile.twitterUrl ?? "",
+                skills: currentProfile.skills ?? [],
+                interests: currentProfile.interests ?? [],
+                availableForMentoring: currentProfile.availableForMentoring ?? false,
+                availableForHiring: currentProfile.availableForHiring ?? false,
+                availableForOfficeHours: currentProfile.availableForOfficeHours ?? false,
+                timezone: currentProfile.timezone ?? "",
+                languages: currentProfile.languages ?? [],
+                yearsOfExperience: currentProfile.yearsOfExperience ?? undefined,
+                telegramHandle: currentProfile.telegramHandle ?? "",
+                discordHandle: currentProfile.discordHandle ?? "",
+              });
+            }
+          }} />
+
           {/* Projects Section */}
           {currentProfile && (
             <ProjectManager
@@ -362,7 +396,7 @@ export function ProfileEditClient() {
             <Button
               variant="light"
               component={Link}
-              href="/profiles"
+              href={currentProfile?.user?.id ? `/profiles/${currentProfile.user.id}` : "/profile"}
             >
               Cancel
             </Button>
@@ -377,5 +411,255 @@ export function ProfileEditClient() {
         </Stack>
       </form>
     </Container>
+  );
+}
+
+interface ApplicationImportSectionProps {
+  onImportComplete: () => void;
+}
+
+function ApplicationImportSection({ onImportComplete }: ApplicationImportSectionProps) {
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+
+  const { data: applications, isLoading } = api.profile.getUserApplicationsForSync.useQuery();
+  const { data: previewData, isLoading: previewLoading } = api.profile.previewApplicationSync.useQuery(
+    { applicationId: selectedAppId! },
+    { enabled: !!selectedAppId }
+  );
+
+  const syncMutation = api.profile.syncFromApplication.useMutation({
+    onSuccess: (data) => {
+      notifications.show({
+        title: "Import Successful",
+        message: `Successfully imported ${data.syncedFields.length} fields from your application`,
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      setPreviewModalOpen(false);
+      setSelectedAppId(null);
+      setSelectedFields([]);
+      onImportComplete();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Import Failed",
+        message: error.message,
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  const handlePreview = (applicationId: string) => {
+    setSelectedAppId(applicationId);
+    setPreviewModalOpen(true);
+  };
+
+  const handleImport = () => {
+    if (!selectedAppId || selectedFields.length === 0) return;
+    
+    syncMutation.mutate({
+      applicationId: selectedAppId,
+      fieldsToSync: selectedFields,
+    });
+  };
+
+  const toggleField = (fieldName: string) => {
+    setSelectedFields(prev => 
+      prev.includes(fieldName) 
+        ? prev.filter(f => f !== fieldName)
+        : [...prev, fieldName]
+    );
+  };
+
+  const selectAllSyncableFields = () => {
+    if (!previewData) return;
+    const syncableFields = Object.entries(previewData.syncableData)
+      .filter(([, data]) => data.willSync)
+      .map(([fieldName]) => fieldName);
+    setSelectedFields(syncableFields);
+  };
+
+  if (isLoading) {
+    return (
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Loader size="sm" />
+        <Text mt="xs">Loading applications...</Text>
+      </Card>
+    );
+  }
+
+  if (!applications?.length) {
+    return (
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Title order={2} size="h3" mb="md">
+          Import from Applications
+        </Title>
+        <Text c="dimmed">
+          No accepted applications available for import. Complete and get accepted to an event to import application data.
+        </Text>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Title order={2} size="h3" mb="md">
+          Import from Applications
+        </Title>
+        <Text size="sm" c="dimmed" mb="md">
+          Import data from your accepted applications to automatically fill your profile fields.
+        </Text>
+
+        <Stack gap="sm">
+          {applications.map((app) => (
+            <Box key={app.id} p="sm" style={{ border: "1px solid var(--mantine-color-gray-3)", borderRadius: 8 }}>
+              <Group justify="space-between" align="center">
+                <div>
+                  <Text fw={500}>{app.event?.name}</Text>
+                  <Group gap="xs">
+                    <Text size="sm" c="dimmed">
+                      Submitted: {app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : "N/A"}
+                    </Text>
+                    {app.profileSyncs.length > 0 && (
+                      <Badge size="sm" color="blue">
+                        Previously Synced
+                      </Badge>
+                    )}
+                  </Group>
+                </div>
+                <Button
+                  size="sm"
+                  variant="light"
+                  leftSection={<IconEye size={14} />}
+                  onClick={() => handlePreview(app.id)}
+                >
+                  Preview Import
+                </Button>
+              </Group>
+            </Box>
+          ))}
+        </Stack>
+      </Card>
+
+      <Modal
+        opened={previewModalOpen}
+        onClose={() => {
+          setPreviewModalOpen(false);
+          setSelectedAppId(null);
+          setSelectedFields([]);
+        }}
+        title={
+          <Group>
+            <IconDownload size={20} />
+            <Text fw={600}>Preview Application Import</Text>
+          </Group>
+        }
+        size="lg"
+      >
+        {previewLoading ? (
+          <Box ta="center" py="xl">
+            <Loader size="lg" />
+            <Text mt="md">Loading preview...</Text>
+          </Box>
+        ) : previewData ? (
+          <Stack gap="md">
+            <Box>
+              <Text fw={500} mb="xs">{previewData.application.eventName}</Text>
+              <Text size="sm" c="dimmed">
+                Submitted: {previewData.application.submittedAt ? 
+                  new Date(previewData.application.submittedAt).toLocaleDateString() : "N/A"}
+              </Text>
+              {previewData.hasBeenSynced && (
+                <Badge color="blue" size="sm" mt="xs">
+                  Previously Synced
+                </Badge>
+              )}
+            </Box>
+
+            <Divider />
+
+            <div>
+              <Group justify="space-between" mb="sm">
+                <Text fw={500}>Available Fields</Text>
+                <Button
+                  size="xs"
+                  variant="light"
+                  onClick={selectAllSyncableFields}
+                  disabled={!Object.values(previewData.syncableData).some(d => d.willSync)}
+                >
+                  Select All Syncable
+                </Button>
+              </Group>
+
+              <Stack gap="xs">
+                {Object.entries(previewData.syncableData).map(([fieldName, data]) => (
+                  <Box key={fieldName} p="xs" bg={data.willSync ? "gray.0" : "gray.1"} style={{ borderRadius: 4 }}>
+                    <Group align="flex-start" gap="sm">
+                      <Checkbox
+                        checked={selectedFields.includes(fieldName)}
+                        onChange={() => toggleField(fieldName)}
+                        disabled={!data.willSync}
+                        mt={2}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <Group gap="xs" mb="xs">
+                          <Text fw={500} size="sm">
+                            {fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/([A-Z])/g, ' $1')}
+                          </Text>
+                          {data.willSync ? (
+                            <Badge size="xs" color="green">Will Sync</Badge>
+                          ) : (
+                            <Badge size="xs" color="gray">Won&apos;t Sync</Badge>
+                          )}
+                        </Group>
+                        <Text size="xs" c="dimmed" mb="xs">{data.reason}</Text>
+                        {data.applicationValue && (
+                          <Text size="xs">
+                            <strong>From Application:</strong> {Array.isArray(data.applicationValue) 
+                              ? data.applicationValue.join(", ") 
+                              : data.applicationValue}
+                          </Text>
+                        )}
+                        {data.profileValue && (
+                          <Text size="xs" c="dimmed">
+                            <strong>Current Profile:</strong> {Array.isArray(data.profileValue) 
+                              ? data.profileValue.join(", ") 
+                              : String(data.profileValue)}
+                          </Text>
+                        )}
+                      </div>
+                    </Group>
+                  </Box>
+                ))}
+              </Stack>
+            </div>
+
+            <Group justify="flex-end">
+              <Button
+                variant="light"
+                onClick={() => {
+                  setPreviewModalOpen(false);
+                  setSelectedFields([]);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleImport}
+                disabled={selectedFields.length === 0}
+                loading={syncMutation.isPending}
+                leftSection={<IconDownload size={16} />}
+              >
+                Import {selectedFields.length} Field{selectedFields.length !== 1 ? 's' : ''}
+              </Button>
+            </Group>
+          </Stack>
+        ) : null}
+      </Modal>
+    </>
   );
 }

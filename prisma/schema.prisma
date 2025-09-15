@@ -89,6 +89,7 @@ model User {
   
   // Profile system relations
   profile        UserProfile?
+  profileSyncs   ProfileSync[]
 }
 
 model VerificationToken {
@@ -459,6 +460,9 @@ model Application {
   reviewerAssignments   ReviewerAssignment[]
   evaluations          ApplicationEvaluation[]
   consensus            ReviewConsensus?
+  
+  // Profile sync relations  
+  profileSyncs         ProfileSync[]
   
   @@unique([userId, eventId]) // One application per user per event
   @@index([email])
@@ -959,4 +963,21 @@ model UserProject {
   
   @@index([profileId])
   @@index([featured])
+}
+
+model ProfileSync {
+  id            String   @id @default(cuid())
+  userId        String
+  applicationId String
+  syncedFields  String[] // Which fields were copied (e.g., ["skills", "bio", "location"])
+  syncedAt      DateTime @default(now())
+  
+  // Relations
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application  Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, applicationId]) // Prevent duplicate syncs per application
+  @@index([userId])
+  @@index([applicationId])
+  @@index([syncedAt])
 }

@@ -489,4 +489,620 @@ export const profileRouter = createTRPCRouter({
         availabilityStats: availableStats,
       };
     }),
+
+  // Profile-Application Sync endpoints
+  getUserApplicationsForSync: protectedProcedure
+    .query(async ({ ctx }) => {
+      const applications = await ctx.db.application.findMany({
+        where: { 
+          userId: ctx.session.user.id,
+          status: "ACCEPTED", // Only show accepted applications for sync
+        },
+        include: {
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          responses: {
+            include: {
+              question: {
+                select: {
+                  id: true,
+                  questionKey: true,
+                  questionEn: true,
+                },
+              },
+            },
+          },
+          profileSyncs: {
+            select: {
+              id: true,
+              syncedFields: true,
+              syncedAt: true,
+            },
+          },
+        },
+        orderBy: { submittedAt: "desc" },
+      });
+
+      return applications;
+    }),
+
+  previewApplicationSync: protectedProcedure
+    .input(z.object({ applicationId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const application = await ctx.db.application.findUnique({
+        where: { 
+          id: input.applicationId,
+          userId: ctx.session.user.id,
+          status: "ACCEPTED",
+        },
+        include: {
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          responses: {
+            include: {
+              question: {
+                select: {
+                  questionKey: true,
+                  questionEn: true,
+                },
+              },
+            },
+          },
+          profileSyncs: {
+            select: {
+              id: true,
+              syncedFields: true,
+              syncedAt: true,
+            },
+          },
+        },
+      });
+
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND", 
+          message: "Application not found or not accepted",
+        });
+      }
+
+      // Get current profile
+      const currentProfile = await ctx.db.userProfile.findUnique({
+        where: { userId: ctx.session.user.id },
+      });
+
+      // Map application responses to profile fields
+      const responseMap = new Map(
+        application.responses.map(r => [r.question.questionKey, r.answer])
+      );
+
+      const syncableData: Record<string, { 
+        source: 'application' | 'profile' | 'merged',
+        applicationValue?: string | string[],
+        profileValue?: string | string[] | boolean | number | null,
+        willSync: boolean,
+        reason?: string,
+      }> = {};
+
+      // Technical skills mapping
+      if (responseMap.has("technical_skills")) {
+        try {
+          const appSkills = JSON.parse(responseMap.get("technical_skills")!) as string[];
+          const profileSkills = currentProfile?.skills ?? [];
+          syncableData.skills = {
+            source: profileSkills.length === 0 ? 'application' : 'merged',
+            applicationValue: appSkills,
+            profileValue: profileSkills,
+            willSync: appSkills.length > 0,
+            reason: profileSkills.length > 0 ? 'Will merge with existing skills' : 'Will add from application'
+          };
+        } catch {
+          // Skip if JSON parsing fails
+        }
+      }
+
+      // Bio mapping
+      if (responseMap.has("bio")) {
+        const appBio = responseMap.get("bio")!;
+        syncableData.bio = {
+          source: 'application',
+          applicationValue: appBio,
+          profileValue: currentProfile?.bio,
+          willSync: !currentProfile?.bio && appBio.trim().length > 0,
+          reason: currentProfile?.bio ? 'Profile bio already exists' : 'Will add from application'
+        };
+      }
+
+      // Location mapping
+      if (responseMap.has("location")) {
+        const appLocation = responseMap.get("location")!;
+        syncableData.location = {
+          source: 'application',
+          applicationValue: appLocation,
+          profileValue: currentProfile?.location,
+          willSync: !currentProfile?.location && appLocation.trim().length > 0,
+          reason: currentProfile?.location ? 'Profile location already exists' : 'Will add from application'
+        };
+      }
+
+      // Company mapping
+      if (responseMap.has("company")) {
+        const appCompany = responseMap.get("company")!;
+        syncableData.company = {
+          source: 'application',
+          applicationValue: appCompany,
+          profileValue: currentProfile?.company,
+          willSync: !currentProfile?.company && appCompany.trim().length > 0,
+          reason: currentProfile?.company ? 'Profile company already exists' : 'Will add from application'
+        };
+      }
+
+      // LinkedIn URL mapping
+      if (responseMap.has("linkedin_url")) {
+        const appLinkedIn = responseMap.get("linkedin_url")!;
+        syncableData.linkedinUrl = {
+          source: 'application',
+          applicationValue: appLinkedIn,
+          profileValue: currentProfile?.linkedinUrl,
+          willSync: !currentProfile?.linkedinUrl && appLinkedIn.trim().length > 0,
+          reason: currentProfile?.linkedinUrl ? 'Profile LinkedIn already exists' : 'Will add from application'
+        };
+      }
+
+      // GitHub URL mapping
+      if (responseMap.has("github_url")) {
+        const appGitHub = responseMap.get("github_url")!;
+        syncableData.githubUrl = {
+          source: 'application',
+          applicationValue: appGitHub,
+          profileValue: currentProfile?.githubUrl,
+          willSync: !currentProfile?.githubUrl && appGitHub.trim().length > 0,
+          reason: currentProfile?.githubUrl ? 'Profile GitHub already exists' : 'Will add from application'
+        };
+      }
+
+      return {
+        application: {
+          id: application.id,
+          eventName: application.event?.name ?? undefined,
+          submittedAt: application.submittedAt,
+        },
+        syncableData,
+        hasBeenSynced: application.profileSyncs.length > 0,
+      };
+    }),
+
+  syncFromApplication: protectedProcedure
+    .input(z.object({ 
+      applicationId: z.string(),
+      fieldsToSync: z.array(z.string()), // Array of field names to sync
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const application = await ctx.db.application.findUnique({
+        where: { 
+          id: input.applicationId,
+          userId: ctx.session.user.id,
+          status: "ACCEPTED",
+        },
+        include: {
+          responses: {
+            include: {
+              question: {
+                select: {
+                  questionKey: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Application not found or not accepted",
+        });
+      }
+
+      // Get or create profile
+      let profile = await ctx.db.userProfile.findUnique({
+        where: { userId: ctx.session.user.id },
+      });
+
+      profile ??= await ctx.db.userProfile.create({
+        data: { userId: ctx.session.user.id },
+      });
+
+      // Map responses
+      const responseMap = new Map(
+        application.responses.map(r => [r.question.questionKey, r.answer])
+      );
+
+      const updateData: Partial<{
+        bio: string;
+        location: string;
+        company: string;
+        linkedinUrl: string;
+        githubUrl: string;
+        skills: string[];
+      }> = {};
+
+      const syncedFields: string[] = [];
+
+      for (const field of input.fieldsToSync) {
+        switch (field) {
+          case 'skills':
+            if (responseMap.has("technical_skills")) {
+              try {
+                const appSkills = JSON.parse(responseMap.get("technical_skills")!) as string[];
+                const existingSkills = profile.skills ?? [];
+                const mergedSkills = Array.from(new Set([...existingSkills, ...appSkills]));
+                updateData.skills = mergedSkills;
+                syncedFields.push('skills');
+              } catch {
+                // Skip if parsing fails
+              }
+            }
+            break;
+
+          case 'bio':
+            if (responseMap.has("bio") && !profile.bio) {
+              const appBio = responseMap.get("bio")!;
+              if (appBio.trim()) {
+                updateData.bio = appBio.trim();
+                syncedFields.push('bio');
+              }
+            }
+            break;
+
+          case 'location':
+            if (responseMap.has("location") && !profile.location) {
+              const appLocation = responseMap.get("location")!;
+              if (appLocation.trim()) {
+                updateData.location = appLocation.trim();
+                syncedFields.push('location');
+              }
+            }
+            break;
+
+          case 'company':
+            if (responseMap.has("company") && !profile.company) {
+              const appCompany = responseMap.get("company")!;
+              if (appCompany.trim()) {
+                updateData.company = appCompany.trim();
+                syncedFields.push('company');
+              }
+            }
+            break;
+
+          case 'linkedinUrl':
+            if (responseMap.has("linkedin_url") && !profile.linkedinUrl) {
+              const appLinkedIn = responseMap.get("linkedin_url")!;
+              if (appLinkedIn.trim()) {
+                updateData.linkedinUrl = appLinkedIn.trim();
+                syncedFields.push('linkedinUrl');
+              }
+            }
+            break;
+
+          case 'githubUrl':
+            if (responseMap.has("github_url") && !profile.githubUrl) {
+              const appGitHub = responseMap.get("github_url")!;
+              if (appGitHub.trim()) {
+                updateData.githubUrl = appGitHub.trim();
+                syncedFields.push('githubUrl');
+              }
+            }
+            break;
+        }
+      }
+
+      // Update profile if there are changes
+      if (Object.keys(updateData).length > 0) {
+        await ctx.db.userProfile.update({
+          where: { id: profile.id },
+          data: updateData,
+        });
+      }
+
+      // Record the sync
+      await ctx.db.profileSync.create({
+        data: {
+          userId: ctx.session.user.id,
+          applicationId: input.applicationId,
+          syncedFields,
+        },
+      });
+
+      return {
+        success: true,
+        syncedFields,
+        updatedFields: Object.keys(updateData),
+      };
+    }),
+
+  // Admin endpoints for bulk profile sync
+  adminGetSyncStats: protectedProcedure
+    .query(async ({ ctx }) => {
+      // Check admin access
+      if (ctx.session.user.role !== "admin" && ctx.session.user.role !== "staff") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Admin access required",
+        });
+      }
+
+      // Get accepted applications count
+      const acceptedApps = await ctx.db.application.count({
+        where: { status: "ACCEPTED" },
+      });
+
+      // Get users with accepted applications but no profile syncs
+      const usersWithUnsyncedApps = await ctx.db.user.count({
+        where: {
+          applications: {
+            some: {
+              status: "ACCEPTED",
+              profileSyncs: { none: {} },
+            },
+          },
+        },
+      });
+
+      // Get total profile syncs
+      const totalSyncs = await ctx.db.profileSync.count();
+
+      // Get profiles count
+      const totalProfiles = await ctx.db.userProfile.count();
+
+      return {
+        acceptedApplications: acceptedApps,
+        usersWithUnsyncedApplications: usersWithUnsyncedApps,
+        totalProfileSyncs: totalSyncs,
+        totalProfiles,
+        syncCoverage: acceptedApps > 0 ? Math.round(((acceptedApps - usersWithUnsyncedApps) / acceptedApps) * 100) : 0,
+      };
+    }),
+
+  adminBulkSyncProfiles: protectedProcedure
+    .input(z.object({
+      dryRun: z.boolean().default(false),
+      limitUsers: z.number().min(1).max(100).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Check admin access
+      if (ctx.session.user.role !== "admin" && ctx.session.user.role !== "staff") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Admin access required",
+        });
+      }
+
+      // Find users with accepted applications but no profile syncs
+      const usersToSync = await ctx.db.user.findMany({
+        where: {
+          applications: {
+            some: {
+              status: "ACCEPTED",
+              profileSyncs: { none: {} },
+            },
+          },
+        },
+        include: {
+          applications: {
+            where: { status: "ACCEPTED" },
+            include: {
+              responses: {
+                include: {
+                  question: {
+                    select: {
+                      questionKey: true,
+                    },
+                  },
+                },
+              },
+              profileSyncs: true,
+            },
+            orderBy: { submittedAt: "desc" },
+            take: 1, // Use most recent accepted application
+          },
+          profile: true,
+        },
+        take: input.limitUsers ?? 100,
+      });
+
+      const syncResults: Array<{
+        userId: string;
+        userEmail: string;
+        applicationId: string;
+        syncedFields: string[];
+        error?: string;
+      }> = [];
+
+      if (input.dryRun) {
+        // Preview what would be synced
+        for (const user of usersToSync) {
+          const app = user.applications[0];
+          if (!app) continue;
+
+          const responseMap = new Map(
+            app.responses.map(r => [r.question.questionKey, r.answer])
+          );
+
+          const previewFields: string[] = [];
+
+          // Check which fields would be synced
+          if (responseMap.has("technical_skills")) {
+            try {
+              const appSkills = JSON.parse(responseMap.get("technical_skills")!) as string[];
+              if (appSkills.length > 0) previewFields.push('skills');
+            } catch {
+              // Skip if parsing fails
+            }
+          }
+
+          if (responseMap.has("bio") && !user.profile?.bio) {
+            const appBio = responseMap.get("bio")!;
+            if (appBio.trim()) previewFields.push('bio');
+          }
+
+          if (responseMap.has("location") && !user.profile?.location) {
+            const appLocation = responseMap.get("location")!;
+            if (appLocation.trim()) previewFields.push('location');
+          }
+
+          if (responseMap.has("company") && !user.profile?.company) {
+            const appCompany = responseMap.get("company")!;
+            if (appCompany.trim()) previewFields.push('company');
+          }
+
+          if (responseMap.has("linkedin_url") && !user.profile?.linkedinUrl) {
+            const appLinkedIn = responseMap.get("linkedin_url")!;
+            if (appLinkedIn.trim()) previewFields.push('linkedinUrl');
+          }
+
+          if (responseMap.has("github_url") && !user.profile?.githubUrl) {
+            const appGitHub = responseMap.get("github_url")!;
+            if (appGitHub.trim()) previewFields.push('githubUrl');
+          }
+
+          syncResults.push({
+            userId: user.id,
+            userEmail: user.email ?? 'unknown',
+            applicationId: app.id,
+            syncedFields: previewFields,
+          });
+        }
+      } else {
+        // Perform actual sync
+        for (const user of usersToSync) {
+          const app = user.applications[0];
+          if (!app) continue;
+
+          try {
+            // Get or create profile
+            let profile = user.profile;
+            profile ??= await ctx.db.userProfile.create({
+              data: { userId: user.id },
+            });
+            const responseMap = new Map(
+              app.responses.map(r => [r.question.questionKey, r.answer])
+            );
+
+            const updateData: Partial<{
+              bio: string;
+              location: string;
+              company: string;
+              linkedinUrl: string;
+              githubUrl: string;
+              skills: string[];
+            }> = {};
+
+            const syncedFields: string[] = [];
+
+            // Sync skills
+            if (responseMap.has("technical_skills")) {
+              try {
+                const appSkills = JSON.parse(responseMap.get("technical_skills")!) as string[];
+                const existingSkills = profile.skills ?? [];
+                const mergedSkills = Array.from(new Set([...existingSkills, ...appSkills]));
+                updateData.skills = mergedSkills;
+                syncedFields.push('skills');
+              } catch {
+                // Skip if parsing fails
+              }
+            }
+
+            // Sync other fields (only if profile field is empty)
+            if (responseMap.has("bio") && !profile.bio) {
+              const appBio = responseMap.get("bio")!;
+              if (appBio.trim()) {
+                updateData.bio = appBio.trim();
+                syncedFields.push('bio');
+              }
+            }
+
+            if (responseMap.has("location") && !profile.location) {
+              const appLocation = responseMap.get("location")!;
+              if (appLocation.trim()) {
+                updateData.location = appLocation.trim();
+                syncedFields.push('location');
+              }
+            }
+
+            if (responseMap.has("company") && !profile.company) {
+              const appCompany = responseMap.get("company")!;
+              if (appCompany.trim()) {
+                updateData.company = appCompany.trim();
+                syncedFields.push('company');
+              }
+            }
+
+            if (responseMap.has("linkedin_url") && !profile.linkedinUrl) {
+              const appLinkedIn = responseMap.get("linkedin_url")!;
+              if (appLinkedIn.trim()) {
+                updateData.linkedinUrl = appLinkedIn.trim();
+                syncedFields.push('linkedinUrl');
+              }
+            }
+
+            if (responseMap.has("github_url") && !profile.githubUrl) {
+              const appGitHub = responseMap.get("github_url")!;
+              if (appGitHub.trim()) {
+                updateData.githubUrl = appGitHub.trim();
+                syncedFields.push('githubUrl');
+              }
+            }
+
+            // Update profile if there are changes
+            if (Object.keys(updateData).length > 0) {
+              await ctx.db.userProfile.update({
+                where: { id: profile.id },
+                data: updateData,
+              });
+            }
+
+            // Record the sync
+            await ctx.db.profileSync.create({
+              data: {
+                userId: user.id,
+                applicationId: app.id,
+                syncedFields,
+              },
+            });
+
+            syncResults.push({
+              userId: user.id,
+              userEmail: user.email ?? 'unknown',
+              applicationId: app.id,
+              syncedFields,
+            });
+
+          } catch (error) {
+            syncResults.push({
+              userId: user.id,
+              userEmail: user.email ?? 'unknown',
+              applicationId: app.id,
+              syncedFields: [],
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+          }
+        }
+      }
+
+      return {
+        totalProcessed: usersToSync.length,
+        successful: syncResults.filter(r => !r.error).length,
+        failed: syncResults.filter(r => r.error).length,
+        results: syncResults,
+        dryRun: input.dryRun,
+      };
+    }),
 });

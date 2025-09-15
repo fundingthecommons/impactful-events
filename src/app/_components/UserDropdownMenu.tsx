@@ -13,7 +13,6 @@ import {
 import {
   IconUser,
   IconEdit,
-  IconUsers,
   IconLogout,
   IconShield,
   IconSettings,

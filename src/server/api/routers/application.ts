@@ -542,6 +542,141 @@ export const applicationRouter = createTRPCRouter({
         }
       }
 
+      // Auto-sync profile data when application is accepted
+      if (input.status === 'ACCEPTED' && application.userId) {
+        try {
+          // Check if this application has already been synced
+          const existingSync = await ctx.db.profileSync.findUnique({
+            where: {
+              userId_applicationId: {
+                userId: application.userId,
+                applicationId: input.applicationId,
+              },
+            },
+          });
+
+          if (!existingSync) {
+            // Get application with responses for sync
+            const appWithResponses = await ctx.db.application.findUnique({
+              where: { id: input.applicationId },
+              include: {
+                responses: {
+                  include: {
+                    question: {
+                      select: {
+                        questionKey: true,
+                      },
+                    },
+                  },
+                },
+              },
+            });
+
+            if (appWithResponses) {
+              // Get or create profile
+              let profile = await ctx.db.userProfile.findUnique({
+                where: { userId: application.userId },
+              });
+
+              profile ??= await ctx.db.userProfile.create({
+                data: { userId: application.userId },
+              });
+              // Map responses
+              const responseMap = new Map(
+                appWithResponses.responses.map(r => [r.question.questionKey, r.answer])
+              );
+
+              const updateData: Partial<{
+                bio: string;
+                location: string;
+                company: string;
+                linkedinUrl: string;
+                githubUrl: string;
+                skills: string[];
+              }> = {};
+
+              const syncedFields: string[] = [];
+
+              // Sync skills (merge with existing)
+              if (responseMap.has("technical_skills")) {
+                try {
+                  const appSkills = JSON.parse(responseMap.get("technical_skills")!) as string[];
+                  const existingSkills = profile.skills ?? [];
+                  const mergedSkills = Array.from(new Set([...existingSkills, ...appSkills]));
+                  updateData.skills = mergedSkills;
+                  syncedFields.push('skills');
+                } catch {
+                  // Skip if parsing fails
+                }
+              }
+
+              // Sync other fields (only if profile field is empty)
+              if (responseMap.has("bio") && !profile.bio) {
+                const appBio = responseMap.get("bio")!;
+                if (appBio.trim()) {
+                  updateData.bio = appBio.trim();
+                  syncedFields.push('bio');
+                }
+              }
+
+              if (responseMap.has("location") && !profile.location) {
+                const appLocation = responseMap.get("location")!;
+                if (appLocation.trim()) {
+                  updateData.location = appLocation.trim();
+                  syncedFields.push('location');
+                }
+              }
+
+              if (responseMap.has("company") && !profile.company) {
+                const appCompany = responseMap.get("company")!;
+                if (appCompany.trim()) {
+                  updateData.company = appCompany.trim();
+                  syncedFields.push('company');
+                }
+              }
+
+              if (responseMap.has("linkedin_url") && !profile.linkedinUrl) {
+                const appLinkedIn = responseMap.get("linkedin_url")!;
+                if (appLinkedIn.trim()) {
+                  updateData.linkedinUrl = appLinkedIn.trim();
+                  syncedFields.push('linkedinUrl');
+                }
+              }
+
+              if (responseMap.has("github_url") && !profile.githubUrl) {
+                const appGitHub = responseMap.get("github_url")!;
+                if (appGitHub.trim()) {
+                  updateData.githubUrl = appGitHub.trim();
+                  syncedFields.push('githubUrl');
+                }
+              }
+
+              // Update profile if there are changes
+              if (Object.keys(updateData).length > 0) {
+                await ctx.db.userProfile.update({
+                  where: { id: profile.id },
+                  data: updateData,
+                });
+              }
+
+              // Record the sync
+              await ctx.db.profileSync.create({
+                data: {
+                  userId: application.userId,
+                  applicationId: input.applicationId,
+                  syncedFields,
+                },
+              });
+
+              console.log(`Auto-synced ${syncedFields.length} fields to profile for application ${input.applicationId}`);
+            }
+          }
+        } catch (error) {
+          console.error('Error auto-syncing profile:', error);
+          // Don't fail the status update if profile sync fails
+        }
+      }
+
       return application;
     }),
 

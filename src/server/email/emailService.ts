@@ -181,7 +181,6 @@ export class EmailService {
           applicantName,
           eventName: application.event.name,
           futureOpportunitiesUrl: `${baseUrl}/events`,
-          feedbackAvailable: true,
         } satisfies ApplicationRejectedProps;
         break;
 

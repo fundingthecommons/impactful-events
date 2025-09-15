@@ -10,14 +10,12 @@ export interface ApplicationRejectedProps {
   applicantName: string;
   eventName: string;
   futureOpportunitiesUrl?: string;
-  feedbackAvailable?: boolean;
 }
 
 export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = ({
   applicantName,
   eventName,
   futureOpportunitiesUrl,
-  feedbackAvailable = false,
 }) => {
   const previewText = `Update on your ${eventName} application`;
 
@@ -42,7 +40,7 @@ export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = (
           particular program&apos;s focus areas and team dynamics.
         </Text>
 
-        {feedbackAvailable && (
+        {/* {feedbackAvailable && (
           <Text style={paragraph}>
             If you would like feedback on your application to help with future opportunities, please feel free to 
             reach out to us at{' '}
@@ -50,7 +48,7 @@ export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = (
               residency@fundingthecommons.io
             </a>
           </Text>
-        )}
+        )} */}
 
         <Section style={encouragementBox}>
           <Text style={encouragementHeading}>Stay Connected</Text>
@@ -154,11 +152,6 @@ const button = {
   textAlign: 'center' as const,
   display: 'inline-block',
   padding: '12px 32px',
-};
-
-const link = {
-  color: '#2563eb',
-  textDecoration: 'underline',
 };
 
 const signature = {

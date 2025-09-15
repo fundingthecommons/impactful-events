@@ -28,6 +28,7 @@ import {
   IconMailOpened,
   IconBrandGithub,
   IconClipboardCheck,
+  IconUserCog,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -368,6 +369,30 @@ export default function AdminDashboard() {
             <Link href="/crypto-nomads-import" style={{ textDecoration: 'none' }}>
               <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
                 Import Data
+              </Button>
+            </Link>
+          </Stack>
+        </Card>
+      </SimpleGrid>
+
+      <SimpleGrid cols={{ base: 1, md: 2 }} mb="lg">
+        <Card withBorder>
+          <Stack>
+            <Group>
+              <ThemeIcon size="md" color="blue" variant="light">
+                <IconUserCog size={18} />
+              </ThemeIcon>
+              <Text fw={600}>Profile Sync</Text>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Bulk sync application data to user profiles
+            </Text>
+            <Text size="xs" c="dimmed">
+              Import accepted application data to enhance user profiles
+            </Text>
+            <Link href="/admin/profile-sync" style={{ textDecoration: 'none' }}>
+              <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
+                Manage Profile Sync
               </Button>
             </Link>
           </Stack>
