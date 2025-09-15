@@ -905,4 +905,40 @@ export const evaluationRouter = createTRPCRouter({
         orderBy: { name: 'asc' },
       });
     }),
+
+  // Get evaluation by ID (for direct evaluation page access)
+  getEvaluationById: protectedProcedure
+    .input(z.object({
+      evaluationId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      
+      const evaluation = await ctx.db.applicationEvaluation.findUnique({
+        where: { id: input.evaluationId },
+        select: {
+          id: true,
+          applicationId: true,
+          reviewerId: true,
+          stage: true,
+          status: true,
+        }
+      });
+
+      if (!evaluation) {
+        throw new Error('Evaluation not found');
+      }
+
+      // Verify the evaluation belongs to the current user or user is admin
+      if (evaluation.reviewerId !== userId && !ctx.session.user.role?.includes('admin')) {
+        throw new Error('Unauthorized to view this evaluation');
+      }
+
+      return {
+        id: evaluation.id,
+        applicationId: evaluation.applicationId,
+        stage: evaluation.stage,
+        status: evaluation.status,
+      };
+    }),
 });

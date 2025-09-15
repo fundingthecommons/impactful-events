@@ -667,6 +667,30 @@ export const profileRouter = createTRPCRouter({
         };
       }
 
+      // Twitter URL mapping
+      if (responseMap.has("twitter")) {
+        const appTwitter = responseMap.get("twitter")!;
+        syncableData.twitterUrl = {
+          source: 'application',
+          applicationValue: appTwitter,
+          profileValue: currentProfile?.twitterUrl,
+          willSync: !currentProfile?.twitterUrl && appTwitter.trim().length > 0,
+          reason: currentProfile?.twitterUrl ? 'Profile Twitter already exists' : 'Will add from application'
+        };
+      }
+
+      // Telegram handle mapping
+      if (responseMap.has("telegram")) {
+        const appTelegram = responseMap.get("telegram")!;
+        syncableData.telegramHandle = {
+          source: 'application',
+          applicationValue: appTelegram,
+          profileValue: currentProfile?.telegramHandle,
+          willSync: !currentProfile?.telegramHandle && appTelegram.trim().length > 0,
+          reason: currentProfile?.telegramHandle ? 'Profile Telegram already exists' : 'Will add from application'
+        };
+      }
+
       return {
         application: {
           id: application.id,
@@ -729,6 +753,8 @@ export const profileRouter = createTRPCRouter({
         company: string;
         linkedinUrl: string;
         githubUrl: string;
+        twitterUrl: string;
+        telegramHandle: string;
         skills: string[];
       }> = {};
 
@@ -799,6 +825,26 @@ export const profileRouter = createTRPCRouter({
               }
             }
             break;
+
+          case 'twitterUrl':
+            if (responseMap.has("twitter") && !profile.twitterUrl) {
+              const appTwitter = responseMap.get("twitter")!;
+              if (appTwitter.trim()) {
+                updateData.twitterUrl = appTwitter.trim();
+                syncedFields.push('twitterUrl');
+              }
+            }
+            break;
+
+          case 'telegramHandle':
+            if (responseMap.has("telegram") && !profile.telegramHandle) {
+              const appTelegram = responseMap.get("telegram")!;
+              if (appTelegram.trim()) {
+                updateData.telegramHandle = appTelegram.trim();
+                syncedFields.push('telegramHandle');
+              }
+            }
+            break;
         }
       }
 
@@ -810,7 +856,23 @@ export const profileRouter = createTRPCRouter({
         });
       }
 
-      // Record the sync
+      // Record the sync - check if already exists first
+      const existingSync = await ctx.db.profileSync.findUnique({
+        where: {
+          userId_applicationId: {
+            userId: ctx.session.user.id,
+            applicationId: input.applicationId,
+          },
+        },
+      });
+
+      if (existingSync) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "This application has already been imported to your profile. Each application can only be imported once to prevent data conflicts.",
+        });
+      }
+
       await ctx.db.profileSync.create({
         data: {
           userId: ctx.session.user.id,
@@ -976,6 +1038,16 @@ export const profileRouter = createTRPCRouter({
             if (appGitHub.trim()) previewFields.push('githubUrl');
           }
 
+          if (responseMap.has("twitter") && !user.profile?.twitterUrl) {
+            const appTwitter = responseMap.get("twitter")!;
+            if (appTwitter.trim()) previewFields.push('twitterUrl');
+          }
+
+          if (responseMap.has("telegram") && !user.profile?.telegramHandle) {
+            const appTelegram = responseMap.get("telegram")!;
+            if (appTelegram.trim()) previewFields.push('telegramHandle');
+          }
+
           syncResults.push({
             userId: user.id,
             userEmail: user.email ?? 'unknown',
@@ -1005,6 +1077,8 @@ export const profileRouter = createTRPCRouter({
               company: string;
               linkedinUrl: string;
               githubUrl: string;
+              twitterUrl: string;
+              telegramHandle: string;
               skills: string[];
             }> = {};
 
@@ -1064,6 +1138,24 @@ export const profileRouter = createTRPCRouter({
               }
             }
 
+            // Sync Twitter URL
+            if (responseMap.has("twitter") && !profile.twitterUrl) {
+              const appTwitter = responseMap.get("twitter")!;
+              if (appTwitter.trim()) {
+                updateData.twitterUrl = appTwitter.trim();
+                syncedFields.push('twitterUrl');
+              }
+            }
+
+            // Sync Telegram handle
+            if (responseMap.has("telegram") && !profile.telegramHandle) {
+              const appTelegram = responseMap.get("telegram")!;
+              if (appTelegram.trim()) {
+                updateData.telegramHandle = appTelegram.trim();
+                syncedFields.push('telegramHandle');
+              }
+            }
+
             // Update profile if there are changes
             if (Object.keys(updateData).length > 0) {
               await ctx.db.userProfile.update({
@@ -1072,9 +1164,18 @@ export const profileRouter = createTRPCRouter({
               });
             }
 
-            // Record the sync
-            await ctx.db.profileSync.create({
-              data: {
+            // Record the sync - use upsert to handle duplicates gracefully
+            await ctx.db.profileSync.upsert({
+              where: {
+                userId_applicationId: {
+                  userId: user.id,
+                  applicationId: app.id,
+                },
+              },
+              update: {
+                syncedFields, // Update with new synced fields if already exists
+              },
+              create: {
                 userId: user.id,
                 applicationId: app.id,
                 syncedFields,

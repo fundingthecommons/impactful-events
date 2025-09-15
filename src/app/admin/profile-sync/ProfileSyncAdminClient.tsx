@@ -301,7 +301,7 @@ export function ProfileSyncAdminClient() {
           </List>
           
           <Text size="sm" c="dimmed" mt="md">
-            <strong>Synced Fields:</strong> Technical Skills, Bio, Location, Company, LinkedIn URL, GitHub URL
+            <strong>Synced Fields:</strong> Technical Skills, Bio, Location, Company, LinkedIn URL, GitHub URL, Twitter URL, Telegram Handle
           </Text>
         </Stack>
       </Card>

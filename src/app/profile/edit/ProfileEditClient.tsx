@@ -512,6 +512,7 @@ function ApplicationImportSection({ onImportComplete }: ApplicationImportSection
         </Title>
         <Text size="sm" c="dimmed" mb="md">
           Import data from any of your submitted applications to automatically fill your profile fields.
+          Each application can only be imported once to prevent data conflicts.
         </Text>
 
         <Stack gap="sm">
@@ -547,8 +548,9 @@ function ApplicationImportSection({ onImportComplete }: ApplicationImportSection
                   variant="light"
                   leftSection={<IconEye size={14} />}
                   onClick={() => handlePreview(app.id)}
+                  disabled={app.profileSyncs.length > 0}
                 >
-                  Preview Import
+                  {app.profileSyncs.length > 0 ? "Already Imported" : "Preview Import"}
                 </Button>
               </Group>
             </Box>
