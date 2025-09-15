@@ -35,7 +35,7 @@ const UpdateApplicationStatusSchema = z.object({
 
 const BulkUpdateApplicationStatusSchema = z.object({
   applicationIds: z.array(z.string()),
-  status: z.enum(["INCOMPLETE", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]),
+  status: z.enum(["UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]),
 });
 
 const BulkUpdateApplicationResponsesSchema = z.object({

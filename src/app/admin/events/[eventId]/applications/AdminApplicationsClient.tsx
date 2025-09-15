@@ -415,7 +415,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     try {
       await bulkUpdateStatus.mutateAsync({
         applicationIds: Array.from(selectedApplications),
-        status: newStatus as "INCOMPLETE" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
+        status: newStatus as "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
       });
       
       notifications.show({
@@ -658,7 +658,6 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   };
 
   const statusOptions = [
-    { value: "INCOMPLETE", label: "Incomplete" },
     { value: "UNDER_REVIEW", label: "Under Review" },
     { value: "ACCEPTED", label: "Accepted" },
     { value: "REJECTED", label: "Rejected" },

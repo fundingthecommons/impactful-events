@@ -31,6 +31,7 @@ import {
   IconSettings,
   IconStar,
   IconAlertTriangle,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
@@ -319,6 +320,14 @@ export default function ReviewPipelineDashboard() {
     reviewerId: selectedReviewer ?? undefined
   });
 
+  // Get current user's evaluation for the selected application and stage (for direct link)
+  const { data: currentEvaluation } = api.evaluation.getEvaluation.useQuery({
+    applicationId: selectedApplication ?? "",
+    stage: selectedStage as 'SCREENING' | 'DETAILED_REVIEW' | 'VIDEO_REVIEW' | 'CONSENSUS' | 'FINAL_DECISION',
+  }, {
+    enabled: !!selectedApplication && !!selectedStage,
+  });
+
   const handleApplicationClick = (applicationId: string, stage: string) => {
     setSelectedApplication(applicationId);
     setSelectedStage(stage);
@@ -481,7 +490,24 @@ export default function ReviewPipelineDashboard() {
         <Modal
           opened={!!selectedApplication}
           onClose={() => setSelectedApplication(null)}
-          title="Application Evaluation"
+          title={
+            <Group justify="space-between" style={{ width: '100%' }}>
+              <Text fw={600}>Application Evaluation</Text>
+              {selectedApplication && currentEvaluation && (
+                <Button
+                  component="a"
+                  href={`/admin/evaluations/${currentEvaluation.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="outline"
+                  size="xs"
+                  leftSection={<IconExternalLink size={14} />}
+                >
+                  Open in New Tab
+                </Button>
+              )}
+            </Group>
+          }
           size="100%"
           scrollAreaComponent={ScrollArea.Autosize}
           styles={{
