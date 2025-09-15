@@ -180,7 +180,10 @@ export class EmailService {
         templateData = {
           applicantName,
           eventName: application.event.name,
-          futureOpportunitiesUrl: `${baseUrl}/events`,
+          conferenceUrl: 'https://luma.com/ftc-ba-2025',
+          conferenceDate: 'November 19, 2025',
+          discountCode: 'REALFI-FRIENDS',
+          newsletterUrl: 'https://www.fundingthecommons.io/newsletter',
         } satisfies ApplicationRejectedProps;
         break;
 
@@ -216,7 +219,7 @@ export class EmailService {
       case 'applicationAccepted':
         return `🎉 Congratulations! You've been accepted to ${(data as ApplicationAcceptedProps).eventName}`;
       case 'applicationRejected':
-        return `Update on your ${(data as ApplicationRejectedProps).eventName} application`;
+        return `Thank you for your application to the Funding the Commons Residency`;
       case 'applicationWaitlisted':
         return `You're on the waitlist for ${(data as ApplicationWaitlistedProps).eventName}`;
       case 'applicationSubmitted':

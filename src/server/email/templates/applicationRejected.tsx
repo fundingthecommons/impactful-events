@@ -2,22 +2,27 @@ import React from 'react';
 import {
   Section,
   Text,
-  Button,
 } from '@react-email/components';
 import { BaseTemplate } from './base';
 
 export interface ApplicationRejectedProps {
   applicantName: string;
   eventName: string;
-  futureOpportunitiesUrl?: string;
+  conferenceUrl: string;
+  conferenceDate: string;
+  discountCode: string;
+  newsletterUrl: string;
 }
 
 export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = ({
   applicantName,
-  eventName,
-  futureOpportunitiesUrl,
+  eventName: _eventName,
+  conferenceUrl,
+  conferenceDate,
+  discountCode,
+  newsletterUrl,
 }) => {
-  const previewText = `Update on your ${eventName} application`;
+  const previewText = `Thank you for your application to the Funding the Commons Residency`;
 
   return (
     <BaseTemplate previewText={previewText}>
@@ -25,64 +30,31 @@ export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = (
         <Text style={heading}>Dear {applicantName},</Text>
         
         <Text style={paragraph}>
-          Thank you for your interest in the {eventName} and for taking the time to submit your application.
+          Thank you so much for applying to the Funding the Commons Buenos Aires Residency. We were deeply impressed by the thought, care, and vision reflected across the applications we received. This year&apos;s selection process was especially challenging—we had to make some very tough choices due to the limited number of spots available.
         </Text>
 
         <Text style={paragraph}>
-          After careful consideration of all applications, we regret to inform you that we are unable to offer you 
-          a spot in this cohort. The selection process was highly competitive, with many qualified candidates, 
-          and we had to make difficult decisions based on our limited capacity.
+          Although we&apos;re not able to offer you a place in this cohort, we want you to know how much we value the work you&apos;re doing. You&apos;re very much part of the broader community we&apos;re building, and we&apos;d love to stay in touch and keep finding ways to connect.
         </Text>
 
-        <Text style={paragraph}>
-          Please know that this decision does not reflect on your abilities or potential. We received an overwhelming 
-          number of high-quality applications, and the selection came down to finding the right fit for this 
-          particular program&apos;s focus areas and team dynamics.
-        </Text>
-
-        {/* {feedbackAvailable && (
+        <Section style={conferenceOfferBox}>
+          <Text style={conferenceHeading}>A Gift for You</Text>
           <Text style={paragraph}>
-            If you would like feedback on your application to help with future opportunities, please feel free to 
-            reach out to us at{' '}
-            <a href="mailto:residency@fundingthecommons.io" style={link}>
-              residency@fundingthecommons.io
-            </a>
+            As a small thank you, we&apos;d like to offer you a complimentary ticket to our conference in Buenos Aires on {conferenceDate}. If you&apos;ll be there, we&apos;d be delighted to see you in person. Just register with the same email you used for your residency application and enter the code <strong style={codeStyle}>{discountCode}</strong> here: <a href={conferenceUrl} style={link}>{conferenceUrl}</a>.
           </Text>
-        )} */}
-
-        <Section style={encouragementBox}>
-          <Text style={encouragementHeading}>Stay Connected</Text>
-          <Text style={encouragementText}>
-            We encourage you to:
-          </Text>
-          <ul style={list}>
-            <li>Apply for future programs and residencies</li>
-            <li>Join our community events and workshops</li>
-            <li>Subscribe to our newsletter for upcoming opportunities</li>
-            <li>Connect with us on social media for ecosystem updates</li>
-          </ul>
         </Section>
 
-        {futureOpportunitiesUrl && (
-          <Section style={buttonContainer}>
-            <Button style={button} href={futureOpportunitiesUrl}>
-              View Upcoming Opportunities
-            </Button>
-          </Section>
-        )}
-
         <Text style={paragraph}>
-          We genuinely appreciate your interest in contributing to the Funding the Commons ecosystem and hope 
-          you&apos;ll continue to be part of our community in other ways.
+          We&apos;ll also be sharing more opportunities, programs, and events in the months ahead. If you&apos;d like to stay updated, you can join our newsletter here: <a href={newsletterUrl} style={link}>{newsletterUrl}</a>.
         </Text>
 
         <Text style={paragraph}>
-          Thank you again for your application, and we wish you all the best in your future endeavors.
+          We hope you&apos;ll continue to engage with the community, whether that&apos;s through future residencies, upcoming programs, or simply staying in conversation with us.
         </Text>
 
         <Text style={signature}>
-          Warm regards,<br />
-          The {eventName} Team
+          With gratitude,<br />
+          The Funding the Commons Residency Team
         </Text>
       </Section>
     </BaseTemplate>
@@ -108,50 +80,33 @@ const paragraph = {
   margin: '16px 0',
 };
 
-const encouragementBox = {
-  backgroundColor: '#f8fafc',
+const conferenceOfferBox = {
+  backgroundColor: '#fef7ed',
   borderRadius: '8px',
   padding: '24px',
   margin: '24px 0',
-  border: '1px solid #e2e8f0',
+  border: '1px solid #fed7aa',
 };
 
-const encouragementHeading = {
+const conferenceHeading = {
   fontSize: '18px',
   fontWeight: 'bold',
-  color: '#334155',
+  color: '#ea580c',
   margin: '0 0 12px',
 };
 
-const encouragementText = {
-  fontSize: '15px',
-  color: '#475569',
-  margin: '0 0 12px',
+const codeStyle = {
+  backgroundColor: '#1f2937',
+  color: '#f9fafb',
+  padding: '2px 6px',
+  borderRadius: '4px',
+  fontFamily: 'monospace',
+  fontSize: '14px',
 };
 
-const list = {
-  fontSize: '15px',
-  lineHeight: '24px',
-  color: '#475569',
-  margin: '8px 0',
-  paddingLeft: '20px',
-};
-
-const buttonContainer = {
-  textAlign: 'center' as const,
-  margin: '32px 0',
-};
-
-const button = {
-  backgroundColor: '#64748b',
-  borderRadius: '8px',
-  color: '#fff',
-  fontSize: '16px',
-  fontWeight: 'bold',
+const link = {
+  color: '#2563eb',
   textDecoration: 'none',
-  textAlign: 'center' as const,
-  display: 'inline-block',
-  padding: '12px 32px',
 };
 
 const signature = {
