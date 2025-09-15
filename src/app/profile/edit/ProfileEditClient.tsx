@@ -498,7 +498,7 @@ function ApplicationImportSection({ onImportComplete }: ApplicationImportSection
           Import from Applications
         </Title>
         <Text c="dimmed">
-          No accepted applications available for import. Complete and get accepted to an event to import application data.
+          No applications available for import. Submit an application to an event to import application data.
         </Text>
       </Card>
     );
@@ -511,7 +511,7 @@ function ApplicationImportSection({ onImportComplete }: ApplicationImportSection
           Import from Applications
         </Title>
         <Text size="sm" c="dimmed" mb="md">
-          Import data from your accepted applications to automatically fill your profile fields.
+          Import data from any of your submitted applications to automatically fill your profile fields.
         </Text>
 
         <Stack gap="sm">
@@ -524,8 +524,19 @@ function ApplicationImportSection({ onImportComplete }: ApplicationImportSection
                     <Text size="sm" c="dimmed">
                       Submitted: {app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : "N/A"}
                     </Text>
+                    <Badge 
+                      size="sm" 
+                      color={
+                        app.status === "ACCEPTED" ? "green" :
+                        app.status === "REJECTED" ? "red" :
+                        app.status === "WAITLISTED" ? "orange" :
+                        "blue"
+                      }
+                    >
+                      {app.status.replace('_', ' ')}
+                    </Badge>
                     {app.profileSyncs.length > 0 && (
-                      <Badge size="sm" color="blue">
+                      <Badge size="sm" color="blue" variant="light">
                         Previously Synced
                       </Badge>
                     )}

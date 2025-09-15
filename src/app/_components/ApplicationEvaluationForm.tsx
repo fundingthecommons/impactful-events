@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Card,
   Text,
@@ -356,8 +356,12 @@ export default function ApplicationEvaluationForm({
   const [confidence, setConfidence] = useState<number>(3);
   const [timeSpent, setTimeSpent] = useState<number>(0);
   const [startTime] = useState(Date.now());
+  
+  // Optimistic local state for scores to handle async updates
+  const [localCompletedScores, setLocalCompletedScores] = useState<Set<string>>(new Set());
 
-  // tRPC queries
+  // tRPC queries and utils
+  const utils = api.useUtils();
   const { data: criteria } = api.evaluation.getCriteria.useQuery();
   const { data: evaluation, refetch: refetchEvaluation } = api.evaluation.getEvaluation.useQuery({
     applicationId,
@@ -368,6 +372,25 @@ export default function ApplicationEvaluationForm({
   const upsertScoreMutation = api.evaluation.upsertScore.useMutation();
   const updateEvaluationMutation = api.evaluation.updateEvaluation.useMutation();
 
+  // Calculate progress using both server data and optimistic local state (safe for hooks)
+  const serverCompletedCount = evaluation?.scores?.length ?? 0;
+  const localCompletedCount = localCompletedScores.size;
+  const completedScores = Math.max(serverCompletedCount, localCompletedCount);
+  const totalCriteria = criteria?.length ?? 0;
+  const progress = totalCriteria > 0 ? (completedScores / totalCriteria) * 100 : 0;
+  const isCompleted = evaluation?.status === 'COMPLETED';
+
+  // Robust button validation logic (moved before early returns)
+  const isCompleteEvaluationReady = useMemo(() => {
+    if (!evaluation || !criteria) return false;
+    const hasAllScores = progress >= 100;
+    const hasRecommendation = !!recommendation && recommendation.length > 0;
+    const notSaving = !upsertScoreMutation.isPending && !updateEvaluationMutation.isPending;
+    const notAlreadyCompleted = !isCompleted;
+    
+    return hasAllScores && hasRecommendation && notSaving && notAlreadyCompleted;
+  }, [evaluation, criteria, progress, recommendation, upsertScoreMutation.isPending, updateEvaluationMutation.isPending, isCompleted]);
+
   // ✅ Unconditional useEffect - conditional logic inside is fine
   useEffect(() => {
     // Initialize form with existing evaluation data
@@ -376,6 +399,12 @@ export default function ApplicationEvaluationForm({
       setRecommendation(evaluation.recommendation ?? "");
       setConfidence(evaluation.confidence ?? 3);
       setTimeSpent(evaluation.timeSpentMinutes ?? 0);
+      
+      // Initialize local completed scores from server data
+      const completedCriteriaIds = new Set(
+        evaluation.scores?.map(score => score.criteriaId) ?? []
+      );
+      setLocalCompletedScores(completedCriteriaIds);
     }
   }, [evaluation]);
 
@@ -383,6 +412,9 @@ export default function ApplicationEvaluationForm({
     if (!evaluation) return;
 
     try {
+      // Optimistic update - immediately mark criteria as completed locally
+      setLocalCompletedScores(prev => new Set([...prev, criteriaId]));
+      
       await upsertScoreMutation.mutateAsync({
         evaluationId: evaluation.id,
         criteriaId,
@@ -390,9 +422,19 @@ export default function ApplicationEvaluationForm({
         reasoning,
       });
       
-      // Refetch evaluation data to update the progress counter
-      await refetchEvaluation();
+      // Invalidate and refetch the evaluation query for proper cache management
+      await utils.evaluation.getEvaluation.invalidate({
+        applicationId,
+        stage,
+      });
     } catch {
+      // Revert optimistic update on error
+      setLocalCompletedScores(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(criteriaId);
+        return newSet;
+      });
+      
       notifications.show({
         title: "Error",
         message: "Failed to save score",
@@ -446,13 +488,6 @@ export default function ApplicationEvaluationForm({
   }
 
   const application = evaluation.application as ApplicationWithDetails;
-  const isCompleted = evaluation.status === 'COMPLETED';
-  
-  // Calculate progress
-  const completedScores = evaluation.scores?.length ?? 0;
-  const totalCriteria = criteria.length;
-  const progress = totalCriteria > 0 ? (completedScores / totalCriteria) * 100 : 0;
-
   // Group criteria by category
   const criteriaByCategory = criteria.reduce((acc, criteria) => {
     acc[criteria.category] ??= [];
@@ -623,18 +658,37 @@ export default function ApplicationEvaluationForm({
                         leftSection={<IconClock size={16} />}
                         onClick={() => handleSaveEvaluation('IN_PROGRESS')}
                         loading={updateEvaluationMutation.isPending}
+                        disabled={upsertScoreMutation.isPending}
                       >
-                        Save Progress
+                        {upsertScoreMutation.isPending ? 'Saving Score...' : 'Save Progress'}
                       </Button>
                       <Button
                         leftSection={<IconCheck size={16} />}
                         onClick={() => handleSaveEvaluation('COMPLETED')}
                         loading={updateEvaluationMutation.isPending}
-                        disabled={progress < 100 || !recommendation}
+                        disabled={!isCompleteEvaluationReady}
                       >
                         Complete Evaluation
                       </Button>
                     </Group>
+                  )}
+                  
+                  {/* Enhanced feedback for button state */}
+                  {!isCompleted && !isCompleteEvaluationReady && (
+                    <Alert color="blue" variant="light">
+                      <Text size="sm">
+                        To complete the evaluation, please ensure:
+                        {progress < 100 && (
+                          <Text component="div" size="sm">• All {totalCriteria} criteria are evaluated ({completedScores}/{totalCriteria} completed)</Text>
+                        )}
+                        {(!recommendation || recommendation.length === 0) && (
+                          <Text component="div" size="sm">• A recommendation is selected</Text>
+                        )}
+                        {(upsertScoreMutation.isPending || updateEvaluationMutation.isPending) && (
+                          <Text component="div" size="sm">• Current save operation completes</Text>
+                        )}
+                      </Text>
+                    </Alert>
                   )}
 
                   {isCompleted && (

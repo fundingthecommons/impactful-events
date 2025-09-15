@@ -44,6 +44,7 @@ import {
   IconTrash,
   IconAlertCircle,
   IconUserPlus,
+  IconChartBar,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -159,6 +160,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [actionsTab, setActionsTab] = useState<string>("next");
   const [emailPreviewOpened, { open: openEmailPreview, close: closeEmailPreview }] = useDisclosure(false);
   const [previewingEmail, setPreviewingEmail] = useState<EmailType | null>(null);
+  const [showStats, setShowStats] = useState<boolean>(false);
   
   // Track missing info check results per application with timestamps
   const [missingInfoResults, setMissingInfoResults] = useState<Map<string, { 
@@ -243,6 +245,12 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const deleteEmail = api.email.deleteEmail.useMutation();
   const { data: emailSafety } = api.email.getEmailSafety.useQuery();
   const { data: reviewers } = api.user.getAdmins.useQuery();
+
+  // Get demographic statistics when stats panel is visible and on accepted tab
+  const { data: demographicStats, isLoading: isStatsLoading } = api.application.getApplicationStats.useQuery(
+    { eventId: event.id, status: "ACCEPTED" },
+    { enabled: showStats && activeTab === "accepted" }
+  );
 
   // Helper function to find latest MISSING_INFO email for an application
   const getLatestMissingInfoEmail = (applicationId: string) => {
@@ -864,6 +872,17 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                     </>
                   )}
                   
+                  {activeTab === "accepted" && (
+                    <Button
+                      variant="outline"
+                      leftSection={<IconChartBar size={16} />}
+                      onClick={() => setShowStats(!showStats)}
+                      loading={showStats && isStatsLoading}
+                    >
+                      {showStats ? "Hide Stats" : "Show Stats"}
+                    </Button>
+                  )}
+                  
                   <Button
                     variant="outline"
                     leftSection={<IconDownload size={16} />}
@@ -875,6 +894,129 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 </Group>
               </Group>
             </Card>
+
+            {/* Stats Panel - Only show on accepted tab when stats are visible */}
+            {showStats && activeTab === "accepted" && (
+              <Card shadow="sm" padding="lg" radius="md" withBorder>
+                <Stack gap="md">
+                  <Group justify="space-between" align="center">
+                    <Text size="lg" fw={600}>Demographic Statistics</Text>
+                    {isStatsLoading && <Loader size="sm" />}
+                  </Group>
+                  
+                  {demographicStats && (
+                    <Group grow align="flex-start">
+                      {/* Gender Distribution */}
+                      <Paper p="md" withBorder radius="md" bg="blue.0">
+                        <Stack gap="sm">
+                          <Text size="md" fw={500} c="blue.7">Gender Distribution</Text>
+                          <Text size="xs" c="dimmed">Based on {demographicStats.total} accepted applications</Text>
+                          
+                          <Stack gap="xs">
+                            {demographicStats.gender.female > 0 && (
+                              <Group justify="space-between">
+                                <Text size="sm">Female</Text>
+                                <Group gap="xs">
+                                  <Text size="sm" fw={500}>{demographicStats.gender.female}</Text>
+                                  <Text size="sm" c="dimmed">({demographicStats.gender.percentages.female}%)</Text>
+                                </Group>
+                              </Group>
+                            )}
+                            
+                            {demographicStats.gender.male > 0 && (
+                              <Group justify="space-between">
+                                <Text size="sm">Male</Text>
+                                <Group gap="xs">
+                                  <Text size="sm" fw={500}>{demographicStats.gender.male}</Text>
+                                  <Text size="sm" c="dimmed">({demographicStats.gender.percentages.male}%)</Text>
+                                </Group>
+                              </Group>
+                            )}
+                            
+                            {demographicStats.gender.other > 0 && (
+                              <Group justify="space-between">
+                                <Text size="sm">Other/Non-binary</Text>
+                                <Group gap="xs">
+                                  <Text size="sm" fw={500}>{demographicStats.gender.other}</Text>
+                                  <Text size="sm" c="dimmed">({demographicStats.gender.percentages.other}%)</Text>
+                                </Group>
+                              </Group>
+                            )}
+                            
+                            {demographicStats.gender.prefer_not_to_say > 0 && (
+                              <Group justify="space-between">
+                                <Text size="sm">Prefer not to say</Text>
+                                <Group gap="xs">
+                                  <Text size="sm" fw={500}>{demographicStats.gender.prefer_not_to_say}</Text>
+                                  <Text size="sm" c="dimmed">({demographicStats.gender.percentages.prefer_not_to_say}%)</Text>
+                                </Group>
+                              </Group>
+                            )}
+                            
+                            {demographicStats.gender.unspecified > 0 && (
+                              <Group justify="space-between">
+                                <Text size="sm" c="dimmed">Not specified</Text>
+                                <Group gap="xs">
+                                  <Text size="sm" c="dimmed">{demographicStats.gender.unspecified}</Text>
+                                  <Text size="sm" c="dimmed">({demographicStats.gender.percentages.unspecified}%)</Text>
+                                </Group>
+                              </Group>
+                            )}
+                          </Stack>
+                        </Stack>
+                      </Paper>
+
+                      {/* Regional Distribution */}
+                      <Paper p="md" withBorder radius="md" bg="green.0">
+                        <Stack gap="sm">
+                          <Text size="md" fw={500} c="green.7">Regional Distribution</Text>
+                          <Text size="xs" c="dimmed">Based on nationality responses</Text>
+                          
+                          <Stack gap="xs">
+                            {demographicStats.region.latam > 0 && (
+                              <Group justify="space-between">
+                                <Text size="sm">Latin America</Text>
+                                <Group gap="xs">
+                                  <Text size="sm" fw={500}>{demographicStats.region.latam}</Text>
+                                  <Text size="sm" c="dimmed">({demographicStats.region.percentages.latam}%)</Text>
+                                </Group>
+                              </Group>
+                            )}
+                            
+                            {demographicStats.region.non_latam > 0 && (
+                              <Group justify="space-between">
+                                <Text size="sm">Other Regions</Text>
+                                <Group gap="xs">
+                                  <Text size="sm" fw={500}>{demographicStats.region.non_latam}</Text>
+                                  <Text size="sm" c="dimmed">({demographicStats.region.percentages.non_latam}%)</Text>
+                                </Group>
+                              </Group>
+                            )}
+                            
+                            {demographicStats.region.unspecified > 0 && (
+                              <Group justify="space-between">
+                                <Text size="sm" c="dimmed">Not specified</Text>
+                                <Group gap="xs">
+                                  <Text size="sm" c="dimmed">{demographicStats.region.unspecified}</Text>
+                                  <Text size="sm" c="dimmed">({demographicStats.region.percentages.unspecified}%)</Text>
+                                </Group>
+                              </Group>
+                            )}
+                          </Stack>
+                        </Stack>
+                      </Paper>
+                    </Group>
+                  )}
+                  
+                  {demographicStats?.total === 0 && (
+                    <Paper p="xl" radius="md" ta="center" bg="gray.0">
+                      <Text c="dimmed" size="md">No accepted applications found</Text>
+                      <Text c="dimmed" size="sm">Statistics will appear here once applications are accepted</Text>
+                    </Paper>
+                  )}
+                </Stack>
+              </Card>
+            )}
 
             {/* Applications Table */}
             <Paper shadow="sm" radius="md" withBorder>

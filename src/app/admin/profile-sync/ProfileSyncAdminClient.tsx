@@ -159,10 +159,10 @@ export function ProfileSyncAdminClient() {
             </ThemeIcon>
             <div>
               <Text size="xs" tt="uppercase" fw={700} c="dimmed">
-                Accepted Apps
+                Submitted Apps
               </Text>
               <Text fw={700} size="lg">
-                {stats?.acceptedApplications ?? 0}
+                {stats?.submittedApplications ?? 0}
               </Text>
             </div>
           </Group>
@@ -217,7 +217,7 @@ export function ProfileSyncAdminClient() {
             radius="md"
           />
           <Text size="sm" c="dimmed">
-            {stats?.usersWithUnsyncedApplications ?? 0} users with accepted applications still need profile sync
+            {stats?.usersWithUnsyncedApplications ?? 0} users with submitted applications still need profile sync
           </Text>
         </Stack>
       </Card>
@@ -282,7 +282,7 @@ export function ProfileSyncAdminClient() {
 
           {stats?.usersWithUnsyncedApplications === 0 && (
             <Alert color="green" icon={<IconCheck size={16} />}>
-              All users with accepted applications have been synced to profiles!
+              All users with submitted applications have been synced to profiles!
             </Alert>
           )}
         </Stack>
@@ -293,11 +293,11 @@ export function ProfileSyncAdminClient() {
         <Stack>
           <Title order={3}>How Profile Sync Works</Title>
           <List spacing="sm">
-            <List.Item>Finds users with ACCEPTED applications that haven&apos;t been synced to their profiles</List.Item>
+            <List.Item>Finds users with SUBMITTED applications that haven&apos;t been synced to their profiles</List.Item>
             <List.Item>Safely merges application data without overwriting existing profile information</List.Item>
             <List.Item>Skills are merged (combined with existing skills), other fields only filled if empty</List.Item>
             <List.Item>Creates ProfileSync records to prevent duplicate imports</List.Item>
-            <List.Item>Uses the most recent accepted application if multiple exist</List.Item>
+            <List.Item>Uses the most recent submitted application if multiple exist</List.Item>
           </List>
           
           <Text size="sm" c="dimmed" mt="md">

@@ -496,7 +496,7 @@ export const profileRouter = createTRPCRouter({
       const applications = await ctx.db.application.findMany({
         where: { 
           userId: ctx.session.user.id,
-          status: "ACCEPTED", // Only show accepted applications for sync
+          status: { in: ["SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"] }, // All submitted applications
         },
         include: {
           event: {
@@ -537,7 +537,6 @@ export const profileRouter = createTRPCRouter({
         where: { 
           id: input.applicationId,
           userId: ctx.session.user.id,
-          status: "ACCEPTED",
         },
         include: {
           event: {
@@ -569,7 +568,7 @@ export const profileRouter = createTRPCRouter({
       if (!application) {
         throw new TRPCError({
           code: "NOT_FOUND", 
-          message: "Application not found or not accepted",
+          message: "Application not found",
         });
       }
 
@@ -689,7 +688,6 @@ export const profileRouter = createTRPCRouter({
         where: { 
           id: input.applicationId,
           userId: ctx.session.user.id,
-          status: "ACCEPTED",
         },
         include: {
           responses: {
@@ -707,7 +705,7 @@ export const profileRouter = createTRPCRouter({
       if (!application) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Application not found or not accepted",
+          message: "Application not found",
         });
       }
 
@@ -839,17 +837,19 @@ export const profileRouter = createTRPCRouter({
         });
       }
 
-      // Get accepted applications count
-      const acceptedApps = await ctx.db.application.count({
-        where: { status: "ACCEPTED" },
+      // Get submitted applications count (all statuses except DRAFT)
+      const submittedApps = await ctx.db.application.count({
+        where: { 
+          status: { in: ["SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"] }
+        },
       });
 
-      // Get users with accepted applications but no profile syncs
+      // Get users with submitted applications but no profile syncs
       const usersWithUnsyncedApps = await ctx.db.user.count({
         where: {
           applications: {
             some: {
-              status: "ACCEPTED",
+              status: { in: ["SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"] },
               profileSyncs: { none: {} },
             },
           },
@@ -863,11 +863,11 @@ export const profileRouter = createTRPCRouter({
       const totalProfiles = await ctx.db.userProfile.count();
 
       return {
-        acceptedApplications: acceptedApps,
+        submittedApplications: submittedApps,
         usersWithUnsyncedApplications: usersWithUnsyncedApps,
         totalProfileSyncs: totalSyncs,
         totalProfiles,
-        syncCoverage: acceptedApps > 0 ? Math.round(((acceptedApps - usersWithUnsyncedApps) / acceptedApps) * 100) : 0,
+        syncCoverage: submittedApps > 0 ? Math.round(((submittedApps - usersWithUnsyncedApps) / submittedApps) * 100) : 0,
       };
     }),
 
@@ -885,19 +885,22 @@ export const profileRouter = createTRPCRouter({
         });
       }
 
-      // Find users with accepted applications but no profile syncs
+      // Find users with submitted applications but no profile syncs
       const usersToSync = await ctx.db.user.findMany({
         where: {
           applications: {
             some: {
-              status: "ACCEPTED",
+              status: { in: ["SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"] },
               profileSyncs: { none: {} },
             },
           },
         },
         include: {
           applications: {
-            where: { status: "ACCEPTED" },
+            where: { 
+              status: { in: ["SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"] },
+              profileSyncs: { none: {} }
+            },
             include: {
               responses: {
                 include: {

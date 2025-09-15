@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Card,
   Text,
@@ -13,15 +13,15 @@ import {
   NumberInput,
   Select,
   Divider,
-  Tabs,
   Alert,
   Progress,
   ActionIcon,
-  Tooltip,
   Box,
   Paper,
   Grid,
+  Anchor,
 } from "@mantine/core";
+import TelegramMessageButton from "./TelegramMessageButton";
 import {
   IconStarFilled,
   IconStar,
@@ -29,19 +29,90 @@ import {
   IconNotes,
   IconClock,
   IconCheck,
-  IconAlertCircle,
-  IconEye,
   IconUsers,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
 import type { 
-  ApplicationEvaluation, 
   EvaluationCriteria, 
   EvaluationScore,
   Application,
   User 
 } from "@prisma/client";
+
+interface SelfAssignmentPromptProps {
+  applicationId: string;
+  stage: 'SCREENING' | 'DETAILED_REVIEW' | 'VIDEO_REVIEW' | 'CONSENSUS' | 'FINAL_DECISION';
+}
+
+function SelfAssignmentPrompt({ applicationId, stage }: SelfAssignmentPromptProps) {
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // Self-assign mutation
+  const selfAssignMutation = api.evaluation.selfAssignToApplication.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: 'Application Assigned',
+        message: `Successfully assigned to application. You can now begin your review.`,
+        color: 'green'
+      });
+      // Reload the page to show the evaluation form
+      window.location.reload();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: 'Assignment Failed',
+        message: error.message || 'Failed to assign application. Please try again.',
+        color: 'red'
+      });
+      setIsAssigning(false);
+    }
+  });
+
+  const handleSelfAssign = async () => {
+    setIsAssigning(true);
+    await selfAssignMutation.mutateAsync({
+      applicationId,
+      stage: stage as 'SCREENING' | 'DETAILED_REVIEW' | 'VIDEO_REVIEW',
+      priority: 0,
+      notes: `Self-assigned via evaluation form`
+    });
+  };
+
+  return (
+    <Paper p="xl" className="text-center">
+      <Stack align="center" gap="md">
+        <Alert color="blue" icon={<IconUsers size="1rem" />}>
+          <Text fw={500}>No evaluation found for this application and stage</Text>
+          <Text size="sm" mt="xs">
+            You can assign yourself to review this application, or wait for an admin to assign it to you.
+          </Text>
+        </Alert>
+        
+        <Group gap="md">
+          <Button
+            onClick={handleSelfAssign}
+            loading={isAssigning}
+            disabled={isAssigning}
+            variant="filled"
+            color="blue"
+            leftSection={<IconCheck size="1rem" />}
+          >
+            {isAssigning ? 'Assigning...' : 'Assign to Me'}
+          </Button>
+          
+          <Button
+            onClick={() => window.history.back()}
+            variant="outline"
+            color="gray"
+          >
+            Go Back
+          </Button>
+        </Group>
+      </Stack>
+    </Paper>
+  );
+}
 
 interface ApplicationWithDetails extends Application {
   user: Pick<User, 'name' | 'email'> | null;
@@ -61,14 +132,94 @@ interface EvaluationFormProps {
   onEvaluationComplete?: () => void;
 }
 
+// Utility function to extract YouTube video ID from various YouTube URL formats
+function extractYouTubeVideoId(url: string): string | null {
+  const patterns = [
+    // YouTube Shorts: youtube.com/shorts/VIDEO_ID
+    /youtube\.com\/shorts\/([^&\n?#]+)/,
+    // Standard YouTube: youtube.com/watch?v=VIDEO_ID
+    /youtube\.com\/watch\?v=([^&\n?#]+)/,
+    // Short URL: youtu.be/VIDEO_ID
+    /youtu\.be\/([^&\n?#]+)/,
+    // Embed URL: youtube.com/embed/VIDEO_ID
+    /youtube\.com\/embed\/([^&\n?#]+)/,
+    // Legacy URL: youtube.com/v/VIDEO_ID
+    /youtube\.com\/v\/([^&\n?#]+)/,
+    // Watch URL with additional parameters: youtube.com/watch?.*v=VIDEO_ID
+    /youtube\.com\/watch\?.*v=([^&\n?#]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
+// Component to render YouTube embed or regular link
+function VideoLinkRenderer({ url, questionText }: { url: string; questionText: string }) {
+  const videoId = extractYouTubeVideoId(url);
+  
+  if (videoId) {
+    return (
+      <Stack gap="md">
+        <Text>
+          <Anchor href={url} target="_blank" rel="noopener noreferrer">
+            {url}
+          </Anchor>
+        </Text>
+        <Box
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: 0,
+            paddingBottom: '56.25%', // 16:9 aspect ratio
+            overflow: 'hidden',
+            borderRadius: '8px',
+            border: '1px solid var(--mantine-color-gray-3)'
+          }}
+        >
+          <iframe
+            src={`https://www.youtube.com/embed/${videoId}`}
+            title={questionText}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              border: 0
+            }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </Box>
+      </Stack>
+    );
+  }
+  
+  // For non-YouTube links, show as regular link
+  return (
+    <Text>
+      <Anchor href={url} target="_blank" rel="noopener noreferrer">
+        {url}
+      </Anchor>
+    </Text>
+  );
+}
+
 interface CriteriaScoreProps {
   criteria: EvaluationCriteria;
   score?: EvaluationScore;
   onScoreChange: (criteriaId: string, score: number, reasoning?: string) => void;
   readonly?: boolean;
+  application?: ApplicationWithDetails;
 }
 
-function CriteriaScore({ criteria, score, onScoreChange, readonly = false }: CriteriaScoreProps) {
+function CriteriaScore({ criteria, score, onScoreChange, readonly = false, application }: CriteriaScoreProps) {
   const [currentScore, setCurrentScore] = useState(score?.score ?? 0);
   const [reasoning, setReasoning] = useState(score?.reasoning ?? "");
   const [showReasoning, setShowReasoning] = useState(false);
@@ -148,7 +299,7 @@ function CriteriaScore({ criteria, score, onScoreChange, readonly = false }: Cri
           min={criteria.minScore}
           max={criteria.maxScore}
           step={0.1}
-          precision={1}
+          decimalScale={1}
           value={currentScore}
           onChange={(value) => !readonly && handleScoreChange(Number(value) || 0)}
           disabled={readonly}
@@ -156,7 +307,7 @@ function CriteriaScore({ criteria, score, onScoreChange, readonly = false }: Cri
         />
 
         {/* Reasoning toggle and textarea */}
-        <Group>
+        <Group justify="space-between">
           <Button
             variant="subtle"
             size="xs"
@@ -165,6 +316,17 @@ function CriteriaScore({ criteria, score, onScoreChange, readonly = false }: Cri
           >
             {showReasoning ? 'Hide' : 'Add'} Reasoning
           </Button>
+          
+          {/* Telegram message button */}
+          {application && (
+            <TelegramMessageButton
+              application={application}
+              customMessage={`Hi! I'm reviewing your application for the Funding the Commons residency and have a question about your ${criteria.name.toLowerCase()}. Could you please tell me more about your skills and experience in this area?`}
+              size={16}
+              variant="subtle"
+              color="blue"
+            />
+          )}
         </Group>
 
         {showReasoning && (
@@ -189,15 +351,17 @@ export default function ApplicationEvaluationForm({
   onEvaluationComplete,
 }: EvaluationFormProps) {
   // ✅ ALL hooks at the top - no exceptions
-  const [activeTab, setActiveTab] = useState<string | null>("application");
   const [overallComments, setOverallComments] = useState("");
   const [recommendation, setRecommendation] = useState<string>("");
   const [confidence, setConfidence] = useState<number>(3);
   const [timeSpent, setTimeSpent] = useState<number>(0);
   const [startTime] = useState(Date.now());
-  const [isCreating, setIsCreating] = useState(false);
+  
+  // Optimistic local state for scores to handle async updates
+  const [localCompletedScores, setLocalCompletedScores] = useState<Set<string>>(new Set());
 
-  // tRPC queries
+  // tRPC queries and utils
+  const utils = api.useUtils();
   const { data: criteria } = api.evaluation.getCriteria.useQuery();
   const { data: evaluation, refetch: refetchEvaluation } = api.evaluation.getEvaluation.useQuery({
     applicationId,
@@ -216,6 +380,12 @@ export default function ApplicationEvaluationForm({
       setRecommendation(evaluation.recommendation ?? "");
       setConfidence(evaluation.confidence ?? 3);
       setTimeSpent(evaluation.timeSpentMinutes ?? 0);
+      
+      // Initialize local completed scores from server data
+      const completedCriteriaIds = new Set(
+        evaluation.scores?.map(score => score.criteriaId) ?? []
+      );
+      setLocalCompletedScores(completedCriteriaIds);
     }
   }, [evaluation]);
 
@@ -223,13 +393,29 @@ export default function ApplicationEvaluationForm({
     if (!evaluation) return;
 
     try {
+      // Optimistic update - immediately mark criteria as completed locally
+      setLocalCompletedScores(prev => new Set([...prev, criteriaId]));
+      
       await upsertScoreMutation.mutateAsync({
         evaluationId: evaluation.id,
         criteriaId,
         score,
         reasoning,
       });
-    } catch (error) {
+      
+      // Invalidate and refetch the evaluation query for proper cache management
+      await utils.evaluation.getEvaluation.invalidate({
+        applicationId,
+        stage,
+      });
+    } catch {
+      // Revert optimistic update on error
+      setLocalCompletedScores(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(criteriaId);
+        return newSet;
+      });
+      
       notifications.show({
         title: "Error",
         message: "Failed to save score",
@@ -248,7 +434,7 @@ export default function ApplicationEvaluationForm({
         evaluationId: evaluation.id,
         status,
         overallComments,
-        recommendation: recommendation || undefined,
+        recommendation: recommendation as 'ACCEPT' | 'REJECT' | 'WAITLIST' | 'NEEDS_MORE_INFO' | undefined,
         confidence,
         timeSpentMinutes: currentTimeSpent,
       });
@@ -264,7 +450,7 @@ export default function ApplicationEvaluationForm({
       if (status === 'COMPLETED' && onEvaluationComplete) {
         onEvaluationComplete();
       }
-    } catch (error) {
+    } catch {
       notifications.show({
         title: "Error",
         message: "Failed to save evaluation",
@@ -279,30 +465,33 @@ export default function ApplicationEvaluationForm({
   }
 
   if (!evaluation) {
-    return (
-      <Stack align="center" gap="md" p="xl">
-        <Text>No evaluation found for this application and stage.</Text>
-        <Text size="sm" c="dimmed">
-          An evaluation needs to be assigned by an admin before it can be completed.
-        </Text>
-      </Stack>
-    );
+    return <SelfAssignmentPrompt applicationId={applicationId} stage={stage} />;
   }
 
   const application = evaluation.application as ApplicationWithDetails;
   const isCompleted = evaluation.status === 'COMPLETED';
   
-  // Calculate progress
-  const completedScores = evaluation.scores?.length ?? 0;
+  // Calculate progress using both server data and optimistic local state
+  const serverCompletedCount = evaluation.scores?.length ?? 0;
+  const localCompletedCount = localCompletedScores.size;
+  const completedScores = Math.max(serverCompletedCount, localCompletedCount);
   const totalCriteria = criteria.length;
   const progress = totalCriteria > 0 ? (completedScores / totalCriteria) * 100 : 0;
 
+  // Robust button validation logic
+  const isCompleteEvaluationReady = useMemo(() => {
+    const hasAllScores = progress >= 100;
+    const hasRecommendation = !!recommendation && recommendation.length > 0;
+    const notSaving = !upsertScoreMutation.isPending && !updateEvaluationMutation.isPending;
+    const notAlreadyCompleted = !isCompleted;
+    
+    return hasAllScores && hasRecommendation && notSaving && notAlreadyCompleted;
+  }, [progress, recommendation, upsertScoreMutation.isPending, updateEvaluationMutation.isPending, isCompleted]);
+
   // Group criteria by category
   const criteriaByCategory = criteria.reduce((acc, criteria) => {
-    if (!acc[criteria.category]) {
-      acc[criteria.category] = [];
-    }
-    acc[criteria.category].push(criteria);
+    acc[criteria.category] ??= [];
+    acc[criteria.category]!.push(criteria);
     return acc;
   }, {} as Record<string, EvaluationCriteria[]>);
 
@@ -341,151 +530,193 @@ export default function ApplicationEvaluationForm({
         </Text>
       </Paper>
 
-      <Tabs value={activeTab} onChange={setActiveTab}>
-        <Tabs.List>
-          <Tabs.Tab value="application" leftSection={<IconUsers size={14} />}>
-            Application
-          </Tabs.Tab>
-          <Tabs.Tab value="evaluation" leftSection={<IconStarFilled size={14} />}>
-            Evaluation ({completedScores}/{totalCriteria})
-          </Tabs.Tab>
-          {stage === 'VIDEO_REVIEW' && (
-            <Tabs.Tab value="video" leftSection={<IconVideo size={14} />}>
-              Video Review
-            </Tabs.Tab>
-          )}
-        </Tabs.List>
-
-        <Tabs.Panel value="application" pt="lg">
-          <Stack gap="md">
-            {application.responses
-              ?.sort((a, b) => a.question.order - b.question.order)
-              .map((response) => (
-                <Card key={response.question.questionKey} withBorder p="md">
-                  <Title order={6} mb="xs">
-                    {response.question.questionEn}
-                  </Title>
-                  <Text>
-                    {response.answer || <Text c="dimmed" fs="italic">No answer provided</Text>}
-                  </Text>
-                </Card>
-              ))}
-          </Stack>
-        </Tabs.Panel>
-
-        <Tabs.Panel value="evaluation" pt="lg">
-          <Stack gap="lg">
-            {Object.entries(criteriaByCategory).map(([category, categoryItems]) => (
-              <div key={category}>
-                <Title order={4} mb="md" c="blue">
-                  {category.replace('_', ' ')} Criteria
-                </Title>
-                <Grid>
-                  {categoryItems.map((criteria) => {
-                    const existingScore = evaluation.scores?.find(
-                      (s) => s.criteriaId === criteria.id
-                    );
-                    return (
-                      <Grid.Col key={criteria.id} span={{ base: 12, md: 6 }}>
-                        <CriteriaScore
-                          criteria={criteria}
-                          score={existingScore}
-                          onScoreChange={handleScoreChange}
-                          readonly={isCompleted}
-                        />
-                      </Grid.Col>
-                    );
-                  })}
-                </Grid>
-              </div>
-            ))}
-
-            <Divider />
-
-            {/* Overall Assessment */}
-            <Card withBorder p="md">
-              <Title order={4} mb="md">Overall Assessment</Title>
+      <Grid gutter="lg">
+        {/* Left Column - Application Details */}
+        <Grid.Col span={{ base: 12, md: 8 }}>
+          <Stack gap="md" h="100%">
+            <Group>
+              <IconUsers size={20} />
+              <Title order={4}>Application Details</Title>
+            </Group>
+            <Box style={{ flex: 1, overflowY: 'auto', maxHeight: '70vh' }}>
               <Stack gap="md">
-                <Textarea
-                  label="Overall Comments"
-                  placeholder="Provide your overall assessment of this application..."
-                  value={overallComments}
-                  onChange={(e) => setOverallComments(e.target.value)}
-                  disabled={isCompleted}
-                  autosize
-                  minRows={3}
-                  maxRows={6}
-                />
-
-                <Group grow>
-                  <Select
-                    label="Recommendation"
-                    placeholder="Select recommendation"
-                    value={recommendation}
-                    onChange={(value) => setRecommendation(value ?? "")}
-                    disabled={isCompleted}
-                    data={[
-                      { value: 'ACCEPT', label: 'Accept' },
-                      { value: 'REJECT', label: 'Reject' },
-                      { value: 'WAITLIST', label: 'Waitlist' },
-                      { value: 'NEEDS_MORE_INFO', label: 'Needs More Info' },
-                    ]}
-                  />
-
-                  <NumberInput
-                    label="Confidence Level"
-                    description="How confident are you in this assessment? (1-5)"
-                    min={1}
-                    max={5}
-                    value={confidence}
-                    onChange={(value) => setConfidence(Number(value) || 3)}
-                    disabled={isCompleted}
-                  />
-                </Group>
+                {application.responses
+                  ?.sort((a, b) => a.question.order - b.question.order)
+                  .map((response) => (
+                    <Card key={response.question.questionKey} withBorder p="md">
+                      <Title order={6} mb="xs">
+                        {response.question.questionEn}
+                      </Title>
+                      {response.answer ? (
+                        // Check if this is a video link question and the answer looks like a URL
+                        (response.question.questionKey === 'intro_video_link' || 
+                         response.question.questionEn.toLowerCase().includes('video')) &&
+                        (response.answer.startsWith('http://') || response.answer.startsWith('https://')) ? (
+                          <VideoLinkRenderer 
+                            url={response.answer} 
+                            questionText={response.question.questionEn}
+                          />
+                        ) : (
+                          <Text>{response.answer}</Text>
+                        )
+                      ) : (
+                        <Text c="dimmed" fs="italic">No answer provided</Text>
+                      )}
+                    </Card>
+                  ))}
               </Stack>
-            </Card>
-
-            {/* Action buttons */}
-            {!isCompleted && (
-              <Group justify="flex-end">
-                <Button
-                  variant="outline"
-                  leftSection={<IconClock size={16} />}
-                  onClick={() => handleSaveEvaluation('IN_PROGRESS')}
-                  loading={updateEvaluationMutation.isPending}
-                >
-                  Save Progress
-                </Button>
-                <Button
-                  leftSection={<IconCheck size={16} />}
-                  onClick={() => handleSaveEvaluation('COMPLETED')}
-                  loading={updateEvaluationMutation.isPending}
-                  disabled={progress < 100 || !recommendation}
-                >
-                  Complete Evaluation
-                </Button>
-              </Group>
-            )}
-
-            {isCompleted && (
-              <Alert 
-                icon={<IconCheck size={16} />} 
-                color="green"
-                title="Evaluation Completed"
-              >
-                This evaluation was completed on {evaluation.completedAt ? new Date(evaluation.completedAt).toLocaleDateString() : 'Unknown date'}.
-                Time spent: {evaluation.timeSpentMinutes ?? 0} minutes.
-              </Alert>
-            )}
+            </Box>
           </Stack>
-        </Tabs.Panel>
+        </Grid.Col>
 
+        {/* Right Column - Evaluation */}
+        <Grid.Col span={{ base: 12, md: 4 }}>
+          <Paper bg="gray.0" p="md" radius="md" h="100%">
+            <Stack gap="lg" h="100%">
+              <Group>
+                <IconStarFilled size={20} />
+                <Title order={4}>Evaluation ({completedScores}/{totalCriteria})</Title>
+              </Group>
+              
+              <Box style={{ flex: 1, overflowY: 'auto', maxHeight: '70vh' }}>
+                <Stack gap="lg">
+                  {Object.entries(criteriaByCategory).map(([category, categoryItems]) => (
+                    <div key={category}>
+                      <Title order={5} mb="md" c="blue">
+                        {category.replace('_', ' ')} Criteria
+                      </Title>
+                      <Stack gap="md">
+                        {categoryItems.map((criteria) => {
+                          const existingScore = evaluation.scores?.find(
+                            (s) => s.criteriaId === criteria.id
+                          );
+                          return (
+                            <CriteriaScore
+                              key={criteria.id}
+                              criteria={criteria}
+                              score={existingScore}
+                              onScoreChange={handleScoreChange}
+                              readonly={isCompleted}
+                              application={application}
+                            />
+                          );
+                        })}
+                      </Stack>
+                    </div>
+                  ))}
+
+                  <Divider />
+
+                  {/* Overall Assessment */}
+                  <Card withBorder p="md">
+                    <Title order={5} mb="md">Overall Assessment</Title>
+                    <Stack gap="md">
+                      <Textarea
+                        label="Overall Comments"
+                        placeholder="Provide your overall assessment of this application..."
+                        value={overallComments}
+                        onChange={(e) => setOverallComments(e.target.value)}
+                        disabled={isCompleted}
+                        autosize
+                        minRows={3}
+                        maxRows={6}
+                      />
+
+                      <Group grow>
+                        <Select
+                          label="Recommendation"
+                          placeholder="Select recommendation"
+                          value={recommendation}
+                          onChange={(value) => setRecommendation(value ?? "")}
+                          disabled={isCompleted}
+                          data={[
+                            { value: 'ACCEPT', label: 'Accept' },
+                            { value: 'REJECT', label: 'Reject' },
+                            { value: 'WAITLIST', label: 'Waitlist' },
+                            { value: 'NEEDS_MORE_INFO', label: 'Needs More Info' },
+                          ]}
+                        />
+
+                        <NumberInput
+                          label="Confidence Level"
+                          description="How confident are you in this assessment? (1-5)"
+                          min={1}
+                          max={5}
+                          value={confidence}
+                          onChange={(value) => setConfidence(Number(value) || 3)}
+                          disabled={isCompleted}
+                        />
+                      </Group>
+                    </Stack>
+                  </Card>
+
+                  {/* Action buttons */}
+                  {!isCompleted && (
+                    <Group justify="flex-end">
+                      <Button
+                        variant="outline"
+                        leftSection={<IconClock size={16} />}
+                        onClick={() => handleSaveEvaluation('IN_PROGRESS')}
+                        loading={updateEvaluationMutation.isPending}
+                        disabled={upsertScoreMutation.isPending}
+                      >
+                        {upsertScoreMutation.isPending ? 'Saving Score...' : 'Save Progress'}
+                      </Button>
+                      <Button
+                        leftSection={<IconCheck size={16} />}
+                        onClick={() => handleSaveEvaluation('COMPLETED')}
+                        loading={updateEvaluationMutation.isPending}
+                        disabled={!isCompleteEvaluationReady}
+                      >
+                        Complete Evaluation
+                      </Button>
+                    </Group>
+                  )}
+                  
+                  {/* Enhanced feedback for button state */}
+                  {!isCompleted && !isCompleteEvaluationReady && (
+                    <Alert color="blue" variant="light">
+                      <Text size="sm">
+                        To complete the evaluation, please ensure:
+                        {progress < 100 && (
+                          <Text component="div" size="sm">• All {totalCriteria} criteria are evaluated ({completedScores}/{totalCriteria} completed)</Text>
+                        )}
+                        {(!recommendation || recommendation.length === 0) && (
+                          <Text component="div" size="sm">• A recommendation is selected</Text>
+                        )}
+                        {(upsertScoreMutation.isPending || updateEvaluationMutation.isPending) && (
+                          <Text component="div" size="sm">• Current save operation completes</Text>
+                        )}
+                      </Text>
+                    </Alert>
+                  )}
+
+                  {isCompleted && (
+                    <Alert 
+                      icon={<IconCheck size={16} />} 
+                      color="green"
+                      title="Evaluation Completed"
+                    >
+                      This evaluation was completed on {evaluation.completedAt ? new Date(evaluation.completedAt).toLocaleDateString() : 'Unknown date'}.
+                      Time spent: {evaluation.timeSpentMinutes ?? 0} minutes.
+                    </Alert>
+                  )}
+                </Stack>
+              </Box>
+            </Stack>
+          </Paper>
+        </Grid.Col>
+
+        {/* Video Review Section - Full Width when applicable */}
         {stage === 'VIDEO_REVIEW' && (
-          <Tabs.Panel value="video" pt="lg">
+          <Grid.Col span={12}>
             <Card withBorder p="md">
-              <Title order={4} mb="md">Video Review</Title>
+              <Group mb="md">
+                <IconVideo size={20} />
+                <Title order={4}>Video Review</Title>
+              </Group>
               <Text c="dimmed" mb="md">
-                Review the applicant's 1-minute introduction video and assess their communication skills,
+                Review the applicant&apos;s 1-minute introduction video and assess their communication skills,
                 passion, and presentation quality.
               </Text>
               
@@ -495,17 +726,12 @@ export default function ApplicationEvaluationForm({
                   r => r.question.questionKey === 'intro_video_link'
                 );
                 return videoResponse?.answer ? (
-                  <Group mb="md">
-                    <Button
-                      component="a"
-                      href={videoResponse.answer}
-                      target="_blank"
-                      leftSection={<IconVideo size={16} />}
-                      variant="outline"
-                    >
-                      Watch Introduction Video
-                    </Button>
-                  </Group>
+                  <Box mb="md">
+                    <VideoLinkRenderer 
+                      url={videoResponse.answer} 
+                      questionText="Introduction Video"
+                    />
+                  </Box>
                 ) : (
                   <Alert color="yellow" mb="md">
                     No video link provided by applicant
@@ -517,7 +743,7 @@ export default function ApplicationEvaluationForm({
                 label="Video Review Notes"
                 placeholder="Add timestamped notes, observations about communication style, authenticity, etc..."
                 value={evaluation.videoTimestamp ?? ""}
-                onChange={(e) => {
+                onChange={(_e) => {
                   // This would integrate with video timestamp functionality
                 }}
                 disabled={isCompleted}
@@ -525,9 +751,9 @@ export default function ApplicationEvaluationForm({
                 minRows={4}
               />
             </Card>
-          </Tabs.Panel>
+          </Grid.Col>
         )}
-      </Tabs>
+      </Grid>
     </Stack>
   );
 }

@@ -1011,4 +1011,117 @@ export const applicationRouter = createTRPCRouter({
         responses: updatedResponses,
       };
     }),
+
+  // Admin: Get application statistics for demographics
+  getApplicationStats: protectedProcedure
+    .input(z.object({ 
+      eventId: z.string(),
+      status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]).optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      // Import demographics utilities
+      const { isLatamCountry, normalizeGender, calculatePercentage } = await import("~/utils/demographics");
+
+      // Get applications with their responses, filtering by status if provided
+      const applications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          ...(input.status && { status: input.status }),
+        },
+        include: {
+          responses: {
+            include: {
+              question: {
+                select: {
+                  id: true,
+                  questionKey: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Process demographic data
+      let maleCount = 0;
+      let femaleCount = 0;
+      let otherGenderCount = 0;
+      let preferNotToSayCount = 0;
+      let unspecifiedGenderCount = 0;
+
+      let latamCount = 0;
+      let nonLatamCount = 0;
+      let unspecifiedRegionCount = 0;
+
+      for (const application of applications) {
+        const responseMap = new Map(
+          application.responses.map(r => [r.question.questionKey, r.answer])
+        );
+
+        // Process gender data
+        const genderResponse = responseMap.get('gender') ?? responseMap.get('sex') ?? '';
+        const normalizedGender = normalizeGender(genderResponse);
+        
+        switch (normalizedGender) {
+          case 'male':
+            maleCount++;
+            break;
+          case 'female':
+            femaleCount++;
+            break;
+          case 'other':
+            otherGenderCount++;
+            break;
+          case 'prefer_not_to_say':
+            preferNotToSayCount++;
+            break;
+          case 'unspecified':
+            unspecifiedGenderCount++;
+            break;
+        }
+
+        // Process nationality/region data
+        const nationalityResponse = responseMap.get('nationality') ?? responseMap.get('country') ?? '';
+        
+        if (!nationalityResponse) {
+          unspecifiedRegionCount++;
+        } else if (isLatamCountry(nationalityResponse)) {
+          latamCount++;
+        } else {
+          nonLatamCount++;
+        }
+      }
+
+      const total = applications.length;
+
+      return {
+        total,
+        gender: {
+          male: maleCount,
+          female: femaleCount,
+          other: otherGenderCount,
+          prefer_not_to_say: preferNotToSayCount,
+          unspecified: unspecifiedGenderCount,
+          percentages: {
+            male: calculatePercentage(maleCount, total),
+            female: calculatePercentage(femaleCount, total),
+            other: calculatePercentage(otherGenderCount, total),
+            prefer_not_to_say: calculatePercentage(preferNotToSayCount, total),
+            unspecified: calculatePercentage(unspecifiedGenderCount, total),
+          },
+        },
+        region: {
+          latam: latamCount,
+          non_latam: nonLatamCount,
+          unspecified: unspecifiedRegionCount,
+          percentages: {
+            latam: calculatePercentage(latamCount, total),
+            non_latam: calculatePercentage(nonLatamCount, total),
+            unspecified: calculatePercentage(unspecifiedRegionCount, total),
+          },
+        },
+      };
+    }),
 });
