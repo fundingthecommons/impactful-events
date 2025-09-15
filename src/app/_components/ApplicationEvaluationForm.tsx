@@ -359,6 +359,9 @@ export default function ApplicationEvaluationForm({
   
   // Optimistic local state for scores to handle async updates
   const [localCompletedScores, setLocalCompletedScores] = useState<Set<string>>(new Set());
+  
+  // Track pending score updates to prevent race conditions
+  const [pendingScoreUpdates, setPendingScoreUpdates] = useState<Set<string>>(new Set());
 
   // tRPC queries and utils
   const utils = api.useUtils();
@@ -410,8 +413,16 @@ export default function ApplicationEvaluationForm({
 
   const handleScoreChange = async (criteriaId: string, score: number, reasoning?: string) => {
     if (!evaluation) return;
+    
+    // Prevent duplicate submissions for the same criteria
+    if (pendingScoreUpdates.has(criteriaId)) {
+      return;
+    }
 
     try {
+      // Mark this criteria as having a pending update
+      setPendingScoreUpdates(prev => new Set([...prev, criteriaId]));
+      
       // Optimistic update - immediately mark criteria as completed locally
       setLocalCompletedScores(prev => new Set([...prev, criteriaId]));
       
@@ -439,6 +450,13 @@ export default function ApplicationEvaluationForm({
         title: "Error",
         message: "Failed to save score",
         color: "red",
+      });
+    } finally {
+      // Always remove from pending updates when done
+      setPendingScoreUpdates(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(criteriaId);
+        return newSet;
       });
     }
   };
