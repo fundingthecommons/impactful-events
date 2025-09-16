@@ -53,6 +53,8 @@ import EmailPreviewModal from "~/app/_components/EmailPreviewModal";
 import ReviewPipelineDashboard from "~/app/_components/ReviewPipelineDashboard";
 import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
 import ApplicationCompletionProgress from "~/app/_components/ApplicationCompletionProgress";
+import CurationSpecDashboard from "~/app/_components/CurationSpecDashboard";
+import { type ExtendedDemographicStats, type ApplicationForDemographics, calculateExtendedDemographicStats } from "~/utils/demographics";
 
 type Event = {
   id: string;
@@ -251,6 +253,20 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     { eventId: event.id, status: "ACCEPTED" },
     { enabled: showStats && activeTab === "accepted" }
   );
+
+  // Calculate extended curation balance for accepted applications
+  const acceptedCurationStats = useMemo((): ExtendedDemographicStats | null => {
+    if (!acceptedApplications || acceptedApplications.length === 0) return null;
+    
+    // Convert accepted applications to ApplicationForDemographics format
+    const demographicApplications: ApplicationForDemographics[] = acceptedApplications.map(app => ({
+      id: app.id,
+      responses: app.responses,
+      demographics: undefined // Not pre-calculated, will be parsed from responses
+    }));
+    
+    return calculateExtendedDemographicStats(demographicApplications);
+  }, [acceptedApplications]);
 
   // Helper function to find latest MISSING_INFO email for an application
   const getLatestMissingInfoEmail = (applicationId: string) => {
@@ -1016,6 +1032,14 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                   )}
                 </Stack>
               </Card>
+            )}
+
+            {/* Curation Balance Dashboard - Only show on accepted tab when stats are visible */}
+            {showStats && activeTab === "accepted" && acceptedCurationStats && (
+              <CurationSpecDashboard 
+                demographicStats={acceptedCurationStats}
+                isLoading={isStatsLoading}
+              />
             )}
 
             {/* Applications Table */}

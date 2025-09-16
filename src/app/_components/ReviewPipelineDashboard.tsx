@@ -40,7 +40,7 @@ import ApplicationEvaluationForm from "./ApplicationEvaluationForm";
 import ConsensusModal from "./ConsensusModal";
 import CurationSpecDashboard from "./CurationSpecDashboard";
 import type { User } from "@prisma/client";
-import { type ExtendedDemographicStats, type ProfessionalRole, normalizeProfessionalRole, isLatamCountry, calculatePercentage, calculateTargetDifference, CURATION_TARGETS } from "~/utils/demographics";
+import { type ProfessionalRole, type ApplicationForDemographics, calculateExtendedDemographicStats, normalizeProfessionalRole, isLatamCountry } from "~/utils/demographics";
 
 interface PipelineApplication {
   id: string;
@@ -407,155 +407,13 @@ function AssignReviewerModal({ opened, onClose, applicationId, stage }: AssignRe
   );
 }
 
-// Helper function to calculate demographic statistics from applications
-function calculateDemographicStats(applications: PipelineApplication[]): ExtendedDemographicStats {
-  let latamCount = 0;
-  let globalCount = 0;
-  let unspecifiedRegionCount = 0;
-  
-  const roleCounts: Record<ProfessionalRole, number> = {
-    entrepreneur: 0,
-    developer: 0,
-    academic: 0,
-    designer: 0,
-    product_manager: 0,
-    solo_builder: 0,
-    unspecified: 0
-  };
-
-  // Process each application
-  applications.forEach(app => {
-    // Process demographic data if available
-    if (app.demographics) {
-      // Regional categorization
-      switch (app.demographics.region) {
-        case 'latam':
-          latamCount++;
-          break;
-        case 'global':
-          globalCount++;
-          break;
-        default:
-          unspecifiedRegionCount++;
-      }
-      
-      // Role categorization
-      roleCounts[app.demographics.role]++;
-    } else if (app.responses) {
-      // Fallback to parsing responses directly
-      const nationalityResponse = app.responses.find(r => 
-        r.question.questionKey === 'nationality' || 
-        r.question.questionKey === 'country'
-      );
-      
-      const backgroundResponse = app.responses.find(r => 
-        r.question.questionKey === 'background' || 
-        r.question.questionKey === 'profession' ||
-        r.question.questionKey === 'role' ||
-        r.question.questionKey === 'occupation'
-      );
-      
-      // Regional classification
-      if (nationalityResponse?.answer) {
-        if (isLatamCountry(nationalityResponse.answer)) {
-          latamCount++;
-        } else {
-          globalCount++;
-        }
-      } else {
-        unspecifiedRegionCount++;
-      }
-      
-      // Role classification
-      if (backgroundResponse?.answer) {
-        const role = normalizeProfessionalRole(backgroundResponse.answer);
-        roleCounts[role]++;
-      } else {
-        roleCounts.unspecified++;
-      }
-    } else {
-      // No demographic or response data available
-      unspecifiedRegionCount++;
-      roleCounts.unspecified++;
-    }
-  });
-
-  const total = applications.length;
-
-  // Calculate percentages for regions
-  const regionPercentages = {
-    latam: calculatePercentage(latamCount, total),
-    non_latam: calculatePercentage(globalCount, total),
-    unspecified: calculatePercentage(unspecifiedRegionCount, total)
-  };
-
-  // Calculate percentages for roles
-  const rolePercentages: Record<ProfessionalRole, number> = {} as Record<ProfessionalRole, number>;
-  Object.entries(roleCounts).forEach(([role, count]) => {
-    rolePercentages[role as ProfessionalRole] = calculatePercentage(count, total);
-  });
-
-  // Calculate curation balance
-  const curationBalance = {
-    region: {
-      latamTarget: CURATION_TARGETS.region.latam,
-      latamActual: regionPercentages.latam,
-      latamDifference: calculateTargetDifference(regionPercentages.latam, CURATION_TARGETS.region.latam),
-      globalTarget: CURATION_TARGETS.region.global,
-      globalActual: regionPercentages.non_latam,
-      globalDifference: calculateTargetDifference(regionPercentages.non_latam, CURATION_TARGETS.region.global),
-    },
-    roles: {} as Record<ProfessionalRole, { target: number; actual: number; difference: number; }>
-  };
-
-  // Calculate role balance
-  Object.entries(CURATION_TARGETS.roles).forEach(([role, target]) => {
-    const actual = rolePercentages[role as ProfessionalRole] ?? 0;
-    curationBalance.roles[role as ProfessionalRole] = {
-      target,
-      actual,
-      difference: calculateTargetDifference(actual, target)
-    };
-  });
-
-  // Add unspecified role data
-  curationBalance.roles.unspecified = {
-    target: 0,
-    actual: rolePercentages.unspecified,
-    difference: rolePercentages.unspecified
-  };
-
-  return {
-    total,
-    gender: {
-      male: 0, // Not tracked in this context
-      female: 0,
-      other: 0,
-      prefer_not_to_say: 0,
-      unspecified: total,
-      percentages: {
-        male: 0,
-        female: 0,
-        other: 0,
-        prefer_not_to_say: 0,
-        unspecified: 100
-      }
-    },
-    region: {
-      latam: latamCount,
-      non_latam: globalCount,
-      unspecified: unspecifiedRegionCount,
-      percentages: regionPercentages
-    },
-    roleStats: {
-      total,
-      roles: {
-        ...roleCounts,
-        percentages: rolePercentages
-      }
-    },
-    curationBalance
-  };
+// Convert PipelineApplication to ApplicationForDemographics for shared calculation
+function convertToApplicationForDemographics(applications: PipelineApplication[]): ApplicationForDemographics[] {
+  return applications.map(app => ({
+    id: app.id,
+    responses: app.responses,
+    demographics: app.demographics
+  }));
 }
 
 export default function ReviewPipelineDashboard() {
@@ -637,7 +495,7 @@ export default function ReviewPipelineDashboard() {
   
   // Calculate demographic statistics for curation tracking
   const allApplications = Object.values(pipeline).flat();
-  const demographicStats = calculateDemographicStats(allApplications);
+  const demographicStats = calculateExtendedDemographicStats(convertToApplicationForDemographics(allApplications));
 
   return (
     <>
