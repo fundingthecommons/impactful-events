@@ -21,6 +21,7 @@ import {
   Menu,
   UnstyledButton,
   Center,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconUsers,
@@ -37,7 +38,9 @@ import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
 import ApplicationEvaluationForm from "./ApplicationEvaluationForm";
 import ConsensusModal from "./ConsensusModal";
+import CurationSpecDashboard from "./CurationSpecDashboard";
 import type { User } from "@prisma/client";
+import { type ExtendedDemographicStats, type ProfessionalRole, normalizeProfessionalRole, isLatamCountry, calculatePercentage, calculateTargetDifference, CURATION_TARGETS } from "~/utils/demographics";
 
 interface PipelineApplication {
   id: string;
@@ -49,6 +52,16 @@ interface PipelineApplication {
     recommendation?: string | null;
     reviewer: { name: string | null };
   }>;
+  responses?: Array<{
+    question: {
+      questionKey: string;
+    };
+    answer: string;
+  }>;
+  demographics?: {
+    region: 'latam' | 'global' | 'unspecified';
+    role: ProfessionalRole;
+  };
 }
 
 interface PipelineStageProps {
@@ -168,6 +181,97 @@ function PipelineStage({
                     <Text size="xs" c="dimmed" truncate>
                       {app.user?.email}
                     </Text>
+                    
+                    {/* Demographic badges */}
+                    {(app.demographics ?? app.responses) && (
+                      <Group mt="xs" gap="xs">
+                        {/* Regional badge */}
+                        {(() => {
+                          let region: 'latam' | 'global' | 'unspecified' = 'unspecified';
+                          if (app.demographics) {
+                            region = app.demographics.region;
+                          } else if (app.responses) {
+                            const nationalityResponse = app.responses.find(r => 
+                              r.question.questionKey === 'nationality' || 
+                              r.question.questionKey === 'country'
+                            );
+                            if (nationalityResponse?.answer) {
+                              region = isLatamCountry(nationalityResponse.answer) ? 'latam' : 'global';
+                            }
+                          }
+                          
+                          if (region !== 'unspecified') {
+                            return (
+                              <Tooltip label={`${region === 'latam' ? 'Latin America' : 'Global (Non-LATAM)'}`}>
+                                <Badge 
+                                  color={region === 'latam' ? 'blue' : 'teal'} 
+                                  size="xs" 
+                                  variant="filled"
+                                  style={{ fontSize: '8px' }}
+                                >
+                                  {region === 'latam' ? 'LATAM' : 'Global'}
+                                </Badge>
+                              </Tooltip>
+                            );
+                          }
+                          return null;
+                        })()}
+                        
+                        {/* Role badge */}
+                        {(() => {
+                          let role: ProfessionalRole = 'unspecified';
+                          if (app.demographics) {
+                            role = app.demographics.role;
+                          } else if (app.responses) {
+                            const backgroundResponse = app.responses.find(r => 
+                              r.question.questionKey === 'background' || 
+                              r.question.questionKey === 'profession' ||
+                              r.question.questionKey === 'role' ||
+                              r.question.questionKey === 'occupation'
+                            );
+                            if (backgroundResponse?.answer) {
+                              role = normalizeProfessionalRole(backgroundResponse.answer);
+                            }
+                          }
+                          
+                          if (role !== 'unspecified') {
+                            const roleColors: Record<ProfessionalRole, string> = {
+                              entrepreneur: "green",
+                              developer: "purple", 
+                              academic: "orange",
+                              designer: "pink",
+                              product_manager: "yellow",
+                              solo_builder: "cyan",
+                              unspecified: "gray"
+                            };
+                            
+                            const roleLabels: Record<ProfessionalRole, string> = {
+                              entrepreneur: "Entrepreneur",
+                              developer: "Developer", 
+                              academic: "Academic",
+                              designer: "Designer",
+                              product_manager: "PM",
+                              solo_builder: "Solo Builder",
+                              unspecified: "Unknown"
+                            };
+                            
+                            return (
+                              <Tooltip label={roleLabels[role]}>
+                                <Badge 
+                                  color={roleColors[role]} 
+                                  size="xs" 
+                                  variant="light"
+                                  style={{ fontSize: '8px' }}
+                                >
+                                  {roleLabels[role]}
+                                </Badge>
+                              </Tooltip>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </Group>
+                    )}
                     
                     {/* Evaluation progress */}
                     {app.evaluations && app.evaluations.length > 0 && (
@@ -303,6 +407,157 @@ function AssignReviewerModal({ opened, onClose, applicationId, stage }: AssignRe
   );
 }
 
+// Helper function to calculate demographic statistics from applications
+function calculateDemographicStats(applications: PipelineApplication[]): ExtendedDemographicStats {
+  let latamCount = 0;
+  let globalCount = 0;
+  let unspecifiedRegionCount = 0;
+  
+  const roleCounts: Record<ProfessionalRole, number> = {
+    entrepreneur: 0,
+    developer: 0,
+    academic: 0,
+    designer: 0,
+    product_manager: 0,
+    solo_builder: 0,
+    unspecified: 0
+  };
+
+  // Process each application
+  applications.forEach(app => {
+    // Process demographic data if available
+    if (app.demographics) {
+      // Regional categorization
+      switch (app.demographics.region) {
+        case 'latam':
+          latamCount++;
+          break;
+        case 'global':
+          globalCount++;
+          break;
+        default:
+          unspecifiedRegionCount++;
+      }
+      
+      // Role categorization
+      roleCounts[app.demographics.role]++;
+    } else if (app.responses) {
+      // Fallback to parsing responses directly
+      const nationalityResponse = app.responses.find(r => 
+        r.question.questionKey === 'nationality' || 
+        r.question.questionKey === 'country'
+      );
+      
+      const backgroundResponse = app.responses.find(r => 
+        r.question.questionKey === 'background' || 
+        r.question.questionKey === 'profession' ||
+        r.question.questionKey === 'role' ||
+        r.question.questionKey === 'occupation'
+      );
+      
+      // Regional classification
+      if (nationalityResponse?.answer) {
+        if (isLatamCountry(nationalityResponse.answer)) {
+          latamCount++;
+        } else {
+          globalCount++;
+        }
+      } else {
+        unspecifiedRegionCount++;
+      }
+      
+      // Role classification
+      if (backgroundResponse?.answer) {
+        const role = normalizeProfessionalRole(backgroundResponse.answer);
+        roleCounts[role]++;
+      } else {
+        roleCounts.unspecified++;
+      }
+    } else {
+      // No demographic or response data available
+      unspecifiedRegionCount++;
+      roleCounts.unspecified++;
+    }
+  });
+
+  const total = applications.length;
+
+  // Calculate percentages for regions
+  const regionPercentages = {
+    latam: calculatePercentage(latamCount, total),
+    non_latam: calculatePercentage(globalCount, total),
+    unspecified: calculatePercentage(unspecifiedRegionCount, total)
+  };
+
+  // Calculate percentages for roles
+  const rolePercentages: Record<ProfessionalRole, number> = {} as Record<ProfessionalRole, number>;
+  Object.entries(roleCounts).forEach(([role, count]) => {
+    rolePercentages[role as ProfessionalRole] = calculatePercentage(count, total);
+  });
+
+  // Calculate curation balance
+  const curationBalance = {
+    region: {
+      latamTarget: CURATION_TARGETS.region.latam,
+      latamActual: regionPercentages.latam,
+      latamDifference: calculateTargetDifference(regionPercentages.latam, CURATION_TARGETS.region.latam),
+      globalTarget: CURATION_TARGETS.region.global,
+      globalActual: regionPercentages.non_latam,
+      globalDifference: calculateTargetDifference(regionPercentages.non_latam, CURATION_TARGETS.region.global),
+    },
+    roles: {} as Record<ProfessionalRole, { target: number; actual: number; difference: number; }>
+  };
+
+  // Calculate role balance
+  Object.entries(CURATION_TARGETS.roles).forEach(([role, target]) => {
+    const actual = rolePercentages[role as ProfessionalRole] ?? 0;
+    curationBalance.roles[role as ProfessionalRole] = {
+      target,
+      actual,
+      difference: calculateTargetDifference(actual, target)
+    };
+  });
+
+  // Add unspecified role data
+  curationBalance.roles.unspecified = {
+    target: 0,
+    actual: rolePercentages.unspecified,
+    difference: rolePercentages.unspecified
+  };
+
+  return {
+    total,
+    gender: {
+      male: 0, // Not tracked in this context
+      female: 0,
+      other: 0,
+      prefer_not_to_say: 0,
+      unspecified: total,
+      percentages: {
+        male: 0,
+        female: 0,
+        other: 0,
+        prefer_not_to_say: 0,
+        unspecified: 100
+      }
+    },
+    region: {
+      latam: latamCount,
+      non_latam: globalCount,
+      unspecified: unspecifiedRegionCount,
+      percentages: regionPercentages
+    },
+    roleStats: {
+      total,
+      roles: {
+        ...roleCounts,
+        percentages: rolePercentages
+      }
+    },
+    curationBalance
+  };
+}
+
 export default function ReviewPipelineDashboard() {
   const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
   const [selectedStage, setSelectedStage] = useState<string>('SCREENING');
@@ -379,6 +634,10 @@ export default function ReviewPipelineDashboard() {
   ];
 
   const totalApplications = Object.values(pipeline).flat().length;
+  
+  // Calculate demographic statistics for curation tracking
+  const allApplications = Object.values(pipeline).flat();
+  const demographicStats = calculateDemographicStats(allApplications);
 
   return (
     <>
@@ -420,9 +679,17 @@ export default function ReviewPipelineDashboard() {
         <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? "pipeline")}>
           <Tabs.List>
             <Tabs.Tab value="pipeline">Pipeline Overview</Tabs.Tab>
+            <Tabs.Tab value="curation">Curation Balance</Tabs.Tab>
             <Tabs.Tab value="assignments">Reviewer Assignments</Tabs.Tab>
             <Tabs.Tab value="analytics">Analytics</Tabs.Tab>
           </Tabs.List>
+
+          <Tabs.Panel value="curation" pt="lg">
+            <CurationSpecDashboard 
+              demographicStats={demographicStats}
+              isLoading={!pipeline}
+            />
+          </Tabs.Panel>
 
           <Tabs.Panel value="pipeline" pt="lg">
             {/* Pipeline stages */}

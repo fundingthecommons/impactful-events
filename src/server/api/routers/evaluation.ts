@@ -486,6 +486,16 @@ export const evaluationRouter = createTRPCRouter({
               consensusScore: true,
               decidedAt: true,
             }
+          },
+          responses: {
+            select: {
+              answer: true,
+              question: {
+                select: {
+                  questionKey: true
+                }
+              }
+            }
           }
         }
       });
