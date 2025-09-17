@@ -944,6 +944,65 @@ export const evaluationRouter = createTRPCRouter({
         throw new Error('Unauthorized to view this evaluation');
       }
 
+      // For CONSENSUS stage, return enhanced data similar to getConsensusData
+      if (evaluation.stage === 'CONSENSUS') {
+        const application = await ctx.db.application.findUnique({
+          where: { id: evaluation.applicationId },
+          include: {
+            user: { select: { name: true, email: true } },
+            event: { select: { name: true } },
+            evaluations: {
+              where: { status: 'COMPLETED' },
+              include: {
+                reviewer: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    image: true,
+                    reviewerCompetencies: {
+                      select: {
+                        category: true,
+                        competencyLevel: true,
+                        baseWeight: true,
+                      },
+                    },
+                  },
+                },
+                scores: {
+                  include: { criteria: true },
+                  orderBy: { criteria: { order: 'asc' } }
+                },
+                comments: {
+                  orderBy: { createdAt: 'desc' }
+                },
+              },
+              orderBy: { completedAt: 'desc' }
+            },
+            consensus: true,
+            responses: {
+              include: { question: true },
+              orderBy: { question: { order: 'asc' } }
+            },
+          }
+        });
+
+        if (!application) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Application not found",
+          });
+        }
+
+        return {
+          id: evaluation.id,
+          applicationId: evaluation.applicationId,
+          stage: evaluation.stage,
+          status: evaluation.status,
+          consensusData: application,
+        };
+      }
+
       return {
         id: evaluation.id,
         applicationId: evaluation.applicationId,

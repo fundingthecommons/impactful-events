@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { 
   Container, 
   Text, 
@@ -9,12 +9,15 @@ import {
   Alert,
   Button,
   Group,
-  Stack
+  Stack,
+  Badge,
+  SegmentedControl
 } from "@mantine/core";
 import { IconAlertCircle, IconArrowLeft } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import ApplicationEvaluationForm from "~/app/_components/ApplicationEvaluationForm";
+import ConsensusEvaluationView from "~/app/_components/ConsensusEvaluationView";
 
 interface EvaluationPageClientProps {
   evaluationId: string;
@@ -25,15 +28,82 @@ type EvaluationData = {
   applicationId: string;
   stage: 'SCREENING' | 'DETAILED_REVIEW' | 'VIDEO_REVIEW' | 'CONSENSUS' | 'FINAL_DECISION';
   status: string;
+  consensusData?: {
+    id: string;
+    user: { name: string | null; email: string } | null;
+    event: { name: string } | null;
+    evaluations: Array<{
+      id: string;
+      overallScore: number | null;
+      confidence: number | null;
+      recommendation: string | null;
+      completedAt: Date | null;
+      reviewer: {
+        id: string;
+        name: string | null;
+        email: string;
+        image: string | null;
+        reviewerCompetencies: Array<{
+          category: string;
+          competencyLevel: number;
+          baseWeight: number;
+        }> | null;
+      };
+      scores: Array<{
+        id: string;
+        score: number;
+        reasoning: string | null;
+        criteria: {
+          id: string;
+          name: string;
+          weight: number;
+          order: number;
+        };
+      }>;
+      comments: Array<{
+        id: string;
+        comment: string;
+        createdAt: Date;
+      }>;
+    }>;
+    consensus: {
+      id: string;
+      finalDecision: string | null;
+      consensusScore: number | null;
+      discussionNotes: string | null;
+      decidedAt: Date | null;
+    } | null;
+    responses: Array<{
+      id: string;
+      answer: string;
+      question: {
+        id: string;
+        questionKey: string;
+        questionEn: string;
+        order: number;
+      };
+    }> | null;
+  };
 };
 
 export default function EvaluationPageClient({ evaluationId }: EvaluationPageClientProps) {
   const router = useRouter();
+  const [viewMode, setViewMode] = useState<'individual' | 'consensus'>('individual');
 
   // Fetch evaluation details by ID
   const evaluationQuery = api.evaluation.getEvaluationById.useQuery({
     evaluationId: evaluationId,
   });
+
+  // Fetch consensus data for the application (to enable consensus view)
+  const { data: consensusData } = api.evaluation.getConsensusData.useQuery(
+    { 
+      applicationId: evaluationQuery.data?.applicationId ?? "" 
+    },
+    { 
+      enabled: !!evaluationQuery.data?.applicationId 
+    }
+  );
 
   const handleEvaluationComplete = () => {
     // Navigate back to queue or show success message
@@ -101,6 +171,22 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
         </Alert>
       </Container>
     );
+  }
+
+  // Determine if consensus view is available
+  const hasConsensusData = consensusData?.evaluations && consensusData.evaluations.length > 0;
+
+  // Show consensus view if user selected it and data is available
+  if (viewMode === 'consensus' && hasConsensusData) {
+    // Create consensus evaluation data structure
+    const consensusEvaluationData = {
+      id: evaluationData.id,
+      applicationId: evaluationData.applicationId,
+      stage: evaluationData.stage,
+      status: evaluationData.status,
+      consensusData: consensusData,
+    };
+    return <ConsensusEvaluationView evaluationData={consensusEvaluationData} />;
   }
 
   return (
