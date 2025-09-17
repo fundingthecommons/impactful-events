@@ -32,6 +32,7 @@ import {
   IconUsers,
   IconMessageCircle,
   IconAlertTriangle,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
@@ -315,7 +316,24 @@ export default function ConsensusModal({
     <Modal 
       opened={opened} 
       onClose={onClose} 
-      title="Consensus Review" 
+      title={
+        <Group justify="space-between" style={{ width: '100%' }}>
+          <Text fw={600}>Consensus Review</Text>
+          {consensusData.evaluations?.[0]?.id && (
+            <Button
+              component="a"
+              href={`/admin/evaluations/${consensusData.evaluations[0].id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="outline"
+              size="xs"
+              leftSection={<IconExternalLink size={14} />}
+            >
+              Open in New Tab
+            </Button>
+          )}
+        </Group>
+      }
       size="100%"
       styles={{
         body: { padding: 0 },
