@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   Text,
@@ -34,6 +34,7 @@ import {
   IconAlertTriangle,
   IconExternalLink,
 } from "@tabler/icons-react";
+import { useSession } from "next-auth/react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
 import ApplicationEvaluationForm from "./ApplicationEvaluationForm";
@@ -425,8 +426,21 @@ export default function ReviewPipelineDashboard() {
   const [activeTab, setActiveTab] = useState<string>("pipeline");
   const [selectedReviewer, setSelectedReviewer] = useState<string | null>(null);
 
+  // Get current user session
+  const { data: session } = useSession();
+
   // Fetch reviewers for filter dropdown
   const { data: reviewers } = api.user.getAdmins.useQuery();
+
+  // Set default filter to current user when reviewers load
+  useEffect(() => {
+    if (reviewers && session?.user?.id && selectedReviewer === null) {
+      const currentUserIsReviewer = reviewers.some(reviewer => reviewer.id === session.user.id);
+      if (currentUserIsReviewer) {
+        setSelectedReviewer(session.user.id);
+      }
+    }
+  }, [reviewers, session?.user?.id, selectedReviewer]);
 
   // Fetch pipeline data (with optional reviewer filter)
   const { data: pipeline, refetch: refetchPipeline } = api.evaluation.getReviewPipeline.useQuery({
@@ -511,6 +525,7 @@ export default function ReviewPipelineDashboard() {
             </div>
             <Group>
               <Select
+                label="Reviewer Assigned:"
                 placeholder="All Reviewers"
                 value={selectedReviewer}
                 onChange={setSelectedReviewer}
@@ -518,7 +533,7 @@ export default function ReviewPipelineDashboard() {
                   { value: '', label: 'All Reviewers' },
                   ...(reviewers?.map(reviewer => ({
                     value: reviewer.id,
-                    label: `${reviewer.name ?? 'Unknown'} (${reviewer.email})`,
+                    label: reviewer.id === session?.user?.id ? 'Assigned to me' : `${reviewer.name ?? 'Unknown'} (${reviewer.email})`,
                   })) ?? [])
                 ]}
                 clearable
