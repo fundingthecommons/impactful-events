@@ -182,7 +182,7 @@ interface ConsensusEvaluationViewProps {
     status: string;
     consensusData?: {
       id: string;
-      user: { name: string | null; email: string } | null;
+      user: { name: string | null; email: string | null } | null;
       event: { name: string } | null;
       evaluations: Array<{
         id: string;
@@ -193,7 +193,7 @@ interface ConsensusEvaluationViewProps {
         reviewer: {
           id: string;
           name: string | null;
-          email: string;
+          email: string | null;
           image: string | null;
           reviewerCompetencies: Array<{
             category: string;
@@ -282,7 +282,7 @@ export default function ConsensusEvaluationView({ evaluationData }: ConsensusEva
   const reviewerScores: EnhancedReviewerScore[] = consensusData.evaluations.map(evaluation => ({
     reviewerId: evaluation.reviewer.id,
     reviewerName: evaluation.reviewer.name,
-    reviewerEmail: evaluation.reviewer.email,
+    reviewerEmail: evaluation.reviewer.email ?? '',
     reviewerImage: evaluation.reviewer.image,
     overallScore: evaluation.overallScore ?? 0,
     confidence: evaluation.confidence ?? 3,
