@@ -30,7 +30,7 @@ type EvaluationData = {
   status: string;
   consensusData?: {
     id: string;
-    user: { name: string | null; email: string } | null;
+    user: { name: string | null; email: string | null } | null;
     event: { name: string } | null;
     evaluations: Array<{
       id: string;
@@ -41,7 +41,7 @@ type EvaluationData = {
       reviewer: {
         id: string;
         name: string | null;
-        email: string;
+        email: string | null;
         image: string | null;
         reviewerCompetencies: Array<{
           category: string;
@@ -178,13 +178,26 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
 
   // Show consensus view if user selected it and data is available
   if (viewMode === 'consensus' && hasConsensusData) {
-    // Create consensus evaluation data structure
+    // Create consensus evaluation data structure with type-safe transformation
     const consensusEvaluationData = {
       id: evaluationData.id,
       applicationId: evaluationData.applicationId,
       stage: evaluationData.stage,
       status: evaluationData.status,
-      consensusData: consensusData,
+      consensusData: consensusData ? {
+        ...consensusData,
+        user: consensusData.user ? {
+          name: consensusData.user.name,
+          email: consensusData.user.email ?? '', // Transform null to empty string
+        } : null,
+        evaluations: consensusData.evaluations.map(evaluation => ({
+          ...evaluation,
+          reviewer: {
+            ...evaluation.reviewer,
+            email: evaluation.reviewer.email ?? '', // Transform null to empty string
+          },
+        })),
+      } : undefined,
     };
     return <ConsensusEvaluationView evaluationData={consensusEvaluationData} />;
   }
@@ -192,8 +205,8 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
   return (
     <Container size="xl" py="md">
       <Stack gap="lg">
-        {/* Header with back button */}
-        <Group>
+        {/* Header with navigation and view toggle */}
+        <Group justify="space-between">
           <Button 
             variant="subtle" 
             leftSection={<IconArrowLeft size="1rem" />}
@@ -201,6 +214,22 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
           >
             Back to Queue
           </Button>
+          
+          <Group gap="md">
+            {hasConsensusData && (
+              <SegmentedControl
+                value={viewMode}
+                onChange={(value) => setViewMode(value as 'individual' | 'consensus')}
+                data={[
+                  { label: 'Individual Review', value: 'individual' },
+                  { label: 'Consensus View', value: 'consensus' }
+                ]}
+              />
+            )}
+            <Badge color="gray" variant="light">
+              {evaluationData.stage.replace('_', ' ')}
+            </Badge>
+          </Group>
         </Group>
 
         {/* Main evaluation form */}
