@@ -357,6 +357,10 @@ export default function ApplicationEvaluationForm({
   const [timeSpent, setTimeSpent] = useState<number>(0);
   const [startTime] = useState(Date.now());
   
+  // Edit mode state management for completed evaluations
+  const [editMode, setEditMode] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
   // Optimistic local state for scores to handle async updates
   const [localCompletedScores, setLocalCompletedScores] = useState<Set<string>>(new Set());
   
@@ -382,6 +386,7 @@ export default function ApplicationEvaluationForm({
   const totalCriteria = criteria?.length ?? 0;
   const progress = totalCriteria > 0 ? (completedScores / totalCriteria) * 100 : 0;
   const isCompleted = evaluation?.status === 'COMPLETED';
+  const isReadonly = isCompleted && !editMode;
 
   // Robust button validation logic (moved before early returns)
   const isCompleteEvaluationReady = useMemo(() => {
@@ -389,10 +394,10 @@ export default function ApplicationEvaluationForm({
     const hasAllScores = progress >= 100;
     const hasRecommendation = !!recommendation && recommendation.length > 0;
     const notSaving = !upsertScoreMutation.isPending && !updateEvaluationMutation.isPending;
-    const notAlreadyCompleted = !isCompleted;
+    const notAlreadyCompleted = !isCompleted || editMode;
     
     return hasAllScores && hasRecommendation && notSaving && notAlreadyCompleted;
-  }, [evaluation, criteria, progress, recommendation, upsertScoreMutation.isPending, updateEvaluationMutation.isPending, isCompleted]);
+  }, [evaluation, criteria, progress, recommendation, upsertScoreMutation.isPending, updateEvaluationMutation.isPending, isCompleted, editMode]);
 
   // ✅ Unconditional useEffect - conditional logic inside is fine
   useEffect(() => {
@@ -417,6 +422,11 @@ export default function ApplicationEvaluationForm({
     // Prevent duplicate submissions for the same criteria
     if (pendingScoreUpdates.has(criteriaId)) {
       return;
+    }
+
+    // Mark as having unsaved changes if in edit mode
+    if (editMode) {
+      setHasUnsavedChanges(true);
     }
 
     try {
@@ -477,6 +487,12 @@ export default function ApplicationEvaluationForm({
       });
 
       await refetchEvaluation();
+      
+      // Reset edit mode and unsaved changes state
+      if (editMode && status === 'COMPLETED') {
+        setEditMode(false);
+        setHasUnsavedChanges(false);
+      }
 
       notifications.show({
         title: "Success",
@@ -493,6 +509,31 @@ export default function ApplicationEvaluationForm({
         message: "Failed to save evaluation",
         color: "red",
       });
+    }
+  };
+
+  const handleEditToggle = () => {
+    if (editMode && hasUnsavedChanges) {
+      // Show confirmation dialog for unsaved changes
+      const confirmed = window.confirm("You have unsaved changes. Are you sure you want to cancel editing?");
+      if (!confirmed) return;
+      
+      // Reset form to original values
+      if (evaluation) {
+        setOverallComments(evaluation.overallComments ?? "");
+        setRecommendation(evaluation.recommendation ?? "");
+        setConfidence(evaluation.confidence ?? 3);
+        setHasUnsavedChanges(false);
+      }
+    }
+    
+    setEditMode(!editMode);
+  };
+
+  // Track form changes for unsaved changes detection
+  const handleFormChange = () => {
+    if (editMode) {
+      setHasUnsavedChanges(true);
     }
   };
 
@@ -528,12 +569,18 @@ export default function ApplicationEvaluationForm({
           </div>
           
           <Group>
-            <Badge 
-              color={evaluation.status === 'COMPLETED' ? 'green' : 
-                     evaluation.status === 'IN_PROGRESS' ? 'blue' : 'gray'}
-            >
-              {evaluation.status.replace('_', ' ')}
-            </Badge>
+            {isCompleted && (
+              <Badge color={editMode ? "orange" : "green"} variant="filled">
+                {editMode ? "EDITING" : "COMPLETED"}
+              </Badge>
+            )}
+            {!isCompleted && (
+              <Badge 
+                color={evaluation.status === 'IN_PROGRESS' ? 'blue' : 'gray'}
+              >
+                {evaluation.status.replace('_', ' ')}
+              </Badge>
+            )}
             {evaluation.overallScore && (
               <Badge color="yellow" size="lg">
                 {evaluation.overallScore.toFixed(1)}/10
@@ -546,6 +593,12 @@ export default function ApplicationEvaluationForm({
         <Text size="sm" c="dimmed">
           {completedScores}/{totalCriteria} criteria evaluated ({progress.toFixed(0)}% complete)
         </Text>
+        
+        {hasUnsavedChanges && editMode && (
+          <Alert color="orange" mt="sm">
+            You have unsaved changes. Remember to save your evaluation.
+          </Alert>
+        )}
       </Paper>
 
       <Grid gutter="lg">
@@ -613,8 +666,11 @@ export default function ApplicationEvaluationForm({
                               key={criteria.id}
                               criteria={criteria}
                               score={existingScore}
-                              onScoreChange={handleScoreChange}
-                              readonly={isCompleted}
+                              onScoreChange={(criteriaId, score, reasoning) => {
+                                void handleScoreChange(criteriaId, score, reasoning);
+                                handleFormChange();
+                              }}
+                              readonly={isReadonly}
                               application={application}
                             />
                           );
@@ -633,8 +689,11 @@ export default function ApplicationEvaluationForm({
                         label="Overall Comments"
                         placeholder="Provide your overall assessment of this application..."
                         value={overallComments}
-                        onChange={(e) => setOverallComments(e.target.value)}
-                        disabled={isCompleted}
+                        onChange={(e) => {
+                          setOverallComments(e.target.value);
+                          handleFormChange();
+                        }}
+                        disabled={isReadonly}
                         autosize
                         minRows={3}
                         maxRows={6}
@@ -645,8 +704,11 @@ export default function ApplicationEvaluationForm({
                           label="Recommendation"
                           placeholder="Select recommendation"
                           value={recommendation}
-                          onChange={(value) => setRecommendation(value ?? "")}
-                          disabled={isCompleted}
+                          onChange={(value) => {
+                            setRecommendation(value ?? "");
+                            handleFormChange();
+                          }}
+                          disabled={isReadonly}
                           data={[
                             { value: 'ACCEPT', label: 'Accept' },
                             { value: 'REJECT', label: 'Reject' },
@@ -661,8 +723,11 @@ export default function ApplicationEvaluationForm({
                           min={1}
                           max={5}
                           value={confidence}
-                          onChange={(value) => setConfidence(Number(value) || 3)}
-                          disabled={isCompleted}
+                          onChange={(value) => {
+                            setConfidence(Number(value) || 3);
+                            handleFormChange();
+                          }}
+                          disabled={isReadonly}
                         />
                       </Group>
                     </Stack>
@@ -691,6 +756,38 @@ export default function ApplicationEvaluationForm({
                     </Group>
                   )}
                   
+                  {/* Edit mode action buttons for completed evaluations */}
+                  {isCompleted && (
+                    <Group justify="flex-end">
+                      {!editMode ? (
+                        <Button
+                          variant="outline"
+                          onClick={handleEditToggle}
+                        >
+                          Edit Evaluation
+                        </Button>
+                      ) : (
+                        <Group>
+                          <Button
+                            variant="outline"
+                            onClick={handleEditToggle}
+                            color="gray"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            leftSection={<IconCheck size={16} />}
+                            onClick={() => handleSaveEvaluation('COMPLETED')}
+                            loading={updateEvaluationMutation.isPending}
+                            disabled={!isCompleteEvaluationReady}
+                          >
+                            Save Changes
+                          </Button>
+                        </Group>
+                      )}
+                    </Group>
+                  )}
+                  
                   {/* Enhanced feedback for button state */}
                   {!isCompleted && !isCompleteEvaluationReady && (
                     <Alert color="blue" variant="light">
@@ -709,7 +806,7 @@ export default function ApplicationEvaluationForm({
                     </Alert>
                   )}
 
-                  {isCompleted && (
+                  {isCompleted && !editMode && (
                     <Alert 
                       icon={<IconCheck size={16} />} 
                       color="green"
@@ -717,6 +814,14 @@ export default function ApplicationEvaluationForm({
                     >
                       This evaluation was completed on {evaluation.completedAt ? new Date(evaluation.completedAt).toLocaleDateString() : 'Unknown date'}.
                       Time spent: {evaluation.timeSpentMinutes ?? 0} minutes.
+                    </Alert>
+                  )}
+                  
+                  {editMode && isCompleteEvaluationReady && (
+                    <Alert color="blue" variant="light">
+                      <Text size="sm">
+                        You can now save your changes to update this completed evaluation.
+                      </Text>
                     </Alert>
                   )}
                 </Stack>
@@ -764,7 +869,7 @@ export default function ApplicationEvaluationForm({
                 onChange={(_e) => {
                   // This would integrate with video timestamp functionality
                 }}
-                disabled={isCompleted}
+                disabled={isReadonly}
                 autosize
                 minRows={4}
               />
@@ -775,3 +880,4 @@ export default function ApplicationEvaluationForm({
     </Stack>
   );
 }
+
