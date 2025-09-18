@@ -1,5 +1,18 @@
 {
   "mcpServers": {
+    "mastra": {
+      "command": "npx",
+      "args": ["-y", "@mastra/mcp-docs-server"]
+    },
+    "ftc-mastra": {
+      "type": "stdio",
+      "command": "bun",
+      "args": ["scripts/mastra-mcp-server.ts"],
+      "env": {
+        "DATABASE_URL": "YOUR_DATABASE_URL",
+        "NODE_ENV": "development"
+      }
+    },
     "task-master-ai": {
       "type": "stdio",
       "command": "npx",
