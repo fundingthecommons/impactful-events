@@ -31,7 +31,6 @@ import {
   IconMessageCircle,
   IconAlertTriangle,
   IconArrowLeft,
-  IconExternalLink,
 } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import {
@@ -57,9 +56,32 @@ interface ReviewerCardProps {
   reviewer: WeightedReviewerScore;
   onExpandToggle: () => void;
   expanded: boolean;
+  evaluationData?: {
+    id: string;
+    overallScore: number | null;
+    confidence: number | null;
+    recommendation: string | null;
+    completedAt: Date | null;
+    scores: Array<{
+      id: string;
+      score: number;
+      reasoning: string | null;
+      criteria: {
+        id: string;
+        name: string;
+        weight: number;
+        order: number;
+      };
+    }>;
+    comments: Array<{
+      id: string;
+      comment: string;
+      createdAt: Date;
+    }>;
+  };
 }
 
-function ReviewerCard({ reviewer, onExpandToggle, expanded }: ReviewerCardProps) {
+function ReviewerCard({ reviewer, onExpandToggle, expanded, evaluationData }: ReviewerCardProps) {
   const confidenceStars = Array.from({ length: 5 }, (_, i) => i + 1);
   
   return (
@@ -140,7 +162,7 @@ function ReviewerCard({ reviewer, onExpandToggle, expanded }: ReviewerCardProps)
         {/* Expanded details */}
         <Collapse in={expanded}>
           <Divider my="sm" />
-          <Stack gap="sm">
+          <Stack gap="md">
             {/* Competency weights */}
             {reviewer.competencies && reviewer.competencies.length > 0 && (
               <Box>
@@ -158,6 +180,90 @@ function ReviewerCard({ reviewer, onExpandToggle, expanded }: ReviewerCardProps)
                     </Badge>
                   ))}
                 </Group>
+              </Box>
+            )}
+
+            {/* Overall evaluation details */}
+            {evaluationData && (
+              <Box>
+                <Text size="xs" fw={600} mb="xs">Overall Evaluation</Text>
+                <Group gap="md" mb="xs">
+                  {evaluationData.overallScore && (
+                    <Group gap="xs">
+                      <Text size="xs" c="dimmed">Overall Score:</Text>
+                      <Badge color="blue" size="sm">
+                        {evaluationData.overallScore.toFixed(1)}/10
+                      </Badge>
+                    </Group>
+                  )}
+                  <Group gap="xs">
+                    <Text size="xs" c="dimmed">Confidence:</Text>
+                    <Group gap={2}>
+                      {confidenceStars.map((star) => (
+                        star <= (evaluationData.confidence ?? 0) ? (
+                          <IconStarFilled
+                            key={star}
+                            size={10}
+                            color={getConfidenceColor(evaluationData.confidence ?? 0)}
+                          />
+                        ) : (
+                          <IconStar
+                            key={star}
+                            size={10}
+                            color="var(--mantine-color-gray-4)"
+                          />
+                        )
+                      ))}
+                    </Group>
+                  </Group>
+                </Group>
+              </Box>
+            )}
+
+            {/* Detailed criteria scores */}
+            {evaluationData?.scores && evaluationData.scores.length > 0 && (
+              <Box>
+                <Text size="xs" fw={600} mb="xs">Detailed Scores</Text>
+                <Stack gap="xs">
+                  {evaluationData.scores
+                    .sort((a, b) => a.criteria.order - b.criteria.order)
+                    .map((score) => (
+                      <Paper key={score.id} p="xs" bg="gray.1" radius="sm">
+                        <Group justify="space-between" mb="xs">
+                          <Text size="xs" fw={500}>
+                            {score.criteria.name}
+                          </Text>
+                          <Badge color="blue" size="xs">
+                            {score.score}/10
+                          </Badge>
+                        </Group>
+                        {score.reasoning && (
+                          <Text size="xs" c="dimmed" style={{ lineHeight: 1.3 }}>
+                            {score.reasoning}
+                          </Text>
+                        )}
+                      </Paper>
+                    ))}
+                </Stack>
+              </Box>
+            )}
+
+            {/* Comments */}
+            {evaluationData?.comments && evaluationData.comments.length > 0 && (
+              <Box>
+                <Text size="xs" fw={600} mb="xs">Comments</Text>
+                <Stack gap="xs">
+                  {evaluationData.comments.map((comment) => (
+                    <Paper key={comment.id} p="xs" bg="yellow.1" radius="sm">
+                      <Text size="xs" style={{ lineHeight: 1.3 }}>
+                        {comment.comment}
+                      </Text>
+                      <Text size="xs" c="dimmed" mt="xs">
+                        {new Date(comment.createdAt).toLocaleDateString()}
+                      </Text>
+                    </Paper>
+                  ))}
+                </Stack>
               </Box>
             )}
 
@@ -301,37 +407,6 @@ export default function ConsensusEvaluationView({ evaluationData }: ConsensusEva
   return (
     <Container size="xl" py="md">
       <Stack gap="lg">
-        {/* Header with navigation */}
-        <Group justify="space-between">
-          <Group>
-            <Button 
-              variant="subtle" 
-              leftSection={<IconArrowLeft size="1rem" />}
-              onClick={() => router.push("/admin/queue")}
-            >
-              Back to Queue
-            </Button>
-          </Group>
-          
-          <Group>
-            <Badge color="purple" variant="light" size="lg">
-              Consensus Review
-            </Badge>
-            {reviewerScores.length > 0 && (
-              <Button
-                component="a"
-                href={`/admin/evaluations/${evaluationData.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                variant="outline"
-                size="sm"
-                leftSection={<IconExternalLink size={14} />}
-              >
-                Open Modal View
-              </Button>
-            )}
-          </Group>
-        </Group>
 
         <Grid gutter="lg">
           {/* Left Panel - Application Details */}
@@ -402,14 +477,22 @@ export default function ConsensusEvaluationView({ evaluationData }: ConsensusEva
 
                 <ScrollArea style={{ flex: 1, maxHeight: '50vh' }}>
                   <Stack gap="sm">
-                    {weightedScores.map((reviewer) => (
-                      <ReviewerCard
-                        key={reviewer.reviewerId}
-                        reviewer={reviewer}
-                        onExpandToggle={() => toggleReviewerExpanded(reviewer.reviewerId)}
-                        expanded={expandedReviewers.has(reviewer.reviewerId)}
-                      />
-                    ))}
+                    {weightedScores.map((reviewer) => {
+                      // Find the corresponding evaluation data for this reviewer
+                      const evaluationForReviewer = consensusData.evaluations.find(
+                        evaluation => evaluation.reviewer.id === reviewer.reviewerId
+                      );
+                      
+                      return (
+                        <ReviewerCard
+                          key={reviewer.reviewerId}
+                          reviewer={reviewer}
+                          onExpandToggle={() => toggleReviewerExpanded(reviewer.reviewerId)}
+                          expanded={expandedReviewers.has(reviewer.reviewerId)}
+                          evaluationData={evaluationForReviewer}
+                        />
+                      );
+                    })}
 
                     {weightedScores.length === 0 && (
                       <Text ta="center" c="dimmed" py="xl">

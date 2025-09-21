@@ -11,7 +11,7 @@ import {
   Group,
   Stack,
   Badge,
-  SegmentedControl
+  Tabs
 } from "@mantine/core";
 import { IconAlertCircle, IconArrowLeft } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
@@ -176,36 +176,32 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
   // Determine if consensus view is available
   const hasConsensusData = consensusData?.evaluations && consensusData.evaluations.length > 0;
 
-  // Show consensus view if user selected it and data is available
-  if (viewMode === 'consensus' && hasConsensusData) {
-    // Create consensus evaluation data structure with type-safe transformation
-    const consensusEvaluationData = {
-      id: evaluationData.id,
-      applicationId: evaluationData.applicationId,
-      stage: evaluationData.stage,
-      status: evaluationData.status,
-      consensusData: consensusData ? {
-        ...consensusData,
-        user: consensusData.user ? {
-          name: consensusData.user.name,
-          email: consensusData.user.email ?? '', // Transform null to empty string
-        } : null,
-        evaluations: consensusData.evaluations.map(evaluation => ({
-          ...evaluation,
-          reviewer: {
-            ...evaluation.reviewer,
-            email: evaluation.reviewer.email ?? '', // Transform null to empty string
-          },
-        })),
-      } : undefined,
-    };
-    return <ConsensusEvaluationView evaluationData={consensusEvaluationData} />;
-  }
+  // Create consensus evaluation data structure with type-safe transformation
+  const consensusEvaluationData = {
+    id: evaluationData.id,
+    applicationId: evaluationData.applicationId,
+    stage: evaluationData.stage,
+    status: evaluationData.status,
+    consensusData: consensusData ? {
+      ...consensusData,
+      user: consensusData.user ? {
+        name: consensusData.user.name,
+        email: consensusData.user.email ?? '', // Transform null to empty string
+      } : null,
+      evaluations: consensusData.evaluations.map(evaluation => ({
+        ...evaluation,
+        reviewer: {
+          ...evaluation.reviewer,
+          email: evaluation.reviewer.email ?? '', // Transform null to empty string
+        },
+      })),
+    } : undefined,
+  };
 
   return (
     <Container size="xl" py="md">
       <Stack gap="lg">
-        {/* Header with navigation and view toggle */}
+        {/* Header with navigation */}
         <Group justify="space-between">
           <Button 
             variant="subtle" 
@@ -215,29 +211,38 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
             Back to Queue
           </Button>
           
-          <Group gap="md">
-            {hasConsensusData && (
-              <SegmentedControl
-                value={viewMode}
-                onChange={(value) => setViewMode(value as 'individual' | 'consensus')}
-                data={[
-                  { label: 'Individual Review', value: 'individual' },
-                  { label: 'Consensus View', value: 'consensus' }
-                ]}
-              />
-            )}
-            <Badge color="gray" variant="light">
-              {evaluationData.stage.replace('_', ' ')}
-            </Badge>
-          </Group>
+          <Badge color="gray" variant="light">
+            {evaluationData.stage.replace('_', ' ')}
+          </Badge>
         </Group>
 
-        {/* Main evaluation form */}
-        <ApplicationEvaluationForm
-          applicationId={evaluationData.applicationId}
-          stage={evaluationData.stage}
-          onEvaluationComplete={handleEvaluationComplete}
-        />
+        {/* Tabs for Individual Review and Consensus View */}
+        <Tabs value={viewMode} onChange={(value) => setViewMode(value as 'individual' | 'consensus')}>
+          <Tabs.List>
+            <Tabs.Tab value="individual">Individual Review</Tabs.Tab>
+            <Tabs.Tab value="consensus" disabled={!hasConsensusData}>
+              Consensus View
+            </Tabs.Tab>
+          </Tabs.List>
+
+          <Tabs.Panel value="individual" pt="md">
+            <ApplicationEvaluationForm
+              applicationId={evaluationData.applicationId}
+              stage={evaluationData.stage}
+              onEvaluationComplete={handleEvaluationComplete}
+            />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="consensus" pt="md">
+            {hasConsensusData ? (
+              <ConsensusEvaluationView evaluationData={consensusEvaluationData} />
+            ) : (
+              <Alert color="yellow" title="No Data Available">
+                Consensus data is not available for this evaluation.
+              </Alert>
+            )}
+          </Tabs.Panel>
+        </Tabs>
       </Stack>
     </Container>
   );
