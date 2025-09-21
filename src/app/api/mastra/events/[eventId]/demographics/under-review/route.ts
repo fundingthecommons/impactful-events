@@ -2,6 +2,47 @@ import type { NextRequest } from "next/server";
 import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
 
+// Type definitions for API responses
+interface UserProfile {
+  id: string;
+  name: string | null;
+  email: string;
+  company: string | null;
+  jobTitle: string | null;
+  location: string | null;
+  linkedinUrl: string | null;
+  githubUrl: string | null;
+  websiteUrl: string | null;
+  twitterUrl: string | null;
+  profilePictureUrl: string | null;
+}
+
+interface QuestionInfo {
+  questionKey: string | null;
+  questionEn: string;
+  questionType: string;
+}
+
+interface ResponseInfo {
+  answer: unknown;
+  question: QuestionInfo;
+}
+
+interface ApplicationData {
+  id: string;
+  user: UserProfile | null;
+  responses: ResponseInfo[];
+}
+
+interface EventInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  type: string;
+}
+
 async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await context.params;
   
@@ -10,7 +51,10 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     const underReviewApplications = await db.application.findMany({
       where: {
         eventId,
-        status: "UNDER_REVIEW"
+        OR: [
+          { status: "UNDER_REVIEW" },
+          { status: "SUBMITTED" }
+        ]
       },
       include: {
         user: {
@@ -39,94 +83,50 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
               }
             }
           }
-        },
-        // Include evaluation progress for under-review applications
-        evaluations: {
-          select: {
-            id: true,
-            status: true,
-            stage: true,
-            overallScore: true,
-            recommendation: true,
-            completedAt: true,
-            reviewer: {
-              select: {
-                id: true,
-                name: true,
-              }
-            }
-          }
         }
       },
     });
 
-    // Extract demographic insights with evaluation progress
+    const typedUnderReviewApplications = underReviewApplications as ApplicationData[];
+
+    // Extract demographic insights
     const demographics = {
-      totalUnderReview: underReviewApplications.length,
-      
-      // Evaluation progress breakdown
-      evaluationProgress: {
-        notStarted: underReviewApplications.filter(app => app.evaluations.length === 0).length,
-        inProgress: underReviewApplications.filter(app => 
-          app.evaluations.some(eval => eval.status === "IN_PROGRESS")
-        ).length,
-        completed: underReviewApplications.filter(app =>
-          app.evaluations.some(eval => eval.status === "COMPLETED")
-        ).length,
-        averageEvaluationsPerApplication: underReviewApplications.length > 0 
-          ? underReviewApplications.reduce((sum, app) => sum + app.evaluations.length, 0) / underReviewApplications.length
-          : 0,
-      },
+      totalUnderReview: typedUnderReviewApplications.length,
       
       // Company distribution
-      companies: underReviewApplications
+      companies: typedUnderReviewApplications
         .map(app => app.user?.company)
-        .filter(Boolean)
+        .filter((company): company is string => company !== null)
         .reduce((acc, company) => {
-          acc[company!] = (acc[company!] ?? 0) + 1;
+          acc[company] = (acc[company] ?? 0) + 1;
           return acc;
         }, {} as Record<string, number>),
       
       // Job title patterns
-      jobTitles: underReviewApplications
+      jobTitles: typedUnderReviewApplications
         .map(app => app.user?.jobTitle)
-        .filter(Boolean)
+        .filter((title): title is string => title !== null)
         .reduce((acc, title) => {
-          acc[title!] = (acc[title!] ?? 0) + 1;
+          acc[title] = (acc[title] ?? 0) + 1;
           return acc;
         }, {} as Record<string, number>),
       
       // Geographic distribution
-      locations: underReviewApplications
+      locations: typedUnderReviewApplications
         .map(app => app.user?.location)
-        .filter(Boolean)
+        .filter((location): location is string => location !== null)
         .reduce((acc, location) => {
-          acc[location!] = (acc[location!] ?? 0) + 1;
+          acc[location] = (acc[location] ?? 0) + 1;
           return acc;
         }, {} as Record<string, number>),
       
       // Social presence indicators
       socialPresence: {
-        hasLinkedIn: underReviewApplications.filter(app => app.user?.linkedinUrl).length,
-        hasGitHub: underReviewApplications.filter(app => app.user?.githubUrl).length,
-        hasWebsite: underReviewApplications.filter(app => app.user?.websiteUrl).length,
-        hasTwitter: underReviewApplications.filter(app => app.user?.twitterUrl).length,
-        hasProfilePicture: underReviewApplications.filter(app => app.user?.profilePictureUrl).length,
-      },
-      
-      // Current scoring patterns for applications under review
-      currentScoring: {
-        averageScore: underReviewApplications
-          .flatMap(app => app.evaluations)
-          .filter(eval => eval.overallScore !== null)
-          .reduce((sum, eval, _, arr) => sum + (eval.overallScore! / arr.length), 0) || null,
-        recommendations: underReviewApplications
-          .flatMap(app => app.evaluations)
-          .filter(eval => eval.recommendation)
-          .reduce((acc, eval) => {
-            acc[eval.recommendation!] = (acc[eval.recommendation!] ?? 0) + 1;
-            return acc;
-          }, {} as Record<string, number>),
+        hasLinkedIn: typedUnderReviewApplications.filter(app => app.user?.linkedinUrl).length,
+        hasGitHub: typedUnderReviewApplications.filter(app => app.user?.githubUrl).length,
+        hasWebsite: typedUnderReviewApplications.filter(app => app.user?.websiteUrl).length,
+        hasTwitter: typedUnderReviewApplications.filter(app => app.user?.twitterUrl).length,
+        hasProfilePicture: typedUnderReviewApplications.filter(app => app.user?.profilePictureUrl).length,
       },
       
       // Application response patterns
@@ -134,10 +134,10 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     };
 
     // Analyze response patterns for key demographic questions
-    const sampleResponses = underReviewApplications[0]?.responses.filter(r => 
-      r.question.questionKey?.includes('background') ||
-      r.question.questionKey?.includes('experience') ||
-      r.question.questionKey?.includes('expertise') ||
+    const sampleResponses = typedUnderReviewApplications[0]?.responses.filter(r => 
+      r.question.questionKey?.includes('background') ??
+      r.question.questionKey?.includes('experience') ??
+      r.question.questionKey?.includes('expertise') ??
       r.question.questionKey?.includes('skills')
     ) ?? [];
 
@@ -150,19 +150,21 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       }
       
       // Count responses across all under-review applications
-      underReviewApplications.forEach(app => {
+      typedUnderReviewApplications.forEach(app => {
         const appResponse = app.responses.find(r => r.question.questionKey === questionKey);
         if (!appResponse) return;
         
         if (response.question.questionType === 'SELECT' || response.question.questionType === 'MULTISELECT') {
           const answers = Array.isArray(appResponse.answer) 
-            ? appResponse.answer 
+            ? appResponse.answer as unknown[]
             : appResponse.answer ? [appResponse.answer] : [];
           
           answers.forEach(answer => {
             if (typeof answer === 'string') {
-              demographics.responsePatterns[questionKey]![answer] = 
-                (demographics.responsePatterns[questionKey]![answer] ?? 0) + 1;
+              const currentPatterns = demographics.responsePatterns[questionKey];
+              if (currentPatterns) {
+                currentPatterns[answer] = (currentPatterns[answer] ?? 0) + 1;
+              }
             }
           });
         }
@@ -180,7 +182,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         endDate: true,
         type: true,
       },
-    });
+    }) as EventInfo | null;
 
     return Response.json({
       success: true,
@@ -190,10 +192,10 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         demographics,
         metadata: {
           generatedAt: new Date().toISOString(),
-          purpose: "Demographics analysis of under-review applications for AI reviewer prioritization",
-          totalApplications: underReviewApplications.length,
+          purpose: "Demographics analysis of applications currently under review",
+          totalApplications: typedUnderReviewApplications.length,
           anonymized: true,
-          includesEvaluationProgress: true,
+          usage: "Use this data to track current review pipeline demographics and identify potential bias patterns"
         }
       }
     });

@@ -1,12 +1,16 @@
+import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
-import { testConnection } from "~/lib/mastra/database";
 
 async function GET() {
   try {
-    const result = await testConnection();
+    // Simple database connection test
+    const result = await db.$queryRaw`SELECT 1 as test`;
     return Response.json({
       success: true,
-      data: result
+      data: { 
+        message: "Database connection successful",
+        result 
+      }
     });
   } catch (error) {
     console.error("[MASTRA API] Error in test endpoint:", error);

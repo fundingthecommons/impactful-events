@@ -18,15 +18,23 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         user: {
           select: {
             id: true,
-            company: true,
-            jobTitle: true,
-            location: true,
-            linkedinUrl: true,
-            githubUrl: true,
-            websiteUrl: true,
-            twitterUrl: true,
-            profilePictureUrl: true,
+            name: true,
+            email: true,
+            image: true,
           },
+          include: {
+            profile: {
+              select: {
+                company: true,
+                jobTitle: true,
+                location: true,
+                linkedinUrl: true,
+                githubUrl: true,
+                website: true,
+                twitterUrl: true,
+              }
+            }
+          }
         },
         responses: {
           include: {
@@ -68,13 +76,13 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     }>;
 
     allApplications
-      .filter(app => app.user?.company)
+      .filter(app => app.user?.profile?.company)
       .forEach(app => {
-        const company = app.user!.company!;
+        const company = app.user!.profile!.company!;
         companyRates[company] ??= { total: 0, accepted: 0, rejected: 0, acceptanceRate: 0 };
-        companyRates[company]!.total++;
-        if (app.status === "ACCEPTED") companyRates[company]!.accepted++;
-        if (app.status === "REJECTED") companyRates[company]!.rejected++;
+        companyRates[company].total++;
+        if (app.status === "ACCEPTED") companyRates[company].accepted++;
+        if (app.status === "REJECTED") companyRates[company].rejected++;
       });
 
     // Calculate acceptance rates for companies
@@ -92,12 +100,10 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     }>;
 
     allApplications
-      .filter(app => app.user?.jobTitle)
+      .filter(app => app.user?.profile?.jobTitle)
       .forEach(app => {
-        const jobTitle = app.user!.jobTitle!;
-        if (!jobTitleRates[jobTitle]) {
-          jobTitleRates[jobTitle] = { total: 0, accepted: 0, rejected: 0, acceptanceRate: 0 };
-        }
+        const jobTitle = app.user!.profile!.jobTitle!;
+        jobTitleRates[jobTitle] ??= { total: 0, accepted: 0, rejected: 0, acceptanceRate: 0 };
         jobTitleRates[jobTitle].total++;
         if (app.status === "ACCEPTED") jobTitleRates[jobTitle].accepted++;
         if (app.status === "REJECTED") jobTitleRates[jobTitle].rejected++;
@@ -118,12 +124,10 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     }>;
 
     allApplications
-      .filter(app => app.user?.location)
+      .filter(app => app.user?.profile?.location)
       .forEach(app => {
-        const location = app.user!.location!;
-        if (!locationRates[location]) {
-          locationRates[location] = { total: 0, accepted: 0, rejected: 0, acceptanceRate: 0 };
-        }
+        const location = app.user!.profile!.location!;
+        locationRates[location] ??= { total: 0, accepted: 0, rejected: 0, acceptanceRate: 0 };
         locationRates[location].total++;
         if (app.status === "ACCEPTED") locationRates[location].accepted++;
         if (app.status === "REJECTED") locationRates[location].rejected++;
@@ -138,23 +142,23 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     // Calculate acceptance rates by social presence
     const socialPresenceRates = {
       hasLinkedIn: {
-        total: allApplications.filter(app => app.user?.linkedinUrl).length,
-        accepted: acceptedApplications.filter(app => app.user?.linkedinUrl).length,
+        total: allApplications.filter(app => app.user?.profile?.linkedinUrl).length,
+        accepted: acceptedApplications.filter(app => app.user?.profile?.linkedinUrl).length,
         acceptanceRate: 0,
       },
       hasGitHub: {
-        total: allApplications.filter(app => app.user?.githubUrl).length,
-        accepted: acceptedApplications.filter(app => app.user?.githubUrl).length,
+        total: allApplications.filter(app => app.user?.profile?.githubUrl).length,
+        accepted: acceptedApplications.filter(app => app.user?.profile?.githubUrl).length,
         acceptanceRate: 0,
       },
       hasWebsite: {
-        total: allApplications.filter(app => app.user?.websiteUrl).length,
-        accepted: acceptedApplications.filter(app => app.user?.websiteUrl).length,
+        total: allApplications.filter(app => app.user?.profile?.website).length,
+        accepted: acceptedApplications.filter(app => app.user?.profile?.website).length,
         acceptanceRate: 0,
       },
       hasProfilePicture: {
-        total: allApplications.filter(app => app.user?.profilePictureUrl).length,
-        accepted: acceptedApplications.filter(app => app.user?.profilePictureUrl).length,
+        total: allApplications.filter(app => app.user?.image).length,
+        accepted: acceptedApplications.filter(app => app.user?.image).length,
         acceptanceRate: 0,
       },
     };
@@ -198,9 +202,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         
         answers.forEach(answer => {
           if (typeof answer === 'string') {
-            if (!responseCorrelations[questionKey][answer]) {
-              responseCorrelations[questionKey][answer] = { total: 0, accepted: 0, acceptanceRate: 0 };
-            }
+            responseCorrelations[questionKey][answer] ??= { total: 0, accepted: 0, acceptanceRate: 0 };
             responseCorrelations[questionKey][answer].total++;
             if (app.status === "ACCEPTED") {
               responseCorrelations[questionKey][answer].accepted++;

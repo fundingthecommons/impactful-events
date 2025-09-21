@@ -106,7 +106,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
             reasoning: score.reasoning,
           })),
           // AI metadata stored in comments or custom fields
-          aiMetadata: evaluation.internalNotes ? JSON.parse(evaluation.internalNotes) : null,
+          aiMetadata: evaluation.internalNotes ? JSON.parse(evaluation.internalNotes as string) as unknown : null,
         })),
         totalCount: aiEvaluations.length,
         metadata: {
@@ -135,7 +135,7 @@ async function POST(request: NextRequest, context: { params: Promise<{ eventId: 
   const { eventId } = await context.params;
   
   try {
-    const body = await request.json();
+    const body = await request.json() as unknown;
     const evaluation = AIEvaluationSchema.parse(body);
     
     // Verify application exists and belongs to this event
@@ -158,15 +158,14 @@ async function POST(request: NextRequest, context: { params: Promise<{ eventId: 
       where: { email: "ai-reviewer@fundingthecommons.io" }
     });
 
-    if (!aiReviewer) {
-      aiReviewer = await db.user.create({
-        data: {
-          email: "ai-reviewer@fundingthecommons.io",
-          name: "AI Reviewer",
-          role: "REVIEWER"
-        }
-      });
-    }
+
+    aiReviewer ??= await db.user.create({
+      data: {
+        email: "ai-reviewer@fundingthecommons.io",
+        name: "AI Reviewer",
+        role: "REVIEWER"
+      }
+    });
 
     // Create the evaluation
     const newEvaluation = await db.applicationEvaluation.create({

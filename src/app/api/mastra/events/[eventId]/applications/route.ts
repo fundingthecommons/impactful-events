@@ -1,12 +1,55 @@
 import type { NextRequest } from "next/server";
+import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
-import { getEventApplications } from "~/lib/mastra/database";
 
 async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await context.params;
   
   try {
-    const data = await getEventApplications(eventId);
+    const data = await db.application.findMany({
+      where: { eventId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+          },
+          include: {
+            profile: {
+              select: {
+                company: true,
+                jobTitle: true,
+                location: true,
+                linkedinUrl: true,
+                githubUrl: true,
+                website: true,
+                twitterUrl: true,
+              }
+            }
+          }
+        },
+        responses: {
+          include: {
+            question: true
+          }
+        },
+        evaluations: {
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
+            },
+            scores: true
+          }
+        }
+      }
+    });
+    
     return Response.json({
       success: true,
       data

@@ -1,12 +1,16 @@
 import type { NextRequest } from "next/server";
+import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
-import { getEvaluationCriteria } from "~/lib/mastra/database";
 
 async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await context.params;
   
   try {
-    const data = await getEvaluationCriteria(eventId);
+    const data = await db.evaluationCriteria.findMany({
+      where: { isActive: true },
+      orderBy: { order: 'asc' }
+    });
+    
     return Response.json({
       success: true,
       data

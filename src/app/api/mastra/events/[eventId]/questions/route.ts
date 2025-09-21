@@ -1,12 +1,16 @@
 import type { NextRequest } from "next/server";
+import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
-import { getApplicationQuestions } from "~/lib/mastra/database";
 
 async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await context.params;
   
   try {
-    const data = await getApplicationQuestions(eventId);
+    const data = await db.applicationQuestion.findMany({
+      where: { eventId },
+      orderBy: { order: 'asc' }
+    });
+    
     return Response.json({
       success: true,
       data

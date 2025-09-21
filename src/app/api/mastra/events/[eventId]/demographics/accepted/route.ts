@@ -2,6 +2,47 @@ import type { NextRequest } from "next/server";
 import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
 
+// Type definitions for API responses
+interface UserProfile {
+  id: string;
+  name: string | null;
+  email: string;
+  company: string | null;
+  jobTitle: string | null;
+  location: string | null;
+  linkedinUrl: string | null;
+  githubUrl: string | null;
+  websiteUrl: string | null;
+  twitterUrl: string | null;
+  profilePictureUrl: string | null;
+}
+
+interface QuestionInfo {
+  questionKey: string | null;
+  questionEn: string;
+  questionType: string;
+}
+
+interface ResponseInfo {
+  answer: unknown;
+  question: QuestionInfo;
+}
+
+interface ApplicationData {
+  id: string;
+  user: UserProfile | null;
+  responses: ResponseInfo[];
+}
+
+interface EventInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  type: string;
+}
+
 async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await context.params;
   
@@ -43,44 +84,46 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       },
     });
 
+    const typedAcceptedApplications = acceptedApplications as ApplicationData[];
+
     // Extract demographic insights
     const demographics = {
-      totalAccepted: acceptedApplications.length,
+      totalAccepted: typedAcceptedApplications.length,
       
       // Company distribution
-      companies: acceptedApplications
+      companies: typedAcceptedApplications
         .map(app => app.user?.company)
-        .filter(Boolean)
+        .filter((company): company is string => company !== null)
         .reduce((acc, company) => {
-          acc[company!] = (acc[company!] ?? 0) + 1;
+          acc[company] = (acc[company] ?? 0) + 1;
           return acc;
         }, {} as Record<string, number>),
       
       // Job title patterns
-      jobTitles: acceptedApplications
+      jobTitles: typedAcceptedApplications
         .map(app => app.user?.jobTitle)
-        .filter(Boolean)
+        .filter((title): title is string => title !== null)
         .reduce((acc, title) => {
-          acc[title!] = (acc[title!] ?? 0) + 1;
+          acc[title] = (acc[title] ?? 0) + 1;
           return acc;
         }, {} as Record<string, number>),
       
       // Geographic distribution
-      locations: acceptedApplications
+      locations: typedAcceptedApplications
         .map(app => app.user?.location)
-        .filter(Boolean)
+        .filter((location): location is string => location !== null)
         .reduce((acc, location) => {
-          acc[location!] = (acc[location!] ?? 0) + 1;
+          acc[location] = (acc[location] ?? 0) + 1;
           return acc;
         }, {} as Record<string, number>),
       
       // Social presence indicators
       socialPresence: {
-        hasLinkedIn: acceptedApplications.filter(app => app.user?.linkedinUrl).length,
-        hasGitHub: acceptedApplications.filter(app => app.user?.githubUrl).length,
-        hasWebsite: acceptedApplications.filter(app => app.user?.websiteUrl).length,
-        hasTwitter: acceptedApplications.filter(app => app.user?.twitterUrl).length,
-        hasProfilePicture: acceptedApplications.filter(app => app.user?.profilePictureUrl).length,
+        hasLinkedIn: typedAcceptedApplications.filter(app => app.user?.linkedinUrl).length,
+        hasGitHub: typedAcceptedApplications.filter(app => app.user?.githubUrl).length,
+        hasWebsite: typedAcceptedApplications.filter(app => app.user?.websiteUrl).length,
+        hasTwitter: typedAcceptedApplications.filter(app => app.user?.twitterUrl).length,
+        hasProfilePicture: typedAcceptedApplications.filter(app => app.user?.profilePictureUrl).length,
       },
       
       // Application response patterns
@@ -88,14 +131,14 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     };
 
     // Analyze response patterns for key demographic questions
-    const demographicQuestions = acceptedApplications[0]?.responses.filter(r => 
-      r.question.questionKey?.includes('background') ||
-      r.question.questionKey?.includes('experience') ||
-      r.question.questionKey?.includes('expertise') ||
+    const sampleResponses = typedAcceptedApplications[0]?.responses.filter(r => 
+      r.question.questionKey?.includes('background') ??
+      r.question.questionKey?.includes('experience') ??
+      r.question.questionKey?.includes('expertise') ??
       r.question.questionKey?.includes('skills')
     ) ?? [];
 
-    demographicQuestions.forEach(response => {
+    sampleResponses.forEach(response => {
       const questionKey = response.question.questionKey;
       if (!questionKey) return;
       
@@ -103,19 +146,26 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         demographics.responsePatterns[questionKey] = {};
       }
       
-      // For select/multiselect questions, count option selections
-      if (response.question.questionType === 'SELECT' || response.question.questionType === 'MULTISELECT') {
-        const answers = Array.isArray(response.answer) 
-          ? response.answer 
-          : response.answer ? [response.answer] : [];
+      // Count responses across all accepted applications
+      typedAcceptedApplications.forEach(app => {
+        const appResponse = app.responses.find(r => r.question.questionKey === questionKey);
+        if (!appResponse) return;
         
-        answers.forEach(answer => {
-          if (typeof answer === 'string') {
-            demographics.responsePatterns[questionKey]![answer] = 
-              (demographics.responsePatterns[questionKey]![answer] ?? 0) + 1;
-          }
-        });
-      }
+        if (response.question.questionType === 'SELECT' || response.question.questionType === 'MULTISELECT') {
+          const answers = Array.isArray(appResponse.answer) 
+            ? appResponse.answer as unknown[]
+            : appResponse.answer ? [appResponse.answer] : [];
+          
+          answers.forEach(answer => {
+            if (typeof answer === 'string') {
+              const currentPatterns = demographics.responsePatterns[questionKey];
+              if (currentPatterns) {
+                currentPatterns[answer] = (currentPatterns[answer] ?? 0) + 1;
+              }
+            }
+          });
+        }
+      });
     });
 
     // Get event context
@@ -129,7 +179,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         endDate: true,
         type: true,
       },
-    });
+    }) as EventInfo | null;
 
     return Response.json({
       success: true,
@@ -139,9 +189,10 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         demographics,
         metadata: {
           generatedAt: new Date().toISOString(),
-          purpose: "Demographics analysis of accepted applications for AI bias detection",
-          totalApplications: acceptedApplications.length,
+          purpose: "Demographics analysis of accepted applications for diversity tracking and bias detection",
+          totalApplications: typedAcceptedApplications.length,
           anonymized: true,
+          usage: "Use this data to track diversity and identify potential bias patterns in acceptance decisions"
         }
       }
     });

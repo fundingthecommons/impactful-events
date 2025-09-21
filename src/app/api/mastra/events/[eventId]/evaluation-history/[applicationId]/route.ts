@@ -2,6 +2,126 @@ import type { NextRequest } from "next/server";
 import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
 
+// Type definitions for API responses
+interface UserProfile {
+  id: string;
+  name: string | null;
+  email: string;
+  company: string | null;
+  jobTitle: string | null;
+}
+
+interface EventInfo {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+interface QuestionInfo {
+  questionKey: string | null;
+  questionEn: string;
+  questionType: string;
+  order: number;
+}
+
+interface ResponseInfo {
+  answer: unknown;
+  question: QuestionInfo;
+}
+
+interface ReviewerCompetency {
+  category: string;
+  competencyLevel: number;
+  baseWeight: number;
+}
+
+interface ReviewerInfo {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string | null;
+  reviewerCompetencies: ReviewerCompetency[];
+}
+
+interface CriteriaInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  weight: number;
+  minScore: number;
+  maxScore: number;
+  order: number;
+}
+
+interface ScoreInfo {
+  criteriaId: string;
+  score: number;
+  reasoning: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  criteria: CriteriaInfo;
+}
+
+interface CommentInfo {
+  id: string;
+  questionKey: string | null;
+  comment: string;
+  isPrivate: boolean;
+  createdAt: Date;
+}
+
+interface EvaluationInfo {
+  id: string;
+  reviewerId: string;
+  stage: string;
+  status: string;
+  overallScore: number | null;
+  confidence: number | null;
+  recommendation: string | null;
+  overallComments: string | null;
+  timeSpentMinutes: number | null;
+  videoWatched: boolean | null;
+  videoQuality: string | null;
+  createdAt: Date;
+  completedAt: Date | null;
+  updatedAt: Date;
+  internalNotes: string | null;
+  reviewer: ReviewerInfo;
+  scores: ScoreInfo[];
+  comments: CommentInfo[];
+}
+
+interface ApplicationData {
+  id: string;
+  userId: string;
+  status: string;
+  language: string | null;
+  isComplete: boolean;
+  submittedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  user: UserProfile | null;
+  event: EventInfo;
+  responses: ResponseInfo[];
+}
+
+interface DecidedByInfo {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
+interface ConsensusInfo {
+  id: string;
+  finalDecision: string;
+  consensusScore: number | null;
+  discussionNotes: string | null;
+  decidedAt: Date | null;
+  createdAt: Date;
+  decidedBy: DecidedByInfo;
+}
+
 async function GET(
   request: NextRequest, 
   context: { params: Promise<{ eventId: string; applicationId: string }> }
@@ -56,6 +176,8 @@ async function GET(
         { status: 404 }
       );
     }
+
+    const typedApplication = application as ApplicationData;
 
     // Get complete evaluation history for this application
     const evaluations = await db.applicationEvaluation.findMany({
@@ -115,6 +237,8 @@ async function GET(
       }
     });
 
+    const typedEvaluations = evaluations as EvaluationInfo[];
+
     // Get any consensus decisions for this application
     const consensus = await db.consensusDecision.findFirst({
       where: {
@@ -129,10 +253,10 @@ async function GET(
           }
         }
       }
-    });
+    }) as ConsensusInfo | null;
 
     // Transform evaluations with detailed history
-    const evaluationHistory = evaluations.map(evaluation => {
+    const evaluationHistory = typedEvaluations.map(evaluation => {
       const isAIReviewer = evaluation.reviewer.email === "ai-reviewer@fundingthecommons.io";
       
       return {
@@ -189,80 +313,100 @@ async function GET(
         })),
         // AI metadata if available
         aiMetadata: isAIReviewer && evaluation.internalNotes 
-          ? JSON.parse(evaluation.internalNotes) 
+          ? (() => {
+              try {
+                return JSON.parse(evaluation.internalNotes) as unknown;
+              } catch {
+                return null;
+              }
+            })()
           : null,
       };
     });
 
     // Calculate evaluation analytics
+    const validScores = typedEvaluations
+      .map(e => e.overallScore)
+      .filter((score): score is number => score !== null);
+
     const analytics = {
-      totalEvaluations: evaluations.length,
-      completedEvaluations: evaluations.filter(e => e.status === "COMPLETED").length,
-      uniqueReviewers: new Set(evaluations.map(e => e.reviewerId)).size,
-      aiEvaluations: evaluations.filter(e => e.reviewer.email === "ai-reviewer@fundingthecommons.io").length,
-      humanEvaluations: evaluations.filter(e => e.reviewer.email !== "ai-reviewer@fundingthecommons.io").length,
+      totalEvaluations: typedEvaluations.length,
+      completedEvaluations: typedEvaluations.filter(e => e.status === "COMPLETED").length,
+      uniqueReviewers: new Set(typedEvaluations.map(e => e.reviewerId)).size,
+      aiEvaluations: typedEvaluations.filter(e => e.reviewer.email === "ai-reviewer@fundingthecommons.io").length,
+      humanEvaluations: typedEvaluations.filter(e => e.reviewer.email !== "ai-reviewer@fundingthecommons.io").length,
       
       scoreAnalysis: {
-        averageOverallScore: evaluations
-          .filter(e => e.overallScore !== null)
-          .reduce((sum, e, _, arr) => sum + (e.overallScore! / arr.length), 0) || null,
-        scoreRange: {
-          min: Math.min(...evaluations.map(e => e.overallScore).filter(Boolean) as number[]),
-          max: Math.max(...evaluations.map(e => e.overallScore).filter(Boolean) as number[]),
-        },
-        scoreVariance: evaluations.length > 1 ? calculateVariance(
-          evaluations.map(e => e.overallScore).filter(Boolean) as number[]
-        ) : 0,
+        averageOverallScore: validScores.length > 0 
+          ? validScores.reduce((sum, score) => sum + score, 0) / validScores.length 
+          : null,
+        scoreRange: validScores.length > 0 ? {
+          min: Math.min(...validScores),
+          max: Math.max(...validScores),
+        } : { min: null, max: null },
+        scoreVariance: validScores.length > 1 ? calculateVariance(validScores) : 0,
       },
       
-      recommendationConsensus: evaluations
+      recommendationConsensus: typedEvaluations
         .map(e => e.recommendation)
-        .filter(Boolean)
+        .filter((rec): rec is string => rec !== null)
         .reduce((acc, rec) => {
-          acc[rec!] = (acc[rec!] ?? 0) + 1;
+          acc[rec] = (acc[rec] ?? 0) + 1;
           return acc;
         }, {} as Record<string, number>),
       
       confidenceAnalysis: {
-        averageConfidence: evaluations
-          .filter(e => e.confidence !== null)
-          .reduce((sum, e, _, arr) => sum + (e.confidence! / arr.length), 0) || null,
-        confidenceDistribution: evaluations
+        averageConfidence: (() => {
+          const validConfidence = typedEvaluations
+            .map(e => e.confidence)
+            .filter((conf): conf is number => conf !== null);
+          return validConfidence.length > 0 
+            ? validConfidence.reduce((sum, conf) => sum + conf, 0) / validConfidence.length 
+            : null;
+        })(),
+        confidenceDistribution: typedEvaluations
           .map(e => e.confidence)
-          .filter(Boolean)
+          .filter((conf): conf is number => conf !== null)
           .reduce((acc, conf) => {
-            acc[conf!] = (acc[conf!] ?? 0) + 1;
+            acc[conf] = (acc[conf] ?? 0) + 1;
             return acc;
           }, {} as Record<number, number>),
       },
       
       timeAnalysis: {
-        averageTimeSpent: evaluations
-          .filter(e => e.timeSpentMinutes !== null)
-          .reduce((sum, e, _, arr) => sum + (e.timeSpentMinutes! / arr.length), 0) || null,
-        totalTimeSpent: evaluations
+        averageTimeSpent: (() => {
+          const validTimes = typedEvaluations
+            .map(e => e.timeSpentMinutes)
+            .filter((time): time is number => time !== null);
+          return validTimes.length > 0 
+            ? validTimes.reduce((sum, time) => sum + time, 0) / validTimes.length 
+            : null;
+        })(),
+        totalTimeSpent: typedEvaluations
           .map(e => e.timeSpentMinutes)
-          .filter(Boolean)
-          .reduce((sum, time) => sum + time!, 0),
+          .filter((time): time is number => time !== null)
+          .reduce((sum, time) => sum + time, 0),
       },
       
       timeline: {
-        firstEvaluation: evaluations[0]?.createdAt,
-        lastEvaluation: evaluations[evaluations.length - 1]?.completedAt,
-        evaluationDuration: evaluations.length > 0 && evaluations[0].createdAt && evaluations[evaluations.length - 1]?.completedAt
-          ? new Date(evaluations[evaluations.length - 1].completedAt!).getTime() - 
-            new Date(evaluations[0].createdAt).getTime()
+        firstEvaluation: typedEvaluations[0]?.createdAt ?? null,
+        lastEvaluation: typedEvaluations[typedEvaluations.length - 1]?.completedAt ?? null,
+        evaluationDuration: typedEvaluations.length > 0 && 
+                           typedEvaluations[0] && 
+                           typedEvaluations[typedEvaluations.length - 1]?.completedAt
+          ? new Date(typedEvaluations[typedEvaluations.length - 1].completedAt!).getTime() - 
+            new Date(typedEvaluations[0].createdAt).getTime()
           : null,
       }
     };
 
     // Identify evaluation patterns and insights
     const insights = {
-      reviewerAgreement: calculateReviewerAgreement(evaluations),
+      reviewerAgreement: calculateReviewerAgreement(typedEvaluations),
       biasIndicators: detectBiasIndicators(evaluationHistory),
-      qualityFlags: detectQualityFlags(evaluations),
-      urgencyLevel: determineUrgencyLevel(evaluations, application.status),
-      nextRecommendedActions: getNextRecommendedActions(evaluations, application.status, consensus),
+      qualityFlags: detectQualityFlags(typedEvaluations),
+      urgencyLevel: determineUrgencyLevel(typedEvaluations, typedApplication.status),
+      nextRecommendedActions: getNextRecommendedActions(typedEvaluations, typedApplication.status, consensus),
     };
 
     return Response.json({
@@ -270,18 +414,18 @@ async function GET(
       data: {
         eventId,
         application: {
-          id: application.id,
-          userId: application.userId,
-          status: application.status,
-          language: application.language,
-          isComplete: application.isComplete,
-          submittedAt: application.submittedAt,
-          createdAt: application.createdAt,
-          updatedAt: application.updatedAt,
+          id: typedApplication.id,
+          userId: typedApplication.userId,
+          status: typedApplication.status,
+          language: typedApplication.language,
+          isComplete: typedApplication.isComplete,
+          submittedAt: typedApplication.submittedAt,
+          createdAt: typedApplication.createdAt,
+          updatedAt: typedApplication.updatedAt,
         },
-        applicant: application.user,
-        event: application.event,
-        responses: application.responses.map(response => ({
+        applicant: typedApplication.user,
+        event: typedApplication.event,
+        responses: typedApplication.responses.map(response => ({
           questionKey: response.question.questionKey,
           questionText: response.question.questionEn,
           questionType: response.question.questionType,
@@ -303,7 +447,7 @@ async function GET(
         metadata: {
           generatedAt: new Date().toISOString(),
           purpose: "Complete evaluation history for single application analysis",
-          dataCompleteness: `${evaluations.length} evaluations with full scoring and comments`,
+          dataCompleteness: `${typedEvaluations.length} evaluations with full scoring and comments`,
         }
       }
     });
@@ -329,11 +473,15 @@ function calculateVariance(numbers: number[]): number {
   return numbers.reduce((sum, n) => sum + Math.pow(n - mean, 2), 0) / numbers.length;
 }
 
-function calculateReviewerAgreement(evaluations: any[]): number {
+function calculateReviewerAgreement(evaluations: EvaluationInfo[]): number {
   if (evaluations.length < 2) return 100;
   
-  const recommendations = evaluations.map(e => e.recommendation).filter(Boolean);
-  const scores = evaluations.map(e => e.overallScore).filter(Boolean) as number[];
+  const recommendations = evaluations
+    .map(e => e.recommendation)
+    .filter((rec): rec is string => rec !== null);
+  const scores = evaluations
+    .map(e => e.overallScore)
+    .filter((score): score is number => score !== null);
   
   // Simple agreement calculation
   const recAgreement = new Set(recommendations).size === 1 ? 100 : 0;
@@ -343,7 +491,16 @@ function calculateReviewerAgreement(evaluations: any[]): number {
   return (recAgreement + scoreAgreement) / 2;
 }
 
-function detectBiasIndicators(evaluationHistory: any[]): string[] {
+interface EvaluationHistoryItem {
+  reviewer: {
+    isAI: boolean;
+  };
+  evaluation: {
+    overallScore: number | null;
+  };
+}
+
+function detectBiasIndicators(evaluationHistory: EvaluationHistoryItem[]): string[] {
   const indicators: string[] = [];
   
   const aiEvals = evaluationHistory.filter(e => e.reviewer.isAI);
@@ -361,7 +518,7 @@ function detectBiasIndicators(evaluationHistory: any[]): string[] {
   return indicators;
 }
 
-function detectQualityFlags(evaluations: any[]): string[] {
+function detectQualityFlags(evaluations: EvaluationInfo[]): string[] {
   const flags: string[] = [];
   
   const rapidEvals = evaluations.filter(e => e.timeSpentMinutes && e.timeSpentMinutes < 5);
@@ -377,13 +534,13 @@ function detectQualityFlags(evaluations: any[]): string[] {
   return flags;
 }
 
-function determineUrgencyLevel(evaluations: any[], status: string): 'low' | 'medium' | 'high' {
+function determineUrgencyLevel(evaluations: EvaluationInfo[], status: string): 'low' | 'medium' | 'high' {
   if (status === "UNDER_REVIEW" && evaluations.length === 0) return 'high';
   if (status === "UNDER_REVIEW" && evaluations.filter(e => e.status === "COMPLETED").length < 2) return 'medium';
   return 'low';
 }
 
-function getNextRecommendedActions(evaluations: any[], status: string, consensus: any): string[] {
+function getNextRecommendedActions(evaluations: EvaluationInfo[], status: string, consensus: ConsensusInfo | null): string[] {
   const actions: string[] = [];
   
   if (evaluations.length === 0) {
@@ -394,7 +551,9 @@ function getNextRecommendedActions(evaluations: any[], status: string, consensus
     actions.push("Review for consensus decision");
   }
   
-  const scores = evaluations.map(e => e.overallScore).filter(Boolean) as number[];
+  const scores = evaluations
+    .map(e => e.overallScore)
+    .filter((score): score is number => score !== null);
   if (scores.length > 1 && Math.sqrt(calculateVariance(scores)) > 15) {
     actions.push("Resolve scoring discrepancies between reviewers");
   }

@@ -2,6 +2,105 @@ import type { NextRequest } from "next/server";
 import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
 
+// Type definitions for API responses
+interface UserProfile {
+  id: string;
+  name: string | null;
+  email: string;
+  company: string | null;
+  jobTitle: string | null;
+  location: string | null;
+  linkedinUrl: string | null;
+  githubUrl: string | null;
+  websiteUrl: string | null;
+  twitterUrl: string | null;
+}
+
+interface EventInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string;
+}
+
+interface QuestionInfo {
+  id: string;
+  questionKey: string | null;
+  questionEn: string;
+  questionType: string;
+  required: boolean;
+  options: unknown;
+  order: number;
+}
+
+interface ResponseInfo {
+  questionId: string;
+  answer: unknown;
+  question: QuestionInfo;
+}
+
+interface CriteriaInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  weight: number;
+  minScore: number;
+  maxScore: number;
+}
+
+interface ScoreInfo {
+  criteriaId: string;
+  score: number;
+  reasoning: string | null;
+  criteria: CriteriaInfo;
+}
+
+interface CommentInfo {
+  id: string;
+  questionKey: string | null;
+  comment: string;
+  isPrivate: boolean;
+}
+
+interface ReviewerInfo {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string | null;
+}
+
+interface EvaluationInfo {
+  id: string;
+  reviewerId: string;
+  stage: string;
+  status: string;
+  overallScore: number | null;
+  confidence: number | null;
+  recommendation: string | null;
+  timeSpentMinutes: number | null;
+  completedAt: Date | null;
+  reviewer: ReviewerInfo;
+  scores: ScoreInfo[];
+  comments: CommentInfo[];
+}
+
+interface ApplicationData {
+  id: string;
+  userId: string;
+  eventId: string;
+  status: string;
+  language: string | null;
+  isComplete: boolean;
+  submittedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  user: UserProfile | null;
+  event: EventInfo;
+  responses: ResponseInfo[];
+  evaluations: EvaluationInfo[];
+}
+
 async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await context.params;
   const { searchParams } = new URL(request.url);
@@ -104,7 +203,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     });
 
     // Filter applications with minimum evaluation count
-    const trainingApplications = applications.filter(app => 
+    const trainingApplications = (applications as ApplicationData[]).filter(app => 
       app.evaluations.length >= minEvaluations
     );
 
@@ -115,7 +214,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     });
 
     // Transform data based on requested format
-    let transformedData;
+    let transformedData: unknown;
     
     if (format === 'ml-ready') {
       // Machine learning ready format with normalized features
@@ -146,15 +245,15 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
               const options = response.question.options as string[] | null;
               if (options) {
                 options.forEach(option => {
-                  const answer = Array.isArray(response.answer) ? response.answer : [response.answer];
+                  const answer = Array.isArray(response.answer) ? response.answer as unknown[] : [response.answer];
                   acc[`${key}_${option.toLowerCase().replace(/\s+/g, '_')}`] = answer.includes(option) ? 1 : 0;
                 });
               }
             } else if (response.question.questionType === 'NUMBER') {
-              acc[key] = parseFloat(response.answer as string) || 0;
+              acc[key] = parseFloat(response.answer as string) ?? 0;
             } else {
               // Text features - length and complexity metrics
-              const text = response.answer as string || '';
+              const text = (response.answer as string) ?? '';
               acc[`${key}_length`] = text.length;
               acc[`${key}_words`] = text.split(/\s+/).length;
               acc[`${key}_sentences`] = text.split(/[.!?]+/).length;
@@ -182,10 +281,10 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         id: app.id,
         status: app.status,
         submitted: app.submittedAt,
-        evaluations: app.evaluations.map(eval => ({
-          score: eval.overallScore,
-          recommendation: eval.recommendation,
-          confidence: eval.confidence,
+        evaluations: app.evaluations.map(evaluation => ({
+          score: evaluation.overallScore,
+          recommendation: evaluation.recommendation,
+          confidence: evaluation.confidence,
         })),
         responseCount: app.responses.length,
       }));
@@ -209,7 +308,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
           hasCompany: !!app.user?.company,
           hasJobTitle: !!app.user?.jobTitle,
           hasLocation: !!app.user?.location,
-          hasSocialPresence: !!(app.user?.linkedinUrl || app.user?.githubUrl || app.user?.websiteUrl),
+          hasSocialPresence: !!(app.user?.linkedinUrl ?? app.user?.githubUrl ?? app.user?.websiteUrl),
           profileCompleteness: [
             app.user?.company,
             app.user?.jobTitle,
@@ -231,9 +330,9 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
           order: response.question.order,
           // Text analysis for training
           answerAnalysis: typeof response.answer === 'string' ? {
-            length: response.answer.length,
-            wordCount: response.answer.split(/\s+/).length,
-            complexity: response.answer.split(/[.!?]+/).length,
+            length: (response.answer as string).length,
+            wordCount: (response.answer as string).split(/\s+/).length,
+            complexity: (response.answer as string).split(/[.!?]+/).length,
           } : null,
         })),
         

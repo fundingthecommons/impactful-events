@@ -29,7 +29,7 @@ const AIEvaluationSchema = z.object({
     maxTokens: z.number().optional(),
     promptVersion: z.string().optional(),
     features: z.array(z.string()).optional(), // Features used in evaluation
-    debugInfo: z.record(z.any()).optional(),
+    debugInfo: z.record(z.unknown()).optional(),
   }),
 });
 
@@ -50,7 +50,7 @@ async function POST(request: NextRequest, context: { params: Promise<{ eventId: 
   const { eventId } = await context.params;
   
   try {
-    const body = await request.json();
+    const body = await request.json() as unknown;
     const batchData = BatchAIEvaluationSchema.parse(body);
     
     // Verify all applications exist and belong to this event
@@ -82,16 +82,14 @@ async function POST(request: NextRequest, context: { params: Promise<{ eventId: 
       where: { email: "ai-reviewer@fundingthecommons.io" }
     });
 
-    if (!aiReviewer) {
-      aiReviewer = await db.user.create({
-        data: {
-          email: "ai-reviewer@fundingthecommons.io",
-          name: "AI Reviewer",
-          role: "REVIEWER"
-        }
-      });
-    }
 
+    aiReviewer ??= await db.user.create({
+      data: {
+        email: "ai-reviewer@fundingthecommons.io",
+        name: "AI Reviewer",
+        role: "REVIEWER"
+      }
+    });
     const results = [];
     const errors = [];
 

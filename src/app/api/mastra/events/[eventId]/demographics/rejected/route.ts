@@ -2,6 +2,77 @@ import type { NextRequest } from "next/server";
 import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
 
+// Type definitions for API responses
+interface UserProfile {
+  id: string;
+  name: string | null;
+  email: string;
+  company: string | null;
+  jobTitle: string | null;
+  location: string | null;
+  linkedinUrl: string | null;
+  githubUrl: string | null;
+  websiteUrl: string | null;
+  twitterUrl: string | null;
+  profilePictureUrl: string | null;
+}
+
+interface QuestionInfo {
+  questionKey: string | null;
+  questionEn: string;
+  questionType: string;
+}
+
+interface ResponseInfo {
+  answer: unknown;
+  question: QuestionInfo;
+}
+
+interface CriteriaInfo {
+  name: string;
+  category: string;
+  weight: number;
+}
+
+interface ScoreInfo {
+  score: number;
+  criteria: CriteriaInfo;
+}
+
+interface ReviewerInfo {
+  id: string;
+  name: string | null;
+}
+
+interface EvaluationInfo {
+  id: string;
+  status: string;
+  stage: string;
+  overallScore: number | null;
+  recommendation: string | null;
+  overallComments: string | null;
+  confidence: number | null;
+  completedAt: Date | null;
+  reviewer: ReviewerInfo;
+  scores: ScoreInfo[];
+}
+
+interface ApplicationData {
+  id: string;
+  user: UserProfile | null;
+  responses: ResponseInfo[];
+  evaluations: EvaluationInfo[];
+}
+
+interface EventInfo {
+  id: string;
+  name: string;
+  description: string | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  type: string;
+}
+
 async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await context.params;
   
@@ -74,67 +145,74 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       },
     });
 
+    const typedRejectedApplications = rejectedApplications as ApplicationData[];
+
     // Extract demographic insights with rejection analysis
     const demographics = {
-      totalRejected: rejectedApplications.length,
+      totalRejected: typedRejectedApplications.length,
       
       // Rejection analysis
       rejectionAnalysis: {
-        averageScore: rejectedApplications
-          .flatMap(app => app.evaluations)
-          .filter(eval => eval.overallScore !== null)
-          .reduce((sum, eval, _, arr) => sum + (eval.overallScore! / arr.length), 0) || null,
+        averageScore: (() => {
+          const validScores = typedRejectedApplications
+            .flatMap(app => app.evaluations)
+            .map(evaluation => evaluation.overallScore)
+            .filter((score): score is number => score !== null);
+          return validScores.length > 0 
+            ? validScores.reduce((sum, score) => sum + score, 0) / validScores.length 
+            : null;
+        })(),
         
-        commonRejectionReasons: rejectedApplications
+        commonRejectionReasons: typedRejectedApplications
           .flatMap(app => app.evaluations)
-          .map(eval => eval.overallComments)
-          .filter(Boolean)
+          .map(evaluation => evaluation.overallComments)
+          .filter((comment): comment is string => comment !== null)
           .slice(0, 10), // Sample of rejection reasons for pattern analysis
         
-        rejectionByStage: rejectedApplications
+        rejectionByStage: typedRejectedApplications
           .flatMap(app => app.evaluations)
-          .reduce((acc, eval) => {
-            acc[eval.stage] = (acc[eval.stage] ?? 0) + 1;
+          .reduce((acc, evaluation) => {
+            acc[evaluation.stage] = (acc[evaluation.stage] ?? 0) + 1;
             return acc;
           }, {} as Record<string, number>),
         
-        categoryScores: {} as Record<string, number[]>
+        categoryScores: {} as Record<string, number>
       },
       
       // Company distribution
-      companies: rejectedApplications
+      companies: typedRejectedApplications
         .map(app => app.user?.company)
-        .filter(Boolean)
+        .filter((company): company is string => company !== null)
         .reduce((acc, company) => {
-          acc[company!] = (acc[company!] ?? 0) + 1;
+          acc[company] = (acc[company] ?? 0) + 1;
           return acc;
         }, {} as Record<string, number>),
       
       // Job title patterns
-      jobTitles: rejectedApplications
+      jobTitles: typedRejectedApplications
         .map(app => app.user?.jobTitle)
-        .filter(Boolean)
+        .filter((title): title is string => title !== null)
         .reduce((acc, title) => {
-          acc[title!] = (acc[title!] ?? 0) + 1;
+          acc[title] = (acc[title] ?? 0) + 1;
           return acc;
         }, {} as Record<string, number>),
       
       // Geographic distribution
-      locations: rejectedApplications
+      locations: typedRejectedApplications
         .map(app => app.user?.location)
-        .filter(Boolean)
+        .filter((location): location is string => location !== null)
         .reduce((acc, location) => {
-          acc[location!] = (acc[location!] ?? 0) + 1;
+          acc[location] = (acc[location] ?? 0) + 1;
           return acc;
         }, {} as Record<string, number>),
       
       // Social presence indicators
       socialPresence: {
-        hasLinkedIn: rejectedApplications.filter(app => app.user?.linkedinUrl).length,
-        hasGitHub: rejectedApplications.filter(app => app.user?.githubUrl).length,
-        hasWebsite: rejectedApplications.filter(app => app.user?.websiteUrl).length,
-        hasTwitter: rejectedApplications.filter(app => app.user?.twitterUrl).length,
-        hasProfilePicture: rejectedApplications.filter(app => app.user?.profilePictureUrl).length,
+        hasLinkedIn: typedRejectedApplications.filter(app => app.user?.linkedinUrl).length,
+        hasGitHub: typedRejectedApplications.filter(app => app.user?.githubUrl).length,
+        hasWebsite: typedRejectedApplications.filter(app => app.user?.websiteUrl).length,
+        hasTwitter: typedRejectedApplications.filter(app => app.user?.twitterUrl).length,
+        hasProfilePicture: typedRejectedApplications.filter(app => app.user?.profilePictureUrl).length,
       },
       
       // Application response patterns
@@ -142,31 +220,33 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     };
 
     // Calculate category-specific scores for rejection patterns
-    rejectedApplications.forEach(app => {
+    const categoryScoresMap: Record<string, number[]> = {};
+    
+    typedRejectedApplications.forEach(app => {
       app.evaluations.forEach(evaluation => {
         evaluation.scores.forEach(score => {
           const category = score.criteria.category;
-          if (!demographics.rejectionAnalysis.categoryScores[category]) {
-            demographics.rejectionAnalysis.categoryScores[category] = [];
+          if (!categoryScoresMap[category]) {
+            categoryScoresMap[category] = [];
           }
-          demographics.rejectionAnalysis.categoryScores[category].push(score.score);
+          categoryScoresMap[category].push(score.score);
         });
       });
     });
 
     // Calculate averages for category scores
-    const categoryAverages = Object.entries(demographics.rejectionAnalysis.categoryScores).reduce((acc, [category, scores]) => {
+    const categoryAverages = Object.entries(categoryScoresMap).reduce((acc, [category, scores]) => {
       acc[category] = scores.length > 0 ? scores.reduce((sum, score) => sum + score, 0) / scores.length : 0;
       return acc;
     }, {} as Record<string, number>);
 
-    demographics.rejectionAnalysis.categoryScores = categoryAverages as any;
+    demographics.rejectionAnalysis.categoryScores = categoryAverages;
 
     // Analyze response patterns for key demographic questions
-    const sampleResponses = rejectedApplications[0]?.responses.filter(r => 
-      r.question.questionKey?.includes('background') ||
-      r.question.questionKey?.includes('experience') ||
-      r.question.questionKey?.includes('expertise') ||
+    const sampleResponses = typedRejectedApplications[0]?.responses.filter(r => 
+      r.question.questionKey?.includes('background') ??
+      r.question.questionKey?.includes('experience') ??
+      r.question.questionKey?.includes('expertise') ??
       r.question.questionKey?.includes('skills')
     ) ?? [];
 
@@ -179,19 +259,21 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       }
       
       // Count responses across all rejected applications
-      rejectedApplications.forEach(app => {
+      typedRejectedApplications.forEach(app => {
         const appResponse = app.responses.find(r => r.question.questionKey === questionKey);
         if (!appResponse) return;
         
         if (response.question.questionType === 'SELECT' || response.question.questionType === 'MULTISELECT') {
           const answers = Array.isArray(appResponse.answer) 
-            ? appResponse.answer 
+            ? appResponse.answer as unknown[]
             : appResponse.answer ? [appResponse.answer] : [];
           
           answers.forEach(answer => {
             if (typeof answer === 'string') {
-              demographics.responsePatterns[questionKey]![answer] = 
-                (demographics.responsePatterns[questionKey]![answer] ?? 0) + 1;
+              const currentPatterns = demographics.responsePatterns[questionKey];
+              if (currentPatterns) {
+                currentPatterns[answer] = (currentPatterns[answer] ?? 0) + 1;
+              }
             }
           });
         }
@@ -209,7 +291,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         endDate: true,
         type: true,
       },
-    });
+    }) as EventInfo | null;
 
     return Response.json({
       success: true,
@@ -220,7 +302,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         metadata: {
           generatedAt: new Date().toISOString(),
           purpose: "Demographics analysis of rejected applications for AI bias detection and improvement",
-          totalApplications: rejectedApplications.length,
+          totalApplications: typedRejectedApplications.length,
           anonymized: true,
           includesRejectionAnalysis: true,
           warningNote: "Use rejection patterns carefully to avoid reinforcing biases in AI training"

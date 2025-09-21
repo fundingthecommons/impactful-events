@@ -2,6 +2,104 @@ import type { NextRequest } from "next/server";
 import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
 
+// Type definitions for audit trail
+interface WhereClause {
+  application: {
+    eventId: string;
+  };
+  applicationId?: string;
+  reviewerId?: string;
+  reviewer?: {
+    email: string;
+  };
+  createdAt?: {
+    gte?: Date;
+    lte?: Date;
+  };
+}
+
+interface UserInfo {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
+interface ApplicationInfo {
+  id: string;
+  userId: string;
+  status: string;
+  submittedAt: Date | null;
+  user: UserInfo;
+}
+
+interface ReviewerInfo {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string | null;
+}
+
+interface CriteriaInfo {
+  id: string;
+  name: string;
+  category: string;
+}
+
+interface ScoreInfo {
+  id: string;
+  criteriaId: string;
+  score: number;
+  reasoning: string | null;
+  createdAt: Date;
+  criteria: CriteriaInfo;
+}
+
+interface CommentInfo {
+  id: string;
+  questionKey: string | null;
+  comment: string;
+  isPrivate: boolean;
+  createdAt: Date;
+}
+
+interface EvaluationInfo {
+  id: string;
+  applicationId: string;
+  reviewerId: string;
+  stage: string;
+  overallScore: number | null;
+  recommendation: string | null;
+  confidence: number | null;
+  timeSpentMinutes: number | null;
+  createdAt: Date;
+  completedAt: Date | null;
+  internalNotes: string | null;
+  application: ApplicationInfo;
+  reviewer: ReviewerInfo;
+  scores: ScoreInfo[];
+  comments: CommentInfo[];
+}
+
+interface AuditEvent {
+  id: string;
+  timestamp: Date;
+  eventType: 'EVALUATION_STARTED' | 'EVALUATION_COMPLETED' | 'SCORE_UPDATED' | 'COMMENT_ADDED' | 'STATUS_CHANGED' | 'AI_EVALUATION';
+  applicationId: string;
+  reviewerId?: string;
+  reviewerName?: string;
+  isAIReviewer: boolean;
+  details: Record<string, unknown>;
+  metadata?: unknown;
+}
+
+interface ApplicationStatus {
+  id: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  submittedAt: Date | null;
+}
+
 async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await context.params;
   const { searchParams } = new URL(request.url);
@@ -16,7 +114,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
   
   try {
     // Build where clause for audit trail query
-    const whereClause: any = {
+    const whereClause: WhereClause = {
       application: {
         eventId: eventId
       }
@@ -36,7 +134,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       };
     }
     
-    if (fromDate || toDate) {
+    if (fromDate ?? toDate) {
       whereClause.createdAt = {};
       if (fromDate) whereClause.createdAt.gte = new Date(fromDate);
       if (toDate) whereClause.createdAt.lte = new Date(toDate);
@@ -95,6 +193,8 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       take: limit
     });
 
+    const typedEvaluations = evaluations as EvaluationInfo[];
+
     // Get application status changes (if we have a status audit table)
     // For now, we'll infer status changes from evaluation completion times
     
@@ -113,21 +213,13 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       }
     });
 
+    const _typedApplications = applications as ApplicationStatus[];
+
     // Build comprehensive audit trail
-    const auditEvents: Array<{
-      id: string;
-      timestamp: Date;
-      eventType: 'EVALUATION_STARTED' | 'EVALUATION_COMPLETED' | 'SCORE_UPDATED' | 'COMMENT_ADDED' | 'STATUS_CHANGED' | 'AI_EVALUATION';
-      applicationId: string;
-      reviewerId?: string;
-      reviewerName?: string;
-      isAIReviewer: boolean;
-      details: any;
-      metadata?: any;
-    }> = [];
+    const auditEvents: AuditEvent[] = [];
 
     // Process evaluation events
-    evaluations.forEach(evaluation => {
+    typedEvaluations.forEach(evaluation => {
       const isAI = evaluation.reviewer.email === "ai-reviewer@fundingthecommons.io";
       
       // Evaluation started event
@@ -165,7 +257,13 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
             timeSpentMinutes: evaluation.timeSpentMinutes,
             action: 'completed',
           },
-          metadata: isAI && evaluation.internalNotes ? JSON.parse(evaluation.internalNotes) : undefined,
+          metadata: isAI && evaluation.internalNotes ? (() => {
+            try {
+              return JSON.parse(evaluation.internalNotes) as unknown;
+            } catch {
+              return undefined;
+            }
+          })() : undefined,
         });
       }
 
@@ -237,28 +335,29 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         humanEvents: auditEvents.filter(e => !e.isAIReviewer).length,
       },
       timeRange: {
-        earliest: auditEvents[auditEvents.length - 1]?.timestamp,
-        latest: auditEvents[0]?.timestamp,
+        earliest: auditEvents[auditEvents.length - 1]?.timestamp ?? null,
+        latest: auditEvents[0]?.timestamp ?? null,
       }
     };
 
     // Identify patterns and anomalies
     const patterns = {
-      rapidFireEvaluations: auditEvents.filter(event => 
-        event.eventType === 'EVALUATION_COMPLETED' && 
-        event.details.timeSpentMinutes && 
-        event.details.timeSpentMinutes < 5
-      ).length,
+      rapidFireEvaluations: auditEvents.filter(event => {
+        const timeSpent = event.details.timeSpentMinutes;
+        return event.eventType === 'EVALUATION_COMPLETED' && 
+               typeof timeSpent === 'number' &&
+               timeSpent < 5;
+      }).length,
       
-      highVarianceScoring: evaluations.filter(eval => {
-        const scores = eval.scores.map(s => s.score);
+      highVarianceScoring: typedEvaluations.filter(evaluation => {
+        const scores = evaluation.scores.map(s => s.score);
         if (scores.length < 2) return false;
         const mean = scores.reduce((sum, score) => sum + score, 0) / scores.length;
         const variance = scores.reduce((sum, score) => sum + Math.pow(score - mean, 2), 0) / scores.length;
         return Math.sqrt(variance) > 15; // High standard deviation
       }).length,
       
-      incompleteEvaluations: evaluations.filter(eval => !eval.completedAt).length,
+      incompleteEvaluations: typedEvaluations.filter(evaluation => !evaluation.completedAt).length,
       
       reviewerWorkload: Object.entries(statistics.reviewerActivity)
         .map(([reviewerId, count]) => ({ reviewerId, eventCount: count }))

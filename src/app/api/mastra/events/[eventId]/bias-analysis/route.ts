@@ -23,15 +23,23 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         user: {
           select: {
             id: true,
-            company: true,
-            jobTitle: true,
-            location: true,
-            linkedinUrl: true,
-            githubUrl: true,
-            websiteUrl: true,
-            twitterUrl: true,
-            profilePictureUrl: true,
+            name: true,
+            email: true,
+            image: true,
           },
+          include: {
+            profile: {
+              select: {
+                company: true,
+                jobTitle: true,
+                location: true,
+                linkedinUrl: true,
+                githubUrl: true,
+                website: true,
+                twitterUrl: true,
+              }
+            }
+          }
         },
         responses: {
           include: {
@@ -164,14 +172,12 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
 
     // Analyze company bias
     evaluatedApplications.forEach(app => {
-      if (!app.user?.company) return;
-      const company = app.user.company;
+      if (!app.user?.profile?.company) return;
+      const company = app.user.profile.company;
       
-      if (!biasAnalysis.companyBias[company]) {
-        biasAnalysis.companyBias[company] = {
-          total: 0, accepted: 0, avgScore: 0, acceptanceRate: 0, scoreDistribution: [], biasRisk: 'low'
-        };
-      }
+      biasAnalysis.companyBias[company] ??= {
+        total: 0, accepted: 0, avgScore: 0, acceptanceRate: 0, scoreDistribution: [], biasRisk: "low"
+      };
       
       const companyData = biasAnalysis.companyBias[company];
       companyData.total++;
@@ -199,14 +205,12 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
 
     // Analyze location bias (similar pattern)
     evaluatedApplications.forEach(app => {
-      if (!app.user?.location) return;
-      const location = app.user.location;
+      if (!app.user?.profile?.location) return;
+      const location = app.user.profile.location;
       
-      if (!biasAnalysis.locationBias[location]) {
-        biasAnalysis.locationBias[location] = {
-          total: 0, accepted: 0, avgScore: 0, acceptanceRate: 0, scoreDistribution: [], biasRisk: 'low'
-        };
-      }
+      biasAnalysis.locationBias[location] ??= {
+        total: 0, accepted: 0, avgScore: 0, acceptanceRate: 0, scoreDistribution: [], biasRisk: "low"
+      };
       
       const locationData = biasAnalysis.locationBias[location];
       locationData.total++;
@@ -231,14 +235,12 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
 
     // Analyze job title bias (similar pattern)
     evaluatedApplications.forEach(app => {
-      if (!app.user?.jobTitle) return;
-      const jobTitle = app.user.jobTitle;
+      if (!app.user?.profile?.jobTitle) return;
+      const jobTitle = app.user.profile.jobTitle;
       
-      if (!biasAnalysis.jobTitleBias[jobTitle]) {
-        biasAnalysis.jobTitleBias[jobTitle] = {
-          total: 0, accepted: 0, avgScore: 0, acceptanceRate: 0, scoreDistribution: [], biasRisk: 'low'
-        };
-      }
+      biasAnalysis.jobTitleBias[jobTitle] ??= {
+        total: 0, accepted: 0, avgScore: 0, acceptanceRate: 0, scoreDistribution: [], biasRisk: "low"
+      };
       
       const jobData = biasAnalysis.jobTitleBias[jobTitle];
       jobData.total++;
@@ -262,7 +264,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     });
 
     // Analyze social presence bias
-    const socialPresenceAnalysis = (field: keyof typeof biasAnalysis.socialPresenceBias, accessor: (user: any) => boolean) => {
+    const socialPresenceAnalysis = (field: keyof typeof biasAnalysis.socialPresenceBias, accessor: (user: { profile?: { linkedinUrl?: string; githubUrl?: string; website?: string }; image?: string } | null) => boolean) => {
       const withFeature = evaluatedApplications.filter(app => accessor(app.user));
       const data = biasAnalysis.socialPresenceBias[field];
       
@@ -276,13 +278,13 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       data.avgScore = scores.length > 0 ? scores.reduce((sum, s) => sum + s, 0) / scores.length : 0;
     };
 
-    socialPresenceAnalysis('withLinkedIn', (user) => !!user?.linkedinUrl);
-    socialPresenceAnalysis('withGitHub', (user) => !!user?.githubUrl);
-    socialPresenceAnalysis('withWebsite', (user) => !!user?.websiteUrl);
-    socialPresenceAnalysis('withProfilePicture', (user) => !!user?.profilePictureUrl);
+    socialPresenceAnalysis('withLinkedIn', (user) => !!user?.profile?.linkedinUrl);
+    socialPresenceAnalysis('withGitHub', (user) => !!user?.profile?.githubUrl);
+    socialPresenceAnalysis('withWebsite', (user) => !!user?.profile?.website);
+    socialPresenceAnalysis('withProfilePicture', (user) => !!user?.image);
     
     const withoutSocial = evaluatedApplications.filter(app => 
-      !app.user?.linkedinUrl && !app.user?.githubUrl && !app.user?.websiteUrl && !app.user?.profilePictureUrl
+      !app.user?.profile?.linkedinUrl && !app.user?.profile?.githubUrl && !app.user?.profile?.website && !app.user?.image
     );
     biasAnalysis.socialPresenceBias.withoutSocialPresence = {
       total: withoutSocial.length,
