@@ -61,6 +61,7 @@ interface ReviewerCardProps {
     overallScore: number | null;
     confidence: number | null;
     recommendation: string | null;
+    overallComments: string | null;
     completedAt: Date | null;
     scores: Array<{
       id: string;
@@ -220,6 +221,18 @@ function ReviewerCard({ reviewer, onExpandToggle, expanded, evaluationData }: Re
               </Box>
             )}
 
+            {/* Overall recommendation notes */}
+            {evaluationData?.overallComments && (
+              <Box>
+                <Text size="xs" fw={600} mb="xs">Recommendation Notes</Text>
+                <Paper p="sm" bg="blue.1" radius="sm">
+                  <Text size="sm" style={{ lineHeight: 1.4 }}>
+                    {evaluationData.overallComments}
+                  </Text>
+                </Paper>
+              </Box>
+            )}
+
             {/* Detailed criteria scores */}
             {evaluationData?.scores && evaluationData.scores.length > 0 && (
               <Box>
@@ -295,6 +308,7 @@ interface ConsensusEvaluationViewProps {
         overallScore: number | null;
         confidence: number | null;
         recommendation: string | null;
+        overallComments: string | null;
         completedAt: Date | null;
         reviewer: {
           id: string;
