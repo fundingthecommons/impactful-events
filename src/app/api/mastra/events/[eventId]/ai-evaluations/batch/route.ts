@@ -90,8 +90,8 @@ async function POST(request: NextRequest, context: { params: Promise<{ eventId: 
         role: "REVIEWER"
       }
     });
-    const results = [];
-    const errors = [];
+    const results: Array<{ applicationId: string; evaluationId: string; status: string }> = [];
+    const errors: Array<{ applicationId: string; error: string }> = [];
 
     // Process evaluations in transaction batches for better performance
     const batchSize = 10;
@@ -102,27 +102,41 @@ async function POST(request: NextRequest, context: { params: Promise<{ eventId: 
         await db.$transaction(async (tx) => {
           for (const evaluation of batch) {
             try {
+              // Create or find reviewer assignment
+              let assignment = await tx.reviewerAssignment.findUnique({
+                where: {
+                  applicationId_reviewerId_stage: {
+                    applicationId: evaluation.applicationId,
+                    reviewerId: aiReviewer.id,
+                    stage: evaluation.stage
+                  }
+                }
+              });
+              assignment ??= await tx.reviewerAssignment.create({
+                data: {
+                  applicationId: evaluation.applicationId,
+                  reviewerId: aiReviewer.id,
+                  stage: evaluation.stage,
+                  assignedAt: new Date(),
+                  completedAt: new Date(),
+                }
+              });
+
               // Create the evaluation
               const newEvaluation = await tx.applicationEvaluation.create({
                 data: {
                   applicationId: evaluation.applicationId,
                   reviewerId: aiReviewer.id,
+                  assignmentId: assignment.id,
                   stage: evaluation.stage,
                   status: "COMPLETED",
-                  overallScore: evaluation.overallScore,
-                  confidence: evaluation.confidence,
+                  overallScore: evaluation.overallScore,                  confidence: evaluation.confidence,
                   recommendation: evaluation.recommendation,
                   overallComments: evaluation.overallComments,
                   timeSpentMinutes: evaluation.timeSpentMinutes ?? 0,
                   completedAt: new Date(),
-                  internalNotes: JSON.stringify({
-                    ...evaluation.aiMetadata,
-                    batchId: batchData.batchMetadata.batchId,
-                    batchProcessingTime: batchData.batchMetadata.processingEndTime,
-                  }),
                 },
               });
-
               // Create individual criteria scores
               for (const score of evaluation.scores) {
                 await tx.evaluationScore.create({

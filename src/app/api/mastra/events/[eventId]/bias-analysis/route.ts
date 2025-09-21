@@ -193,21 +193,21 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     // Calculate company statistics and bias risk
     Object.keys(biasAnalysis.companyBias).forEach(company => {
       const data = biasAnalysis.companyBias[company];
-      data.acceptanceRate = data.accepted / data.total;
-      data.avgScore = data.scoreDistribution.length > 0 
-        ? data.scoreDistribution.reduce((sum, score) => sum + score, 0) / data.scoreDistribution.length 
-        : 0;
-      
-      // Determine bias risk based on deviation from overall acceptance rate
-      const deviation = Math.abs(data.acceptanceRate - overallAcceptanceRate);
-      data.biasRisk = deviation > 0.3 ? 'high' : deviation > 0.15 ? 'medium' : 'low';
+      if (data) {
+        data.acceptanceRate = data.accepted / data.total;
+        data.avgScore = data.scoreDistribution.length > 0
+          ? data.scoreDistribution.reduce((sum, score) => sum + score, 0) / data.scoreDistribution.length
+          : 0;
+        // Determine bias risk based on deviation from overall acceptance rate
+        const deviation = Math.abs(data.acceptanceRate - overallAcceptanceRate);
+        data.biasRisk = deviation > 0.3 ? "high" : deviation > 0.15 ? "medium" : "low";
+      }
     });
 
     // Analyze location bias (similar pattern)
     evaluatedApplications.forEach(app => {
       if (!app.user?.profile?.location) return;
-      const location = app.user.profile.location;
-      
+      const location = app.user.profile.location;      
       biasAnalysis.locationBias[location] ??= {
         total: 0, accepted: 0, avgScore: 0, acceptanceRate: 0, scoreDistribution: [], biasRisk: "low"
       };
@@ -224,14 +224,14 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
 
     Object.keys(biasAnalysis.locationBias).forEach(location => {
       const data = biasAnalysis.locationBias[location];
-      data.acceptanceRate = data.accepted / data.total;
-      data.avgScore = data.scoreDistribution.length > 0 
-        ? data.scoreDistribution.reduce((sum, score) => sum + score, 0) / data.scoreDistribution.length 
-        : 0;
-      
-      const deviation = Math.abs(data.acceptanceRate - overallAcceptanceRate);
-      data.biasRisk = deviation > 0.3 ? 'high' : deviation > 0.15 ? 'medium' : 'low';
-    });
+      if (data) {
+        data.acceptanceRate = data.accepted / data.total;
+        data.avgScore = data.scoreDistribution.length > 0
+          ? data.scoreDistribution.reduce((sum, score) => sum + score, 0) / data.scoreDistribution.length
+          : 0;
+        const deviation = Math.abs(data.acceptanceRate - overallAcceptanceRate);
+        data.biasRisk = deviation > 0.3 ? "high" : deviation > 0.15 ? "medium" : "low";
+      }    });
 
     // Analyze job title bias (similar pattern)
     evaluatedApplications.forEach(app => {
@@ -254,17 +254,18 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
 
     Object.keys(biasAnalysis.jobTitleBias).forEach(jobTitle => {
       const data = biasAnalysis.jobTitleBias[jobTitle];
-      data.acceptanceRate = data.accepted / data.total;
-      data.avgScore = data.scoreDistribution.length > 0 
-        ? data.scoreDistribution.reduce((sum, score) => sum + score, 0) / data.scoreDistribution.length 
-        : 0;
-      
-      const deviation = Math.abs(data.acceptanceRate - overallAcceptanceRate);
-      data.biasRisk = deviation > 0.3 ? 'high' : deviation > 0.15 ? 'medium' : 'low';
-    });
+      if (data) {
+        data.acceptanceRate = data.accepted / data.total;
+        data.avgScore = data.scoreDistribution.length > 0 
+          ? data.scoreDistribution.reduce((sum, score) => sum + score, 0) / data.scoreDistribution.length 
+          : 0;
+        
+        const deviation = Math.abs(data.acceptanceRate - overallAcceptanceRate);
+        data.biasRisk = deviation > 0.3 ? "high" : deviation > 0.15 ? "medium" : "low";
+      }    });
 
     // Analyze social presence bias
-    const socialPresenceAnalysis = (field: keyof typeof biasAnalysis.socialPresenceBias, accessor: (user: { profile?: { linkedinUrl?: string; githubUrl?: string; website?: string }; image?: string } | null) => boolean) => {
+    const socialPresenceAnalysis = (field: keyof typeof biasAnalysis.socialPresenceBias, accessor: (user: unknown) => boolean) => {
       const withFeature = evaluatedApplications.filter(app => accessor(app.user));
       const data = biasAnalysis.socialPresenceBias[field];
       
@@ -278,10 +279,10 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       data.avgScore = scores.length > 0 ? scores.reduce((sum, s) => sum + s, 0) / scores.length : 0;
     };
 
-    socialPresenceAnalysis('withLinkedIn', (user) => !!user?.profile?.linkedinUrl);
-    socialPresenceAnalysis('withGitHub', (user) => !!user?.profile?.githubUrl);
-    socialPresenceAnalysis('withWebsite', (user) => !!user?.profile?.website);
-    socialPresenceAnalysis('withProfilePicture', (user) => !!user?.image);
+    socialPresenceAnalysis('withLinkedIn', (user) => typeof user === 'object' && user !== null && 'profile' in user && typeof user.profile === 'object' && user.profile !== null && 'linkedinUrl' in user.profile && !!user.profile.linkedinUrl);
+    socialPresenceAnalysis('withGitHub', (user) => typeof user === 'object' && user !== null && 'profile' in user && typeof user.profile === 'object' && user.profile !== null && 'githubUrl' in user.profile && !!user.profile.githubUrl);
+    socialPresenceAnalysis('withWebsite', (user) => typeof user === 'object' && user !== null && 'profile' in user && typeof user.profile === 'object' && user.profile !== null && 'website' in user.profile && !!user.profile.website);
+    socialPresenceAnalysis('withProfilePicture', (user) => typeof user === 'object' && user !== null && 'image' in user && !!user.image);
     
     const withoutSocial = evaluatedApplications.filter(app => 
       !app.user?.profile?.linkedinUrl && !app.user?.profile?.githubUrl && !app.user?.profile?.website && !app.user?.image

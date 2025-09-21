@@ -7,16 +7,17 @@ interface UserProfile {
   id: string;
   name: string | null;
   email: string;
-  company: string | null;
-  jobTitle: string | null;
-  location: string | null;
-  linkedinUrl: string | null;
-  githubUrl: string | null;
-  websiteUrl: string | null;
-  twitterUrl: string | null;
-  profilePictureUrl: string | null;
+  profile?: {
+    company: string | null;
+    jobTitle: string | null;
+    location: string | null;
+    linkedinUrl: string | null;
+    githubUrl: string | null;
+    website: string | null;
+    twitterUrl: string | null;
+  } | null;
+  image?: string | null;
 }
-
 interface QuestionInfo {
   questionKey: string | null;
   questionEn: string;
@@ -60,15 +61,19 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
             name: true,
             email: true,
             // Demographics fields from user profile
-            company: true,
-            jobTitle: true,
-            location: true,
-            linkedinUrl: true,
-            githubUrl: true,
-            websiteUrl: true,
-            twitterUrl: true,
-            profilePictureUrl: true,
           },
+          include: {
+            profile: {
+              select: {
+                company: true,
+                jobTitle: true,
+                location: true,
+                linkedinUrl: true,
+                githubUrl: true,
+                website: true,
+                twitterUrl: true,
+              }
+            }          },
         },
         responses: {
           include: {
@@ -92,7 +97,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       
       // Company distribution
       companies: typedAcceptedApplications
-        .map(app => app.user?.company)
+        .map(app => app.user?.profile?.company)
         .filter((company): company is string => company !== null)
         .reduce((acc, company) => {
           acc[company] = (acc[company] ?? 0) + 1;
@@ -101,7 +106,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       
       // Job title patterns
       jobTitles: typedAcceptedApplications
-        .map(app => app.user?.jobTitle)
+        .map(app => app.user?.profile?.jobTitle)
         .filter((title): title is string => title !== null)
         .reduce((acc, title) => {
           acc[title] = (acc[title] ?? 0) + 1;
@@ -110,7 +115,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       
       // Geographic distribution
       locations: typedAcceptedApplications
-        .map(app => app.user?.location)
+        .map(app => app.user?.profile?.location)
         .filter((location): location is string => location !== null)
         .reduce((acc, location) => {
           acc[location] = (acc[location] ?? 0) + 1;
@@ -119,11 +124,11 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       
       // Social presence indicators
       socialPresence: {
-        hasLinkedIn: typedAcceptedApplications.filter(app => app.user?.linkedinUrl).length,
-        hasGitHub: typedAcceptedApplications.filter(app => app.user?.githubUrl).length,
-        hasWebsite: typedAcceptedApplications.filter(app => app.user?.websiteUrl).length,
-        hasTwitter: typedAcceptedApplications.filter(app => app.user?.twitterUrl).length,
-        hasProfilePicture: typedAcceptedApplications.filter(app => app.user?.profilePictureUrl).length,
+        hasLinkedIn: typedAcceptedApplications.filter(app => app.user?.profile?.linkedinUrl).length,
+        hasGitHub: typedAcceptedApplications.filter(app => app.user?.profile?.githubUrl).length,
+        hasWebsite: typedAcceptedApplications.filter(app => app.user?.profile?.website).length,
+        hasTwitter: typedAcceptedApplications.filter(app => app.user?.profile?.twitterUrl).length,
+        hasProfilePicture: typedAcceptedApplications.filter(app => app.user?.image).length,
       },
       
       // Application response patterns
@@ -142,10 +147,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       const questionKey = response.question.questionKey;
       if (!questionKey) return;
       
-      if (!demographics.responsePatterns[questionKey]) {
-        demographics.responsePatterns[questionKey] = {};
-      }
-      
+      demographics.responsePatterns[questionKey] ??= {};
       // Count responses across all accepted applications
       typedAcceptedApplications.forEach(app => {
         const appResponse = app.responses.find(r => r.question.questionKey === questionKey);

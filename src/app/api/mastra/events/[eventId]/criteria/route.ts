@@ -3,7 +3,7 @@ import { db } from "~/server/db";
 import { withMastraAuth } from "~/utils/validateApiKey";
 
 async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
-  const { eventId } = await context.params;
+  await context.params; // eventId not needed for global criteria
   
   try {
     const data = await db.evaluationCriteria.findMany({

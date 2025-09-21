@@ -105,9 +105,8 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
             score: score.score,
             reasoning: score.reasoning,
           })),
-          // AI metadata stored in comments or custom fields
-          aiMetadata: evaluation.internalNotes ? JSON.parse(evaluation.internalNotes as string) as unknown : null,
-        })),
+          // AI metadata not stored in current schema
+          aiMetadata: null,        })),
         totalCount: aiEvaluations.length,
         metadata: {
           generatedAt: new Date().toISOString(),
@@ -167,11 +166,34 @@ async function POST(request: NextRequest, context: { params: Promise<{ eventId: 
       }
     });
 
+
+    // Create or find reviewer assignment
+    let assignment = await db.reviewerAssignment.findUnique({
+      where: {
+        applicationId_reviewerId_stage: {
+          applicationId: evaluation.applicationId,
+          reviewerId: aiReviewer.id,
+          stage: evaluation.stage
+        }
+      }
+    });
+
+    assignment ??= await db.reviewerAssignment.create({
+      data: {
+        applicationId: evaluation.applicationId,
+        reviewerId: aiReviewer.id,
+        stage: evaluation.stage,
+        assignedAt: new Date(),
+        completedAt: new Date(),
+      }
+    });
+
     // Create the evaluation
     const newEvaluation = await db.applicationEvaluation.create({
       data: {
         applicationId: evaluation.applicationId,
         reviewerId: aiReviewer.id,
+        assignmentId: assignment.id,
         stage: evaluation.stage,
         status: "COMPLETED",
         overallScore: evaluation.overallScore,
@@ -180,10 +202,8 @@ async function POST(request: NextRequest, context: { params: Promise<{ eventId: 
         overallComments: evaluation.overallComments,
         timeSpentMinutes: evaluation.timeSpentMinutes ?? 0,
         completedAt: new Date(),
-        internalNotes: JSON.stringify(evaluation.aiMetadata), // Store AI metadata
       },
     });
-
     // Create individual criteria scores
     for (const score of evaluation.scores) {
       await db.evaluationScore.create({

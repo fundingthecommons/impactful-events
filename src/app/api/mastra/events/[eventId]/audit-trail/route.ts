@@ -73,7 +73,6 @@ interface EvaluationInfo {
   timeSpentMinutes: number | null;
   createdAt: Date;
   completedAt: Date | null;
-  internalNotes: string | null;
   application: ApplicationInfo;
   reviewer: ReviewerInfo;
   scores: ScoreInfo[];
@@ -92,13 +91,6 @@ interface AuditEvent {
   metadata?: unknown;
 }
 
-interface ApplicationStatus {
-  id: string;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-  submittedAt: Date | null;
-}
 
 async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await context.params;
@@ -195,25 +187,6 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
 
     const typedEvaluations = evaluations as EvaluationInfo[];
 
-    // Get application status changes (if we have a status audit table)
-    // For now, we'll infer status changes from evaluation completion times
-    
-    // Get all applications for context
-    const applications = await db.application.findMany({
-      where: {
-        eventId,
-        ...(applicationId ? { id: applicationId } : {})
-      },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        submittedAt: true,
-      }
-    });
-
-    const _typedApplications = applications as ApplicationStatus[];
 
     // Build comprehensive audit trail
     const auditEvents: AuditEvent[] = [];
@@ -257,21 +230,14 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
             timeSpentMinutes: evaluation.timeSpentMinutes,
             action: 'completed',
           },
-          metadata: isAI && evaluation.internalNotes ? (() => {
-            try {
-              return JSON.parse(evaluation.internalNotes) as unknown;
-            } catch {
-              return undefined;
-            }
-          })() : undefined,
+          metadata: undefined,
         });
       }
 
       // Individual score events
       evaluation.scores.forEach(score => {
         auditEvents.push({
-          id: `score_${score.id}`,
-          timestamp: score.createdAt,
+          id: `score_${score.id}`,          timestamp: score.createdAt,
           eventType: 'SCORE_UPDATED',
           applicationId: evaluation.applicationId,
           reviewerId: evaluation.reviewerId,

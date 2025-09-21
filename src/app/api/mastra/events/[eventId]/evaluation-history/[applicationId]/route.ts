@@ -7,10 +7,11 @@ interface UserProfile {
   id: string;
   name: string | null;
   email: string;
-  company: string | null;
-  jobTitle: string | null;
+  profile?: {
+    company: string | null;
+    jobTitle: string | null;
+  } | null;
 }
-
 interface EventInfo {
   id: string;
   name: string;
@@ -86,7 +87,6 @@ interface EvaluationInfo {
   createdAt: Date;
   completedAt: Date | null;
   updatedAt: Date;
-  internalNotes: string | null;
   reviewer: ReviewerInfo;
   scores: ScoreInfo[];
   comments: CommentInfo[];
@@ -106,12 +106,6 @@ interface ApplicationData {
   responses: ResponseInfo[];
 }
 
-interface DecidedByInfo {
-  id: string;
-  name: string | null;
-  email: string;
-}
-
 interface ConsensusInfo {
   id: string;
   finalDecision: string;
@@ -119,9 +113,7 @@ interface ConsensusInfo {
   discussionNotes: string | null;
   decidedAt: Date | null;
   createdAt: Date;
-  decidedBy: DecidedByInfo;
 }
-
 async function GET(
   request: NextRequest, 
   context: { params: Promise<{ eventId: string; applicationId: string }> }
@@ -141,9 +133,14 @@ async function GET(
             id: true,
             name: true,
             email: true,
-            company: true,
-            jobTitle: true,
-          }
+          },
+          include: {
+            profile: {
+              select: {
+                company: true,
+                jobTitle: true,
+              }
+            }          }
         },
         event: {
           select: {
@@ -240,22 +237,11 @@ async function GET(
     const typedEvaluations = evaluations as EvaluationInfo[];
 
     // Get any consensus decisions for this application
-    const consensus = await db.consensusDecision.findFirst({
+    const consensus = await db.reviewConsensus.findFirst({
       where: {
         applicationId: applicationId,
       },
-      include: {
-        decidedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          }
-        }
-      }
-    }) as ConsensusInfo | null;
-
-    // Transform evaluations with detailed history
+    }) as ConsensusInfo | null;    // Transform evaluations with detailed history
     const evaluationHistory = typedEvaluations.map(evaluation => {
       const isAIReviewer = evaluation.reviewer.email === "ai-reviewer@fundingthecommons.io";
       
@@ -312,16 +298,7 @@ async function GET(
           createdAt: comment.createdAt,
         })),
         // AI metadata if available
-        aiMetadata: isAIReviewer && evaluation.internalNotes 
-          ? (() => {
-              try {
-                return JSON.parse(evaluation.internalNotes) as unknown;
-              } catch {
-                return null;
-              }
-            })()
-          : null,
-      };
+        aiMetadata: null,      };
     });
 
     // Calculate evaluation analytics
@@ -391,15 +368,15 @@ async function GET(
       timeline: {
         firstEvaluation: typedEvaluations[0]?.createdAt ?? null,
         lastEvaluation: typedEvaluations[typedEvaluations.length - 1]?.completedAt ?? null,
-        evaluationDuration: typedEvaluations.length > 0 && 
-                           typedEvaluations[0] && 
-                           typedEvaluations[typedEvaluations.length - 1]?.completedAt
-          ? new Date(typedEvaluations[typedEvaluations.length - 1].completedAt!).getTime() - 
-            new Date(typedEvaluations[0].createdAt).getTime()
-          : null,
+        evaluationDuration: (() => {
+          const lastEval = typedEvaluations[typedEvaluations.length - 1];
+          const firstEval = typedEvaluations[0];
+          return typedEvaluations.length > 0 && firstEval && lastEval?.completedAt
+            ? new Date(lastEval.completedAt).getTime() - new Date(firstEval.createdAt).getTime()
+            : null;
+        })(),
       }
     };
-
     // Identify evaluation patterns and insights
     const insights = {
       reviewerAgreement: calculateReviewerAgreement(typedEvaluations),
@@ -438,7 +415,7 @@ async function GET(
           finalDecision: consensus.finalDecision,
           consensusScore: consensus.consensusScore,
           discussionNotes: consensus.discussionNotes,
-          decidedBy: consensus.decidedBy,
+          
           decidedAt: consensus.decidedAt,
           createdAt: consensus.createdAt,
         } : null,

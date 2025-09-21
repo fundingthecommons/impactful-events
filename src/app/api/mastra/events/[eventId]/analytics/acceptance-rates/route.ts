@@ -88,13 +88,14 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     // Calculate acceptance rates for companies
     Object.keys(companyRates).forEach(company => {
       const data = companyRates[company];
-      data.acceptanceRate = data.total > 0 ? (data.accepted / data.total) * 100 : 0;
+      if (data) {
+        data.acceptanceRate = data.total > 0 ? (data.accepted / data.total) * 100 : 0;
+      }
     });
 
     // Calculate acceptance rates by job title
     const jobTitleRates = {} as Record<string, {
-      total: number;
-      accepted: number;
+      total: number;      accepted: number;
       rejected: number;
       acceptanceRate: number;
     }>;
@@ -112,12 +113,13 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     // Calculate acceptance rates for job titles
     Object.keys(jobTitleRates).forEach(jobTitle => {
       const data = jobTitleRates[jobTitle];
-      data.acceptanceRate = data.total > 0 ? (data.accepted / data.total) * 100 : 0;
+      if (data) {
+        data.acceptanceRate = data.total > 0 ? (data.accepted / data.total) * 100 : 0;
+      }
     });
 
     // Calculate acceptance rates by location
-    const locationRates = {} as Record<string, {
-      total: number;
+    const locationRates = {} as Record<string, {      total: number;
       accepted: number;
       rejected: number;
       acceptanceRate: number;
@@ -136,12 +138,13 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
     // Calculate acceptance rates for locations
     Object.keys(locationRates).forEach(location => {
       const data = locationRates[location];
-      data.acceptanceRate = data.total > 0 ? (data.accepted / data.total) * 100 : 0;
+      if (data) {
+        data.acceptanceRate = data.total > 0 ? (data.accepted / data.total) * 100 : 0;
+      }
     });
 
     // Calculate acceptance rates by social presence
-    const socialPresenceRates = {
-      hasLinkedIn: {
+    const socialPresenceRates = {      hasLinkedIn: {
         total: allApplications.filter(app => app.user?.profile?.linkedinUrl).length,
         accepted: acceptedApplications.filter(app => app.user?.profile?.linkedinUrl).length,
         acceptanceRate: 0,
@@ -202,26 +205,30 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         
         answers.forEach(answer => {
           if (typeof answer === 'string') {
-            responseCorrelations[questionKey][answer] ??= { total: 0, accepted: 0, acceptanceRate: 0 };
-            responseCorrelations[questionKey][answer].total++;
-            if (app.status === "ACCEPTED") {
-              responseCorrelations[questionKey][answer].accepted++;
+            if (responseCorrelations[questionKey]) {
+              responseCorrelations[questionKey][answer] ??= { total: 0, accepted: 0, acceptanceRate: 0 };
+              responseCorrelations[questionKey][answer].total++;
+              if (app.status === "ACCEPTED") {
+                responseCorrelations[questionKey][answer].accepted++;
+              }
             }
           }
         });
       });
       
       // Calculate acceptance rates for each response option
-      Object.keys(responseCorrelations[questionKey]).forEach(answer => {
-        const data = responseCorrelations[questionKey][answer];
-        data.acceptanceRate = data.total > 0 ? (data.accepted / data.total) * 100 : 0;
-      });
+      if (responseCorrelations[questionKey]) {
+        Object.keys(responseCorrelations[questionKey]).forEach(answer => {
+          const data = responseCorrelations[questionKey]![answer];
+          if (data) {
+            data.acceptanceRate = data.total > 0 ? (data.accepted / data.total) * 100 : 0;
+          }
+        });
+      }
     });
-
     // Get event context
     const event = await db.event.findUnique({
-      where: { id: eventId },
-      select: {
+      where: { id: eventId },      select: {
         id: true,
         name: true,
         description: true,

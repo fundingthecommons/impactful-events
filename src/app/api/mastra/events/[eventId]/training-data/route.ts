@@ -7,15 +7,17 @@ interface UserProfile {
   id: string;
   name: string | null;
   email: string;
-  company: string | null;
-  jobTitle: string | null;
-  location: string | null;
-  linkedinUrl: string | null;
-  githubUrl: string | null;
-  websiteUrl: string | null;
-  twitterUrl: string | null;
+  profile?: {
+    company: string | null;
+    jobTitle: string | null;
+    location: string | null;
+    linkedinUrl: string | null;
+    githubUrl: string | null;
+    website: string | null;
+    twitterUrl: string | null;
+  } | null;
+  image?: string | null;
 }
-
 interface EventInfo {
   id: string;
   name: string;
@@ -117,10 +119,10 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
       where: {
         eventId,
         status: {
-          in: includeInProgress 
+          in: includeInProgress
             ? ["SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"]
-            : ["ACCEPTED", "REJECTED", "WAITLISTED"] // Final decisions only
-        }
+            : ["ACCEPTED", "REJECTED", "WAITLISTED"],
+        },
       },
       include: {
         user: {
@@ -128,13 +130,17 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
             id: true,
             name: true,
             email: true,
-            company: true,
-            jobTitle: true,
-            location: true,
-            linkedinUrl: true,
-            githubUrl: true,
-            websiteUrl: true,
-            twitterUrl: true,
+            profile: {
+              select: {
+                company: true,
+                jobTitle: true,
+                location: true,
+                linkedinUrl: true,
+                githubUrl: true,
+                website: true,
+                twitterUrl: true,
+              },
+            },
           },
         },
         event: {
@@ -150,10 +156,10 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
             question: {
               select: {
                 id: true,
-                questionKey: true,
                 questionEn: true,
-                questionType: true,
                 required: true,
+                questionKey: true,
+                questionType: true,
                 options: true,
                 order: true,
               },
@@ -172,7 +178,7 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
                 name: true,
                 email: true,
                 role: true,
-              }
+              },
             },
             scores: {
               include: {
@@ -185,9 +191,9 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
                     weight: true,
                     minScore: true,
                     maxScore: true,
-                  }
-                }
-              }
+                  },
+                },
+              },
             },
             comments: {
               select: {
@@ -195,14 +201,13 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
                 questionKey: true,
                 comment: true,
                 isPrivate: true,
-              }
-            }
-          }
+              },
+            },
+          },
         },
       },
     });
-
-    // Filter applications with minimum evaluation count
+    
     const trainingApplications = (applications as ApplicationData[]).filter(app => 
       app.evaluations.length >= minEvaluations
     );
@@ -229,12 +234,12 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
             Math.floor((app.submittedAt.getTime() - app.createdAt.getTime()) / (1000 * 60 * 60 * 24)) : null,
           
           // User demographic features (anonymized)
-          hasCompany: !!app.user?.company,
-          hasJobTitle: !!app.user?.jobTitle,
-          hasLocation: !!app.user?.location,
-          hasLinkedIn: !!app.user?.linkedinUrl,
-          hasGitHub: !!app.user?.githubUrl,
-          hasWebsite: !!app.user?.websiteUrl,
+          hasCompany: !!app.user?.profile?.company,
+          hasJobTitle: !!app.user?.profile?.jobTitle,
+          hasLocation: !!app.user?.profile?.location,
+          hasLinkedIn: !!app.user?.profile?.linkedinUrl,
+          hasGitHub: !!app.user?.profile?.githubUrl,
+          hasWebsite: !!app.user?.profile?.website,
           
           // Response features (encoded)
           responses: app.responses.reduce((acc, response) => {
@@ -305,16 +310,16 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
         
         // Anonymized applicant info
         applicant: {
-          hasCompany: !!app.user?.company,
-          hasJobTitle: !!app.user?.jobTitle,
-          hasLocation: !!app.user?.location,
-          hasSocialPresence: !!(app.user?.linkedinUrl ?? app.user?.githubUrl ?? app.user?.websiteUrl),
+          hasCompany: !!app.user?.profile?.company,
+          hasJobTitle: !!app.user?.profile?.jobTitle,
+          hasLocation: !!app.user?.profile?.location,
+          hasSocialPresence: !!(app.user?.profile?.linkedinUrl ?? app.user?.profile?.githubUrl ?? app.user?.profile?.website),
           profileCompleteness: [
-            app.user?.company,
-            app.user?.jobTitle,
-            app.user?.location,
-            app.user?.linkedinUrl,
-            app.user?.githubUrl
+            app.user?.profile?.company,
+            app.user?.profile?.jobTitle,
+            app.user?.profile?.location,
+            app.user?.profile?.linkedinUrl,
+            app.user?.profile?.githubUrl
           ].filter(Boolean).length,
         },
         
@@ -330,9 +335,9 @@ async function GET(request: NextRequest, context: { params: Promise<{ eventId: s
           order: response.question.order,
           // Text analysis for training
           answerAnalysis: typeof response.answer === 'string' ? {
-            length: (response.answer as string).length,
-            wordCount: (response.answer as string).split(/\s+/).length,
-            complexity: (response.answer as string).split(/[.!?]+/).length,
+            length: (response.answer).length,
+            wordCount: (response.answer).split(/\s+/).length,
+            complexity: (response.answer).split(/[.!?]+/).length,
           } : null,
         })),
         
