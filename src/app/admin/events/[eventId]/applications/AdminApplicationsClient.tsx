@@ -298,23 +298,26 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     }
   };
 
-  // Extract unique reviewers from consensus applications
+  // Extract unique reviewers from UNDER_REVIEW consensus applications only
   const availableReviewers = useMemo(() => {
     if (!consensusApplications) return [];
     
     const reviewerMap = new Map<string, { id: string; name: string | null; email: string }>();
     
-    consensusApplications.forEach(app => {
-      app.evaluations.forEach(evaluation => {
-        if (evaluation.reviewer) {
-          reviewerMap.set(evaluation.reviewer.id, {
-            id: evaluation.reviewer.id,
-            name: evaluation.reviewer.name,
-            email: evaluation.reviewer.email ?? 'No email',
-          });
-        }
+    // Only process UNDER_REVIEW applications
+    consensusApplications
+      .filter(app => app.status === 'UNDER_REVIEW')
+      .forEach(app => {
+        app.evaluations.forEach(evaluation => {
+          if (evaluation.reviewer) {
+            reviewerMap.set(evaluation.reviewer.id, {
+              id: evaluation.reviewer.id,
+              name: evaluation.reviewer.name,
+              email: evaluation.reviewer.email ?? 'No email',
+            });
+          }
+        });
       });
-    });
     
     return Array.from(reviewerMap.values()).sort((a, b) => {
       const nameA = a.name ?? a.email;
@@ -327,10 +330,12 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const filteredAndSortedConsensusApplications = useMemo(() => {
     if (!consensusApplications) return consensusApplications;
 
-    // First, filter by selected reviewer if any
-    let filtered = consensusApplications;
+    // First, filter by UNDER_REVIEW status only
+    let filtered = consensusApplications.filter(app => app.status === 'UNDER_REVIEW');
+    
+    // Then filter by selected reviewer if any
     if (selectedReviewerId) {
-      filtered = consensusApplications.filter(app =>
+      filtered = filtered.filter(app =>
         app.evaluations.some(evaluation => evaluation.reviewer.id === selectedReviewerId)
       );
     }
@@ -1388,7 +1393,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                     style={{ minWidth: 200 }}
                   />
                   <Text size="sm" c="dimmed">
-                    {filteredAndSortedConsensusApplications?.length ?? 0} applications
+                    {filteredAndSortedConsensusApplications?.length ?? 0} applications under review
                     {selectedReviewerId && availableReviewers.length > 0 ? 
                       ` reviewed by ${availableReviewers.find(r => r.id === selectedReviewerId)?.name ?? 'selected reviewer'}` : 
                       ' with evaluations'
