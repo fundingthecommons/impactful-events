@@ -30,6 +30,10 @@ import {
   IconClock,
   IconCheck,
   IconUsers,
+  IconBrandTwitter,
+  IconBrandGithub,
+  IconBrandLinkedin,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
@@ -39,6 +43,73 @@ import type {
   Application,
   User 
 } from "@prisma/client";
+
+// Helper function to detect and render social media links
+function renderSocialMediaLink(answer: string, questionKey: string) {
+  const normalizedAnswer = answer.trim().toLowerCase();
+  const originalAnswer = answer.trim();
+  
+  // Twitter detection
+  if (questionKey === 'twitter' || 
+      normalizedAnswer.includes('twitter.com') || 
+      normalizedAnswer.includes('x.com') ||
+      normalizedAnswer.startsWith('@')) {
+    const url = originalAnswer.startsWith('@') 
+      ? `https://twitter.com/${originalAnswer.substring(1)}`
+      : originalAnswer.startsWith('http') 
+        ? originalAnswer 
+        : `https://twitter.com/${originalAnswer}`;
+    
+    return (
+      <Anchor href={url} target="_blank" rel="noopener noreferrer">
+        <Group gap="xs">
+          <IconBrandTwitter size={16} />
+          <Text>{originalAnswer}</Text>
+          <IconExternalLink size={12} />
+        </Group>
+      </Anchor>
+    );
+  }
+  
+  // GitHub detection
+  if (questionKey === 'github' || 
+      normalizedAnswer.includes('github.com')) {
+    const url = originalAnswer.startsWith('http') 
+      ? originalAnswer 
+      : `https://github.com/${originalAnswer}`;
+    
+    return (
+      <Anchor href={url} target="_blank" rel="noopener noreferrer">
+        <Group gap="xs">
+          <IconBrandGithub size={16} />
+          <Text>{originalAnswer}</Text>
+          <IconExternalLink size={12} />
+        </Group>
+      </Anchor>
+    );
+  }
+  
+  // LinkedIn detection
+  if (questionKey === 'linkedin' || 
+      normalizedAnswer.includes('linkedin.com')) {
+    const url = originalAnswer.startsWith('http') 
+      ? originalAnswer 
+      : `https://linkedin.com/in/${originalAnswer}`;
+    
+    return (
+      <Anchor href={url} target="_blank" rel="noopener noreferrer">
+        <Group gap="xs">
+          <IconBrandLinkedin size={16} />
+          <Text>{originalAnswer}</Text>
+          <IconExternalLink size={12} />
+        </Group>
+      </Anchor>
+    );
+  }
+  
+  // Return null if not a social media link
+  return null;
+}
 
 interface SelfAssignmentPromptProps {
   applicationId: string;
@@ -628,7 +699,8 @@ export default function ApplicationEvaluationForm({
                             questionText={response.question.questionEn}
                           />
                         ) : (
-                          <Text>{response.answer}</Text>
+                          // Check if this is a social media link
+                          renderSocialMediaLink(response.answer, response.question.questionKey) ?? <Text>{response.answer}</Text>
                         )
                       ) : (
                         <Text c="dimmed" fs="italic">No answer provided</Text>
