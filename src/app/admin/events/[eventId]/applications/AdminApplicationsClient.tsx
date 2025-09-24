@@ -883,7 +883,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
               Consensus
               {consensusApplications && (
                 <Badge size="sm" variant="light" color="blue" ml="xs">
-                  {consensusApplications.length}
+                  {consensusApplications.filter(app => app.status === 'UNDER_REVIEW').length}
                 </Badge>
               )}
             </Tabs.Tab>
