@@ -33,6 +33,7 @@ import {
   IconBrandTwitter,
   IconBrandGithub,
   IconBrandLinkedin,
+  IconBrandTelegram,
   IconExternalLink,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
@@ -45,9 +46,58 @@ import type {
 } from "@prisma/client";
 
 // Helper function to detect and render social media links
-function renderSocialMediaLink(answer: string, questionKey: string) {
+function renderSocialMediaLink(
+  answer: string, 
+  questionKey: string, 
+  application?: {
+    responses: Array<{
+      answer: string;
+      question: {
+        questionKey: string;
+        questionEn: string;
+        order: number;
+      };
+    }>;
+    user: {
+      name: string | null;
+      email: string | null;
+    } | null;
+  }
+) {
   const normalizedAnswer = answer.trim().toLowerCase();
   const originalAnswer = answer.trim();
+  
+  // Telegram detection
+  if (questionKey === 'telegram' || 
+      normalizedAnswer.includes('t.me/') ||
+      normalizedAnswer.includes('telegram')) {
+    // Extract telegram handle
+    let handle = originalAnswer;
+    if (handle.includes('t.me/')) {
+      const regex = /t\.me\/([^/?]+)/;
+      const match = regex.exec(handle);
+      if (match?.[1]) {
+        handle = match[1];
+      }
+    }
+    handle = handle.replace(/^@/, '');
+    
+    return (
+      <Group gap="xs">
+        <IconBrandTelegram size={16} />
+        <Text>@{handle}</Text>
+        {application && (
+          <TelegramMessageButton
+            application={application}
+            customMessage="Hey "
+            size={16}
+            variant="subtle"
+            color="blue"
+          />
+        )}
+      </Group>
+    );
+  }
   
   // Twitter detection
   if (questionKey === 'twitter' || 
@@ -700,7 +750,7 @@ export default function ApplicationEvaluationForm({
                           />
                         ) : (
                           // Check if this is a social media link
-                          renderSocialMediaLink(response.answer, response.question.questionKey) ?? <Text>{response.answer}</Text>
+                          renderSocialMediaLink(response.answer, response.question.questionKey, application) ?? <Text>{response.answer}</Text>
                         )
                       ) : (
                         <Text c="dimmed" fs="italic">No answer provided</Text>
