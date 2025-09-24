@@ -30,7 +30,7 @@ import {
   IconClock,
   IconCheck,
   IconUsers,
-  IconBrandTwitter,
+  IconBrandX,
   IconBrandGithub,
   IconBrandLinkedin,
   IconBrandTelegram,
@@ -45,7 +45,112 @@ import type {
   User 
 } from "@prisma/client";
 
-// Helper function to detect and render social media links
+// Helper functions for each social media platform
+function renderTelegramLink(answer: string, application?: {
+  responses: Array<{
+    answer: string;
+    question: {
+      questionKey: string;
+      questionEn: string;
+      order: number;
+    };
+  }>;
+  user: {
+    name: string | null;
+    email: string | null;
+  } | null;
+}) {
+  // Extract telegram handle
+  let handle = answer;
+  if (handle.includes('t.me/')) {
+    const regex = /t\.me\/([^/?]+)/;
+    const match = regex.exec(handle);
+    if (match?.[1]) {
+      handle = match[1];
+    }
+  }
+  handle = handle.replace(/^@/, '');
+  
+  return (
+    <Group gap="xs">
+      <IconBrandTelegram size={16} />
+      <Text>@{handle}</Text>
+      {application && (
+        <TelegramMessageButton
+          application={application}
+          customMessage="Hey "
+          size={16}
+          variant="subtle"
+          color="blue"
+        />
+      )}
+    </Group>
+  );
+}
+
+function renderTwitterLink(answer: string) {
+  let url = answer;
+  if (answer.startsWith('@')) {
+    url = `https://x.com/${answer.substring(1)}`;
+  } else if (answer.startsWith('http')) {
+    // Convert twitter.com URLs to x.com
+    url = answer.replace(/twitter\.com/g, 'x.com');
+  } else if (!answer.startsWith('http')) {
+    url = `https://x.com/${answer}`;
+  }
+  
+  return (
+    <Anchor href={url} target="_blank" rel="noopener noreferrer">
+      <Group gap="xs">
+        <IconBrandX size={16} />
+        <Text>{answer}</Text>
+        <IconExternalLink size={12} />
+      </Group>
+    </Anchor>
+  );
+}
+
+function renderGitHubLink(answer: string) {
+  let url = answer;
+  if (answer.startsWith('@')) {
+    url = `https://github.com/${answer.substring(1)}`;
+  } else if (answer.startsWith('http')) {
+    url = answer;
+  } else {
+    url = `https://github.com/${answer}`;
+  }
+  
+  return (
+    <Anchor href={url} target="_blank" rel="noopener noreferrer">
+      <Group gap="xs">
+        <IconBrandGithub size={16} />
+        <Text>{answer}</Text>
+        <IconExternalLink size={12} />
+      </Group>
+    </Anchor>
+  );
+}
+
+function renderLinkedInLink(answer: string) {
+  let url = answer;
+  if (answer.startsWith('http')) {
+    url = answer;
+  } else {
+    url = `https://linkedin.com/in/${answer}`;
+  }
+  
+  return (
+    <Anchor href={url} target="_blank" rel="noopener noreferrer">
+      <Group gap="xs">
+        <IconBrandLinkedin size={16} />
+        <Text>{answer}</Text>
+        <IconExternalLink size={12} />
+      </Group>
+    </Anchor>
+  );
+}
+
+// Main function to render social media links based on questionKey
 function renderSocialMediaLink(
   answer: string, 
   questionKey: string, 
@@ -64,101 +169,28 @@ function renderSocialMediaLink(
     } | null;
   }
 ) {
-  const normalizedAnswer = answer.trim().toLowerCase();
-  const originalAnswer = answer.trim();
+  const trimmedAnswer = answer.trim();
+  if (!trimmedAnswer) return null;
   
-  // Telegram detection
-  if (questionKey === 'telegram' || 
-      normalizedAnswer.includes('t.me/') ||
-      normalizedAnswer.includes('telegram')) {
-    // Extract telegram handle
-    let handle = originalAnswer;
-    if (handle.includes('t.me/')) {
-      const regex = /t\.me\/([^/?]+)/;
-      const match = regex.exec(handle);
-      if (match?.[1]) {
-        handle = match[1];
-      }
-    }
-    handle = handle.replace(/^@/, '');
-    
-    return (
-      <Group gap="xs">
-        <IconBrandTelegram size={16} />
-        <Text>@{handle}</Text>
-        {application && (
-          <TelegramMessageButton
-            application={application}
-            customMessage="Hey "
-            size={16}
-            variant="subtle"
-            color="blue"
-          />
-        )}
-      </Group>
-    );
+  // Use exact questionKey matching for deterministic rendering
+  switch (questionKey.toLowerCase()) {
+    case 'telegram':
+      return renderTelegramLink(trimmedAnswer, application);
+      
+    case 'twitter':
+    case 'x':
+      return renderTwitterLink(trimmedAnswer);
+      
+    case 'github':
+      return renderGitHubLink(trimmedAnswer);
+      
+    case 'linkedin':
+      return renderLinkedInLink(trimmedAnswer);
+      
+    default:
+      // Not a social media question key, return null
+      return null;
   }
-  
-  // Twitter detection
-  if (questionKey === 'twitter' || 
-      normalizedAnswer.includes('twitter.com') || 
-      normalizedAnswer.includes('x.com') ||
-      normalizedAnswer.startsWith('@')) {
-    const url = originalAnswer.startsWith('@') 
-      ? `https://twitter.com/${originalAnswer.substring(1)}`
-      : originalAnswer.startsWith('http') 
-        ? originalAnswer 
-        : `https://twitter.com/${originalAnswer}`;
-    
-    return (
-      <Anchor href={url} target="_blank" rel="noopener noreferrer">
-        <Group gap="xs">
-          <IconBrandTwitter size={16} />
-          <Text>{originalAnswer}</Text>
-          <IconExternalLink size={12} />
-        </Group>
-      </Anchor>
-    );
-  }
-  
-  // GitHub detection
-  if (questionKey === 'github' || 
-      normalizedAnswer.includes('github.com')) {
-    const url = originalAnswer.startsWith('http') 
-      ? originalAnswer 
-      : `https://github.com/${originalAnswer}`;
-    
-    return (
-      <Anchor href={url} target="_blank" rel="noopener noreferrer">
-        <Group gap="xs">
-          <IconBrandGithub size={16} />
-          <Text>{originalAnswer}</Text>
-          <IconExternalLink size={12} />
-        </Group>
-      </Anchor>
-    );
-  }
-  
-  // LinkedIn detection
-  if (questionKey === 'linkedin' || 
-      normalizedAnswer.includes('linkedin.com')) {
-    const url = originalAnswer.startsWith('http') 
-      ? originalAnswer 
-      : `https://linkedin.com/in/${originalAnswer}`;
-    
-    return (
-      <Anchor href={url} target="_blank" rel="noopener noreferrer">
-        <Group gap="xs">
-          <IconBrandLinkedin size={16} />
-          <Text>{originalAnswer}</Text>
-          <IconExternalLink size={12} />
-        </Group>
-      </Anchor>
-    );
-  }
-  
-  // Return null if not a social media link
-  return null;
 }
 
 interface SelfAssignmentPromptProps {
