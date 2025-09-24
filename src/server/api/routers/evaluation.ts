@@ -537,7 +537,7 @@ export const evaluationRouter = createTRPCRouter({
         where: { id: input.applicationId },
         include: {
           user: { select: { name: true, email: true } },
-          event: { select: { name: true } },
+          event: { select: { id: true, name: true } },
           evaluations: {
             where: { status: 'COMPLETED' },
             include: {

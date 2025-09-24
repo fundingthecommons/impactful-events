@@ -106,8 +106,8 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
   );
 
   const handleEvaluationComplete = () => {
-    // Navigate back to queue or show success message
-    router.push("/admin/queue");
+    // Navigate back to applications page
+    router.back();
   };
 
   if (evaluationQuery.isLoading) {
@@ -135,9 +135,9 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
               <Button 
                 variant="outline" 
                 leftSection={<IconArrowLeft size="1rem" />}
-                onClick={() => router.push("/admin/queue")}
+                onClick={() => router.back()}
               >
-                Back to Queue
+                Back to Applications
               </Button>
             </Group>
           </Stack>
@@ -162,9 +162,9 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
               <Button 
                 variant="outline" 
                 leftSection={<IconArrowLeft size="1rem" />}
-                onClick={() => router.push("/admin/queue")}
+                onClick={() => router.back()}
               >
-                Back to Queue
+                Back to Applications
               </Button>
             </Group>
           </Stack>

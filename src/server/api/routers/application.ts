@@ -499,6 +499,97 @@ export const applicationRouter = createTRPCRouter({
       return applications;
     }),
 
+  // Admin: Get consensus applications (applications with evaluations and scores)
+  getConsensusApplications: protectedProcedure
+    .input(z.object({ 
+      eventId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      const applications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          evaluations: {
+            some: {
+              overallScore: {
+                not: null,
+              },
+            },
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          responses: {
+            include: {
+              question: true,
+            },
+          },
+          reviewerAssignments: {
+            include: {
+              reviewer: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+            },
+            orderBy: {
+              assignedAt: 'desc',
+            },
+          },
+          evaluations: {
+            where: {
+              overallScore: {
+                not: null,
+              },
+            },
+            include: {
+              reviewer: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+            },
+            orderBy: {
+              completedAt: 'desc',
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      // Calculate average scores and sort by average (highest first)
+      const applicationsWithScores = applications.map(app => {
+        const validEvaluations = app.evaluations.filter(evaluation => evaluation.overallScore !== null);
+        const averageScore = validEvaluations.length > 0 
+          ? validEvaluations.reduce((sum, evaluation) => sum + evaluation.overallScore!, 0) / validEvaluations.length
+          : 0;
+        
+        return {
+          ...app,
+          averageScore,
+          evaluationCount: validEvaluations.length,
+        };
+      });
+
+      // Sort by average score (highest first)
+      applicationsWithScores.sort((a, b) => b.averageScore - a.averageScore);
+
+      return applicationsWithScores;
+    }),
+
   // Admin: Update application status
   updateApplicationStatus: protectedProcedure
     .input(UpdateApplicationStatusSchema)

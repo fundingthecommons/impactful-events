@@ -302,7 +302,7 @@ interface ConsensusEvaluationViewProps {
     consensusData?: {
       id: string;
       user: { name: string | null; email: string | null } | null;
-      event: { name: string } | null;
+      event: { id: string; name: string } | null;
       evaluations: Array<{
         id: string;
         overallScore: number | null;
@@ -375,9 +375,9 @@ export default function ConsensusEvaluationView({ evaluationData }: ConsensusEva
             <Button 
               variant="subtle" 
               leftSection={<IconArrowLeft size="1rem" />}
-              onClick={() => router.push("/admin/queue")}
+              onClick={() => router.back()}
             >
-              Back to Queue
+              Back to Applications
             </Button>
           </Group>
           <Alert color="yellow" title="No Data Available">

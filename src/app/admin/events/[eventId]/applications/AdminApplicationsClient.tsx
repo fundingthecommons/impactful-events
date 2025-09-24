@@ -24,6 +24,7 @@ import {
   Anchor,
   Avatar,
   Tooltip,
+  Select,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -46,6 +47,10 @@ import {
   IconAlertCircle,
   IconUserPlus,
   IconChartBar,
+  IconStar,
+  IconChevronUp,
+  IconChevronDown,
+  IconClipboardList,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -165,6 +170,13 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [previewingEmail, setPreviewingEmail] = useState<EmailType | null>(null);
   const [showStats, setShowStats] = useState<boolean>(false);
   
+  // Consensus table sorting state
+  const [consensusSortField, setConsensusSortField] = useState<'score' | 'name' | null>('score');
+  const [consensusSortDirection, setConsensusSortDirection] = useState<'asc' | 'desc'>('desc');
+  
+  // Consensus reviewer filter state
+  const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null);
+  
   // Track missing info check results per application with timestamps
   const [missingInfoResults, setMissingInfoResults] = useState<Map<string, { 
     isComplete: boolean; 
@@ -230,6 +242,11 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     status: "REJECTED",
   });
 
+  // Fetch consensus applications (applications with evaluations and scores)
+  const { data: consensusApplications, isLoading: isConsensusLoading } = api.application.getConsensusApplications.useQuery({
+    eventId: event.id,
+  });
+
   // Fetch event questions for progress calculation
   const { data: eventQuestions } = api.application.getEventQuestions.useQuery({
     eventId: event.id,
@@ -268,6 +285,73 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     
     return calculateExtendedDemographicStats(demographicApplications);
   }, [acceptedApplications]);
+
+  // Handle consensus table sorting
+  const handleConsensusSort = (field: 'score' | 'name') => {
+    if (consensusSortField === field) {
+      // Toggle direction if same field
+      setConsensusSortDirection(consensusSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field with default direction
+      setConsensusSortField(field);
+      setConsensusSortDirection(field === 'score' ? 'desc' : 'asc'); // Score defaults to desc, name to asc
+    }
+  };
+
+  // Extract unique reviewers from consensus applications
+  const availableReviewers = useMemo(() => {
+    if (!consensusApplications) return [];
+    
+    const reviewerMap = new Map<string, { id: string; name: string | null; email: string }>();
+    
+    consensusApplications.forEach(app => {
+      app.evaluations.forEach(evaluation => {
+        if (evaluation.reviewer) {
+          reviewerMap.set(evaluation.reviewer.id, {
+            id: evaluation.reviewer.id,
+            name: evaluation.reviewer.name,
+            email: evaluation.reviewer.email ?? 'No email',
+          });
+        }
+      });
+    });
+    
+    return Array.from(reviewerMap.values()).sort((a, b) => {
+      const nameA = a.name ?? a.email;
+      const nameB = b.name ?? b.email;
+      return nameA.localeCompare(nameB);
+    });
+  }, [consensusApplications]);
+
+  // Filter and sort consensus applications
+  const filteredAndSortedConsensusApplications = useMemo(() => {
+    if (!consensusApplications) return consensusApplications;
+
+    // First, filter by selected reviewer if any
+    let filtered = consensusApplications;
+    if (selectedReviewerId) {
+      filtered = consensusApplications.filter(app =>
+        app.evaluations.some(evaluation => evaluation.reviewer.id === selectedReviewerId)
+      );
+    }
+
+    // Then sort if a sort field is selected
+    if (!consensusSortField) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      if (consensusSortField === 'score') {
+        comparison = a.averageScore - b.averageScore;
+      } else if (consensusSortField === 'name') {
+        const nameA = a.user?.name ?? a.email;
+        const nameB = b.user?.name ?? b.email;
+        comparison = nameA.localeCompare(nameB);
+      }
+      
+      return consensusSortDirection === 'desc' ? -comparison : comparison;
+    });
+  }, [consensusApplications, consensusSortField, consensusSortDirection, selectedReviewerId]);
 
   // Helper function to find latest MISSING_INFO email for an application
   const getLatestMissingInfoEmail = (applicationId: string) => {
@@ -790,6 +874,14 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
             <Tabs.Tab value="pipeline">
               🌟 Review Pipeline
             </Tabs.Tab>
+            <Tabs.Tab value="consensus">
+              Consensus
+              {consensusApplications && (
+                <Badge size="sm" variant="light" color="blue" ml="xs">
+                  {consensusApplications.length}
+                </Badge>
+              )}
+            </Tabs.Tab>
             <Tabs.Tab value="accepted">
               Accepted
               {acceptedApplications && (
@@ -809,7 +901,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
             
           </Tabs.List>
 
-          {activeTab !== "pipeline" && <Tabs.Panel value={activeTab} mt="md">
+          {activeTab !== "pipeline" && activeTab !== "consensus" && <Tabs.Panel value={activeTab} mt="md">
             {/* Filters and Actions */}
             <Card shadow="sm" padding="md" radius="md" withBorder>
               <Group justify="space-between" wrap="wrap" gap="md">
@@ -1273,6 +1365,220 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
 
           <Tabs.Panel value="pipeline" mt="md">
             <ReviewPipelineDashboard />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="consensus" mt="md">
+            {/* Consensus Filter Controls */}
+            <Card shadow="sm" padding="md" radius="md" withBorder mb="md">
+              <Group justify="space-between" wrap="wrap" gap="md">
+                <Group gap="md">
+                  <Select
+                    placeholder="Filter by reviewer"
+                    data={[
+                      { value: '', label: 'All reviewers' },
+                      ...availableReviewers.map(reviewer => ({
+                        value: reviewer.id,
+                        label: reviewer.name ?? reviewer.email
+                      }))
+                    ]}
+                    value={selectedReviewerId ?? ''}
+                    onChange={(value) => setSelectedReviewerId(value ?? null)}
+                    clearable
+                    searchable
+                    style={{ minWidth: 200 }}
+                  />
+                  <Text size="sm" c="dimmed">
+                    {filteredAndSortedConsensusApplications?.length ?? 0} applications
+                    {selectedReviewerId && availableReviewers.length > 0 ? 
+                      ` reviewed by ${availableReviewers.find(r => r.id === selectedReviewerId)?.name ?? 'selected reviewer'}` : 
+                      ' with evaluations'
+                    }
+                  </Text>
+                </Group>
+                
+                <Group gap="md">
+                  {selectedReviewerId && (
+                    <Button
+                      variant="subtle"
+                      onClick={() => setSelectedReviewerId(null)}
+                      size="sm"
+                    >
+                      Clear filter
+                    </Button>
+                  )}
+                </Group>
+              </Group>
+            </Card>
+            
+            {/* Consensus Applications Table */}
+            <Paper shadow="sm" radius="md" withBorder>
+              {isConsensusLoading ? (
+                <Stack align="center" p="xl" gap="md">
+                  <Loader size="lg" />
+                  <Text c="dimmed">Loading consensus data...</Text>
+                </Stack>
+              ) : !consensusApplications || consensusApplications.length === 0 ? (
+                <Stack align="center" p="xl" gap="md">
+                  <IconStar size={48} stroke={1} color="var(--mantine-color-gray-5)" />
+                  <Text c="dimmed">No applications with evaluations found</Text>
+                  <Text size="sm" c="dimmed">Applications will appear here once they have been reviewed and scored.</Text>
+                </Stack>
+              ) : (
+                <Table.ScrollContainer minWidth={900}>
+                  <Table striped highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th 
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          onClick={() => handleConsensusSort('name')}
+                        >
+                          <Group gap="xs" justify="space-between">
+                            <Text>Applicant</Text>
+                            {consensusSortField === 'name' && (
+                              consensusSortDirection === 'asc' ? 
+                                <IconChevronUp size={14} /> : 
+                                <IconChevronDown size={14} />
+                            )}
+                          </Group>
+                        </Table.Th>
+                        <Table.Th 
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          onClick={() => handleConsensusSort('score')}
+                        >
+                          <Group gap="xs" justify="space-between">
+                            <Text>Average Score</Text>
+                            {consensusSortField === 'score' && (
+                              consensusSortDirection === 'asc' ? 
+                                <IconChevronUp size={14} /> : 
+                                <IconChevronDown size={14} />
+                            )}
+                          </Group>
+                        </Table.Th>
+                        <Table.Th>Reviews</Table.Th>
+                        <Table.Th>Recommendations</Table.Th>
+                        <Table.Th>Actions</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {filteredAndSortedConsensusApplications?.map((application) => (
+                        <Table.Tr key={application.id}>
+                          <Table.Td>
+                            <Stack gap={2}>
+                              <Text fw={500}>
+                                {application.user?.name ?? "No name provided"}
+                              </Text>
+                              <Text size="sm" c="dimmed">
+                                {application.email}
+                              </Text>
+                            </Stack>
+                          </Table.Td>
+                          <Table.Td>
+                            <Stack gap="xs">
+                              {/* Average Score */}
+                              <Group gap="xs" align="center">
+                                <IconStar size={16} color="var(--mantine-color-blue-6)" />
+                                <Text fw={600} c="blue" size="md">
+                                  {application.averageScore.toFixed(1)} avg
+                                </Text>
+                              </Group>
+                              
+                              {/* Individual Reviewer Scores */}
+                              <Group gap="xs" wrap="wrap">
+                                {application.evaluations
+                                  .filter(evaluation => evaluation.overallScore !== null)
+                                  .map((evaluation, index) => (
+                                    <Tooltip
+                                      key={index}
+                                      label={`${evaluation.reviewer.name ?? evaluation.reviewer.email ?? 'Unknown Reviewer'}: ${evaluation.overallScore}`}
+                                      position="top"
+                                      withArrow
+                                    >
+                                      <Badge
+                                        size="sm"
+                                        variant="light"
+                                        color={
+                                          evaluation.overallScore! >= 80 ? 'green' :
+                                          evaluation.overallScore! >= 60 ? 'yellow' :
+                                          evaluation.overallScore! >= 40 ? 'orange' : 'red'
+                                        }
+                                        style={{ cursor: 'help' }}
+                                      >
+                                        {evaluation.overallScore}
+                                      </Badge>
+                                    </Tooltip>
+                                  ))
+                                }
+                                {application.evaluations.filter(evaluation => evaluation.overallScore !== null).length === 0 && (
+                                  <Text size="xs" c="dimmed">No scores</Text>
+                                )}
+                              </Group>
+                            </Stack>
+                          </Table.Td>
+                          <Table.Td>
+                            <Text size="sm">
+                              {application.evaluationCount} review{application.evaluationCount !== 1 ? 's' : ''}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td>
+                            <Stack gap={2}>
+                              {application.evaluations
+                                .filter(evaluation => evaluation.recommendation)
+                                .map((evaluation, index) => (
+                                  <Badge
+                                    key={index}
+                                    size="xs"
+                                    color={
+                                      evaluation.recommendation === 'ACCEPT' ? 'green' :
+                                      evaluation.recommendation === 'REJECT' ? 'red' : 
+                                      evaluation.recommendation === 'WAITLIST' ? 'yellow' : 'gray'
+                                    }
+                                    variant="filled"
+                                  >
+                                    {evaluation.recommendation}
+                                  </Badge>
+                                ))
+                              }
+                              {application.evaluations.filter(evaluation => evaluation.recommendation).length === 0 && (
+                                <Text size="xs" c="dimmed">No recommendations</Text>
+                              )}
+                            </Stack>
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap="xs">
+                              <ActionIcon
+                                variant="subtle"
+                                onClick={() => viewApplication(application)}
+                                title="View application details"
+                              >
+                                <IconEye size={16} />
+                              </ActionIcon>
+                              <ActionIcon
+                                variant="subtle"
+                                onClick={() => editApplication(application)}
+                                title="Edit application"
+                              >
+                                <IconEdit size={16} />
+                              </ActionIcon>
+                              {/* Link to evaluation details - use first evaluation ID if available */}
+                              {application.evaluations.length > 0 && (
+                                <ActionIcon
+                                  variant="subtle"
+                                  component={Link}
+                                  href={`/admin/evaluations/${application.evaluations[0]?.id}`}
+                                  title="View evaluation details"
+                                >
+                                  <IconClipboardList size={16} />
+                                </ActionIcon>
+                              )}
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </Table.ScrollContainer>
+              )}
+            </Paper>
           </Tabs.Panel>
         </Tabs>
       </Stack>
