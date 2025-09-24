@@ -23,6 +23,7 @@ import {
   Box,
   Anchor,
   Avatar,
+  Tooltip,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -54,7 +55,7 @@ import ReviewPipelineDashboard from "~/app/_components/ReviewPipelineDashboard";
 import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
 import ApplicationCompletionProgress from "~/app/_components/ApplicationCompletionProgress";
 import CurationSpecDashboard from "~/app/_components/CurationSpecDashboard";
-import { type ExtendedDemographicStats, type ApplicationForDemographics, calculateExtendedDemographicStats } from "~/utils/demographics";
+import { type ExtendedDemographicStats, type ApplicationForDemographics, calculateExtendedDemographicStats, isLatamCountry } from "~/utils/demographics";
 
 type Event = {
   id: string;
@@ -1066,7 +1067,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                         <Table.Th>Progress</Table.Th>
                         <Table.Th>Status</Table.Th>
                         <Table.Th>Submitted</Table.Th>
-                        <Table.Th>Reviewers</Table.Th>
+                        <Table.Th>{activeTab === "accepted" ? "Region" : "Reviewers"}</Table.Th>
                         <Table.Th>Actions</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -1127,23 +1128,54 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                               </Text>
                             </Table.Td>
                             <Table.Td>
-                              <Group gap="xs">
-                                {application.reviewerAssignments && application.reviewerAssignments.length > 0 ? (
-                                  application.reviewerAssignments.map((assignment) => (
-                                    <Avatar
-                                      key={assignment.id}
-                                      src={assignment.reviewer.image ?? ""}
-                                      size={24}
-                                      radius="xl"
-                                      title={`${assignment.reviewer.name ?? 'Unknown'} - ${assignment.stage.replace('_', ' ')}`}
-                                    >
-                                      {assignment.reviewer.name?.[0]?.toUpperCase() ?? assignment.reviewer.email?.[0]?.toUpperCase() ?? '?'}
-                                    </Avatar>
-                                  ))
-                                ) : (
-                                  <Text size="xs" c="dimmed">No reviewers</Text>
-                                )}
-                              </Group>
+                              {activeTab === "accepted" ? (
+                                // Show LATAM badge for accepted applications
+                                <Group gap="xs">
+                                  {(() => {
+                                    const nationalityResponse = application.responses?.find(r => 
+                                      r.question.questionKey === 'nationality' || 
+                                      r.question.questionKey === 'country'
+                                    );
+                                    
+                                    if (!nationalityResponse?.answer) {
+                                      return <Text size="xs" c="dimmed">Not specified</Text>;
+                                    }
+                                    
+                                    const isLatam = isLatamCountry(nationalityResponse.answer);
+                                    
+                                    return (
+                                      <Tooltip label={`${isLatam ? 'Latin America' : 'Global (Non-LATAM)'}`}>
+                                        <Badge 
+                                          color={isLatam ? 'blue' : 'teal'} 
+                                          size="sm" 
+                                          variant="filled"
+                                        >
+                                          {isLatam ? 'LATAM' : 'Global'}
+                                        </Badge>
+                                      </Tooltip>
+                                    );
+                                  })()}
+                                </Group>
+                              ) : (
+                                // Show reviewers for other tabs
+                                <Group gap="xs">
+                                  {application.reviewerAssignments && application.reviewerAssignments.length > 0 ? (
+                                    application.reviewerAssignments.map((assignment) => (
+                                      <Avatar
+                                        key={assignment.id}
+                                        src={assignment.reviewer.image ?? ""}
+                                        size={24}
+                                        radius="xl"
+                                        title={`${assignment.reviewer.name ?? 'Unknown'} - ${assignment.stage.replace('_', ' ')}`}
+                                      >
+                                        {assignment.reviewer.name?.[0]?.toUpperCase() ?? assignment.reviewer.email?.[0]?.toUpperCase() ?? '?'}
+                                      </Avatar>
+                                    ))
+                                  ) : (
+                                    <Text size="xs" c="dimmed">No reviewers</Text>
+                                  )}
+                                </Group>
+                              )}
                             </Table.Td>
                             <Table.Td>
                               <Group gap="xs">
