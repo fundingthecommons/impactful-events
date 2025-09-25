@@ -65,6 +65,14 @@ const ImportLegacyApplicationSchema = z.object({
   sourceId: z.string().optional(),
 });
 
+const CreateSponsoredApplicationSchema = z.object({
+  eventId: z.string(),
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Valid email is required"),
+  organization: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 // Helper function to check if user has admin/staff role
 function checkAdminAccess(userRole?: string | null) {
   if (!userRole || (userRole !== "admin" && userRole !== "staff")) {
@@ -467,11 +475,6 @@ export const applicationRouter = createTRPCRouter({
         },
         include: {
           user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
             include: {
               profile: true,
             },
@@ -1217,5 +1220,115 @@ export const applicationRouter = createTRPCRouter({
           },
         },
       };
+    }),
+
+  // Create sponsored application (admin-only)
+  createSponsoredApplication: protectedProcedure
+    .input(CreateSponsoredApplicationSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Check admin access
+      checkAdminAccess(ctx.session.user.role);
+
+      // Check if application already exists for this email and event
+      const existingApplication = await ctx.db.application.findFirst({
+        where: {
+          email: input.email,
+          eventId: input.eventId,
+        },
+      });
+
+      if (existingApplication) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "An application already exists for this email address and event",
+        });
+      }
+
+      // Create sponsored application with ACCEPTED status
+      const application = await ctx.db.application.create({
+        data: {
+          eventId: input.eventId,
+          email: input.email,
+          status: "ACCEPTED",
+          language: "en",
+          isComplete: true,
+          completedAt: new Date(),
+          submittedAt: new Date(),
+          // Note: userId is null for sponsored applications
+        },
+        include: {
+          event: true,
+          responses: {
+            include: {
+              question: true,
+            },
+          },
+        },
+      });
+
+      // Create basic response entries for name, organization, and notes if provided
+      const event = await ctx.db.event.findUnique({
+        where: { id: input.eventId },
+        include: {
+          applicationQuestions: {
+            where: {
+              questionKey: {
+                in: ["name", "full_name", "organization", "notes", "internal_notes"]
+              }
+            }
+          }
+        }
+      });
+
+      if (event?.applicationQuestions) {
+        const responsesToCreate = [];
+        
+        // Find and populate name field
+        const nameQuestion = event.applicationQuestions.find((q) => 
+          q.questionKey === "name" || q.questionKey === "full_name"
+        );
+        if (nameQuestion) {
+          responsesToCreate.push({
+            applicationId: application.id,
+            questionId: nameQuestion.id,
+            answer: input.name,
+          });
+        }
+
+        // Find and populate organization field
+        if (input.organization) {
+          const orgQuestion = event.applicationQuestions.find((q) => q.questionKey === "organization");
+          if (orgQuestion) {
+            responsesToCreate.push({
+              applicationId: application.id,
+              questionId: orgQuestion.id,
+              answer: input.organization,
+            });
+          }
+        }
+
+        // Find and populate notes field
+        if (input.notes) {
+          const notesQuestion = event.applicationQuestions.find((q) => 
+            q.questionKey === "notes" || q.questionKey === "internal_notes"
+          );
+          if (notesQuestion) {
+            responsesToCreate.push({
+              applicationId: application.id,
+              questionId: notesQuestion.id,
+              answer: input.notes,
+            });
+          }
+        }
+
+        // Create all responses
+        if (responsesToCreate.length > 0) {
+          await ctx.db.applicationResponse.createMany({
+            data: responsesToCreate,
+          });
+        }
+      }
+
+      return application;
     }),
 });
