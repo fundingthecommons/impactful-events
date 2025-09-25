@@ -51,6 +51,8 @@ import {
   IconChevronUp,
   IconChevronDown,
   IconClipboardList,
+  IconAnalyze,
+  IconQuestionMark,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -1035,6 +1037,174 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     URL.revokeObjectURL(url);
   };
 
+  // Comprehensive Q&A export with all questions and responses
+  const exportCompleteQAData = () => {
+    if (!applications || applications.length === 0 || !eventQuestions) return;
+
+    // Sort questions by order for consistent column layout
+    const sortedQuestions = [...eventQuestions].sort((a, b) => a.order - b.order);
+    
+    const csvData = applications.map(app => {
+      const profile = app.user?.profile;
+      const responseMap = new Map(app.responses.map(r => [r.question.id, r.answer]));
+      const reviewers = app.reviewerAssignments?.map(r => r.reviewer.name ?? r.reviewer.email ?? "Unknown").join("; ") ?? "";
+      
+      // Build the row data object dynamically
+      const rowData: Record<string, string> = {
+        // Core application data
+        applicationId: app.id,
+        email: app.email,
+        status: app.status,
+        submittedAt: app.submittedAt ? new Date(app.submittedAt).toISOString() : "",
+        createdAt: new Date(app.createdAt).toISOString(),
+        language: app.language ?? "en",
+        
+        // Profile summary data (if available)
+        profileJobTitle: escapeCsvValue(profile?.jobTitle),
+        profileCompany: escapeCsvValue(profile?.company),
+        profileLocation: escapeCsvValue(profile?.location),
+        profileYearsExperience: profile?.yearsOfExperience?.toString() ?? "",
+        profileGithub: escapeCsvValue(profile?.githubUrl),
+        profileLinkedIn: escapeCsvValue(profile?.linkedinUrl),
+        
+        // Review data
+        reviewers: escapeCsvValue(reviewers),
+        reviewerCount: app.reviewerAssignments?.length.toString() ?? "0",
+      };
+
+      // Add all question responses dynamically
+      sortedQuestions.forEach(question => {
+        const answer = responseMap.get(question.id) ?? "";
+        const columnKey = `Q${question.order}_${question.questionKey}`;
+        rowData[columnKey] = escapeCsvValue(answer);
+      });
+
+      return rowData;
+    });
+
+    // Build dynamic headers
+    const staticHeaders = [
+      "Application ID", "Email", "Status", "Submitted At", "Created At", "Language",
+      "Profile Job Title", "Profile Company", "Profile Location", "Profile Years Experience", 
+      "Profile GitHub", "Profile LinkedIn", "Reviewers", "Reviewer Count"
+    ];
+
+    // Add dynamic question headers with full question text
+    const questionHeaders = sortedQuestions.map(question => {
+      const questionText = question.questionEn || question.questionKey;
+      const truncatedText = questionText.length > 50 ? questionText.substring(0, 47) + "..." : questionText;
+      const requiredIndicator = question.required ? "*" : "";
+      return `Q${question.order}: ${truncatedText}${requiredIndicator}`;
+    });
+
+    const allHeaders = [...staticHeaders, ...questionHeaders];
+
+    // Create CSV content
+    const csvContent = [
+      allHeaders.map(header => escapeCsvValue(header)).join(","),
+      ...csvData.map(row => allHeaders.map(header => {
+        // Map display headers back to data keys
+        if (header.startsWith("Q") && header.includes(":")) {
+          const questionOrder = parseInt(header.split(":")[0]?.substring(1) ?? "0");
+          const question = sortedQuestions.find(q => q.order === questionOrder);
+          if (question) {
+            const columnKey = `Q${question.order}_${question.questionKey}`;
+            return row[columnKey] ?? "";
+          }
+        }
+        // Handle static headers
+        const staticHeaderMap: Record<string, string> = {
+          "Application ID": "applicationId",
+          "Email": "email",
+          "Status": "status",
+          "Submitted At": "submittedAt",
+          "Created At": "createdAt",
+          "Language": "language",
+          "Profile Job Title": "profileJobTitle",
+          "Profile Company": "profileCompany",
+          "Profile Location": "profileLocation",
+          "Profile Years Experience": "profileYearsExperience",
+          "Profile GitHub": "profileGithub",
+          "Profile LinkedIn": "profileLinkedIn",
+          "Reviewers": "reviewers",
+          "Reviewer Count": "reviewerCount",
+        };
+        
+        const dataKey = staticHeaderMap[header];
+        return dataKey ? (row[dataKey] ?? "") : "";
+      }).join(","))
+    ].join("\n");
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${event.name.replace(/\s+/g, "_")}_complete_qa_export.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Question Analysis export for form insights
+  const exportQuestionAnalysis = () => {
+    if (!applications || applications.length === 0 || !eventQuestions) return;
+
+    const sortedQuestions = [...eventQuestions].sort((a, b) => a.order - b.order);
+    const totalApplications = applications.length;
+    
+    const questionAnalysisData = sortedQuestions.map(question => {
+      // Count how many applications answered this question
+      const answeredCount = applications.filter(app => 
+        app.responses.some(r => r.question.id === question.id && r.answer.trim() !== "")
+      ).length;
+      
+      const responseRate = totalApplications > 0 ? ((answeredCount / totalApplications) * 100).toFixed(1) : "0";
+      
+      // Get sample responses (first 3 non-empty ones)
+      const sampleResponses = applications
+        .map(app => app.responses.find(r => r.question.id === question.id)?.answer)
+        .filter(answer => answer && answer.trim() !== "")
+        .slice(0, 3)
+        .join(" | ");
+
+      return {
+        questionOrder: question.order.toString(),
+        questionKey: question.questionKey,
+        questionEnglish: escapeCsvValue(question.questionEn),
+        questionSpanish: escapeCsvValue(question.questionEs),
+        questionType: question.questionType,
+        required: question.required ? "Yes" : "No",
+        totalApplicants: totalApplications.toString(),
+        responsesReceived: answeredCount.toString(),
+        responseRate: `${responseRate}%`,
+        sampleResponses: escapeCsvValue(sampleResponses),
+      };
+    });
+
+    const headers = [
+      "Question Order", "Question Key", "Question (English)", "Question (Spanish)", 
+      "Question Type", "Required", "Total Applicants", "Responses Received", 
+      "Response Rate", "Sample Responses"
+    ];
+
+    const csvContent = [
+      headers.map(header => escapeCsvValue(header)).join(","),
+      ...questionAnalysisData.map(row => Object.values(row).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${event.name.replace(/\s+/g, "_")}_question_analysis.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const statusOptions = [
     { value: "DRAFT", label: "Incomplete" },
     { value: "UNDER_REVIEW", label: "Under Review" },
@@ -1293,11 +1463,32 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                     </Menu.Target>
                     <Menu.Dropdown>
                       <Menu.Item
+                        leftSection={<IconQuestionMark size={16} />}
+                        onClick={exportCompleteQAData}
+                        disabled={!eventQuestions || eventQuestions.length === 0}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>Complete Q&A Export</Text>
+                          <Text size="xs" c="dimmed">All questions & responses + profile data</Text>
+                        </Stack>
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconAnalyze size={16} />}
+                        onClick={exportQuestionAnalysis}
+                        disabled={!eventQuestions || eventQuestions.length === 0}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>Question Analysis</Text>
+                          <Text size="xs" c="dimmed">Response rates & form insights</Text>
+                        </Stack>
+                      </Menu.Item>
+                      <Menu.Divider />
+                      <Menu.Item
                         leftSection={<IconDownload size={16} />}
                         onClick={exportApplications}
                       >
                         <Stack gap="xs">
-                          <Text size="sm" fw={500}>Complete Export</Text>
+                          <Text size="sm" fw={500}>Complete Export (Legacy)</Text>
                           <Text size="xs" c="dimmed">All data (35+ fields)</Text>
                         </Stack>
                       </Menu.Item>
