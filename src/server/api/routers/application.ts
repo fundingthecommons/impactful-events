@@ -472,6 +472,9 @@ export const applicationRouter = createTRPCRouter({
               name: true,
               email: true,
             },
+            include: {
+              profile: true,
+            },
           },
           responses: {
             include: {

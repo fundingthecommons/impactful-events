@@ -93,6 +93,27 @@ type ApplicationWithUser = {
     id: string;
     name: string | null;
     email: string | null;
+    profile?: {
+      id: string;
+      bio: string | null;
+      jobTitle: string | null;
+      company: string | null;
+      location: string | null;
+      website: string | null;
+      githubUrl: string | null;
+      linkedinUrl: string | null;
+      twitterUrl: string | null;
+      skills: string[];
+      interests: string[];
+      availableForMentoring: boolean;
+      availableForHiring: boolean;
+      availableForOfficeHours: boolean;
+      timezone: string | null;
+      languages: string[];
+      yearsOfExperience: number | null;
+      telegramHandle: string | null;
+      discordHandle: string | null;
+    } | null;
   } | null;
   responses: Array<{
     id: string;
@@ -734,29 +755,265 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     }
   };
 
-  // Export applications (basic CSV export)
+  // Helper function to safely escape CSV values
+  const escapeCsvValue = (value: string | null | undefined): string => {
+    if (!value) return "";
+    const stringValue = String(value);
+    if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
+  // Helper function to format array values for CSV
+  const formatArrayForCsv = (array: string[] | null | undefined): string => {
+    if (!array || array.length === 0) return "";
+    return escapeCsvValue(array.join("; "));
+  };
+
+  // Helper function to get response value by question key
+  const getResponseValue = (responses: ApplicationWithUser['responses'], questionKey: string): string => {
+    const response = responses.find(r => r.question.questionKey === questionKey);
+    return response?.answer ?? "";
+  };
+
+  // Enhanced CSV export with comprehensive data
   const exportApplications = () => {
     if (!applications || applications.length === 0) return;
 
-    const csvData = applications.map(app => ({
-      email: app.email,
-      name: app.user?.name ?? "",
-      status: app.status,
-      submittedAt: app.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : "",
-      createdAt: new Date(app.createdAt).toLocaleDateString(),
-    }));
+    const csvData = applications.map(app => {
+      const profile = app.user?.profile;
+      const responses = app.responses ?? [];
+      
+      // Get common application responses
+      const fullName = getResponseValue(responses, "full_name") ?? app.user?.name ?? "";
+      const nationality = getResponseValue(responses, "nationality") || getResponseValue(responses, "country");
+      const gender = getResponseValue(responses, "gender");
+      const age = getResponseValue(responses, "age");
+      const technicalSkills = getResponseValue(responses, "technical_skills") || getResponseValue(responses, "skills");
+      const projectDescription = getResponseValue(responses, "project_description");
+      const motivation = getResponseValue(responses, "motivation") || getResponseValue(responses, "why_apply");
+      const experience = getResponseValue(responses, "experience") || getResponseValue(responses, "background");
+      const education = getResponseValue(responses, "education");
+      const portfolio = getResponseValue(responses, "portfolio") || getResponseValue(responses, "portfolio_url");
+      
+      // Format reviewer information
+      const reviewers = app.reviewerAssignments?.map(r => r.reviewer.name ?? r.reviewer.email ?? "Unknown").join("; ") ?? "";
+      
+      return {
+        // Basic Information
+        applicationId: app.id,
+        email: app.email,
+        name: escapeCsvValue(fullName),
+        status: app.status,
+        submittedAt: app.submittedAt ? new Date(app.submittedAt).toISOString() : "",
+        createdAt: new Date(app.createdAt).toISOString(),
+        
+        // Profile Information
+        jobTitle: escapeCsvValue(profile?.jobTitle),
+        company: escapeCsvValue(profile?.company),
+        location: escapeCsvValue(profile?.location),
+        timezone: escapeCsvValue(profile?.timezone),
+        yearsOfExperience: profile?.yearsOfExperience?.toString() ?? "",
+        bio: escapeCsvValue(profile?.bio),
+        
+        // Contact Information
+        website: escapeCsvValue(profile?.website),
+        githubUrl: escapeCsvValue(profile?.githubUrl),
+        linkedinUrl: escapeCsvValue(profile?.linkedinUrl),
+        twitterUrl: escapeCsvValue(profile?.twitterUrl),
+        telegramHandle: escapeCsvValue(profile?.telegramHandle),
+        discordHandle: escapeCsvValue(profile?.discordHandle),
+        
+        // Skills and Interests
+        profileSkills: formatArrayForCsv(profile?.skills),
+        profileInterests: formatArrayForCsv(profile?.interests),
+        languages: formatArrayForCsv(profile?.languages),
+        
+        // Availability Flags
+        availableForMentoring: profile?.availableForMentoring ? "Yes" : "No",
+        availableForHiring: profile?.availableForHiring ? "Yes" : "No",
+        availableForOfficeHours: profile?.availableForOfficeHours ? "Yes" : "No",
+        
+        // Application Response Data
+        nationality: escapeCsvValue(nationality),
+        gender: escapeCsvValue(gender),
+        age: escapeCsvValue(age),
+        applicationTechnicalSkills: escapeCsvValue(technicalSkills),
+        projectDescription: escapeCsvValue(projectDescription),
+        motivation: escapeCsvValue(motivation),
+        experience: escapeCsvValue(experience),
+        education: escapeCsvValue(education),
+        portfolioUrl: escapeCsvValue(portfolio),
+        
+        // Review Information
+        reviewers: escapeCsvValue(reviewers),
+        reviewerCount: app.reviewerAssignments?.length.toString() ?? "0",
+      };
+    });
 
-    const headers = ["Email", "Name", "Status", "Submitted At", "Created At"];
+    // Define headers for all fields
+    const headers = [
+      "Application ID", "Email", "Name", "Status", "Submitted At", "Created At",
+      "Job Title", "Company", "Location", "Timezone", "Years of Experience", "Bio",
+      "Website", "GitHub URL", "LinkedIn URL", "Twitter URL", "Telegram Handle", "Discord Handle",
+      "Profile Skills", "Profile Interests", "Languages",
+      "Available for Mentoring", "Available for Hiring", "Available for Office Hours",
+      "Nationality", "Gender", "Age", "Application Technical Skills", "Project Description", 
+      "Motivation", "Experience", "Education", "Portfolio URL",
+      "Reviewers", "Reviewer Count"
+    ];
+
+    // Create CSV content with proper escaping
     const csvContent = [
-      headers.join(","),
+      headers.map(header => escapeCsvValue(header)).join(","),
       ...csvData.map(row => Object.values(row).join(","))
     ].join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${event.name.replace(/\s+/g, "_")}_applications.csv`;
+    link.download = `${event.name.replace(/\s+/g, "_")}_applications_enhanced.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Specialized CSV export functions
+  const exportDemographicData = () => {
+    if (!applications || applications.length === 0) return;
+
+    const csvData = applications.map(app => {
+      const responses = app.responses ?? [];
+      const nationality = getResponseValue(responses, "nationality") || getResponseValue(responses, "country");
+      const gender = getResponseValue(responses, "gender");
+      const age = getResponseValue(responses, "age");
+      const location = app.user?.profile?.location;
+      
+      return {
+        applicationId: app.id,
+        email: app.email,
+        name: escapeCsvValue(app.user?.name ?? getResponseValue(responses, "full_name")),
+        status: app.status,
+        nationality: escapeCsvValue(nationality),
+        gender: escapeCsvValue(gender),
+        age: escapeCsvValue(age),
+        location: escapeCsvValue(location),
+        submittedAt: app.submittedAt ? new Date(app.submittedAt).toISOString() : "",
+      };
+    });
+
+    const headers = ["Application ID", "Email", "Name", "Status", "Nationality", "Gender", "Age", "Location", "Submitted At"];
+    const csvContent = [
+      headers.map(header => escapeCsvValue(header)).join(","),
+      ...csvData.map(row => Object.values(row).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${event.name.replace(/\s+/g, "_")}_demographic_data.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportContactData = () => {
+    if (!applications || applications.length === 0) return;
+
+    const csvData = applications.map(app => {
+      const profile = app.user?.profile;
+      const responses = app.responses ?? [];
+      
+      return {
+        applicationId: app.id,
+        email: app.email,
+        name: escapeCsvValue(app.user?.name ?? getResponseValue(responses, "full_name")),
+        status: app.status,
+        company: escapeCsvValue(profile?.company),
+        jobTitle: escapeCsvValue(profile?.jobTitle),
+        location: escapeCsvValue(profile?.location),
+        githubUrl: escapeCsvValue(profile?.githubUrl),
+        linkedinUrl: escapeCsvValue(profile?.linkedinUrl),
+        twitterUrl: escapeCsvValue(profile?.twitterUrl),
+        telegramHandle: escapeCsvValue(profile?.telegramHandle),
+        discordHandle: escapeCsvValue(profile?.discordHandle),
+        website: escapeCsvValue(profile?.website),
+        availableForMentoring: profile?.availableForMentoring ? "Yes" : "No",
+        availableForHiring: profile?.availableForHiring ? "Yes" : "No",
+      };
+    });
+
+    const headers = [
+      "Application ID", "Email", "Name", "Status", "Company", "Job Title", "Location",
+      "GitHub URL", "LinkedIn URL", "Twitter URL", "Telegram Handle", "Discord Handle", "Website",
+      "Available for Mentoring", "Available for Hiring"
+    ];
+    
+    const csvContent = [
+      headers.map(header => escapeCsvValue(header)).join(","),
+      ...csvData.map(row => Object.values(row).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${event.name.replace(/\s+/g, "_")}_contact_data.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportTechnicalData = () => {
+    if (!applications || applications.length === 0) return;
+
+    const csvData = applications.map(app => {
+      const profile = app.user?.profile;
+      const responses = app.responses ?? [];
+      const technicalSkills = getResponseValue(responses, "technical_skills") || getResponseValue(responses, "skills");
+      const projectDescription = getResponseValue(responses, "project_description");
+      const experience = getResponseValue(responses, "experience") || getResponseValue(responses, "background");
+      const portfolio = getResponseValue(responses, "portfolio") || getResponseValue(responses, "portfolio_url");
+      
+      return {
+        applicationId: app.id,
+        email: app.email,
+        name: escapeCsvValue(app.user?.name ?? getResponseValue(responses, "full_name")),
+        status: app.status,
+        yearsOfExperience: profile?.yearsOfExperience?.toString() ?? "",
+        profileSkills: formatArrayForCsv(profile?.skills),
+        applicationTechnicalSkills: escapeCsvValue(technicalSkills),
+        projectDescription: escapeCsvValue(projectDescription),
+        experience: escapeCsvValue(experience),
+        portfolioUrl: escapeCsvValue(portfolio),
+        githubUrl: escapeCsvValue(profile?.githubUrl),
+        languages: formatArrayForCsv(profile?.languages),
+      };
+    });
+
+    const headers = [
+      "Application ID", "Email", "Name", "Status", "Years of Experience", "Profile Skills",
+      "Application Technical Skills", "Project Description", "Experience", "Portfolio URL",
+      "GitHub URL", "Languages"
+    ];
+    
+    const csvContent = [
+      headers.map(header => escapeCsvValue(header)).join(","),
+      ...csvData.map(row => Object.values(row).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${event.name.replace(/\s+/g, "_")}_technical_data.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -998,14 +1255,55 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                     </Button>
                   )}
                   
-                  <Button
-                    variant="outline"
-                    leftSection={<IconDownload size={16} />}
-                    onClick={exportApplications}
-                    disabled={!applications || applications.length === 0}
-                  >
-                    Export CSV
-                  </Button>
+                  <Menu position="bottom-end">
+                    <Menu.Target>
+                      <Button
+                        variant="outline"
+                        leftSection={<IconDownload size={16} />}
+                        disabled={!applications || applications.length === 0}
+                      >
+                        Export CSV
+                      </Button>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      <Menu.Item
+                        leftSection={<IconDownload size={16} />}
+                        onClick={exportApplications}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>Complete Export</Text>
+                          <Text size="xs" c="dimmed">All data (35+ fields)</Text>
+                        </Stack>
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconChartBar size={16} />}
+                        onClick={exportDemographicData}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>Demographic Data</Text>
+                          <Text size="xs" c="dimmed">Nationality, gender, age, location</Text>
+                        </Stack>
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconMail size={16} />}
+                        onClick={exportContactData}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>Contact Information</Text>
+                          <Text size="xs" c="dimmed">Social profiles, availability flags</Text>
+                        </Stack>
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconStar size={16} />}
+                        onClick={exportTechnicalData}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>Technical Data</Text>
+                          <Text size="xs" c="dimmed">Skills, experience, projects</Text>
+                        </Stack>
+                      </Menu.Item>
+                    </Menu.Dropdown>
+                  </Menu>
                 </Group>
               </Group>
             </Card>
@@ -1164,7 +1462,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                         <Table.Th>Progress</Table.Th>
                         <Table.Th>Status</Table.Th>
                         <Table.Th>Submitted</Table.Th>
-                        <Table.Th>{activeTab === "accepted" ? "Region" : "Reviewers"}</Table.Th>
+                        <Table.Th>Region</Table.Th>
+                        <Table.Th>Reviewers</Table.Th>
                         <Table.Th>Actions</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -1225,54 +1524,53 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                               </Text>
                             </Table.Td>
                             <Table.Td>
-                              {activeTab === "accepted" ? (
-                                // Show LATAM badge for accepted applications
-                                <Group gap="xs">
-                                  {(() => {
-                                    const nationalityResponse = application.responses?.find(r => 
-                                      r.question.questionKey === 'nationality' || 
-                                      r.question.questionKey === 'country'
-                                    );
-                                    
-                                    if (!nationalityResponse?.answer) {
-                                      return <Text size="xs" c="dimmed">Not specified</Text>;
-                                    }
-                                    
-                                    const isLatam = isLatamCountry(nationalityResponse.answer);
-                                    
-                                    return (
-                                      <Tooltip label={`${isLatam ? 'Latin America' : 'Global (Non-LATAM)'}`}>
-                                        <Badge 
-                                          color={isLatam ? 'blue' : 'teal'} 
-                                          size="sm" 
-                                          variant="filled"
-                                        >
-                                          {isLatam ? 'LATAM' : 'Global'}
-                                        </Badge>
-                                      </Tooltip>
-                                    );
-                                  })()}
-                                </Group>
-                              ) : (
-                                // Show reviewers for other tabs
-                                <Group gap="xs">
-                                  {application.reviewerAssignments && application.reviewerAssignments.length > 0 ? (
-                                    application.reviewerAssignments.map((assignment) => (
-                                      <Avatar
-                                        key={assignment.id}
-                                        src={assignment.reviewer.image ?? ""}
-                                        size={24}
-                                        radius="xl"
-                                        title={`${assignment.reviewer.name ?? 'Unknown'} - ${assignment.stage.replace('_', ' ')}`}
+                              {/* Show LATAM badge for all tabs */}
+                              <Group gap="xs">
+                                {(() => {
+                                  const nationalityResponse = application.responses?.find(r => 
+                                    r.question.questionKey === 'nationality' || 
+                                    r.question.questionKey === 'country'
+                                  );
+                                  
+                                  if (!nationalityResponse?.answer) {
+                                    return <Text size="xs" c="dimmed">Not specified</Text>;
+                                  }
+                                  
+                                  const isLatam = isLatamCountry(nationalityResponse.answer);
+                                  
+                                  return (
+                                    <Tooltip label={`${isLatam ? 'Latin America' : 'Global (Non-LATAM)'}`}>
+                                      <Badge 
+                                        color={isLatam ? 'blue' : 'teal'} 
+                                        size="sm" 
+                                        variant="filled"
                                       >
-                                        {assignment.reviewer.name?.[0]?.toUpperCase() ?? assignment.reviewer.email?.[0]?.toUpperCase() ?? '?'}
-                                      </Avatar>
-                                    ))
-                                  ) : (
-                                    <Text size="xs" c="dimmed">No reviewers</Text>
-                                  )}
-                                </Group>
-                              )}
+                                        {isLatam ? 'LATAM' : 'Global'}
+                                      </Badge>
+                                    </Tooltip>
+                                  );
+                                })()}
+                              </Group>
+                            </Table.Td>
+                            <Table.Td>
+                              {/* Show reviewers for all tabs */}
+                              <Group gap="xs">
+                                {application.reviewerAssignments && application.reviewerAssignments.length > 0 ? (
+                                  application.reviewerAssignments.map((assignment) => (
+                                    <Avatar
+                                      key={assignment.id}
+                                      src={assignment.reviewer.image ?? ""}
+                                      size={24}
+                                      radius="xl"
+                                      title={`${assignment.reviewer.name ?? 'Unknown'} - ${assignment.stage.replace('_', ' ')}`}
+                                    >
+                                      {assignment.reviewer.name?.[0]?.toUpperCase() ?? assignment.reviewer.email?.[0]?.toUpperCase() ?? '?'}
+                                    </Avatar>
+                                  ))
+                                ) : (
+                                  <Text size="xs" c="dimmed">No reviewers</Text>
+                                )}
+                              </Group>
                             </Table.Td>
                             <Table.Td>
                               <Group gap="xs">
@@ -1461,6 +1759,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                         </Table.Th>
                         <Table.Th>Reviews</Table.Th>
                         <Table.Th>Recommendations</Table.Th>
+                        <Table.Th>Region</Table.Th>
                         <Table.Th>Actions</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -1494,21 +1793,17 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                   .map((evaluation, index) => (
                                     <Tooltip
                                       key={index}
-                                      label={`${evaluation.reviewer.name ?? evaluation.reviewer.email ?? 'Unknown Reviewer'}: ${evaluation.overallScore}`}
+                                      label={`${evaluation.reviewer.name ?? evaluation.reviewer.email ?? 'Unknown Reviewer'}: ${evaluation.overallScore?.toFixed(1)}`}
                                       position="top"
                                       withArrow
                                     >
                                       <Badge
                                         size="sm"
                                         variant="light"
-                                        color={
-                                          evaluation.overallScore! >= 80 ? 'green' :
-                                          evaluation.overallScore! >= 60 ? 'yellow' :
-                                          evaluation.overallScore! >= 40 ? 'orange' : 'red'
-                                        }
+                                        color="blue"
                                         style={{ cursor: 'help' }}
                                       >
-                                        {evaluation.overallScore}
+                                        {evaluation.overallScore?.toFixed(1)}
                                       </Badge>
                                     </Tooltip>
                                   ))
@@ -1547,6 +1842,35 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 <Text size="xs" c="dimmed">No recommendations</Text>
                               )}
                             </Stack>
+                          </Table.Td>
+                          <Table.Td>
+                            {/* Show LATAM badge for consensus tab */}
+                            <Group gap="xs">
+                              {(() => {
+                                const nationalityResponse = application.responses?.find(r => 
+                                  r.question.questionKey === 'nationality' || 
+                                  r.question.questionKey === 'country'
+                                );
+                                
+                                if (!nationalityResponse?.answer) {
+                                  return <Text size="xs" c="dimmed">Not specified</Text>;
+                                }
+                                
+                                const isLatam = isLatamCountry(nationalityResponse.answer);
+                                
+                                return (
+                                  <Tooltip label={`${isLatam ? 'Latin America' : 'Global (Non-LATAM)'}`}>
+                                    <Badge 
+                                      color={isLatam ? 'blue' : 'teal'} 
+                                      size="sm" 
+                                      variant="filled"
+                                    >
+                                      {isLatam ? 'LATAM' : 'Global'}
+                                    </Badge>
+                                  </Tooltip>
+                                );
+                              })()}
+                            </Group>
                           </Table.Td>
                           <Table.Td>
                             <Group gap="xs">
