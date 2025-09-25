@@ -92,6 +92,7 @@ type ApplicationWithUser = {
   status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
   submittedAt: Date | null;
   createdAt: Date;
+  affiliation: string | null;
   user: {
     id: string;
     name: string | null;
@@ -184,6 +185,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [searchQuery, setSearchQuery] = useState("");
   const [hideRejected, setHideRejected] = useState<boolean>(true);
   const [hideReviewingAccepted, setHideReviewingAccepted] = useState<boolean>(false);
+  const [hideIncomplete, setHideIncomplete] = useState<boolean>(false);
   const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
   const [viewingApplication, setViewingApplication] = useState<ApplicationWithUser | null>(null);
   const [editingApplication, setEditingApplication] = useState<ApplicationWithUser | null>(null);
@@ -459,12 +461,17 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       app.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.user?.name?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    // Hide rejected filter (only applies when on "all" tab)
-    const shouldHideRejected = hideRejected && activeTab === "all" && app.status === "REJECTED";
+    // Hide rejected and cancelled filter (only applies when on "all" tab)
+    const shouldHideRejected = hideRejected && activeTab === "all" && (app.status === "REJECTED" || app.status === "CANCELLED");
     
     // Hide reviewing and accepted filter (only applies when on "all" tab)
     const shouldHideReviewingAccepted = hideReviewingAccepted && activeTab === "all" && 
       (app.status === "UNDER_REVIEW" || app.status === "ACCEPTED");
+    
+    // Hide incomplete applications filter (only applies when on "all" tab)
+    const shouldHideIncomplete = hideIncomplete && activeTab === "all" && 
+      (app.status === "DRAFT" || app.status === "SUBMITTED") &&
+      !missingInfoResults.get(app.id)?.isComplete;
     
     // For incomplete tab, only show applications that are DRAFT or SUBMITTED and have missing info
     if (activeTab === "incomplete") {
@@ -475,10 +482,10 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       const checkResult = missingInfoResults.get(app.id);
       // Only show if we've checked and found missing info, OR if we haven't checked yet (potential incomplete)
       const hasMissingInfo = !checkResult?.isComplete;
-      return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted && hasMissingInfo;
+      return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted && !shouldHideIncomplete && hasMissingInfo;
     }
     
-    return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted;
+    return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted && !shouldHideIncomplete;
   }) ?? [];
 
   // Calculate incomplete applications count (DRAFT or SUBMITTED apps with missing info or unchecked)
@@ -823,7 +830,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         email: app.email,
         name: escapeCsvValue(fullName),
         status: app.status,
-        submittedAt: app.submittedAt ? new Date(app.submittedAt).toISOString() : "",
+        affiliation: escapeCsvValue(app.affiliation),
         createdAt: new Date(app.createdAt).toISOString(),
         
         // Profile Information
@@ -871,7 +878,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
 
     // Define headers for all fields
     const headers = [
-      "Application ID", "Email", "Name", "Status", "Submitted At", "Created At",
+      "Application ID", "Email", "Name", "Status", "Affiliation", "Created At",
       "Job Title", "Company", "Location", "Timezone", "Years of Experience", "Bio",
       "Website", "GitHub URL", "LinkedIn URL", "Twitter URL", "Telegram Handle", "Discord Handle",
       "Profile Skills", "Profile Interests", "Languages",
@@ -919,11 +926,11 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         gender: escapeCsvValue(gender),
         age: escapeCsvValue(age),
         location: escapeCsvValue(location),
-        submittedAt: app.submittedAt ? new Date(app.submittedAt).toISOString() : "",
+        affiliation: escapeCsvValue(app.affiliation),
       };
     });
 
-    const headers = ["Application ID", "Email", "Name", "Status", "Nationality", "Gender", "Age", "Location", "Submitted At"];
+    const headers = ["Application ID", "Email", "Name", "Status", "Nationality", "Gender", "Age", "Location", "Affiliation"];
     const csvContent = [
       headers.map(header => escapeCsvValue(header)).join(","),
       ...csvData.map(row => Object.values(row).join(","))
@@ -952,6 +959,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         email: app.email,
         name: escapeCsvValue(app.user?.name ?? getResponseValue(responses, "full_name")),
         status: app.status,
+        affiliation: escapeCsvValue(app.affiliation),
         company: escapeCsvValue(profile?.company),
         jobTitle: escapeCsvValue(profile?.jobTitle),
         location: escapeCsvValue(profile?.location),
@@ -967,7 +975,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     });
 
     const headers = [
-      "Application ID", "Email", "Name", "Status", "Company", "Job Title", "Location",
+      "Application ID", "Email", "Name", "Status", "Affiliation", "Company", "Job Title", "Location",
       "GitHub URL", "LinkedIn URL", "Twitter URL", "Telegram Handle", "Discord Handle", "Website",
       "Available for Mentoring", "Available for Hiring"
     ];
@@ -1004,6 +1012,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         email: app.email,
         name: escapeCsvValue(app.user?.name ?? getResponseValue(responses, "full_name")),
         status: app.status,
+        affiliation: escapeCsvValue(app.affiliation),
         yearsOfExperience: profile?.yearsOfExperience?.toString() ?? "",
         profileSkills: formatArrayForCsv(profile?.skills),
         applicationTechnicalSkills: escapeCsvValue(technicalSkills),
@@ -1016,7 +1025,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     });
 
     const headers = [
-      "Application ID", "Email", "Name", "Status", "Years of Experience", "Profile Skills",
+      "Application ID", "Email", "Name", "Status", "Affiliation", "Years of Experience", "Profile Skills",
       "Application Technical Skills", "Project Description", "Experience", "Portfolio URL",
       "GitHub URL", "Languages"
     ];
@@ -1363,7 +1372,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                   {activeTab === "all" && (
                     <>
                       <Checkbox
-                        label="Hide rejected"
+                        label="Hide rejected and cancelled"
                         checked={hideRejected}
                         onChange={(e) => setHideRejected(e.currentTarget.checked)}
                       />
@@ -1371,6 +1380,11 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                         label="Hide reviewing and accepted"
                         checked={hideReviewingAccepted}
                         onChange={(e) => setHideReviewingAccepted(e.currentTarget.checked)}
+                      />
+                      <Checkbox
+                        label="Hide incomplete applications"
+                        checked={hideIncomplete}
+                        onChange={(e) => setHideIncomplete(e.currentTarget.checked)}
                       />
                     </>
                   )}
@@ -1678,7 +1692,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                         <Table.Th>Applicant</Table.Th>
                         <Table.Th>Progress</Table.Th>
                         <Table.Th>Status</Table.Th>
-                        <Table.Th>Submitted</Table.Th>
+                        <Table.Th>Affiliation</Table.Th>
                         <Table.Th>Region</Table.Th>
                         <Table.Th>Reviewers</Table.Th>
                         <Table.Th>Actions</Table.Th>
@@ -1734,10 +1748,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             </Table.Td>
                             <Table.Td>
                               <Text size="sm">
-                                {application.submittedAt
-                                  ? new Date(application.submittedAt).toLocaleDateString()
-                                  : "Draft"
-                                }
+                                {application.affiliation ?? "Not specified"}
                               </Text>
                             </Table.Td>
                             <Table.Td>

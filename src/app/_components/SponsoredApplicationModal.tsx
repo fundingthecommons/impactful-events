@@ -118,8 +118,8 @@ export default function SponsoredApplicationModal({
           />
 
           <TextInput
-            label="Organization"
-            placeholder="Company or organization name"
+            label="Affiliation"
+            placeholder="Company, organization, or institutional affiliation"
             value={formData.organization}
             onChange={handleInputChange('organization')}
           />

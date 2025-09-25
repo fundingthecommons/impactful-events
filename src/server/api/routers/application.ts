@@ -1251,6 +1251,7 @@ export const applicationRouter = createTRPCRouter({
           email: input.email,
           status: "ACCEPTED",
           language: "en",
+          affiliation: input.organization ?? null,
           isComplete: true,
           completedAt: new Date(),
           submittedAt: new Date(),
@@ -1302,7 +1303,7 @@ export const applicationRouter = createTRPCRouter({
             responsesToCreate.push({
               applicationId: application.id,
               questionId: orgQuestion.id,
-              answer: input.organization,
+              answer: input.organization!,
             });
           }
         }
