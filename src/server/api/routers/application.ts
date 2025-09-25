@@ -1303,7 +1303,7 @@ export const applicationRouter = createTRPCRouter({
             responsesToCreate.push({
               applicationId: application.id,
               questionId: orgQuestion.id,
-              answer: input.organization!,
+              answer: input.organization,
             });
           }
         }
