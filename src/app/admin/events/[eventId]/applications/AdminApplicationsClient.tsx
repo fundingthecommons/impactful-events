@@ -60,6 +60,7 @@ import ReviewPipelineDashboard from "~/app/_components/ReviewPipelineDashboard";
 import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
 import ApplicationCompletionProgress from "~/app/_components/ApplicationCompletionProgress";
 import CurationSpecDashboard from "~/app/_components/CurationSpecDashboard";
+import SponsoredApplicationModal from "~/app/_components/SponsoredApplicationModal";
 import { type ExtendedDemographicStats, type ApplicationForDemographics, calculateExtendedDemographicStats, isLatamCountry } from "~/utils/demographics";
 
 type Event = {
@@ -190,6 +191,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const [emailPreviewOpened, { open: openEmailPreview, close: closeEmailPreview }] = useDisclosure(false);
   const [previewingEmail, setPreviewingEmail] = useState<EmailType | null>(null);
   const [showStats, setShowStats] = useState<boolean>(false);
+  const [sponsoredModalOpened, { open: openSponsoredModal, close: closeSponsoredModal }] = useDisclosure(false);
   
   // Consensus table sorting state
   const [consensusSortField, setConsensusSortField] = useState<'score' | 'name' | null>('score');
@@ -755,6 +757,19 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     }
   };
 
+  // Handle sponsored application creation success
+  const handleSponsoredApplicationSuccess = async () => {
+    notifications.show({
+      title: "Sponsored Application Created",
+      message: "Sponsored application has been created with ACCEPTED status",
+      color: "green",
+      icon: <IconCheck />,
+    });
+    
+    // Refresh applications data to show the new sponsored application
+    await utils.application.getEventApplications.invalidate({ eventId: event.id });
+  };
+
   // Helper function to safely escape CSV values
   const escapeCsvValue = (value: string | null | undefined): string => {
     if (!value) return "";
@@ -1245,14 +1260,25 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                   )}
                   
                   {activeTab === "accepted" && (
-                    <Button
-                      variant="outline"
-                      leftSection={<IconChartBar size={16} />}
-                      onClick={() => setShowStats(!showStats)}
-                      loading={showStats && isStatsLoading}
-                    >
-                      {showStats ? "Hide Stats" : "Show Stats"}
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        leftSection={<IconChartBar size={16} />}
+                        onClick={() => setShowStats(!showStats)}
+                        loading={showStats && isStatsLoading}
+                      >
+                        {showStats ? "Hide Stats" : "Show Stats"}
+                      </Button>
+                      
+                      <Button
+                        variant="filled"
+                        color="green"
+                        leftSection={<IconUserPlus size={16} />}
+                        onClick={openSponsoredModal}
+                      >
+                        Create Sponsored Application
+                      </Button>
+                    </>
                   )}
                   
                   <Menu position="bottom-end">
@@ -2376,6 +2402,14 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
           sending={sendEmail.isPending}
         />
       )}
+
+      {/* Sponsored Application Modal */}
+      <SponsoredApplicationModal
+        opened={sponsoredModalOpened}
+        onClose={closeSponsoredModal}
+        eventId={event.id}
+        onSuccess={handleSponsoredApplicationSuccess}
+      />
     </Container>
   );
 }
