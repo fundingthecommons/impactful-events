@@ -772,13 +772,13 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     { value: "CANCELLED", label: "Cancelled" },
   ];
 
-  const applicationStats = applications ? {
-    total: applications.length,
-    submitted: applications.filter(app => app.status === "SUBMITTED").length,
-    underReview: applications.filter(app => app.status === "UNDER_REVIEW").length,
-    accepted: applications.filter(app => app.status === "ACCEPTED").length,
-    rejected: applications.filter(app => app.status === "REJECTED").length,
-    waitlisted: applications.filter(app => app.status === "WAITLISTED").length,
+  const applicationStats = allApplications ? {
+    total: allApplications.length,
+    submitted: allApplications.filter(app => app.status === "SUBMITTED").length,
+    underReview: allApplications.filter(app => app.status === "UNDER_REVIEW").length,
+    accepted: allApplications.filter(app => app.status === "ACCEPTED").length,
+    rejected: allApplications.filter(app => app.status === "REJECTED").length,
+    waitlisted: allApplications.filter(app => app.status === "WAITLISTED").length,
   } : null;
 
   if (isLoading) {
