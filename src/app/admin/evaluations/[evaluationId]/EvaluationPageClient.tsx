@@ -206,9 +206,9 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
           <Button 
             variant="subtle" 
             leftSection={<IconArrowLeft size="1rem" />}
-            onClick={() => router.push("/admin/queue")}
+            onClick={() => router.push("/admin/events/funding-commons-residency-2025/applications")}
           >
-            Back to Queue
+            Back to Applications
           </Button>
           
           <Badge color="gray" variant="light">

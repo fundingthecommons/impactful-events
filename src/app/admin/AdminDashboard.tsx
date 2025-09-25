@@ -228,9 +228,9 @@ export default function AdminDashboard() {
                   <Badge size="sm" variant="light" color="blue">Review</Badge>
                 </Group>
               </Stack>
-              <Link href="/admin/queue" style={{ textDecoration: 'none' }}>
+              <Link href="/admin/events/funding-commons-residency-2025/applications" style={{ textDecoration: 'none' }}>
                 <Button rightSection={<IconArrowRight size={16} />}>
-                  View Queue
+                  View Applications
                 </Button>
               </Link>
             </Group>
