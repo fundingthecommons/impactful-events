@@ -45,7 +45,7 @@ export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = (
         </Section>
 
         <Text style={paragraph}>
-          We&apos;ll also be sharing more opportunities, programs, and events in the months ahead. If you&apos;d like to stay updated, you can join our newsletter here: <a href={newsletterUrl} style={link}>{newsletterUrl}</a>.
+          We&apos;ll also be sharing more opportunities, programs, and events in the months ahead. In the meantime, RealFi Hack is on—you can sign up <a href="https://realfi-hack.devspot.app/" style={link}>here</a> and shape solutions for the real world with bounties of $60k+. If you&apos;d like to stay updated, you can join our newsletter here: <a href={newsletterUrl} style={link}>{newsletterUrl}</a>.
         </Text>
 
         <Text style={paragraph}>
