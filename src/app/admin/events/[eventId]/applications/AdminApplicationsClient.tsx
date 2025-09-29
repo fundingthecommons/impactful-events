@@ -181,6 +181,9 @@ function getStatusIcon(status: string) {
 }
 
 export default function AdminApplicationsClient({ event }: AdminApplicationsClientProps) {
+  // Message for Under Review applicants
+  const UNDER_REVIEW_MESSAGE = "Thank you for your application to the Funding the Commons residency. I am sorry for the delay in processing your application. We are in the process of processing hundreds of applicants of extremely high quality, like you. The good news is that you're on the short list for the last few places, and we will be able to give you a conclusive answer in the next days. Hopefully by the end of this week. Thank you again for your patience. If you are no longer available or interested, please indicate that as soon as possible. Thanks for your patience. We'll talk soon.";
+
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [hideRejected, setHideRejected] = useState<boolean>(true);
@@ -1830,10 +1833,11 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                   <IconEdit size={16} />
                                 </ActionIcon>
 
-                                {/* Telegram icon - only show on Incomplete tab */}
-                                {activeTab === "incomplete" && (
+                                {/* Telegram icon - show on Incomplete and Under Review tabs */}
+                                {(activeTab === "incomplete" || activeTab === "under_review") && (
                                   <TelegramMessageButton
                                     application={application}
+                                    customMessage={activeTab === "under_review" ? UNDER_REVIEW_MESSAGE : undefined}
                                     size={16}
                                     variant="subtle"
                                     color="blue"
