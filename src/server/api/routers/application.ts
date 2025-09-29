@@ -1044,6 +1044,45 @@ export const applicationRouter = createTRPCRouter({
       });
     }),
 
+  // Admin: Update application affiliation
+  updateApplicationAffiliation: protectedProcedure
+    .input(z.object({
+      applicationId: z.string(),
+      affiliation: z.string().nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      // Update the application's affiliation field directly
+      const application = await ctx.db.application.update({
+        where: { id: input.applicationId },
+        data: { affiliation: input.affiliation },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          responses: {
+            include: {
+              question: true,
+            },
+          },
+        },
+      });
+
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Application not found",
+        });
+      }
+
+      return application;
+    }),
+
   // Bulk update application responses
   bulkUpdateApplicationResponses: protectedProcedure
     .input(BulkUpdateApplicationResponsesSchema)

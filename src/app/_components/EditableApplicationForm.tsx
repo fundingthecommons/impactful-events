@@ -41,6 +41,7 @@ type ApplicationWithUser = {
   status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
   submittedAt: Date | null;
   createdAt: Date;
+  affiliation: string | null;
   user: {
     id: string;
     name: string | null;
@@ -79,6 +80,7 @@ export default function EditableApplicationForm({
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
   const [originalValues, setOriginalValues] = useState<Record<string, unknown>>({});
   const [userName, setUserName] = useState(application.user?.name ?? "");
+  const [affiliation, setAffiliation] = useState(application.affiliation ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
   // Fetch questions for the event
@@ -96,6 +98,7 @@ export default function EditableApplicationForm({
   // API mutations
   const updateResponse = api.application.updateResponse.useMutation();
   const updateUserName = api.application.updateApplicationUserName.useMutation();
+  const updateAffiliation = api.application.updateApplicationAffiliation.useMutation();
   const bulkUpdateResponses = api.application.bulkUpdateApplicationResponses.useMutation();
 
   // Create stable dependency to prevent infinite loops
@@ -218,6 +221,28 @@ export default function EditableApplicationForm({
       setIsSaving(false);
     }
   };;
+
+  // Save affiliation
+  const saveAffiliation = async () => {
+    setIsSaving(true);
+    try {
+      await updateAffiliation.mutateAsync({
+        applicationId: application.id,
+        affiliation: affiliation.trim() || null,
+      });
+
+      // Remove individual field notification - only show notification on bulk save
+    } catch {
+      notifications.show({
+        title: "Error",
+        message: "Failed to save affiliation",
+        color: "red",
+        icon: <IconAlertCircle />,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Save a specific field
   const saveField = async (questionKey: string, value: unknown) => {
@@ -537,6 +562,25 @@ export default function EditableApplicationForm({
             size="md"
             rightSection={
               userName !== (application.user?.name ?? "") ? (
+                <IconDeviceFloppy size={18} color="orange" />
+              ) : (
+                <IconCheck size={18} color="green" />
+              )
+            }
+            styles={{
+              label: { fontSize: '14px', fontWeight: 600, marginBottom: '8px' },
+              input: { fontSize: '14px' }
+            }}
+          />
+          <TextInput
+            label="Affiliation"
+            placeholder="Enter affiliation (company, organization, etc.)"
+            value={affiliation}
+            onChange={(event) => setAffiliation(event.currentTarget.value)}
+            onBlur={saveAffiliation}
+            size="md"
+            rightSection={
+              affiliation !== (application.affiliation ?? "") ? (
                 <IconDeviceFloppy size={18} color="orange" />
               ) : (
                 <IconCheck size={18} color="green" />
