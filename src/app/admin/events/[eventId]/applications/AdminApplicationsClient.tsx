@@ -238,6 +238,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         return "UNDER_REVIEW" as const;
       case "accepted":
         return "ACCEPTED" as const;
+      case "waitlisted":
+        return "WAITLISTED" as const;
       case "rejected":
         return "REJECTED" as const;
       case "all":
@@ -267,6 +269,10 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const { data: rejectedApplications } = api.application.getEventApplications.useQuery({
     eventId: event.id,
     status: "REJECTED",
+  });
+  const { data: waitlistedApplications } = api.application.getEventApplications.useQuery({
+    eventId: event.id,
+    status: "WAITLISTED",
   });
 
   // Fetch consensus applications (applications with evaluations and scores)
@@ -1343,6 +1349,14 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
               {acceptedApplications && (
                 <Badge size="sm" variant="light" color="green" ml="xs">
                   {acceptedApplications.length}
+                </Badge>
+              )}
+            </Tabs.Tab>
+            <Tabs.Tab value="waitlisted">
+              Waitlisted
+              {waitlistedApplications && (
+                <Badge size="sm" variant="light" color="yellow" ml="xs">
+                  {waitlistedApplications.length}
                 </Badge>
               )}
             </Tabs.Tab>
