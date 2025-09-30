@@ -107,6 +107,7 @@ export default function EditableApplicationForm({
   const bulkUpdateResponses = api.application.bulkUpdateApplicationResponses.useMutation();
   const updateUserAdminNotes = api.user.updateUserAdminNotes.useMutation();
   const updateUserAdminLabels = api.user.updateUserAdminLabels.useMutation();
+  const utils = api.useUtils();
 
   // Create stable dependency to prevent infinite loops
   const responsesHash = useMemo(() => {
@@ -261,6 +262,8 @@ export default function EditableApplicationForm({
         userId: application.user.id,
         adminNotes: adminNotes.trim() || null,
       });
+      // Invalidate the applications query to refresh data
+      void utils.application.getEventApplications.invalidate({ eventId });
     } catch {
       notifications.show({
         title: "Error",
@@ -283,6 +286,8 @@ export default function EditableApplicationForm({
         userId: application.user.id,
         adminLabels: newLabels as ("Entrepreneur" | "Developer" | "Designer" | "Researcher")[],
       });
+      // Invalidate the applications query to refresh data
+      void utils.application.getEventApplications.invalidate({ eventId });
     } catch {
       notifications.show({
         title: "Error",
@@ -383,7 +388,12 @@ export default function EditableApplicationForm({
           };
         });
 
-      if (changedResponses.length === 0) {
+      // Check for admin field changes
+      const adminNotesChanged = adminNotes !== (application.user?.adminNotes ?? "");
+      const adminLabelsChanged = adminLabels.length !== (application.user?.adminLabels?.length ?? 0) || 
+        !adminLabels.every(label => application.user?.adminLabels?.includes(label));
+
+      if (changedResponses.length === 0 && !adminNotesChanged && !adminLabelsChanged) {
         notifications.hide(savingNotificationId);
         notifications.show({
           title: "No Changes",
@@ -392,6 +402,14 @@ export default function EditableApplicationForm({
           icon: <IconCheck />,
         });
         return;
+      }
+
+      // Save admin fields if they've changed
+      if (adminNotesChanged) {
+        await saveAdminNotes();
+      }
+      if (adminLabelsChanged) {
+        await saveAdminLabels(adminLabels);
       }
 
       // Use bulk update mutation with timeout handling
