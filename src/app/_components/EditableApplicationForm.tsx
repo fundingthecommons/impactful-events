@@ -46,6 +46,9 @@ type ApplicationWithUser = {
     id: string;
     name: string | null;
     email: string | null;
+    adminNotes: string | null;
+    adminLabels: string[];
+    adminUpdatedAt: Date | null;
   } | null;
   responses: Array<{
     id: string;
@@ -81,6 +84,8 @@ export default function EditableApplicationForm({
   const [originalValues, setOriginalValues] = useState<Record<string, unknown>>({});
   const [userName, setUserName] = useState(application.user?.name ?? "");
   const [affiliation, setAffiliation] = useState(application.affiliation ?? "");
+  const [adminNotes, setAdminNotes] = useState(application.user?.adminNotes ?? "");
+  const [adminLabels, setAdminLabels] = useState(application.user?.adminLabels ?? []);
   const [isSaving, setIsSaving] = useState(false);
 
   // Fetch questions for the event
@@ -100,6 +105,8 @@ export default function EditableApplicationForm({
   const updateUserName = api.application.updateApplicationUserName.useMutation();
   const updateAffiliation = api.application.updateApplicationAffiliation.useMutation();
   const bulkUpdateResponses = api.application.bulkUpdateApplicationResponses.useMutation();
+  const updateUserAdminNotes = api.user.updateUserAdminNotes.useMutation();
+  const updateUserAdminLabels = api.user.updateUserAdminLabels.useMutation();
 
   // Create stable dependency to prevent infinite loops
   const responsesHash = useMemo(() => {
@@ -236,6 +243,50 @@ export default function EditableApplicationForm({
       notifications.show({
         title: "Error",
         message: "Failed to save affiliation",
+        color: "red",
+        icon: <IconAlertCircle />,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save admin notes
+  const saveAdminNotes = async () => {
+    if (!application.user?.id) return;
+
+    setIsSaving(true);
+    try {
+      await updateUserAdminNotes.mutateAsync({
+        userId: application.user.id,
+        adminNotes: adminNotes.trim() || null,
+      });
+    } catch {
+      notifications.show({
+        title: "Error",
+        message: "Failed to save admin notes",
+        color: "red",
+        icon: <IconAlertCircle />,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save admin labels
+  const saveAdminLabels = async (newLabels: string[]) => {
+    if (!application.user?.id) return;
+
+    setIsSaving(true);
+    try {
+      await updateUserAdminLabels.mutateAsync({
+        userId: application.user.id,
+        adminLabels: newLabels as ("Entrepreneur" | "Developer" | "Designer" | "Researcher")[],
+      });
+    } catch {
+      notifications.show({
+        title: "Error",
+        message: "Failed to save admin labels",
         color: "red",
         icon: <IconAlertCircle />,
       });
@@ -598,6 +649,74 @@ export default function EditableApplicationForm({
           </Paper>
         </Stack>
       </Paper>
+
+      {/* Admin Section - Only visible to admin users */}
+      {application.user && (
+        <Paper p="xl" withBorder radius="md" bg="yellow.0">
+          <Stack gap="lg">
+            <Text fw={600} size="lg" c="orange.8">Internal Admin Notes</Text>
+            <Text size="sm" c="dimmed">
+              These fields are for internal use only and are not visible to the applicant.
+            </Text>
+            
+            <MultiSelect
+              label="Admin Labels"
+              placeholder="Select applicable labels"
+              data={[
+                { value: "Entrepreneur", label: "Entrepreneur" },
+                { value: "Developer", label: "Developer" },
+                { value: "Designer", label: "Designer" },
+                { value: "Researcher", label: "Researcher" },
+              ]}
+              value={adminLabels}
+              onChange={(values) => {
+                setAdminLabels(values);
+                void saveAdminLabels(values);
+              }}
+              size="md"
+              rightSection={
+                adminLabels.length !== (application.user?.adminLabels?.length ?? 0) || 
+                !adminLabels.every(label => application.user?.adminLabels?.includes(label)) ? (
+                  <IconDeviceFloppy size={18} color="orange" />
+                ) : (
+                  <IconCheck size={18} color="green" />
+                )
+              }
+              styles={{
+                label: { fontSize: '14px', fontWeight: 600, marginBottom: '8px' },
+                input: { fontSize: '14px' }
+              }}
+            />
+            
+            <Textarea
+              label="Admin Notes"
+              placeholder="Add internal notes about this applicant..."
+              value={adminNotes}
+              onChange={(event) => setAdminNotes(event.currentTarget.value)}
+              onBlur={saveAdminNotes}
+              minRows={3}
+              size="md"
+              rightSection={
+                adminNotes !== (application.user?.adminNotes ?? "") ? (
+                  <IconDeviceFloppy size={18} color="orange" />
+                ) : (
+                  <IconCheck size={18} color="green" />
+                )
+              }
+              styles={{
+                label: { fontSize: '14px', fontWeight: 600, marginBottom: '8px' },
+                input: { fontSize: '14px' }
+              }}
+            />
+            
+            {application.user?.adminUpdatedAt && (
+              <Text size="xs" c="dimmed">
+                Last updated: {new Date(application.user.adminUpdatedAt).toLocaleString()}
+              </Text>
+            )}
+          </Stack>
+        </Paper>
+      )}
 
       {/* Editable form questions */}
       <Stack gap="xl">

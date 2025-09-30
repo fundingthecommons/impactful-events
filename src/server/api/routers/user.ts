@@ -97,4 +97,70 @@ export const userRouter = createTRPCRouter({
 
       return adminUsers;
     }),
+
+  updateUserAdminNotes: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        adminNotes: z.string().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Only allow admin users to update admin notes
+      if (ctx.session.user.role !== "admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only admin users can update user admin notes",
+        });
+      }
+
+      const user = await ctx.db.user.update({
+        where: { id: input.userId },
+        data: {
+          adminNotes: input.adminNotes,
+          adminUpdatedBy: ctx.session.user.id,
+          adminUpdatedAt: new Date(),
+        },
+        select: {
+          id: true,
+          adminNotes: true,
+          adminUpdatedAt: true,
+        },
+      });
+
+      return user;
+    }),
+
+  updateUserAdminLabels: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        adminLabels: z.array(z.enum(["Entrepreneur", "Developer", "Designer", "Researcher"])),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Only allow admin users to update admin labels
+      if (ctx.session.user.role !== "admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only admin users can update user admin labels",
+        });
+      }
+
+      const user = await ctx.db.user.update({
+        where: { id: input.userId },
+        data: {
+          adminLabels: input.adminLabels,
+          adminUpdatedBy: ctx.session.user.id,
+          adminUpdatedAt: new Date(),
+        },
+        select: {
+          id: true,
+          adminLabels: true,
+          adminUpdatedAt: true,
+        },
+      });
+
+      return user;
+    }),
 });

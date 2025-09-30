@@ -1,0 +1,11 @@
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              adminNotes: true,
+              adminLabels: true,
+              adminUpdatedAt: true,
+              profile: true,
+            },
+          },

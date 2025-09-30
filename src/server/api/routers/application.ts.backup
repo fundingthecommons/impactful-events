@@ -475,13 +475,7 @@ export const applicationRouter = createTRPCRouter({
         },
         include: {
           user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              adminNotes: true,
-              adminLabels: true,
-              adminUpdatedAt: true,
+            include: {
               profile: true,
             },
           },
@@ -536,10 +530,6 @@ export const applicationRouter = createTRPCRouter({
               id: true,
               name: true,
               email: true,
-              adminNotes: true,
-              adminLabels: true,
-              adminUpdatedAt: true,
-              profile: true,
             },
           },
           responses: {
@@ -621,10 +611,6 @@ export const applicationRouter = createTRPCRouter({
               id: true,
               name: true,
               email: true,
-              adminNotes: true,
-              adminLabels: true,
-              adminUpdatedAt: true,
-              profile: true,
             },
           },
           event: true,
@@ -823,16 +809,12 @@ export const applicationRouter = createTRPCRouter({
             },
             include: {
               user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              adminNotes: true,
-              adminLabels: true,
-              adminUpdatedAt: true,
-              profile: true,
-            },
-          },
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
               event: true,
             },
           });
@@ -1051,10 +1033,6 @@ export const applicationRouter = createTRPCRouter({
               id: true,
               name: true,
               email: true,
-              adminNotes: true,
-              adminLabels: true,
-              adminUpdatedAt: true,
-              profile: true,
             },
           },
           responses: {
@@ -1085,10 +1063,6 @@ export const applicationRouter = createTRPCRouter({
               id: true,
               name: true,
               email: true,
-              adminNotes: true,
-              adminLabels: true,
-              adminUpdatedAt: true,
-              profile: true,
             },
           },
           responses: {

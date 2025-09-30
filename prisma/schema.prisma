@@ -87,9 +87,19 @@ model User {
   reviewerCompetencies   ReviewerCompetency[]     @relation("ReviewerCompetencies")
   assignedCompetencies   ReviewerCompetency[]     @relation("AssignedCompetencies")
   
+  // Internal admin fields for user management
+  adminNotes      String?   @db.Text  // Internal admin notes about this user
+  adminLabels     String[]             // Array: 'Entrepreneur', 'Developer', 'Designer', 'Researcher'
+  adminUpdatedBy  String?              // Admin who last updated these fields
+  adminUpdatedAt  DateTime?            // When admin fields were last updated
+  
   // Profile system relations
   profile        UserProfile?
   profileSyncs   ProfileSync[]
+  
+  // Admin update relations
+  adminUpdater    User?     @relation("AdminUpdates", fields: [adminUpdatedBy], references: [id])
+  adminUpdates    User[]    @relation("AdminUpdates")
 }
 
 model VerificationToken {

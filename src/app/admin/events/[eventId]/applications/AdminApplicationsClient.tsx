@@ -97,6 +97,9 @@ type ApplicationWithUser = {
     id: string;
     name: string | null;
     email: string | null;
+    adminNotes: string | null;
+    adminLabels: string[];
+    adminUpdatedAt: Date | null;
     profile?: {
       id: string;
       bio: string | null;
