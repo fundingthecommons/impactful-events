@@ -1226,6 +1226,188 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     URL.revokeObjectURL(url);
   };
 
+  // Accepted Builders comprehensive export with all data
+  const exportAcceptedBuilders = () => {
+    if (!applications || applications.length === 0 || !eventQuestions) return;
+
+    // Filter only accepted applications
+    const acceptedApplications = applications.filter(app => app.status === "ACCEPTED");
+    
+    if (acceptedApplications.length === 0) {
+      notifications.show({
+        title: "No Accepted Applications",
+        message: "There are no accepted applications to export",
+        color: "orange",
+      });
+      return;
+    }
+
+    // Sort questions by order for consistent column layout
+    const sortedQuestions = [...eventQuestions].sort((a, b) => a.order - b.order);
+    
+    const csvData = acceptedApplications.map(app => {
+      const profile = app.user?.profile;
+      const user = app.user;
+      const responseMap = new Map(app.responses.map(r => [r.question.id, r.answer]));
+      const reviewers = app.reviewerAssignments?.map(r => r.reviewer.name ?? r.reviewer.email ?? "Unknown").join("; ") ?? "";
+      
+      // Build the row data object dynamically with ALL available data
+      const rowData: Record<string, string> = {
+        // Core application data
+        applicationId: app.id,
+        email: app.email,
+        status: app.status,
+        affiliation: escapeCsvValue(app.affiliation),
+        submittedAt: app.submittedAt ? new Date(app.submittedAt).toISOString() : "",
+        createdAt: new Date(app.createdAt).toISOString(),
+        language: app.language ?? "en",
+        
+        // User basic info
+        userName: escapeCsvValue(user?.name),
+        userEmail: escapeCsvValue(user?.email),
+        
+        // Admin fields
+        adminNotes: escapeCsvValue(user?.adminNotes),
+        adminLabels: formatArrayForCsv(user?.adminLabels),
+        adminUpdatedAt: user?.adminUpdatedAt ? new Date(user.adminUpdatedAt).toISOString() : "",
+        
+        // Comprehensive profile data
+        profileBio: escapeCsvValue(profile?.bio),
+        profileJobTitle: escapeCsvValue(profile?.jobTitle),
+        profileCompany: escapeCsvValue(profile?.company),
+        profileLocation: escapeCsvValue(profile?.location),
+        profileTimezone: escapeCsvValue(profile?.timezone),
+        profileYearsExperience: profile?.yearsOfExperience?.toString() ?? "",
+        profileWebsite: escapeCsvValue(profile?.website),
+        
+        // Contact & Social URLs
+        profileGithub: escapeCsvValue(profile?.githubUrl),
+        profileLinkedIn: escapeCsvValue(profile?.linkedinUrl),
+        profileTwitter: escapeCsvValue(profile?.twitterUrl),
+        profileTelegram: escapeCsvValue(profile?.telegramHandle),
+        profileDiscord: escapeCsvValue(profile?.discordHandle),
+        
+        // Skills & Interests
+        profileSkills: formatArrayForCsv(profile?.skills),
+        profileInterests: formatArrayForCsv(profile?.interests),
+        profileLanguages: formatArrayForCsv(profile?.languages),
+        
+        // Availability flags
+        availableForMentoring: profile?.availableForMentoring ? "Yes" : "No",
+        availableForHiring: profile?.availableForHiring ? "Yes" : "No",
+        availableForOfficeHours: profile?.availableForOfficeHours ? "Yes" : "No",
+        
+        // Review data
+        reviewers: escapeCsvValue(reviewers),
+        reviewerCount: app.reviewerAssignments?.length.toString() ?? "0",
+      };
+
+      // Add all question responses dynamically
+      sortedQuestions.forEach(question => {
+        const answer = responseMap.get(question.id) ?? "";
+        const columnKey = `Q${question.order}_${question.questionKey}`;
+        rowData[columnKey] = escapeCsvValue(answer);
+      });
+
+      return rowData;
+    });
+
+    // Build comprehensive headers for accepted builders
+    const staticHeaders = [
+      "Application ID", "Email", "Status", "Affiliation", "Submitted At", "Created At", "Language",
+      "User Name", "User Email",
+      "Admin Notes", "Admin Labels", "Admin Updated At",
+      "Profile Bio", "Profile Job Title", "Profile Company", "Profile Location", "Profile Timezone", "Profile Years Experience",
+      "Profile Website", "Profile GitHub", "Profile LinkedIn", "Profile Twitter", "Profile Telegram", "Profile Discord",
+      "Profile Skills", "Profile Interests", "Profile Languages",
+      "Available for Mentoring", "Available for Hiring", "Available for Office Hours",
+      "Reviewers", "Reviewer Count"
+    ];
+
+    // Add dynamic question headers with full question text
+    const questionHeaders = sortedQuestions.map(question => {
+      const questionText = question.questionEn || question.questionKey;
+      const truncatedText = questionText.length > 50 ? questionText.substring(0, 47) + "..." : questionText;
+      const requiredIndicator = question.required ? "*" : "";
+      return `Q${question.order}: ${truncatedText}${requiredIndicator}`;
+    });
+
+    const allHeaders = [...staticHeaders, ...questionHeaders];
+
+    // Create CSV content with comprehensive data mapping
+    const csvContent = [
+      allHeaders.map(header => escapeCsvValue(header)).join(","),
+      ...csvData.map(row => allHeaders.map(header => {
+        // Map display headers back to data keys
+        if (header.startsWith("Q") && header.includes(":")) {
+          const questionOrder = parseInt(header.split(":")[0]?.substring(1) ?? "0");
+          const question = sortedQuestions.find(q => q.order === questionOrder);
+          if (question) {
+            const columnKey = `Q${question.order}_${question.questionKey}`;
+            return row[columnKey] ?? "";
+          }
+        }
+        // Handle static headers with comprehensive mapping
+        const staticHeaderMap: Record<string, string> = {
+          "Application ID": "applicationId",
+          "Email": "email",
+          "Status": "status",
+          "Affiliation": "affiliation",
+          "Submitted At": "submittedAt",
+          "Created At": "createdAt",
+          "Language": "language",
+          "User Name": "userName",
+          "User Email": "userEmail",
+          "Admin Notes": "adminNotes",
+          "Admin Labels": "adminLabels",
+          "Admin Updated At": "adminUpdatedAt",
+          "Profile Bio": "profileBio",
+          "Profile Job Title": "profileJobTitle",
+          "Profile Company": "profileCompany",
+          "Profile Location": "profileLocation",
+          "Profile Timezone": "profileTimezone",
+          "Profile Years Experience": "profileYearsExperience",
+          "Profile Website": "profileWebsite",
+          "Profile GitHub": "profileGithub",
+          "Profile LinkedIn": "profileLinkedIn",
+          "Profile Twitter": "profileTwitter",
+          "Profile Telegram": "profileTelegram",
+          "Profile Discord": "profileDiscord",
+          "Profile Skills": "profileSkills",
+          "Profile Interests": "profileInterests",
+          "Profile Languages": "profileLanguages",
+          "Available for Mentoring": "availableForMentoring",
+          "Available for Hiring": "availableForHiring",
+          "Available for Office Hours": "availableForOfficeHours",
+          "Reviewers": "reviewers",
+          "Reviewer Count": "reviewerCount",
+        };
+        
+        const dataKey = staticHeaderMap[header];
+        return dataKey ? (row[dataKey] ?? "") : "";
+      }).join(","))
+    ].join("\n");
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${event.name.replace(/\s+/g, "_")}_accepted_builders_complete.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    // Show success notification
+    notifications.show({
+      title: "Export Complete",
+      message: `Exported ${acceptedApplications.length} accepted builder(s) with complete data`,
+      color: "green",
+      icon: <IconCheck />,
+    });
+  };
+
   const statusOptions = [
     { value: "DRAFT", label: "Incomplete" },
     { value: "UNDER_REVIEW", label: "Under Review" },
@@ -1496,6 +1678,17 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                       </Button>
                     </Menu.Target>
                     <Menu.Dropdown>
+                      <Menu.Item
+                        leftSection={<IconCheck size={16} />}
+                        onClick={exportAcceptedBuilders}
+                        disabled={!eventQuestions || eventQuestions.length === 0}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>Accepted Builders Export</Text>
+                          <Text size="xs" c="dimmed">Only accepted - ALL data including admin notes & questions</Text>
+                        </Stack>
+                      </Menu.Item>
+                      <Menu.Divider />
                       <Menu.Item
                         leftSection={<IconQuestionMark size={16} />}
                         onClick={exportCompleteQAData}
