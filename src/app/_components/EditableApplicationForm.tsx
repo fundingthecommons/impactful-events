@@ -668,9 +668,8 @@ export default function EditableApplicationForm({
         </Stack>
       </Paper>
 
-      {/* Admin Section - Only visible to admin users */}
-      {application.user && (
-        <Paper p="xl" withBorder radius="md" bg="yellow.0">
+      {/* Admin Section - Always visible to admin users */}
+      <Paper p="xl" withBorder radius="md" bg="yellow.0">
           <Stack gap="lg">
             <Text fw={600} size="lg" c="orange.8">Internal Admin Notes</Text>
             <Text size="sm" c="dimmed">
@@ -685,6 +684,11 @@ export default function EditableApplicationForm({
                 { value: "Developer", label: "Developer" },
                 { value: "Designer", label: "Designer" },
                 { value: "Researcher", label: "Researcher" },
+                { value: "Lawyer", label: "Lawyer" },
+                { value: "Non-Technical", label: "Non-Technical" },
+                { value: "Writer", label: "Writer" },
+                { value: "Scientist", label: "Scientist" },
+                { value: "AI / ML expert", label: "AI / ML expert" },
               ]}
               value={adminLabels}
               onChange={(values) => {
@@ -734,7 +738,6 @@ export default function EditableApplicationForm({
             )}
           </Stack>
         </Paper>
-      )}
 
       {/* Editable form questions */}
       <Stack gap="xl">

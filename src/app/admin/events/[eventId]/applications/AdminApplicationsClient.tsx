@@ -1907,7 +1907,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                         <Table.Th>Status</Table.Th>
                         <Table.Th>Affiliation</Table.Th>
                         <Table.Th>Region</Table.Th>
-                        <Table.Th>Reviewers</Table.Th>
+                        <Table.Th>Attributes</Table.Th>
                         <Table.Th>Actions</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -1994,22 +1994,32 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                               </Group>
                             </Table.Td>
                             <Table.Td>
-                              {/* Show reviewers for all tabs */}
+                              {/* Show admin labels */}
                               <Group gap="xs">
-                                {application.reviewerAssignments && application.reviewerAssignments.length > 0 ? (
-                                  application.reviewerAssignments.map((assignment) => (
-                                    <Avatar
-                                      key={assignment.id}
-                                      src={assignment.reviewer.image ?? ""}
-                                      size={24}
-                                      radius="xl"
-                                      title={`${assignment.reviewer.name ?? 'Unknown'} - ${assignment.stage.replace('_', ' ')}`}
+                                {application.user?.adminLabels && application.user.adminLabels.length > 0 ? (
+                                  application.user.adminLabels.map((label) => (
+                                    <Badge
+                                      key={label}
+                                      variant="light"
+                                      size="sm"
+                                      color={
+                                        label === "Entrepreneur" ? "purple" :
+                                        label === "Developer" ? "blue" :
+                                        label === "Designer" ? "green" :
+                                        label === "Researcher" ? "orange" :
+                                        label === "Lawyer" ? "red" :
+                                        label === "Non-Technical" ? "yellow" :
+                                        label === "Writer" ? "teal" :
+                                        label === "Scientist" ? "indigo" :
+                                        label === "AI / ML expert" ? "violet" :
+                                        "gray"
+                                      }
                                     >
-                                      {assignment.reviewer.name?.[0]?.toUpperCase() ?? assignment.reviewer.email?.[0]?.toUpperCase() ?? '?'}
-                                    </Avatar>
+                                      {label}
+                                    </Badge>
                                   ))
                                 ) : (
-                                  <Text size="xs" c="dimmed">No reviewers</Text>
+                                  <Text size="xs" c="dimmed">No labels</Text>
                                 )}
                               </Group>
                             </Table.Td>
