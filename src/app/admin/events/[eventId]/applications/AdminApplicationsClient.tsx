@@ -214,6 +214,10 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   
   // Consensus attributes filter state
   const [selectedAttributeFilter, setSelectedAttributeFilter] = useState<string | null>(null);
+
+  // Accepted tab filter state
+  const [acceptedRegionFilter, setAcceptedRegionFilter] = useState<string | null>(null);
+  const [acceptedAttributeFilter, setAcceptedAttributeFilter] = useState<string | null>(null);
   
   // Track missing info check results per application with timestamps
   const [missingInfoResults, setMissingInfoResults] = useState<Map<string, { 
@@ -437,6 +441,51 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       return consensusSortDirection === 'desc' ? -comparison : comparison;
     });
   }, [consensusApplications, consensusSortField, consensusSortDirection, selectedReviewerId, selectedRegionFilter, selectedAttributeFilter]);
+
+  // Filter and sort accepted applications
+  const filteredAndSortedAcceptedApplications = useMemo(() => {
+    if (!acceptedApplications) return acceptedApplications;
+
+    let filtered = [...acceptedApplications];
+
+    // Filter by region if selected
+    if (acceptedRegionFilter) {
+      filtered = filtered.filter(app => {
+        const nationalityResponse = app.responses?.find(r => 
+          r.question.questionKey === 'nationality' || 
+          r.question.questionKey === 'country'
+        );
+        
+        if (!nationalityResponse?.answer) return false;
+        
+        const isLatam = isLatamCountry(nationalityResponse.answer);
+        
+        // Map regions to filter logic
+        switch (acceptedRegionFilter) {
+          case 'Latin America':
+            return isLatam;
+          case 'North America':
+          case 'Europe':
+          case 'Asia':
+          case 'Africa':
+          case 'Oceania':
+          case 'Other':
+            return !isLatam; // For now, non-LATAM for all other regions
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Filter by attributes if selected
+    if (acceptedAttributeFilter) {
+      filtered = filtered.filter(app => 
+        app.user?.adminLabels?.includes(acceptedAttributeFilter)
+      );
+    }
+
+    return filtered;
+  }, [acceptedApplications, acceptedRegionFilter, acceptedAttributeFilter]);
 
   // Helper function to find latest MISSING_INFO email for an application
   const getLatestMissingInfoEmail = (applicationId: string) => {
@@ -1688,6 +1737,68 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                   
                   {activeTab === "accepted" && (
                     <>
+                      <Select
+                        placeholder="Filter by region"
+                        data={[
+                          { value: '', label: 'All regions' },
+                          { value: 'North America', label: 'North America' },
+                          { value: 'Europe', label: 'Europe' },
+                          { value: 'Latin America', label: 'Latin America' },
+                          { value: 'Asia', label: 'Asia' },
+                          { value: 'Africa', label: 'Africa' },
+                          { value: 'Oceania', label: 'Oceania' },
+                          { value: 'Other', label: 'Other' }
+                        ]}
+                        value={acceptedRegionFilter ?? ''}
+                        onChange={(value) => setAcceptedRegionFilter(value ?? null)}
+                        clearable
+                        searchable
+                        style={{ minWidth: 150 }}
+                      />
+                      <Select
+                        placeholder="Filter by attributes"
+                        data={[
+                          { value: '', label: 'All attributes' },
+                          { value: 'AI / ML expert', label: 'AI / ML expert' },
+                          { value: 'Designer', label: 'Designer' },
+                          { value: 'Developer', label: 'Developer' },
+                          { value: 'Entrepreneur', label: 'Entrepreneur' },
+                          { value: 'Lawyer', label: 'Lawyer' },
+                          { value: 'Non-Technical', label: 'Non-Technical' },
+                          { value: 'Project manager', label: 'Project manager' },
+                          { value: 'REFI', label: 'REFI' },
+                          { value: 'Regen', label: 'Regen' },
+                          { value: 'Researcher', label: 'Researcher' },
+                          { value: 'Scientist', label: 'Scientist' },
+                          { value: 'Woman', label: 'Woman' },
+                          { value: 'Writer', label: 'Writer' },
+                          { value: 'ZK', label: 'ZK' }
+                        ]}
+                        value={acceptedAttributeFilter ?? ''}
+                        onChange={(value) => setAcceptedAttributeFilter(value ?? null)}
+                        clearable
+                        searchable
+                        style={{ minWidth: 150 }}
+                      />
+                      
+                      {(acceptedRegionFilter !== null || acceptedAttributeFilter !== null) && (
+                        <Button
+                          variant="subtle"
+                          onClick={() => {
+                            setAcceptedRegionFilter(null);
+                            setAcceptedAttributeFilter(null);
+                          }}
+                          size="sm"
+                        >
+                          Clear filters
+                        </Button>
+                      )}
+                      
+                      <Text size="sm" c="dimmed">
+                        {filteredAndSortedAcceptedApplications?.length ?? 0} accepted applications
+                        {(acceptedRegionFilter !== null || acceptedAttributeFilter !== null) && ' (filtered)'}
+                      </Text>
+                      
                       <Button
                         variant="outline"
                         leftSection={<IconChartBar size={16} />}
@@ -1926,23 +2037,27 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
 
             {/* Applications Table */}
             <Paper shadow="sm" radius="md" withBorder>
-              {filteredApplications.length === 0 ? (
-                <Stack align="center" p="xl" gap="md">
-                  <IconUsers size={48} stroke={1} color="var(--mantine-color-gray-5)" />
-                  <Text c="dimmed">No applications found</Text>
-                </Stack>
-              ) : (
-                <Table.ScrollContainer minWidth={900}>
-                  <Table striped highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>
-                          <Checkbox
-                            checked={selectedApplications.size === filteredApplications.length && filteredApplications.length > 0}
-                            indeterminate={selectedApplications.size > 0 && selectedApplications.size < filteredApplications.length}
-                            onChange={toggleSelectAll}
-                          />
-                        </Table.Th>
+              {(() => {
+                const currentApplications = activeTab === "accepted" ? filteredAndSortedAcceptedApplications : filteredApplications;
+                const applicationsToShow = currentApplications ?? [];
+                
+                return applicationsToShow.length === 0 ? (
+                  <Stack align="center" p="xl" gap="md">
+                    <IconUsers size={48} stroke={1} color="var(--mantine-color-gray-5)" />
+                    <Text c="dimmed">No applications found</Text>
+                  </Stack>
+                ) : (
+                  <Table.ScrollContainer minWidth={900}>
+                    <Table striped highlightOnHover>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>
+                            <Checkbox
+                              checked={selectedApplications.size === applicationsToShow.length && applicationsToShow.length > 0}
+                              indeterminate={selectedApplications.size > 0 && selectedApplications.size < applicationsToShow.length}
+                              onChange={toggleSelectAll}
+                            />
+                          </Table.Th>
                         <Table.Th>Applicant</Table.Th>
                         <Table.Th>Progress</Table.Th>
                         <Table.Th>Status</Table.Th>
@@ -1953,7 +2068,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                      {filteredApplications.map((application) => {
+                      {applicationsToShow.map((application) => {
                         const StatusIcon = getStatusIcon(application.status);
                         
                         // Get completion data from the pre-calculated map
@@ -2160,7 +2275,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                     </Table.Tbody>
                   </Table>
                 </Table.ScrollContainer>
-              )}
+                );
+              })()}
             </Paper>
           </Tabs.Panel>}
 
