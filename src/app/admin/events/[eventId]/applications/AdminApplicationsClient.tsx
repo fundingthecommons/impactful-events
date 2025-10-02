@@ -22,7 +22,6 @@ import {
   ScrollArea,
   Box,
   Anchor,
-  Avatar,
   Tooltip,
   Select,
 } from "@mantine/core";
@@ -2242,7 +2241,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 </Group>
                 
                 <Group gap="md">
-                  {(selectedReviewerId || selectedRegionFilter || selectedAttributeFilter) && (
+                  {(Boolean(selectedReviewerId) || Boolean(selectedRegionFilter) || Boolean(selectedAttributeFilter)) && (
                     <Button
                       variant="subtle"
                       onClick={() => {

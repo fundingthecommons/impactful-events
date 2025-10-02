@@ -568,7 +568,12 @@ export const applicationRouter = createTRPCRouter({
                 not: null,
               },
             },
-            include: {
+            select: {
+              id: true,
+              overallScore: true,
+              overallComments: true,
+              completedAt: true,
+              recommendation: true,
               reviewer: {
                 select: {
                   id: true,
