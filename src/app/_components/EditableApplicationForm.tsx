@@ -284,7 +284,7 @@ export default function EditableApplicationForm({
     try {
       await updateUserAdminLabels.mutateAsync({
         userId: application.user.id,
-        adminLabels: newLabels as ("Entrepreneur" | "Developer" | "Designer" | "Researcher")[],
+        adminLabels: newLabels as ("AI / ML expert" | "Designer" | "Developer" | "Entrepreneur" | "Lawyer" | "Non-Technical" | "Project manager" | "REFI" | "Regen" | "Researcher" | "Scientist" | "Woman" | "Writer" | "ZK")[],
       });
       // Invalidate the applications query to refresh data
       void utils.application.getEventApplications.invalidate({ eventId });
@@ -680,15 +680,20 @@ export default function EditableApplicationForm({
               label="Admin Labels"
               placeholder="Select applicable labels"
               data={[
-                { value: "Entrepreneur", label: "Entrepreneur" },
-                { value: "Developer", label: "Developer" },
+                { value: "AI / ML expert", label: "AI / ML expert" },
                 { value: "Designer", label: "Designer" },
-                { value: "Researcher", label: "Researcher" },
+                { value: "Developer", label: "Developer" },
+                { value: "Entrepreneur", label: "Entrepreneur" },
                 { value: "Lawyer", label: "Lawyer" },
                 { value: "Non-Technical", label: "Non-Technical" },
-                { value: "Writer", label: "Writer" },
+                { value: "Project manager", label: "Project manager" },
+                { value: "REFI", label: "REFI" },
+                { value: "Regen", label: "Regen" },
+                { value: "Researcher", label: "Researcher" },
                 { value: "Scientist", label: "Scientist" },
-                { value: "AI / ML expert", label: "AI / ML expert" },
+                { value: "Woman", label: "Woman" },
+                { value: "Writer", label: "Writer" },
+                { value: "ZK", label: "ZK" },
               ]}
               value={adminLabels}
               onChange={(values) => {
@@ -716,7 +721,7 @@ export default function EditableApplicationForm({
               value={adminNotes}
               onChange={(event) => setAdminNotes(event.currentTarget.value)}
               onBlur={saveAdminNotes}
-              minRows={3}
+              minRows={6}
               size="md"
               rightSection={
                 adminNotes !== (application.user?.adminNotes ?? "") ? (

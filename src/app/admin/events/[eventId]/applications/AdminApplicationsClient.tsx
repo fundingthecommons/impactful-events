@@ -210,6 +210,12 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // Consensus reviewer filter state
   const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null);
   
+  // Consensus region filter state
+  const [selectedRegionFilter, setSelectedRegionFilter] = useState<string | null>(null);
+  
+  // Consensus attributes filter state
+  const [selectedAttributeFilter, setSelectedAttributeFilter] = useState<string | null>(null);
+  
   // Track missing info check results per application with timestamps
   const [missingInfoResults, setMissingInfoResults] = useState<Map<string, { 
     isComplete: boolean; 
@@ -379,6 +385,42 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       );
     }
 
+    // Filter by region if selected
+    if (selectedRegionFilter) {
+      filtered = filtered.filter(app => {
+        const nationalityResponse = app.responses?.find(r => 
+          r.question.questionKey === 'nationality' || 
+          r.question.questionKey === 'country'
+        );
+        
+        if (!nationalityResponse?.answer) return false;
+        
+        const isLatam = isLatamCountry(nationalityResponse.answer);
+        
+        // Map regions to filter logic
+        switch (selectedRegionFilter) {
+          case 'Latin America':
+            return isLatam;
+          case 'North America':
+          case 'Europe':
+          case 'Asia':
+          case 'Africa':
+          case 'Oceania':
+          case 'Other':
+            return !isLatam; // For now, non-LATAM for all other regions
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Filter by attributes if selected
+    if (selectedAttributeFilter) {
+      filtered = filtered.filter(app => 
+        app.user?.adminLabels?.includes(selectedAttributeFilter)
+      );
+    }
+
     // Then sort if a sort field is selected
     if (!consensusSortField) return filtered;
 
@@ -395,7 +437,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       
       return consensusSortDirection === 'desc' ? -comparison : comparison;
     });
-  }, [consensusApplications, consensusSortField, consensusSortDirection, selectedReviewerId]);
+  }, [consensusApplications, consensusSortField, consensusSortDirection, selectedReviewerId, selectedRegionFilter, selectedAttributeFilter]);
 
   // Helper function to find latest MISSING_INFO email for an application
   const getLatestMissingInfoEmail = (applicationId: string) => {
@@ -2003,15 +2045,20 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                       variant="light"
                                       size="sm"
                                       color={
-                                        label === "Entrepreneur" ? "purple" :
-                                        label === "Developer" ? "blue" :
+                                        label === "AI / ML expert" ? "violet" :
                                         label === "Designer" ? "green" :
-                                        label === "Researcher" ? "orange" :
+                                        label === "Developer" ? "blue" :
+                                        label === "Entrepreneur" ? "purple" :
                                         label === "Lawyer" ? "red" :
                                         label === "Non-Technical" ? "yellow" :
-                                        label === "Writer" ? "teal" :
+                                        label === "Project manager" ? "cyan" :
+                                        label === "REFI" ? "lime" :
+                                        label === "Regen" ? "grape" :
+                                        label === "Researcher" ? "orange" :
                                         label === "Scientist" ? "indigo" :
-                                        label === "AI / ML expert" ? "violet" :
+                                        label === "Woman" ? "pink" :
+                                        label === "Writer" ? "teal" :
+                                        label === "ZK" ? "dark" :
                                         "gray"
                                       }
                                     >
@@ -2142,6 +2189,49 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                     searchable
                     style={{ minWidth: 200 }}
                   />
+                  <Select
+                    placeholder="Filter by region"
+                    data={[
+                      { value: '', label: 'All regions' },
+                      { value: 'North America', label: 'North America' },
+                      { value: 'Europe', label: 'Europe' },
+                      { value: 'Latin America', label: 'Latin America' },
+                      { value: 'Asia', label: 'Asia' },
+                      { value: 'Africa', label: 'Africa' },
+                      { value: 'Oceania', label: 'Oceania' },
+                      { value: 'Other', label: 'Other' }
+                    ]}
+                    value={selectedRegionFilter ?? ''}
+                    onChange={(value) => setSelectedRegionFilter(value ?? null)}
+                    clearable
+                    searchable
+                    style={{ minWidth: 150 }}
+                  />
+                  <Select
+                    placeholder="Filter by attributes"
+                    data={[
+                      { value: '', label: 'All attributes' },
+                      { value: 'AI / ML expert', label: 'AI / ML expert' },
+                      { value: 'Designer', label: 'Designer' },
+                      { value: 'Developer', label: 'Developer' },
+                      { value: 'Entrepreneur', label: 'Entrepreneur' },
+                      { value: 'Lawyer', label: 'Lawyer' },
+                      { value: 'Non-Technical', label: 'Non-Technical' },
+                      { value: 'Project manager', label: 'Project manager' },
+                      { value: 'REFI', label: 'REFI' },
+                      { value: 'Regen', label: 'Regen' },
+                      { value: 'Researcher', label: 'Researcher' },
+                      { value: 'Scientist', label: 'Scientist' },
+                      { value: 'Woman', label: 'Woman' },
+                      { value: 'Writer', label: 'Writer' },
+                      { value: 'ZK', label: 'ZK' }
+                    ]}
+                    value={selectedAttributeFilter ?? ''}
+                    onChange={(value) => setSelectedAttributeFilter(value ?? null)}
+                    clearable
+                    searchable
+                    style={{ minWidth: 150 }}
+                  />
                   <Text size="sm" c="dimmed">
                     {filteredAndSortedConsensusApplications?.length ?? 0} applications under review
                     {selectedReviewerId && availableReviewers.length > 0 ? 
@@ -2152,13 +2242,17 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 </Group>
                 
                 <Group gap="md">
-                  {selectedReviewerId && (
+                  {(selectedReviewerId || selectedRegionFilter || selectedAttributeFilter) && (
                     <Button
                       variant="subtle"
-                      onClick={() => setSelectedReviewerId(null)}
+                      onClick={() => {
+                        setSelectedReviewerId(null);
+                        setSelectedRegionFilter(null);
+                        setSelectedAttributeFilter(null);
+                      }}
                       size="sm"
                     >
-                      Clear filter
+                      Clear all filters
                     </Button>
                   )}
                 </Group>
@@ -2212,6 +2306,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                         <Table.Th>Reviews</Table.Th>
                         <Table.Th>Recommendations</Table.Th>
                         <Table.Th>Region</Table.Th>
+                        <Table.Th>Attributes</Table.Th>
                         <Table.Th>Actions</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -2322,6 +2417,41 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                   </Tooltip>
                                 );
                               })()}
+                            </Group>
+                          </Table.Td>
+                          <Table.Td>
+                            {/* Show admin labels */}
+                            <Group gap="xs">
+                              {application.user?.adminLabels && application.user.adminLabels.length > 0 ? (
+                                application.user.adminLabels.map((label) => (
+                                  <Badge
+                                    key={label}
+                                    variant="light"
+                                    size="sm"
+                                    color={
+                                      label === "AI / ML expert" ? "violet" :
+                                      label === "Designer" ? "green" :
+                                      label === "Developer" ? "blue" :
+                                      label === "Entrepreneur" ? "purple" :
+                                      label === "Lawyer" ? "red" :
+                                      label === "Non-Technical" ? "yellow" :
+                                      label === "Project manager" ? "cyan" :
+                                      label === "REFI" ? "lime" :
+                                      label === "Regen" ? "grape" :
+                                      label === "Researcher" ? "orange" :
+                                      label === "Scientist" ? "indigo" :
+                                      label === "Woman" ? "pink" :
+                                      label === "Writer" ? "teal" :
+                                      label === "ZK" ? "dark" :
+                                      "gray"
+                                    }
+                                  >
+                                    {label}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <Text size="xs" c="dimmed">No labels</Text>
+                              )}
                             </Group>
                           </Table.Td>
                           <Table.Td>
