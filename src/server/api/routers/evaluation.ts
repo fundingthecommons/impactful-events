@@ -290,7 +290,7 @@ export const evaluationRouter = createTRPCRouter({
                 include: { question: true },
                 orderBy: { question: { order: 'asc' } }
               },
-              user: { select: { name: true, email: true } },
+              user: { select: { id: true, name: true, email: true, adminNotes: true, adminLabels: true } },
               event: { select: { name: true } },
             }
           }

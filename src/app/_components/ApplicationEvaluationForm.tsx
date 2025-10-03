@@ -22,6 +22,7 @@ import {
   Anchor,
 } from "@mantine/core";
 import TelegramMessageButton from "./TelegramMessageButton";
+import EditApplicationDrawer from "./EditApplicationDrawer";
 import {
   IconStarFilled,
   IconStar,
@@ -35,6 +36,7 @@ import {
   IconBrandLinkedin,
   IconBrandTelegram,
   IconExternalLink,
+  IconEdit,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
@@ -268,7 +270,7 @@ function SelfAssignmentPrompt({ applicationId, stage }: SelfAssignmentPromptProp
 }
 
 interface ApplicationWithDetails extends Application {
-  user: Pick<User, 'name' | 'email'> | null;
+  user: Pick<User, 'id' | 'name' | 'email' | 'adminNotes' | 'adminLabels'> | null;
   responses: Array<{
     answer: string;
     question: {
@@ -519,6 +521,9 @@ export default function ApplicationEvaluationForm({
   
   // Track pending score updates to prevent race conditions
   const [pendingScoreUpdates, setPendingScoreUpdates] = useState<Set<string>>(new Set());
+  
+  // Edit application drawer state
+  const [drawerOpened, setDrawerOpened] = useState(false);
 
   // tRPC queries and utils
   const utils = api.useUtils();
@@ -716,9 +721,19 @@ export default function ApplicationEvaluationForm({
             <Title order={3}>
               {stage.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())} Evaluation
             </Title>
-            <Text c="dimmed">
-              {application.user?.name} ({application.user?.email})
-            </Text>
+            <Group gap="sm" align="center">
+              <Text c="dimmed">
+                {application.user?.name} ({application.user?.email})
+              </Text>
+              <Button
+                variant="subtle"
+                size="xs"
+                leftSection={<IconEdit size={14} />}
+                onClick={() => setDrawerOpened(true)}
+              >
+                About this person
+              </Button>
+            </Group>
           </div>
           
           <Group>
@@ -1031,6 +1046,20 @@ export default function ApplicationEvaluationForm({
           </Grid.Col>
         )}
       </Grid>
+
+      {/* Edit Application Drawer */}
+      <EditApplicationDrawer
+        opened={drawerOpened}
+        onClose={() => setDrawerOpened(false)}
+        user={application.user ? {
+          id: application.user.id,
+          name: application.user.name,
+          email: application.user.email,
+          adminNotes: application.user.adminNotes,
+          adminLabels: application.user.adminLabels ?? [],
+        } : null}
+        eventId={application.eventId}
+      />
     </Stack>
   );
 }
