@@ -102,10 +102,6 @@ const list = {
 };
 
 
-// const link = {
-//   color: '#2563eb',
-//   textDecoration: 'underline',
-// };
 
 const signature = {
   fontSize: '16px',
