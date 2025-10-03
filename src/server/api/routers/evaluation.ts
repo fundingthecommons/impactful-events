@@ -85,6 +85,11 @@ async function calculateWeightedScore(prisma: PrismaClient, evaluationId: string
   return totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
 }
 
+// AutoScore schema
+const AutoScoreApplicationSchema = z.object({
+  applicationId: z.string(),
+  stage: z.enum(['SCREENING', 'DETAILED_REVIEW', 'VIDEO_REVIEW', 'CONSENSUS', 'FINAL_DECISION']),
+});
 export const evaluationRouter = createTRPCRouter({
   // Get all evaluation criteria
   getCriteria: protectedProcedure
@@ -1008,6 +1013,71 @@ export const evaluationRouter = createTRPCRouter({
         applicationId: evaluation.applicationId,
         stage: evaluation.stage,
         status: evaluation.status,
+      };
+    }),
+  // AutoScore application using AI
+  autoScoreApplication: protectedProcedure
+    .input(AutoScoreApplicationSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const { applicationId, stage } = input;
+
+      // Get the evaluation to verify ownership
+      const evaluation = await ctx.db.applicationEvaluation.findUnique({
+        where: {
+          applicationId_reviewerId_stage: {
+            applicationId,
+            reviewerId: userId,
+            stage,
+          }
+        },
+        include: {
+          application: {
+            include: {
+              responses: {
+                include: { question: true },
+                orderBy: { question: { order: 'asc' } }
+              },
+              user: { select: { name: true, email: true } },
+              event: { select: { name: true } },
+            }
+          }
+        }
+      });
+
+      if (!evaluation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Evaluation not found or not assigned to you",
+        });
+      }
+
+      // Get evaluation criteria
+      const criteria = await ctx.db.evaluationCriteria.findMany({
+        where: { isActive: true },
+        orderBy: { order: 'asc' },
+      });
+
+      if (!criteria.length) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No evaluation criteria found",
+        });
+      }
+
+      // Use AI service to generate scores
+      const aiService = getAIEvaluationService();
+      const autoScoreResult = await aiService.evaluateApplication({
+        application: evaluation.application,
+        criteria,
+        stage,
+      });
+
+      return {
+        scores: autoScoreResult.scores,
+        overallComments: autoScoreResult.overallComments,
+        recommendation: autoScoreResult.recommendation,
+        confidence: autoScoreResult.confidence,
       };
     }),
 });

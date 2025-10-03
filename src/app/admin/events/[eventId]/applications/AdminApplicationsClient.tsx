@@ -638,6 +638,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       
       // Invalidate all application queries to refresh all tabs immediately
       await utils.application.getEventApplications.invalidate({ eventId: event.id });
+      await utils.application.getConsensusApplications.invalidate({ eventId: event.id });
     } catch (error: unknown) {
       notifications.show({
         title: "Error",
@@ -668,6 +669,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       setSelectedApplications(new Set());
       // Invalidate all application queries to refresh all tabs immediately
       await utils.application.getEventApplications.invalidate({ eventId: event.id });
+      await utils.application.getConsensusApplications.invalidate({ eventId: event.id });
     } catch (error: unknown) {
       notifications.show({
         title: "Error",
@@ -699,6 +701,9 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       });
       
       setSelectedApplications(new Set());
+      // Invalidate queries to refresh data
+      await utils.application.getEventApplications.invalidate({ eventId: event.id });
+      await utils.application.getConsensusApplications.invalidate({ eventId: event.id });
     } catch (error: unknown) {
       notifications.show({
         title: "Error",
@@ -2357,6 +2362,58 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 </Group>
                 
                 <Group gap="md">
+                  {selectedApplications.size > 0 && (
+                    <>
+                      <Menu position="bottom-end">
+                        <Menu.Target>
+                          <Button 
+                            variant="outline"
+                            loading={bulkUpdateStatus.isPending}
+                          >
+                            Bulk Actions ({selectedApplications.size})
+                          </Button>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          {statusOptions.map((option) => (
+                            <Menu.Item
+                              key={option.value}
+                              onClick={() => handleBulkStatusChange(option.value)}
+                            >
+                              Set to {option.label}
+                            </Menu.Item>
+                          ))}
+                        </Menu.Dropdown>
+                      </Menu>
+
+                      <Menu position="bottom-end">
+                        <Menu.Target>
+                          <Button 
+                            variant="outline"
+                            leftSection={<IconUserPlus size={16} />}
+                            loading={bulkAssignReviewer.isPending}
+                          >
+                            Assign Reviewer ({selectedApplications.size})
+                          </Button>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          {reviewers?.map((reviewer) => (
+                            <Menu.Item
+                              key={reviewer.id}
+                              onClick={() => handleBulkAssignReviewer(reviewer.id)}
+                            >
+                              {reviewer.name ?? 'Unknown'} ({reviewer.email})
+                            </Menu.Item>
+                          ))}
+                          {(!reviewers || reviewers.length === 0) && (
+                            <Menu.Item disabled>
+                              No reviewers available
+                            </Menu.Item>
+                          )}
+                        </Menu.Dropdown>
+                      </Menu>
+                    </>
+                  )}
+                  
                   {(Boolean(selectedReviewerId) || Boolean(selectedRegionFilter) || Boolean(selectedAttributeFilter)) && (
                     <Button
                       variant="subtle"
@@ -2392,6 +2449,22 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                   <Table striped highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
+                        <Table.Th>
+                          <Checkbox
+                            checked={selectedApplications.size === (filteredAndSortedConsensusApplications?.length ?? 0) && (filteredAndSortedConsensusApplications?.length ?? 0) > 0}
+                            indeterminate={selectedApplications.size > 0 && selectedApplications.size < (filteredAndSortedConsensusApplications?.length ?? 0)}
+                            onChange={() => {
+                              if (selectedApplications.size === (filteredAndSortedConsensusApplications?.length ?? 0)) {
+                                // Clear all selections
+                                setSelectedApplications(new Set());
+                              } else {
+                                // Select all filtered consensus applications
+                                const allIds = new Set(filteredAndSortedConsensusApplications?.map(app => app.id) ?? []);
+                                setSelectedApplications(allIds);
+                              }
+                            }}
+                          />
+                        </Table.Th>
                         <Table.Th 
                           style={{ cursor: 'pointer', userSelect: 'none' }}
                           onClick={() => handleConsensusSort('name')}
@@ -2429,10 +2502,24 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                       {filteredAndSortedConsensusApplications?.map((application) => (
                         <Table.Tr key={application.id}>
                           <Table.Td>
+                            <Checkbox
+                              checked={selectedApplications.has(application.id)}
+                              onChange={() => toggleApplicationSelection(application.id)}
+                            />
+                          </Table.Td>
+                          <Table.Td>
                             <Stack gap={2}>
-                              <Text fw={500}>
-                                {application.user?.name ?? "No name provided"}
-                              </Text>
+                              <Tooltip
+                                label={application.user?.adminNotes ? application.user.adminNotes : "No admin notes"}
+                                position="top"
+                                multiline
+                                w={220}
+                                withArrow
+                              >
+                                <Text fw={500} style={{ cursor: 'help' }}>
+                                  {application.user?.name ?? "No name provided"}
+                                </Text>
+                              </Tooltip>
                               <Text size="sm" c="dimmed">
                                 {application.email}
                               </Text>
