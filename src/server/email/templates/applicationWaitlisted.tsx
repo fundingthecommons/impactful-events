@@ -9,17 +9,11 @@ import { BaseTemplate } from './base';
 export interface ApplicationWaitlistedProps {
   applicantName: string;
   eventName: string;
-  waitlistPosition?: number;
-  notificationDate?: string;
-  dashboardUrl?: string;
 }
 
 export const ApplicationWaitlistedTemplate: React.FC<ApplicationWaitlistedProps> = ({
   applicantName,
   eventName,
-  waitlistPosition,
-  notificationDate,
-  dashboardUrl,
 }) => {
   const previewText = `You're on the waitlist for ${eventName}`;
 
@@ -34,13 +28,6 @@ export const ApplicationWaitlistedTemplate: React.FC<ApplicationWaitlistedProps>
           you&apos;ve been placed on our <strong>waitlist</strong>.
         </Text>
 
-        {waitlistPosition && (
-          <Section style={positionBox}>
-            <Text style={positionText}>
-              Your waitlist position: <strong>#{waitlistPosition}</strong>
-            </Text>
-          </Section>
-        )}
 
         <Text style={subheading}>What This Means</Text>
 
@@ -55,40 +42,14 @@ export const ApplicationWaitlistedTemplate: React.FC<ApplicationWaitlistedProps>
           <li>No further action is required from you at this time</li>
         </ul>
 
-        {notificationDate && (
-          <Text style={paragraph}>
-            We expect to finalize our participant list by <strong>{notificationDate}</strong>. If a spot 
-            becomes available for you before then, we&apos;ll contact you immediately with next steps.
-          </Text>
-        )}
-
-        <Section style={infoBox}>
-          <Text style={infoHeading}>💡 Tip</Text>
-          <Text style={infoText}>
-            Spots often become available as accepted participants finalize their plans. We typically see 
-            movement on the waitlist in the weeks leading up to the program start date.
-          </Text>
-        </Section>
-
-        {dashboardUrl && (
-          <>
-            <Text style={paragraph}>
-              You can check your application status at any time:
-            </Text>
-            <Section style={buttonContainer}>
-              <Button style={button} href={dashboardUrl}>
-                View Application Status
-              </Button>
-            </Section>
-          </>
-        )}
+        <Text style={paragraph}>
+          We expect to finalize our participant list by <strong>Wednesday, October 8th</strong>. If a spot 
+          becomes available for you before then, we&apos;ll contact you immediately with next steps.
+        </Text>
 
         <Text style={paragraph}>
           We understand waiting can be challenging when making plans. If your circumstances change and you 
-          need to withdraw from the waitlist, please let us know at{' '}
-          <a href="mailto:residency@fundingthecommons.io" style={link}>
-            residency@fundingthecommons.io
-          </a>
+          need to withdraw from the waitlist, please reply to this email to let us know.
         </Text>
 
         <Text style={paragraph}>
@@ -131,20 +92,6 @@ const paragraph = {
   margin: '16px 0',
 };
 
-const positionBox = {
-  backgroundColor: '#fef3c7',
-  borderRadius: '8px',
-  padding: '16px',
-  margin: '24px 0',
-  border: '1px solid #fcd34d',
-  textAlign: 'center' as const,
-};
-
-const positionText = {
-  fontSize: '18px',
-  color: '#92400e',
-  margin: '0',
-};
 
 const infoBox = {
   backgroundColor: '#eff6ff',
@@ -176,22 +123,6 @@ const list = {
   paddingLeft: '20px',
 };
 
-const buttonContainer = {
-  textAlign: 'center' as const,
-  margin: '24px 0',
-};
-
-const button = {
-  backgroundColor: '#2563eb',
-  borderRadius: '8px',
-  color: '#fff',
-  fontSize: '16px',
-  fontWeight: 'bold',
-  textDecoration: 'none',
-  textAlign: 'center' as const,
-  display: 'inline-block',
-  padding: '12px 32px',
-};
 
 const link = {
   color: '#2563eb',
