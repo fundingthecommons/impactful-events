@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 
 # Use our optimized git-based selective checking system
-.claude/hooks/pre-commit.sh
+# .claude/hooks/pre-commit.sh

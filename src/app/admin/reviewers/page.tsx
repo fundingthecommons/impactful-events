@@ -37,6 +37,7 @@ import {
   IconTarget,
   IconHeart,
   IconVideo,
+  IconRocket,
   IconSparkles,
   IconUserPlus,
 } from '@tabler/icons-react';
@@ -48,7 +49,7 @@ import {
   getCategoryDisplayName,
 } from '~/utils/confidenceWeighting';
 
-type CriteriaCategory = 'TECHNICAL' | 'PROJECT' | 'COMMUNITY_FIT' | 'VIDEO' | 'OVERALL';
+type CriteriaCategory = 'TECHNICAL' | 'PROJECT' | 'COMMUNITY_FIT' | 'VIDEO' | 'ENTREPRENEURIAL' | 'OVERALL';
 
 interface ReviewerCompetency {
   id: string;
@@ -80,6 +81,7 @@ function getCategoryIcon(category: string) {
     case 'PROJECT': return <IconTarget size={14} />;
     case 'COMMUNITY_FIT': return <IconHeart size={14} />;
     case 'VIDEO': return <IconVideo size={14} />;
+    case 'ENTREPRENEURIAL': return <IconRocket size={14} />;
     case 'OVERALL': return <IconSparkles size={14} />;
     default: return <IconStar size={14} />;
   }
@@ -99,6 +101,7 @@ const COMPETENCY_CATEGORIES = [
   { value: 'PROJECT' as const, label: 'Project' },
   { value: 'COMMUNITY_FIT' as const, label: 'Community Fit' },
   { value: 'VIDEO' as const, label: 'Video Assessment' },
+  { value: 'ENTREPRENEURIAL' as const, label: 'Entrepreneurial' },
   { value: 'OVERALL' as const, label: 'Overall' },
 ];
 

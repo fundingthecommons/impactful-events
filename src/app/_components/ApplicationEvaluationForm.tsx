@@ -37,6 +37,7 @@ import {
   IconBrandTelegram,
   IconExternalLink,
   IconEdit,
+  IconRobot,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
@@ -406,7 +407,8 @@ function CriteriaScore({ criteria, score, onScoreChange, readonly = false, appli
                 color={criteria.category === 'TECHNICAL' ? 'blue' : 
                        criteria.category === 'PROJECT' ? 'green' : 
                        criteria.category === 'COMMUNITY_FIT' ? 'purple' : 
-                       criteria.category === 'VIDEO' ? 'orange' : 'gray'}
+                       criteria.category === 'VIDEO' ? 'orange' : 
+                       criteria.category === 'ENTREPRENEURIAL' ? 'teal' : 'gray'}
                 size="sm"
               >
                 {criteria.category.replace('_', ' ')}
@@ -536,6 +538,7 @@ export default function ApplicationEvaluationForm({
   // Mutations
   const upsertScoreMutation = api.evaluation.upsertScore.useMutation();
   const updateEvaluationMutation = api.evaluation.updateEvaluation.useMutation();
+  const autoScoreMutation = api.evaluation.autoScoreApplication.useMutation();
 
   // Calculate progress using both server data and optimistic local state (safe for hooks)
   const serverCompletedCount = evaluation?.scores?.length ?? 0;
@@ -692,6 +695,80 @@ export default function ApplicationEvaluationForm({
   const handleFormChange = () => {
     if (editMode) {
       setHasUnsavedChanges(true);
+    }
+  };
+
+  // AutoScore handler
+  const handleAutoScore = async () => {
+    if (!evaluation) return;
+
+    try {
+      notifications.show({
+        title: "AutoScore Started",
+        message: "AI is analyzing the application...",
+        color: "blue",
+        autoClose: 3000,
+      });
+
+      const autoScoreResult = await autoScoreMutation.mutateAsync({
+        applicationId,
+        stage,
+      });
+
+      // Pre-populate form fields with AI suggestions
+      setOverallComments(autoScoreResult.overallComments);
+      setRecommendation(autoScoreResult.recommendation);
+      setConfidence(autoScoreResult.confidence);
+
+      // Show progress notification
+      notifications.show({
+        id: 'autoscore-progress',
+        title: "Populating Scores",
+        message: `Applying AI scores to ${autoScoreResult.scores.length} criteria...`,
+        color: "blue",
+        loading: true,
+        autoClose: false,
+      });
+
+      // Pre-populate individual criteria scores with visual feedback
+      for (let i = 0; i < autoScoreResult.scores.length; i++) {
+        const aiScore = autoScoreResult.scores[i];
+        
+        // Update progress notification
+        notifications.update({
+          id: 'autoscore-progress',
+          title: "Populating Scores",
+          message: `Applying score ${i + 1} of ${autoScoreResult.scores.length}...`,
+          color: "blue",
+          loading: true,
+        });
+
+        await handleScoreChange(aiScore.criteriaId, aiScore.score, aiScore.reasoning);
+        
+        // Small delay to make the visual feedback visible
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      // Clear progress notification
+      notifications.hide('autoscore-progress');
+
+      // Mark as having changes if in edit mode
+      if (editMode) {
+        setHasUnsavedChanges(true);
+      }
+
+      notifications.show({
+        title: "AutoScore Complete",
+        message: "AI evaluation has been applied. Please review and adjust as needed before saving.",
+        color: "blue",
+      });
+
+    } catch {
+      notifications.show({
+        title: "AutoScore Failed",
+        message: "Failed to generate AI evaluation. Please try again or evaluate manually.",
+        color: "red",
+      });
     }
   };
 
@@ -904,25 +981,40 @@ export default function ApplicationEvaluationForm({
 
                   {/* Action buttons */}
                   {!isCompleted && (
-                    <Group justify="flex-end">
+                    <Stack gap="sm">
+                      {/* AutoScore button - allow re-running even with existing scores */}
                       <Button
-                        variant="outline"
-                        leftSection={<IconClock size={16} />}
-                        onClick={() => handleSaveEvaluation('IN_PROGRESS')}
-                        loading={updateEvaluationMutation.isPending}
-                        disabled={upsertScoreMutation.isPending}
+                        variant="light"
+                        color="blue"
+                        leftSection={<IconRobot size={16} />}
+                        onClick={handleAutoScore}
+                        loading={autoScoreMutation.isPending}
+                        disabled={upsertScoreMutation.isPending || updateEvaluationMutation.isPending}
+                        fullWidth
                       >
-                        {upsertScoreMutation.isPending ? 'Saving Score...' : 'Save Progress'}
+                        {autoScoreMutation.isPending ? 'Generating AI Evaluation...' : completedScores > 0 ? 'Re-run AutoScore' : 'AutoScore with AI'}
                       </Button>
-                      <Button
-                        leftSection={<IconCheck size={16} />}
-                        onClick={() => handleSaveEvaluation('COMPLETED')}
-                        loading={updateEvaluationMutation.isPending}
-                        disabled={!isCompleteEvaluationReady}
-                      >
-                        Complete Evaluation
-                      </Button>
-                    </Group>
+                      
+                      <Group justify="flex-end">
+                        <Button
+                          variant="outline"
+                          leftSection={<IconClock size={16} />}
+                          onClick={() => handleSaveEvaluation('IN_PROGRESS')}
+                          loading={updateEvaluationMutation.isPending}
+                          disabled={upsertScoreMutation.isPending}
+                        >
+                          {upsertScoreMutation.isPending ? 'Saving Score...' : 'Save Progress'}
+                        </Button>
+                        <Button
+                          leftSection={<IconCheck size={16} />}
+                          onClick={() => handleSaveEvaluation('COMPLETED')}
+                          loading={updateEvaluationMutation.isPending}
+                          disabled={!isCompleteEvaluationReady}
+                        >
+                          Complete Evaluation
+                        </Button>
+                      </Group>
+                    </Stack>
                   )}
                   
                   {/* Edit mode action buttons for completed evaluations */}

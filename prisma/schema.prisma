@@ -758,6 +758,7 @@ enum CriteriaCategory {
   PROJECT          // Project quality and feasibility
   COMMUNITY_FIT    // Community alignment and culture fit
   VIDEO            // Video presentation assessment
+  ENTREPRENEURIAL  // Entrepreneurial mindset and business acumen
   OVERALL          // Overall impression
 }
 

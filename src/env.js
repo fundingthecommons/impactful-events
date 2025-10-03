@@ -27,6 +27,7 @@ export const env = createEnv({
     EMAIL_MODE: z.enum(["development", "staging", "production"]).default("development"),
     TEST_EMAIL_OVERRIDE: z.string().email().default("james@fundingthecommons.io"),
     MASTRA_API_KEY: z.string(),
+    OPENAI_API_KEY: z.string().optional(),
   },
 
   /**
@@ -58,6 +59,7 @@ export const env = createEnv({
     EMAIL_MODE: process.env.EMAIL_MODE,
     TEST_EMAIL_OVERRIDE: process.env.TEST_EMAIL_OVERRIDE,
     MASTRA_API_KEY: process.env.MASTRA_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

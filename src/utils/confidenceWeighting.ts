@@ -273,6 +273,7 @@ export function getCategoryDisplayName(category: string): string {
     case 'PROJECT': return 'Project';
     case 'COMMUNITY_FIT': return 'Community Fit';
     case 'VIDEO': return 'Video Assessment';
+    case 'ENTREPRENEURIAL': return 'Entrepreneurial';
     case 'OVERALL': return 'Overall';
     default: return category.replace('_', ' ');
   }

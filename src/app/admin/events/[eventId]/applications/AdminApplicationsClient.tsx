@@ -2510,7 +2510,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                           <Table.Td>
                             <Stack gap={2}>
                               <Tooltip
-                                label={application.user?.adminNotes ? application.user.adminNotes : "No admin notes"}
+                                label={application.user?.adminNotes ?? "No admin notes"}
                                 position="top"
                                 multiline
                                 w={220}

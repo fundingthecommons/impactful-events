@@ -31,7 +31,7 @@ bun run format:write    # Format code with Prettier
 
 - Always use `bun` to run commands in this project
 - **NEVER start or restart the dev server** - it's always running in the background
-- Check dev server logs in `one.log` file instead of running `bun run dev`
+- Check dev server logs in `ftc.log` file instead of running `bun run dev`
 - Do what has been asked; nothing more, nothing less
 - **NEVER create files unless they're absolutely necessary for achieving your goal**
 - **ALWAYS prefer editing an existing file to creating a new one**
@@ -794,7 +794,7 @@ bunx prisma migrate reset
   - Running and analyzing typecheck output (`bun run typecheck`)
   - Running and analyzing build output (`bun run build`, `vercel build`)
   - Running and analyzing lint output (`bun run lint`)
-  - Checking application logs (one.log)
+  - Checking application logs (ftc.log)
   - Investigating runtime errors and exceptions
   - Monitoring application health and performance
   - Debugging issues from any command output
@@ -803,8 +803,8 @@ bunx prisma migrate reset
 **Examples:**
 ```bash
 # ❌ DON'T do this:
-grep "error" one.log
-tail -f one.log
+grep "error" ftc.log
+tail -f ftc.log
 bun run typecheck
 bun run build
 bun run lint
@@ -820,7 +820,7 @@ bun run db:migrate
 bun run db:generate
 
 # ✅ DO this instead:
-Task log-analyzer "Check for recent errors in application logs"
+Task log-analyzer "Check for recent errors in ftc.log"
 Task log-analyzer "Run typecheck and analyze any type errors"
 Task log-analyzer "Run build and check for compilation issues"
 Task log-analyzer "Run lint and analyze code quality issues"  

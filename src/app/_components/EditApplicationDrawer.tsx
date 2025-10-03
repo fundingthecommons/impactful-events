@@ -49,16 +49,16 @@ export default function EditApplicationDrawer({
   const updateUserAdminNotes = api.user.updateUserAdminNotes.useMutation();
   const updateUserAdminLabels = api.user.updateUserAdminLabels.useMutation();
 
-  // Initialize form data when user changes
+  // Initialize form data when drawer opens
   useEffect(() => {
-    if (user) {
+    if (user && opened) {
       setAdminNotes(user.adminNotes ?? "");
       setAdminLabels(user.adminLabels ?? []);
     }
-  }, [user]);
+  }, [user?.id, opened]); // Only reset when drawer opens for a new user
 
   // Save admin notes
-  const saveAdminNotes = async () => {
+  const _saveAdminNotes = async () => {
     if (!user?.id) return;
 
     setIsSaving(true);
@@ -91,7 +91,7 @@ export default function EditApplicationDrawer({
   };
 
   // Save admin labels
-  const saveAdminLabels = async (newLabels: string[]) => {
+  const _saveAdminLabels = async (newLabels: string[]) => {
     if (!user?.id) return;
 
     setIsSaving(true);
@@ -137,7 +137,7 @@ export default function EditApplicationDrawer({
         }),
         updateUserAdminLabels.mutateAsync({
           userId: user.id,
-          adminLabels: adminLabels as (typeof adminLabels),
+          adminLabels: adminLabels as ("AI / ML expert" | "Designer" | "Developer" | "Entrepreneur" | "Lawyer" | "Non-Technical" | "Project manager" | "REFI" | "Regen" | "Researcher" | "Scientist" | "Woman" | "Writer" | "ZK")[],
         })
       ]);
       

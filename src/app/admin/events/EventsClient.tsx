@@ -21,7 +21,8 @@ import {
   IconCalendarEvent,
   IconHome,
   IconTrophy,
-  IconMicrophone
+  IconMicrophone,
+  IconClipboardList
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -142,6 +143,22 @@ function EventCard({ event }: EventCardProps) {
             </Group>
             <Link href={`/admin/events/${event.id}/sponsors`} style={{ textDecoration: 'none' }}>
               <Badge variant="outline" color="orange" style={{ cursor: 'pointer' }}>
+                View
+              </Badge>
+            </Link>
+          </Group>
+
+          <Group justify="space-between">
+            <Group gap="xs">
+              <ThemeIcon size="sm" variant="light" color="purple">
+                <IconClipboardList size={12} />
+              </ThemeIcon>
+              <Text size="sm" fw={500}>
+                Selection Rubric
+              </Text>
+            </Group>
+            <Link href={`/admin/events/${event.id}/select-rubric`} style={{ textDecoration: 'none' }}>
+              <Badge variant="outline" color="purple" style={{ cursor: 'pointer' }}>
                 View
               </Badge>
             </Link>

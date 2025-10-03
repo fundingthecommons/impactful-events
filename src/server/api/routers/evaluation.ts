@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc';
 import { TRPCError } from '@trpc/server';
 import type { PrismaClient } from '@prisma/client';
+import { getAIEvaluationService } from '~/server/services/aiEvaluation';
 
 // Helper function to check if user has admin/staff role
 function checkAdminAccess(userRole?: string | null) {
@@ -660,7 +661,7 @@ export const evaluationRouter = createTRPCRouter({
     .input(z.object({
       reviewerId: z.string(),
       competencies: z.array(z.object({
-        category: z.enum(['TECHNICAL', 'PROJECT', 'COMMUNITY_FIT', 'VIDEO', 'OVERALL']),
+        category: z.enum(['TECHNICAL', 'PROJECT', 'COMMUNITY_FIT', 'VIDEO', 'ENTREPRENEURIAL', 'OVERALL']),
         competencyLevel: z.number().int().min(1).max(5),
         baseWeight: z.number().min(0.1).max(5.0).default(1.0),
         notes: z.string().optional(),

@@ -423,96 +423,140 @@ async function main() {
 
   // Create evaluation criteria for residency vetting
   const evaluationCriteria = [
-    // Technical Category (30% weight)
+    // Technical Category (20% weight - reduced from 30%)
     {
       name: "Technical Skills Assessment",
       description: "Evaluate technical capabilities based on self-reported skills, experience level (1-10), and GitHub/portfolio evidence. Consider depth vs breadth of skills.",
       category: "TECHNICAL" as const,
-      weight: 0.12, // 12% of total
+      weight: 0.08, // 8% of total (reduced from 12%)
       order: 1
     },
     {
       name: "Open Source & Collaborative Experience",
       description: "Assess quality of open source contributions, collaborative work experience, and ability to work in distributed teams based on their story and evidence.",
       category: "TECHNICAL" as const,
-      weight: 0.10, // 10% of total
+      weight: 0.07, // 7% of total (reduced from 10%)
       order: 2
     },
     {
       name: "Learning & Adaptation Ability", 
       description: "Evaluate growth mindset, ability to learn new technologies, and adaptability based on their experience descriptions and skill progression.",
       category: "TECHNICAL" as const,
-      weight: 0.08, // 8% of total
+      weight: 0.05, // 5% of total (reduced from 8%)
       order: 3
     },
 
-    // Project Category (25% weight)
+    // Project Category (20% weight - reduced from 25%)
     {
       name: "Project Vision & Feasibility",
       description: "Assess the clarity, innovation, and feasibility of their proposed residency project. Consider if it's appropriately scoped for the timeframe.",
       category: "PROJECT" as const,
-      weight: 0.10, // 10% of total
+      weight: 0.08, // 8% of total (reduced from 10%)
       order: 4
     },
     {
       name: "Public Goods & RealFi Alignment",
       description: "Evaluate how well their project aligns with public goods funding, RealFi solutions, and the residency's mission. Look for genuine understanding vs surface-level answers.",
       category: "PROJECT" as const,
-      weight: 0.08, // 8% of total  
+      weight: 0.07, // 7% of total (reduced from 8%)  
       order: 5
     },
     {
       name: "Impact Potential & Measurement Understanding",
       description: "Assess their understanding of impact measurement, realistic expectations for project outcomes, and potential for meaningful contribution to the ecosystem.",
       category: "PROJECT" as const,
-      weight: 0.07, // 7% of total
+      weight: 0.05, // 5% of total (reduced from 7%)
       order: 6
     },
 
-    // Community Fit Category (25% weight)
+    // Community Fit Category (20% weight - reduced from 25%)
     {
       name: "Public Goods Ecosystem Understanding",
       description: "Evaluate depth of understanding of public goods funding mechanisms, familiarity with the ecosystem, and genuine motivation vs opportunistic interest.",
       category: "COMMUNITY_FIT" as const,
-      weight: 0.08, // 8% of total
+      weight: 0.07, // 7% of total (reduced from 8%)
       order: 7
     },
     {
       name: "Community Contribution Potential",
       description: "Assess what unique value they can bring to the cohort, mentorship abilities, collaborative mindset, and cultural fit with FtC community values.",
       category: "COMMUNITY_FIT" as const,
-      weight: 0.09, // 9% of total
+      weight: 0.08, // 8% of total (reduced from 9%)
       order: 8
     },
     {
       name: "Commitment & Availability",
       description: "Evaluate their commitment level, availability for full program duration, ability to manage competing priorities, and likelihood of completion.",
       category: "COMMUNITY_FIT" as const,
-      weight: 0.08, // 8% of total
+      weight: 0.05, // 5% of total (reduced from 8%)
       order: 9
     },
 
-    // Video Category (20% weight)
+    // Video Category (15% weight - reduced from 20%)
     {
       name: "Communication Skills",
       description: "Assess clarity of expression, ability to articulate complex ideas, English proficiency, and overall communication effectiveness from the 1-minute video.",
       category: "VIDEO" as const,
-      weight: 0.08, // 8% of total
+      weight: 0.06, // 6% of total (reduced from 8%)
       order: 10
     },
     {
       name: "Passion & Authenticity",
       description: "Evaluate genuine enthusiasm for the mission, authentic interest vs scripted responses, energy level, and personal connection to the work.",
       category: "VIDEO" as const,
-      weight: 0.07, // 7% of total
+      weight: 0.05, // 5% of total (reduced from 7%)
       order: 11
     },
     {
       name: "Professionalism & Presentation",
       description: "Assess video quality, preparation level, time management (staying within 1 minute), and overall professionalism of presentation.",
       category: "VIDEO" as const,
-      weight: 0.05, // 5% of total
+      weight: 0.04, // 4% of total (reduced from 5%)
       order: 12
+    },
+
+    // Entrepreneurial Category (25% weight - new category)
+    {
+      name: "Leadership & Team Building",
+      description: "Evaluate track record of leading teams, inspiring others, building collaborative relationships, and ability to guide projects to completion. Look for concrete examples of leadership roles and team management experience.",
+      category: "ENTREPRENEURIAL" as const,
+      weight: 0.08, // 8% of total
+      order: 13
+    },
+    {
+      name: "Business Acumen & Market Understanding", 
+      description: "Assess understanding of market dynamics, business models, go-to-market strategies, and commercial viability. Consider their grasp of the competitive landscape and value proposition articulation.",
+      category: "ENTREPRENEURIAL" as const,
+      weight: 0.07, // 7% of total
+      order: 14
+    },
+    {
+      name: "Execution Track Record",
+      description: "Analyze history of completing projects, delivering on commitments, overcoming obstacles, and turning ideas into reality. Look for evidence of consistent follow-through and results achievement.",
+      category: "ENTREPRENEURIAL" as const,
+      weight: 0.09, // 9% of total
+      order: 15
+    },
+    {
+      name: "Network & Relationship Building",
+      description: "Evaluate ability to build meaningful professional relationships, ecosystem connections, and strategic partnerships. Consider quality of references and professional network depth.",
+      category: "ENTREPRENEURIAL" as const,
+      weight: 0.06, // 6% of total
+      order: 16
+    },
+    {
+      name: "Risk Assessment & Calculated Risk-Taking",
+      description: "Assess balanced approach to risk, evidence of intelligent risk-taking, and ability to make decisions under uncertainty. Look for examples of calculated risks that led to growth or learning.",
+      category: "ENTREPRENEURIAL" as const,
+      weight: 0.07, // 7% of total
+      order: 17
+    },
+    {
+      name: "Resilience & Adaptability",
+      description: "Evaluate evidence of bouncing back from setbacks, pivoting when needed, learning from failures, and maintaining persistence through challenges. Consider growth mindset and adaptability to changing circumstances.",
+      category: "ENTREPRENEURIAL" as const,
+      weight: 0.08, // 8% of total
+      order: 18
     }
   ]
 
