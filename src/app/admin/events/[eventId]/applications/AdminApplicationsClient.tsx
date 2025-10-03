@@ -2216,9 +2216,22 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 <ActionIcon
                                   variant="subtle"
                                   onClick={() => editApplication(application)}
+                                  title="Edit application"
                                 >
                                   <IconEdit size={16} />
                                 </ActionIcon>
+
+                                {/* Evaluation details button - show on Under Review, Waitlisted, and Accepted tabs */}
+                                {(activeTab === "under_review" || activeTab === "waitlisted" || activeTab === "accepted") && (
+                                  <ActionIcon
+                                    variant="subtle"
+                                    component={Link}
+                                    href={`/admin/evaluations/${application.id}`}
+                                    title="View evaluation details"
+                                  >
+                                    <IconClipboardList size={16} />
+                                  </ActionIcon>
+                                )}
 
                                 {/* Telegram icon - show on Incomplete, Under Review, and Accepted tabs */}
                                 {(activeTab === "incomplete" || activeTab === "under_review" || activeTab === "accepted") && (
@@ -2272,6 +2285,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                     </ActionIcon>
                                   );
                                 })()}
+
                                 
                                 <Menu position="bottom-end">
                                   <Menu.Target>

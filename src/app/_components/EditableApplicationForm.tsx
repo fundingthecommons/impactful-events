@@ -23,6 +23,7 @@ import {
   IconAlertCircle,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
+import AdminFieldsEditor from "./AdminFieldsEditor";
 
 type Question = {
   id: string;
@@ -84,8 +85,6 @@ export default function EditableApplicationForm({
   const [originalValues, setOriginalValues] = useState<Record<string, unknown>>({});
   const [userName, setUserName] = useState(application.user?.name ?? "");
   const [affiliation, setAffiliation] = useState(application.affiliation ?? "");
-  const [adminNotes, setAdminNotes] = useState(application.user?.adminNotes ?? "");
-  const [adminLabels, setAdminLabels] = useState(application.user?.adminLabels ?? []);
   const [isSaving, setIsSaving] = useState(false);
 
   // Fetch questions for the event
@@ -105,8 +104,6 @@ export default function EditableApplicationForm({
   const updateUserName = api.application.updateApplicationUserName.useMutation();
   const updateAffiliation = api.application.updateApplicationAffiliation.useMutation();
   const bulkUpdateResponses = api.application.bulkUpdateApplicationResponses.useMutation();
-  const updateUserAdminNotes = api.user.updateUserAdminNotes.useMutation();
-  const updateUserAdminLabels = api.user.updateUserAdminLabels.useMutation();
   const utils = api.useUtils();
 
   // Create stable dependency to prevent infinite loops
@@ -252,53 +249,6 @@ export default function EditableApplicationForm({
     }
   };
 
-  // Save admin notes
-  const saveAdminNotes = async () => {
-    if (!application.user?.id) return;
-
-    setIsSaving(true);
-    try {
-      await updateUserAdminNotes.mutateAsync({
-        userId: application.user.id,
-        adminNotes: adminNotes.trim() || null,
-      });
-      // Invalidate the applications query to refresh data
-      void utils.application.getEventApplications.invalidate({ eventId });
-    } catch {
-      notifications.show({
-        title: "Error",
-        message: "Failed to save admin notes",
-        color: "red",
-        icon: <IconAlertCircle />,
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Save admin labels
-  const saveAdminLabels = async (newLabels: string[]) => {
-    if (!application.user?.id) return;
-
-    setIsSaving(true);
-    try {
-      await updateUserAdminLabels.mutateAsync({
-        userId: application.user.id,
-        adminLabels: newLabels as ("AI / ML expert" | "Designer" | "Developer" | "Entrepreneur" | "Lawyer" | "Non-Technical" | "Project manager" | "REFI" | "Regen" | "Researcher" | "Scientist" | "Woman" | "Writer" | "ZK")[],
-      });
-      // Invalidate the applications query to refresh data
-      void utils.application.getEventApplications.invalidate({ eventId });
-    } catch {
-      notifications.show({
-        title: "Error",
-        message: "Failed to save admin labels",
-        color: "red",
-        icon: <IconAlertCircle />,
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   // Save a specific field
   const saveField = async (questionKey: string, value: unknown) => {
@@ -388,12 +338,7 @@ export default function EditableApplicationForm({
           };
         });
 
-      // Check for admin field changes
-      const adminNotesChanged = adminNotes !== (application.user?.adminNotes ?? "");
-      const adminLabelsChanged = adminLabels.length !== (application.user?.adminLabels?.length ?? 0) || 
-        !adminLabels.every(label => application.user?.adminLabels?.includes(label));
-
-      if (changedResponses.length === 0 && !adminNotesChanged && !adminLabelsChanged) {
+      if (changedResponses.length === 0) {
         notifications.hide(savingNotificationId);
         notifications.show({
           title: "No Changes",
@@ -404,13 +349,6 @@ export default function EditableApplicationForm({
         return;
       }
 
-      // Save admin fields if they've changed
-      if (adminNotesChanged) {
-        await saveAdminNotes();
-      }
-      if (adminLabelsChanged) {
-        await saveAdminLabels(adminLabels);
-      }
 
       // Use bulk update mutation with timeout handling
       await bulkUpdateResponses.mutateAsync({
@@ -669,80 +607,18 @@ export default function EditableApplicationForm({
       </Paper>
 
       {/* Admin Section - Always visible to admin users */}
-      <Paper p="xl" withBorder radius="md" bg="yellow.0">
-          <Stack gap="lg">
-            <Text fw={600} size="lg" c="orange.8">Internal Admin Notes</Text>
-            <Text size="sm" c="dimmed">
-              These fields are for internal use only and are not visible to the applicant.
-            </Text>
-            
-            <MultiSelect
-              label="Admin Labels"
-              placeholder="Select applicable labels"
-              data={[
-                { value: "AI / ML expert", label: "AI / ML expert" },
-                { value: "Designer", label: "Designer" },
-                { value: "Developer", label: "Developer" },
-                { value: "Entrepreneur", label: "Entrepreneur" },
-                { value: "Lawyer", label: "Lawyer" },
-                { value: "Non-Technical", label: "Non-Technical" },
-                { value: "Project manager", label: "Project manager" },
-                { value: "REFI", label: "REFI" },
-                { value: "Regen", label: "Regen" },
-                { value: "Researcher", label: "Researcher" },
-                { value: "Scientist", label: "Scientist" },
-                { value: "Woman", label: "Woman" },
-                { value: "Writer", label: "Writer" },
-                { value: "ZK", label: "ZK" },
-              ]}
-              value={adminLabels}
-              onChange={(values) => {
-                setAdminLabels(values);
-                void saveAdminLabels(values);
-              }}
-              size="md"
-              rightSection={
-                adminLabels.length !== (application.user?.adminLabels?.length ?? 0) || 
-                !adminLabels.every(label => application.user?.adminLabels?.includes(label)) ? (
-                  <IconDeviceFloppy size={18} color="orange" />
-                ) : (
-                  <IconCheck size={18} color="green" />
-                )
-              }
-              styles={{
-                label: { fontSize: '14px', fontWeight: 600, marginBottom: '8px' },
-                input: { fontSize: '14px' }
-              }}
-            />
-            
-            <Textarea
-              label="Admin Notes"
-              placeholder="Add internal notes about this applicant..."
-              value={adminNotes}
-              onChange={(event) => setAdminNotes(event.currentTarget.value)}
-              onBlur={saveAdminNotes}
-              minRows={6}
-              size="md"
-              rightSection={
-                adminNotes !== (application.user?.adminNotes ?? "") ? (
-                  <IconDeviceFloppy size={18} color="orange" />
-                ) : (
-                  <IconCheck size={18} color="green" />
-                )
-              }
-              styles={{
-                label: { fontSize: '14px', fontWeight: 600, marginBottom: '8px' },
-                input: { fontSize: '14px' }
-              }}
-            />
-            
-            {application.user?.adminUpdatedAt && (
-              <Text size="xs" c="dimmed">
-                Last updated: {new Date(application.user.adminUpdatedAt).toLocaleString()}
-              </Text>
-            )}
-          </Stack>
-        </Paper>
+      {application.user && (
+        <AdminFieldsEditor
+          user={{
+            id: application.user.id,
+            adminNotes: application.user.adminNotes,
+            adminLabels: application.user.adminLabels ?? [],
+            adminUpdatedAt: application.user.adminUpdatedAt,
+          }}
+          eventId={eventId}
+          disabled={isSaving}
+        />
+      )}
 
       {/* Editable form questions */}
       <Stack gap="xl">

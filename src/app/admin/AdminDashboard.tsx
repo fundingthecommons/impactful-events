@@ -29,6 +29,7 @@ import {
   IconBrandGithub,
   IconClipboardCheck,
   IconUserCog,
+  IconClipboardList,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -279,6 +280,28 @@ export default function AdminDashboard() {
             <Link href="/admin/emails" style={{ textDecoration: 'none' }}>
               <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
                 View Emails
+              </Button>
+            </Link>
+          </Stack>
+        </Card>
+
+        <Card withBorder>
+          <Stack>
+            <Group>
+              <ThemeIcon size="md" color="pink" variant="light">
+                <IconClipboardList size={18} />
+              </ThemeIcon>
+              <Text fw={600}>Onboarding</Text>
+            </Group>
+            <Text size="sm" c="dimmed">
+              View and manage participant onboarding submissions
+            </Text>
+            <Text size="xs" c="dimmed">
+              Travel documents, commitments, and completion status
+            </Text>
+            <Link href="/admin/onboarding" style={{ textDecoration: 'none' }}>
+              <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
+                View Onboarding
               </Button>
             </Link>
           </Stack>
