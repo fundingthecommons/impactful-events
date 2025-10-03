@@ -93,27 +93,6 @@ const paragraph = {
 };
 
 
-const infoBox = {
-  backgroundColor: '#eff6ff',
-  borderRadius: '8px',
-  padding: '20px',
-  margin: '24px 0',
-  border: '1px solid #bfdbfe',
-};
-
-const infoHeading = {
-  fontSize: '16px',
-  fontWeight: 'bold',
-  color: '#1e40af',
-  margin: '0 0 8px',
-};
-
-const infoText = {
-  fontSize: '14px',
-  lineHeight: '20px',
-  color: '#1e40af',
-  margin: '0',
-};
 
 const list = {
   fontSize: '16px',
