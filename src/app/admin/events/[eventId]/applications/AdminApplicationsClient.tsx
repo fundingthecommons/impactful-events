@@ -186,11 +186,15 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // Message for Under Review applicants
   const UNDER_REVIEW_MESSAGE = "Thank you for your application to the Funding the Commons residency. I am sorry for the delay in processing your application. We are in the process of processing hundreds of applicants of extremely high quality, like you. The good news is that you're on the short list for the last few places, and we will be able to give you a conclusive answer in the next days. Hopefully by the end of this week. Thank you again for your patience. If you are no longer available or interested, please indicate that as soon as possible. Thanks for your patience. We'll talk soon.";
 
+  // Message for Accepted applicants about flight confirmation
+  const FLIGHT_CONFIRMATION_MESSAGE = "We haven't received your flight confirmation yet. Your flight is required to secure your spot in the FTC residency. If we don't receive your ticket by Monday, we'll offer your spot to other candidates on our waiting list.\n\nPlease send us the following:\n• Your e-ticket\n• Proof of international health insurance (World Nomads or SafetyWing are good options)\n• If you need a visa letter, please provide: full name, nationality, passport number, date of birth, and passport expiration date.\n\nLooking forward to hear from you soon.";
+
   const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [hideRejected, setHideRejected] = useState<boolean>(true);
   const [hideReviewingAccepted, setHideReviewingAccepted] = useState<boolean>(false);
   const [hideIncomplete, setHideIncomplete] = useState<boolean>(false);
+  const [onlyShowWithoutReview, setOnlyShowWithoutReview] = useState<boolean>(false);
   const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
   const [viewingApplication, setViewingApplication] = useState<ApplicationWithUser | null>(null);
   const [editingApplication, setEditingApplication] = useState<ApplicationWithUser | null>(null);
@@ -575,6 +579,10 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       (app.status === "DRAFT" || app.status === "SUBMITTED") &&
       !missingInfoResults.get(app.id)?.isComplete;
     
+    // Only show without review filter (only applies when on "under_review" tab)
+    const shouldShowOnlyWithoutReview = onlyShowWithoutReview && activeTab === "under_review" && 
+      app.reviewerAssignments.length > 0; // If has reviewer assignments, it's been reviewed (hide it)
+    
     // For incomplete tab, only show applications that are DRAFT or SUBMITTED and have missing info
     if (activeTab === "incomplete") {
       // Only show DRAFT or SUBMITTED applications
@@ -587,7 +595,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted && !shouldHideIncomplete && hasMissingInfo;
     }
     
-    return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted && !shouldHideIncomplete;
+    return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted && !shouldHideIncomplete && !shouldShowOnlyWithoutReview;
   }) ?? [];
 
   // Calculate incomplete applications count (DRAFT or SUBMITTED apps with missing info or unchecked)
@@ -1685,6 +1693,13 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                       />
                     </>
                   )}
+                  {activeTab === "under_review" && (
+                    <Checkbox
+                      label="Only show without review"
+                      checked={onlyShowWithoutReview}
+                      onChange={(e) => setOnlyShowWithoutReview(e.currentTarget.checked)}
+                    />
+                  )}
                 </Group>
                 
                 <Group gap="md">
@@ -2205,14 +2220,18 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                   <IconEdit size={16} />
                                 </ActionIcon>
 
-                                {/* Telegram icon - show on Incomplete and Under Review tabs */}
-                                {(activeTab === "incomplete" || activeTab === "under_review") && (
+                                {/* Telegram icon - show on Incomplete, Under Review, and Accepted tabs */}
+                                {(activeTab === "incomplete" || activeTab === "under_review" || activeTab === "accepted") && (
                                   <TelegramMessageButton
                                     application={application}
-                                    customMessage={activeTab === "under_review" ? UNDER_REVIEW_MESSAGE : undefined}
+                                    customMessage={
+                                      activeTab === "under_review" ? UNDER_REVIEW_MESSAGE :
+                                      activeTab === "accepted" ? FLIGHT_CONFIRMATION_MESSAGE :
+                                      undefined
+                                    }
                                     size={16}
                                     variant="subtle"
-                                    color="blue"
+                                    color={activeTab === "accepted" ? "orange" : "blue"}
                                   />
                                 )}
 

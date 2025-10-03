@@ -475,6 +475,9 @@ model Application {
   // Profile sync relations  
   profileSyncs         ProfileSync[]
   
+  // Onboarding relation
+  onboarding           ApplicationOnboarding?
+  
   @@unique([userId, eventId]) // One application per user per event
   @@index([email])
   @@index([status])
@@ -992,4 +995,38 @@ model ProfileSync {
   @@index([userId])
   @@index([applicationId])
   @@index([syncedAt])
+}
+
+// Onboarding System Models
+model ApplicationOnboarding {
+  id                      String   @id @default(cuid())
+  applicationId           String   @unique // One onboarding per application
+  
+  // Travel Documents
+  eTicketUrl              String?  // URL to uploaded e-ticket file
+  eTicketFileName         String?  // Original filename
+  healthInsuranceUrl      String?  // URL to uploaded insurance proof
+  healthInsuranceFileName String?  // Original filename
+  
+  // Commitments
+  participateExperiments  Boolean  @default(false)
+  mintHypercert          Boolean  @default(false)
+  interestedIncubation   Boolean  @default(false)
+  
+  // Additional Information
+  dietaryRequirements    String?  @db.Text
+  additionalComments     String?  @db.Text
+  
+  // Metadata
+  completed              Boolean  @default(false)
+  submittedAt            DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  
+  // Relations
+  application            Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  @@index([applicationId])
+  @@index([completed])
+  @@index([submittedAt])
 }

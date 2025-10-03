@@ -6,6 +6,7 @@ import { Container, Center, Loader, Text, Stack, Card, Group, Transition } from 
 import { IconCheck } from "@tabler/icons-react";
 import AuthForm from "~/app/_components/AuthForm";
 import EventDetailClient from "../../[eventId]/EventDetailClient";
+import OnboardingForm from "~/app/_components/OnboardingForm";
 import type { Event, Application, ApplicationResponse, ApplicationQuestion } from "@prisma/client";
 
 interface ExtendedApplication extends Application {
@@ -230,7 +231,32 @@ export default function ApplicationPageClient({
     );
   }
 
-  // Show application form for authenticated users
+  // Check if user has an accepted application
+  const isAccepted = initialUserApplication?.status === "ACCEPTED";
+  const applicantName = session.user.name ?? "there";
+
+  // Show onboarding form for accepted users
+  if (isAccepted && initialUserApplication) {
+    return (
+      <Transition
+        mounted={showApplication}
+        transition="fade"
+        duration={300}
+        timingFunction="ease"
+      >
+        {(styles) => (
+          <div style={styles}>
+            <OnboardingForm
+              applicationId={initialUserApplication.id}
+              applicantName={applicantName}
+            />
+          </div>
+        )}
+      </Transition>
+    );
+  }
+
+  // Show application form for authenticated users who are not accepted
   return (
     <Transition
       mounted={showApplication}

@@ -12,6 +12,7 @@ import { userRouter } from "~/server/api/routers/user";
 import { projectIdeaRouter } from "~/server/api/routers/projectIdea";
 import { evaluationRouter } from "~/server/api/routers/evaluation";
 import { profileRouter } from "~/server/api/routers/profile";
+import { onboardingRouter } from "~/server/api/routers/onboarding";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -34,6 +35,7 @@ export const appRouter = createTRPCRouter({
   projectIdea: projectIdeaRouter,
   evaluation: evaluationRouter,
   profile: profileRouter,
+  onboarding: onboardingRouter,
 });
 
 // export type definition of API
