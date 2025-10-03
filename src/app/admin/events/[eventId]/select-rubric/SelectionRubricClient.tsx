@@ -26,7 +26,6 @@ import {
   IconHeart,
   IconVideo,
   IconRocket,
-  IconSparkles,
   IconScale,
   IconUsers,
   IconTrendingUp,
@@ -374,7 +373,7 @@ export default function SelectionRubricClient({ eventId }: SelectionRubricClient
               </Box>
               <Stack gap={0} style={{ flex: 1 }}>
                 <Text fw={500}>Screening Evaluation</Text>
-                <Text size="sm" c="dimmed">Comprehensive assessment using this rubric, with optional AI assistance</Text>
+                <Text size="sm" c="dimmed">Comprehensive assessment using this rubric by qualified reviewers</Text>
               </Stack>
             </Group>
             
