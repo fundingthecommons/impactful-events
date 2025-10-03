@@ -57,71 +57,39 @@ export default function EditApplicationDrawer({
     }
   }, [user, opened]); // Only reset when drawer opens for a new user
 
-  // Save admin notes
-  const _saveAdminNotes = async () => {
-    if (!user?.id) return;
-
-    setIsSaving(true);
-    try {
-      await updateUserAdminNotes.mutateAsync({
-        userId: user.id,
-        adminNotes: adminNotes.trim() || null,
-      });
-      
-      // Invalidate queries to refresh data
-      await utils.application.getEventApplications.invalidate({ eventId });
-      await utils.application.getConsensusApplications.invalidate({ eventId });
-      
-      notifications.show({
-        title: "Success",
-        message: "Admin notes saved",
-        color: "green",
-        icon: <IconCheck />,
-      });
-    } catch {
-      notifications.show({
-        title: "Error",
-        message: "Failed to save admin notes",
-        color: "red",
-        icon: <IconAlertCircle />,
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   // Save admin labels
-  const _saveAdminLabels = async (newLabels: string[]) => {
-    if (!user?.id) return;
+  // const _saveAdminLabels = async (newLabels: string[]) => {
+  //   if (!user?.id) return;
 
-    setIsSaving(true);
-    try {
-      await updateUserAdminLabels.mutateAsync({
-        userId: user.id,
-        adminLabels: newLabels as ("AI / ML expert" | "Designer" | "Developer" | "Entrepreneur" | "Lawyer" | "Non-Technical" | "Project manager" | "REFI" | "Regen" | "Researcher" | "Scientist" | "Woman" | "Writer" | "ZK")[],
-      });
+  //   setIsSaving(true);
+  //   try {
+  //     await updateUserAdminLabels.mutateAsync({
+  //       userId: user.id,
+  //       adminLabels: newLabels as ("AI / ML expert" | "Designer" | "Developer" | "Entrepreneur" | "Lawyer" | "Non-Technical" | "Project manager" | "REFI" | "Regen" | "Researcher" | "Scientist" | "Woman" | "Writer" | "ZK")[],
+  //     });
       
-      // Invalidate queries to refresh data
-      await utils.application.getEventApplications.invalidate({ eventId });
-      await utils.application.getConsensusApplications.invalidate({ eventId });
+  //     // Invalidate queries to refresh data
+  //     await utils.application.getEventApplications.invalidate({ eventId });
+  //     await utils.application.getConsensusApplications.invalidate({ eventId });
       
-      notifications.show({
-        title: "Success",
-        message: "Admin labels saved",
-        color: "green",
-        icon: <IconCheck />,
-      });
-    } catch {
-      notifications.show({
-        title: "Error",
-        message: "Failed to save admin labels",
-        color: "red",
-        icon: <IconAlertCircle />,
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  //     notifications.show({
+  //       title: "Success",
+  //       message: "Admin labels saved",
+  //       color: "green",
+  //       icon: <IconCheck />,
+  //     });
+  //   } catch {
+  //     notifications.show({
+  //       title: "Error",
+  //       message: "Failed to save admin labels",
+  //       color: "red",
+  //       icon: <IconAlertCircle />,
+  //     });
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
 
   // Save all changes at once
   const saveAllChanges = async () => {

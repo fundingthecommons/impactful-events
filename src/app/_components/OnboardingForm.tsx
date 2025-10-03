@@ -14,7 +14,6 @@ import {
   Textarea,
   Alert,
   Progress,
-  Divider,
   Box,
   Loader,
   Center,
@@ -27,7 +26,6 @@ import {
   IconShield,
   IconUsers,
   IconStar,
-  IconCoin,
   IconInfoCircle,
   IconCheck,
   IconX,
@@ -62,7 +60,6 @@ export default function OnboardingForm({
   });
   
   const submitOnboarding = api.onboarding.submitOnboarding.useMutation();
-  const saveDraft = api.onboarding.saveDraft.useMutation();
 
   const form = useForm<OnboardingFormData>({
     initialValues: {
@@ -100,7 +97,7 @@ export default function OnboardingForm({
         setIsSubmitted(true);
       }
     }
-  }, [onboardingData]);
+  }, [onboardingData]); // form.setValues is stable, no need to include form
 
   const handleSubmit = async (values: OnboardingFormData) => {
     setIsSubmitting(true);
@@ -178,7 +175,7 @@ export default function OnboardingForm({
             <Title order={2} ta="center">Onboarding Complete!</Title>
             <Text size="lg" ta="center" c="dimmed">
               Thank you for completing your onboarding, {applicantName}. 
-              We'll be in touch soon with more details about the residency.
+              We&apos;ll be in touch soon with more details about the residency.
             </Text>
           </Stack>
         </Card>

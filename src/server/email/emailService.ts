@@ -192,8 +192,6 @@ export class EmailService {
         templateData = {
           applicantName,
           eventName: application.event.name,
-          notificationDate: 'August 7th, 2025',
-          dashboardUrl,
         } satisfies ApplicationWaitlistedProps;
         break;
 

@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Section,
   Text,
-  Button,
 } from '@react-email/components';
 import { BaseTemplate } from './base';
 
@@ -103,10 +102,10 @@ const list = {
 };
 
 
-const link = {
-  color: '#2563eb',
-  textDecoration: 'underline',
-};
+// const link = {
+//   color: '#2563eb',
+//   textDecoration: 'underline',
+// };
 
 const signature = {
   fontSize: '16px',

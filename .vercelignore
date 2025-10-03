@@ -1,0 +1,7 @@
+# Exclude Next.js build artifacts from Vercel deployment
+.next/
+
+# Exclude other build artifacts and cache directories
+node_modules/
+.git/
+*.log
