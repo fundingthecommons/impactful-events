@@ -3,9 +3,9 @@ import { auth } from "~/server/auth";
 import SelectionRubricClient from "./SelectionRubricClient";
 
 interface PageProps {
-  params: {
+  params: Promise<{
     eventId: string;
-  };
+  }>;
 }
 
 export default async function SelectionRubricPage({ params }: PageProps) {
@@ -18,9 +18,12 @@ export default async function SelectionRubricPage({ params }: PageProps) {
   }
   
   // Must have staff or admin role
-  if (session.user.role !== "staff" && session.user.role !== "admin") {
-    redirect("/unauthorized");
+  if (!session.user.role || !["ADMIN", "STAFF"].includes(session.user.role)) {
+    redirect("/dashboard");
   }
-  
-  return <SelectionRubricClient eventId={params.eventId} />;
+
+  // Await params to get eventId
+  const { eventId } = await params;
+
+  return <SelectionRubricClient eventId={eventId} />;
 }

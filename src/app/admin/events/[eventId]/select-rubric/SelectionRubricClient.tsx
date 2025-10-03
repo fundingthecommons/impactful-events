@@ -10,12 +10,12 @@ import {
   Badge,
   Group,
   ThemeIcon,
-  Accordion,
+  
   List,
   Alert,
   Grid,
   Progress,
-  Divider,
+  
   Paper,
   Box,
 } from "@mantine/core";
@@ -146,7 +146,7 @@ function renderStars(count: number) {
   ));
 }
 
-export default function SelectionRubricClient({ eventId }: SelectionRubricClientProps) {
+export default function SelectionRubricClient({ eventId: _eventId }: SelectionRubricClientProps) {
   return (
     <Container size="xl" py="xl">
       <Stack gap="xl">
@@ -268,7 +268,7 @@ export default function SelectionRubricClient({ eventId }: SelectionRubricClient
                   </Table.Td>
                   <Table.Td>
                     <Group gap={2}>
-                      {renderStars(Math.ceil(parseInt(guideline.range.split('-')[0]) / 2))}
+                      {renderStars(Math.ceil(parseInt(guideline.range.split("-")[0] ?? "0") / 2))}
                     </Group>
                   </Table.Td>
                 </Table.Tr>

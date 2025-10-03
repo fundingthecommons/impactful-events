@@ -55,7 +55,7 @@ export default function EditApplicationDrawer({
       setAdminNotes(user.adminNotes ?? "");
       setAdminLabels(user.adminLabels ?? []);
     }
-  }, [user?.id, opened]); // Only reset when drawer opens for a new user
+  }, [user, opened]); // Only reset when drawer opens for a new user
 
   // Save admin notes
   const _saveAdminNotes = async () => {

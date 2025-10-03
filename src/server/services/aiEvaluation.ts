@@ -36,6 +36,7 @@ export interface AutoScoreResponse {
 export interface ApplicationData {
   id: string;
   user: {
+    id: string;
     name: string | null;
     email: string | null;
   } | null;
@@ -87,7 +88,7 @@ export class AIEvaluationService {
     // Log input data for debugging
     console.log('🤖 AI Evaluation Input:', {
       applicationId: application.id,
-      userId: application.userId,
+      userId: application.user?.id,
       stage,
       criteriaCount: criteria.length,
       responsesCount: application.responses.length,
@@ -163,14 +164,9 @@ export class AIEvaluationService {
       
       const aiResponse = JSON.parse(cleanContent) as unknown;
       
-      console.log('✅ Parsed AI Response:', {
-        hasScores: !!(aiResponse as any)?.scores,
-        scoresCount: (aiResponse as any)?.scores?.length ?? 0,
-        recommendation: (aiResponse as any)?.recommendation,
-        confidence: (aiResponse as any)?.confidence,
+      console.log("✅ Parsed AI Response:", {
+        parsedSuccessfully: this.isValidAIResponse(aiResponse),
       });
-      
-      // Validate and transform the response
       const result = this.validateAndTransformResponse(aiResponse, criteria);
       
       console.log('🎯 Final AutoScore Result:', {

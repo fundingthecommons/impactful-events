@@ -743,11 +743,12 @@ export default function ApplicationEvaluationForm({
           loading: true,
         });
 
-        await handleScoreChange(aiScore.criteriaId, aiScore.score, aiScore.reasoning);
+        if (aiScore?.criteriaId && aiScore?.score !== undefined && aiScore?.reasoning) {
+          await handleScoreChange(aiScore.criteriaId, aiScore.score, aiScore.reasoning);
+        }
         
         // Small delay to make the visual feedback visible
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
+        await new Promise(resolve => setTimeout(resolve, 300));      }
 
       // Clear progress notification
       notifications.hide('autoscore-progress');
