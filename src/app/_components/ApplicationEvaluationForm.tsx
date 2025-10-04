@@ -380,6 +380,12 @@ function CriteriaScore({ criteria, score, onScoreChange, readonly = false, appli
   const [reasoning, setReasoning] = useState(score?.reasoning ?? "");
   const [showReasoning, setShowReasoning] = useState(false);
 
+  // Sync local state with prop changes (e.g., after autoscore database refetch)
+  useEffect(() => {
+    setCurrentScore(score?.score ?? 0);
+    setReasoning(score?.reasoning ?? "");
+  }, [score?.score, score?.reasoning]);
+
   const handleScoreChange = (newScore: number) => {
     setCurrentScore(newScore);
     onScoreChange(criteria.id, newScore, reasoning);
@@ -748,10 +754,17 @@ export default function ApplicationEvaluationForm({
         }
         
         // Small delay to make the visual feedback visible
-        await new Promise(resolve => setTimeout(resolve, 300));      }
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
 
       // Clear progress notification
       notifications.hide('autoscore-progress');
+
+      // Re-apply Overall Assessment values after all score changes complete
+      // This prevents them from being reset by the database refetches
+      setOverallComments(autoScoreResult.overallComments);
+      setRecommendation(autoScoreResult.recommendation);
+      setConfidence(autoScoreResult.confidence);
 
       // Mark as having changes if in edit mode
       if (editMode) {
@@ -771,7 +784,7 @@ export default function ApplicationEvaluationForm({
         color: "red",
       });
     }
-  };
+  };;
 
   // ✅ Early returns only AFTER all hooks are declared
   if (!criteria) {

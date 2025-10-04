@@ -7,6 +7,8 @@ import {
   MultiSelect,
   Textarea,
   Paper,
+  Button,
+  Group,
 } from "@mantine/core";
 import { 
   IconDeviceFloppy, 
@@ -61,6 +63,7 @@ export default function AdminFieldsEditor({
   const [adminNotes, setAdminNotes] = useState(user.adminNotes ?? "");
   const [adminLabels, setAdminLabels] = useState<string[]>(user.adminLabels ?? []);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedLabels, setHasUnsavedLabels] = useState(false);
 
   // tRPC mutations
   const utils = api.useUtils();
@@ -71,7 +74,12 @@ export default function AdminFieldsEditor({
   useEffect(() => {
     setAdminNotes(user.adminNotes ?? "");
     setAdminLabels(user.adminLabels ?? []);
+    setHasUnsavedLabels(false);
   }, [user.adminNotes, user.adminLabels]);
+
+  // Check if labels have changed
+  const labelsChanged = adminLabels.length !== (user.adminLabels?.length ?? 0) || 
+    !adminLabels.every(label => user.adminLabels?.includes(label));
 
   // Save admin notes
   const saveAdminNotes = async () => {
@@ -102,12 +110,12 @@ export default function AdminFieldsEditor({
   };
 
   // Save admin labels
-  const saveAdminLabels = async (newLabels: string[]) => {
+  const saveAdminLabels = async () => {
     setIsSaving(true);
     try {
       await updateUserAdminLabels.mutateAsync({
         userId: user.id,
-        adminLabels: newLabels as AdminLabel[],
+        adminLabels: adminLabels as AdminLabel[],
       });
       
       // Invalidate queries to refresh data
@@ -116,7 +124,14 @@ export default function AdminFieldsEditor({
         await utils.application.getConsensusApplications.invalidate({ eventId });
       }
       
-      onSaved?.();
+      setHasUnsavedLabels(false);
+      
+      notifications.show({
+        title: "Success",
+        message: "Admin labels saved successfully",
+        color: "green",
+        icon: <IconCheck />,
+      });
     } catch {
       notifications.show({
         title: "Error",
@@ -148,13 +163,12 @@ export default function AdminFieldsEditor({
           value={adminLabels}
           onChange={(values) => {
             setAdminLabels(values);
-            void saveAdminLabels(values);
+            setHasUnsavedLabels(true);
           }}
           size="md"
           disabled={isSaving || disabled}
           rightSection={
-            adminLabels.length !== (user.adminLabels?.length ?? 0) || 
-            !adminLabels.every(label => user.adminLabels?.includes(label)) ? (
+            labelsChanged ? (
               <IconDeviceFloppy size={18} color="orange" />
             ) : (
               <IconCheck size={18} color="green" />
@@ -165,6 +179,20 @@ export default function AdminFieldsEditor({
             input: { fontSize: '14px' }
           }}
         />
+        
+        {labelsChanged && (
+          <Group justify="flex-end">
+            <Button
+              size="sm"
+              onClick={saveAdminLabels}
+              loading={isSaving}
+              leftSection={<IconDeviceFloppy size={16} />}
+              color="orange"
+            >
+              Save Labels
+            </Button>
+          </Group>
+        )}
         
         <Textarea
           label="Admin Notes"

@@ -60,7 +60,6 @@ export default function EditApplicationDrawer({
         <AdminFieldsEditor
           user={user}
           eventId={eventId}
-          onSaved={onClose}
         />
 
         {/* Action buttons */}
