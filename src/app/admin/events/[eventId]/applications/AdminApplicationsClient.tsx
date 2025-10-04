@@ -2242,10 +2242,9 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 </ActionIcon>
 
                                 {/* Evaluation details button - show on Under Review, Waitlisted, and Accepted tabs */}
-                                {/* @ts-ignore - evaluations may not be included in this query type */}
+                                {/* eslint-disable @typescript-eslint/no-unsafe-member-access */}
                                 {(activeTab === "under_review" || activeTab === "waitlisted" || activeTab === "accepted") &&
-                                 application.evaluations?.length && application.evaluations[0]?.id && (
-                                  <ActionIcon
+                                 application.evaluations?.length && application.evaluations[0]?.id && (                                  <ActionIcon
                                     variant="subtle"
                                     component={Link}
                                     href={`/admin/evaluations/${application.evaluations[0]?.id}`}
@@ -2254,6 +2253,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                     <IconClipboardList size={16} />
                                   </ActionIcon>
                                 )}
+                                {/* eslint-enable @typescript-eslint/no-unsafe-member-access */}
+
                                 {/* Telegram icon - show on Incomplete, Under Review, and Accepted tabs */}
                                 {(activeTab === "incomplete" || activeTab === "under_review" || activeTab === "accepted") && (
                                   <TelegramMessageButton
