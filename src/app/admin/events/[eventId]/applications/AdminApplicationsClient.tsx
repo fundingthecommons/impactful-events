@@ -2128,9 +2128,17 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             </Table.Td>
                             <Table.Td>
                               <Stack gap={2}>
-                                <Text fw={500}>
-                                  {application.user?.name ?? "No name provided"}
-                                </Text>
+                                <Tooltip
+                                  label={application.user?.adminNotes ?? "No admin notes"}
+                                  position="top"
+                                  multiline
+                                  w={220}
+                                  withArrow
+                                >
+                                  <Text fw={500} style={{ cursor: 'help' }}>
+                                    {application.user?.name ?? "No name provided"}
+                                  </Text>
+                                </Tooltip>
                                 <Text size="sm" c="dimmed">
                                   {application.email}
                                 </Text>
