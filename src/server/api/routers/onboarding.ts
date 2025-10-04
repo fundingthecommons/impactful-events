@@ -2,16 +2,73 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
+// Enums matching Prisma schema
+const DietTypeSchema = z.enum(["OMNIVORE", "VEGETARIAN", "VEGAN", "OTHER"]);
+const MentoringOpennessSchema = z.enum(["YES", "NO", "MAYBE"]);
+
 const onboardingDataSchema = z.object({
   applicationId: z.string(),
+  
+  // Contact & Logistics
+  legalName: z.string().optional(),
+  passportNumber: z.string().optional(),
+  needsVisaLetter: z.boolean().optional(),
+  bloodType: z.string().optional(),
+  emergencyContactName: z.string().optional(),
+  emergencyContactRelationship: z.string().optional(),
+  emergencyContactPhone: z.string().optional(),
+  arrivalDateTime: z.date().optional(),
+  departureDateTime: z.date().optional(),
+  
+  // Travel Documents
   eTicketUrl: z.string().url().optional(),
   eTicketFileName: z.string().optional(),
   healthInsuranceUrl: z.string().url().optional(),
   healthInsuranceFileName: z.string().optional(),
+  
+  // Food & Dietary Needs
+  dietType: DietTypeSchema.optional(),
+  dietTypeOther: z.string().optional(),
+  allergiesIntolerances: z.string().optional(),
+  dietaryRequirements: z.string().optional(), // Legacy field
+  
+  // English Proficiency
+  englishProficiencyLevel: z.number().min(0).max(100).optional(),
+  
+  // Knowledge Sharing, Community & Mentorship
+  primaryGoals: z.string().optional(),
+  skillsToGain: z.string().optional(),
+  openToMentoring: MentoringOpennessSchema.optional(),
+  mentorsToLearnFrom: z.string().optional(),
+  organizationsToConnect: z.string().optional(),
+  
+  // Technical Workshop
+  technicalWorkshopTitle: z.string().optional(),
+  technicalWorkshopDescription: z.string().optional(),
+  technicalWorkshopDuration: z.string().optional(),
+  technicalWorkshopMaterials: z.string().optional(),
+  
+  // Beyond Work Activities
+  beyondWorkInterests: z.string().optional(),
+  beyondWorkTitle: z.string().optional(),
+  beyondWorkDescription: z.string().optional(),
+  beyondWorkDuration: z.string().optional(),
+  beyondWorkMaterials: z.string().optional(),
+  
+  // Media & Bio
+  headshotUrl: z.string().url().optional(),
+  headshotFileName: z.string().optional(),
+  shortBio: z.string().optional(),
+  
+  // Commitments & Confirmations
   participateExperiments: z.boolean(),
   mintHypercert: z.boolean(),
   interestedIncubation: z.boolean(),
-  dietaryRequirements: z.string().optional(),
+  liabilityWaiverConsent: z.boolean(),
+  codeOfConductAgreement: z.boolean(),
+  communityActivitiesConsent: z.boolean(),
+  
+  // Additional Information
   additionalComments: z.string().optional(),
 });
 
@@ -57,10 +114,25 @@ export const onboardingRouter = createTRPCRouter({
         });
       }
 
+      if (!onboardingData.liabilityWaiverConsent || !onboardingData.codeOfConductAgreement || !onboardingData.communityActivitiesConsent) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "All final confirmations are required",
+        });
+      }
+
       if (!onboardingData.eTicketUrl || !onboardingData.healthInsuranceUrl) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Both e-ticket and health insurance documents are required",
+        });
+      }
+
+      // Validate essential contact information
+      if (!onboardingData.legalName || !onboardingData.passportNumber || !onboardingData.emergencyContactName) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Legal name, passport number, and emergency contact are required",
         });
       }
 
@@ -127,14 +199,67 @@ export const onboardingRouter = createTRPCRouter({
   saveDraft: protectedProcedure
     .input(z.object({
       applicationId: z.string(),
+      
+      // Contact & Logistics
+      legalName: z.string().optional(),
+      passportNumber: z.string().optional(),
+      needsVisaLetter: z.boolean().optional(),
+      bloodType: z.string().optional(),
+      emergencyContactName: z.string().optional(),
+      emergencyContactRelationship: z.string().optional(),
+      emergencyContactPhone: z.string().optional(),
+      arrivalDateTime: z.date().optional(),
+      departureDateTime: z.date().optional(),
+      
+      // Travel Documents
       eTicketUrl: z.string().url().optional(),
       eTicketFileName: z.string().optional(),
       healthInsuranceUrl: z.string().url().optional(),
       healthInsuranceFileName: z.string().optional(),
+      
+      // Food & Dietary Needs
+      dietType: DietTypeSchema.optional(),
+      dietTypeOther: z.string().optional(),
+      allergiesIntolerances: z.string().optional(),
+      dietaryRequirements: z.string().optional(),
+      
+      // English Proficiency
+      englishProficiencyLevel: z.number().min(0).max(100).optional(),
+      
+      // Knowledge Sharing, Community & Mentorship
+      primaryGoals: z.string().optional(),
+      skillsToGain: z.string().optional(),
+      openToMentoring: MentoringOpennessSchema.optional(),
+      mentorsToLearnFrom: z.string().optional(),
+      organizationsToConnect: z.string().optional(),
+      
+      // Technical Workshop
+      technicalWorkshopTitle: z.string().optional(),
+      technicalWorkshopDescription: z.string().optional(),
+      technicalWorkshopDuration: z.string().optional(),
+      technicalWorkshopMaterials: z.string().optional(),
+      
+      // Beyond Work Activities
+      beyondWorkInterests: z.string().optional(),
+      beyondWorkTitle: z.string().optional(),
+      beyondWorkDescription: z.string().optional(),
+      beyondWorkDuration: z.string().optional(),
+      beyondWorkMaterials: z.string().optional(),
+      
+      // Media & Bio
+      headshotUrl: z.string().url().optional(),
+      headshotFileName: z.string().optional(),
+      shortBio: z.string().optional(),
+      
+      // Commitments & Confirmations
       participateExperiments: z.boolean().optional(),
       mintHypercert: z.boolean().optional(),
       interestedIncubation: z.boolean().optional(),
-      dietaryRequirements: z.string().optional(),
+      liabilityWaiverConsent: z.boolean().optional(),
+      codeOfConductAgreement: z.boolean().optional(),
+      communityActivitiesConsent: z.boolean().optional(),
+      
+      // Additional Information
       additionalComments: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {

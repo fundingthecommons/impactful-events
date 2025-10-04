@@ -997,10 +997,35 @@ model ProfileSync {
   @@index([syncedAt])
 }
 
+// Onboarding System Enums
+enum DietType {
+  OMNIVORE
+  VEGETARIAN
+  VEGAN
+  OTHER
+}
+
+enum MentoringOpenness {
+  YES
+  NO
+  MAYBE
+}
+
 // Onboarding System Models
 model ApplicationOnboarding {
   id                      String   @id @default(cuid())
   applicationId           String   @unique // One onboarding per application
+  
+  // Contact & Logistics
+  legalName               String?  // Legal name as in passport
+  passportNumber          String?  // Passport number
+  needsVisaLetter         Boolean? // Needs visa letter
+  bloodType               String?  // Blood type
+  emergencyContactName    String?  // Emergency contact name
+  emergencyContactRelationship String? // Emergency contact relationship
+  emergencyContactPhone   String?  // Emergency contact phone/WhatsApp
+  arrivalDateTime         DateTime? // Arrival date and time in Buenos Aires
+  departureDateTime       DateTime? // Departure date and time
   
   // Travel Documents
   eTicketUrl              String?  // URL to uploaded e-ticket file
@@ -1008,13 +1033,49 @@ model ApplicationOnboarding {
   healthInsuranceUrl      String?  // URL to uploaded insurance proof
   healthInsuranceFileName String?  // Original filename
   
-  // Commitments
+  // Food & Dietary Needs
+  dietType                DietType? // Diet type (omnivore, vegetarian, vegan, other)
+  dietTypeOther           String?   // If diet type is "other", specify
+  allergiesIntolerances   String?   @db.Text // Allergies or intolerances
+  dietaryRequirements     String?   @db.Text // Legacy field, keeping for backward compatibility
+  
+  // English Proficiency
+  englishProficiencyLevel Int?     // English proficiency level (0-100)
+  
+  // Knowledge Sharing, Community & Mentorship
+  primaryGoals            String?  @db.Text // Primary goals for participating
+  skillsToGain            String?  @db.Text // Skills or knowledge to gain
+  openToMentoring         MentoringOpenness? // Open to mentoring others
+  mentorsToLearnFrom      String?  @db.Text // Mentors they'd love to learn from
+  organizationsToConnect  String?  @db.Text // Organizations to connect with
+  
+  // Technical Workshop
+  technicalWorkshopTitle  String?  // Technical workshop title
+  technicalWorkshopDescription String? @db.Text // Technical workshop description
+  technicalWorkshopDuration String? // Technical workshop duration
+  technicalWorkshopMaterials String? @db.Text // Technical workshop materials needed
+  
+  // Beyond Work Activities
+  beyondWorkInterests     String?  @db.Text // Other interests or skills to share
+  beyondWorkTitle         String?  // Beyond work workshop title
+  beyondWorkDescription   String?  @db.Text // Beyond work workshop description
+  beyondWorkDuration      String?  // Beyond work workshop duration
+  beyondWorkMaterials     String?  @db.Text // Beyond work workshop materials needed
+  
+  // Media & Bio
+  headshotUrl             String?  // URL to uploaded headshot
+  headshotFileName        String?  // Original headshot filename
+  shortBio                String?  @db.Text // Short bio or description
+  
+  // Commitments & Confirmations
   participateExperiments  Boolean  @default(false)
   mintHypercert          Boolean  @default(false)
   interestedIncubation   Boolean  @default(false)
+  liabilityWaiverConsent  Boolean  @default(false) // Liability waiver consent
+  codeOfConductAgreement  Boolean  @default(false) // Code of conduct agreement
+  communityActivitiesConsent Boolean @default(false) // Community activities participation
   
   // Additional Information
-  dietaryRequirements    String?  @db.Text
   additionalComments     String?  @db.Text
   
   // Metadata
