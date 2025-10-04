@@ -63,7 +63,6 @@ export default function AdminFieldsEditor({
   const [adminNotes, setAdminNotes] = useState(user.adminNotes ?? "");
   const [adminLabels, setAdminLabels] = useState<string[]>(user.adminLabels ?? []);
   const [isSaving, setIsSaving] = useState(false);
-  const [hasUnsavedLabels, setHasUnsavedLabels] = useState(false);
 
   // tRPC mutations
   const utils = api.useUtils();
@@ -74,7 +73,6 @@ export default function AdminFieldsEditor({
   useEffect(() => {
     setAdminNotes(user.adminNotes ?? "");
     setAdminLabels(user.adminLabels ?? []);
-    setHasUnsavedLabels(false);
   }, [user.adminNotes, user.adminLabels]);
 
   // Check if labels have changed
@@ -124,8 +122,6 @@ export default function AdminFieldsEditor({
         await utils.application.getConsensusApplications.invalidate({ eventId });
       }
       
-      setHasUnsavedLabels(false);
-      
       notifications.show({
         title: "Success",
         message: "Admin labels saved successfully",
@@ -163,7 +159,6 @@ export default function AdminFieldsEditor({
           value={adminLabels}
           onChange={(values) => {
             setAdminLabels(values);
-            setHasUnsavedLabels(true);
           }}
           size="md"
           disabled={isSaving || disabled}
