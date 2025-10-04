@@ -115,7 +115,7 @@ interface OnboardingSubmission {
       id: string;
       name: string | null;
       email: string | null;
-    };
+    } | null;
     event: {
       id: string;
       name: string;
@@ -165,9 +165,8 @@ function OnboardingDetailModal({
     <Modal 
       opened={opened} 
       onClose={onClose} 
-      title={`Onboarding Details - ${submission.application.user.name}`}
+      title={`Onboarding Details - ${submission.application.user?.name ?? "Unknown"}`}
       size="xl"
-      scrollAreaComponent={Modal.NativeScrollArea as React.ComponentType}
     >
       <Stack gap="lg">
         {/* Overview */}
@@ -179,11 +178,11 @@ function OnboardingDetailModal({
           <Grid>
             <Grid.Col span={6}>
               <Text size="sm" fw={500}>Name</Text>
-              <Text size="sm" c="dimmed">{submission.application.user.name ?? "N/A"}</Text>
+              <Text size="sm" c="dimmed">{submission.application.user?.name ?? "N/A"}</Text>
             </Grid.Col>
             <Grid.Col span={6}>
               <Text size="sm" fw={500}>Email</Text>
-              <Text size="sm" c="dimmed">{submission.application.user.email ?? "N/A"}</Text>
+              <Text size="sm" c="dimmed">{submission.application.user?.email ?? "N/A"}</Text>
             </Grid.Col>
             <Grid.Col span={6}>
               <Text size="sm" fw={500}>Event</Text>
@@ -662,9 +661,9 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
                   <Table.Tr key={submission.id}>
                     <Table.Td>
                       <div>
-                        <Text fw={500}>{submission.application.user.name ?? "Unknown"}</Text>
-                        <Text size="sm" c="dimmed">{submission.application.user.email}</Text>
-                        {submission.legalName && submission.legalName !== submission.application.user.name && (
+                        <Text fw={500}>{submission.application.user?.name ?? "Unknown"}</Text>
+                        <Text size="sm" c="dimmed">{submission.application.user?.email ?? "N/A"}</Text>
+                        {submission.legalName && submission.legalName !== submission.application.user?.name && (
                           <Text size="xs" c="dimmed">Legal: {submission.legalName}</Text>
                         )}
                       </div>

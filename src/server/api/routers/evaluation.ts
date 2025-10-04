@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc';
 import { TRPCError } from '@trpc/server';
-import type { PrismaClient } from '@prisma/client';
 import { getAIEvaluationService } from '~/server/services/aiEvaluation';
 
 // Helper function to check if user has admin/staff role
@@ -68,8 +67,19 @@ const UpdateConsensusSchema = z.object({
   discussionNotes: z.string().optional(),
 });
 
+
 // Helper function to calculate weighted score
-async function calculateWeightedScore(prisma: PrismaClient | any, evaluationId: string): Promise<number> {
+async function calculateWeightedScore(
+  prisma: { 
+    evaluationScore: { 
+      findMany: (args: { where: { evaluationId: string }; include: { criteria: true } }) => Promise<Array<{
+        score: number;
+        criteria: { weight: number };
+      }>>
+    } 
+  }, 
+  evaluationId: string
+): Promise<number> {
   const scores = await prisma.evaluationScore.findMany({
     where: { evaluationId },
     include: { criteria: true },
@@ -77,15 +87,14 @@ async function calculateWeightedScore(prisma: PrismaClient | any, evaluationId: 
 
   if (scores.length === 0) return 0;
 
-  const totalWeightedScore = scores.reduce((sum, score) => {
+  const totalWeightedScore = scores.reduce((sum: number, score) => {
     return sum + (score.score * score.criteria.weight);
   }, 0);
 
-  const totalWeight = scores.reduce((sum, score) => sum + score.criteria.weight, 0);
+  const totalWeight = scores.reduce((sum: number, score) => sum + score.criteria.weight, 0);
   
   return totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
 }
-
 // AutoScore schema
 const AutoScoreApplicationSchema = z.object({
   applicationId: z.string(),

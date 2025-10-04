@@ -2250,18 +2250,28 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 </ActionIcon>
 
                                 {/* Evaluation details button - show on Under Review, Waitlisted, and Accepted tabs */}
-                                {/* eslint-disable @typescript-eslint/no-unsafe-member-access */}
-                                {(activeTab === "under_review" || activeTab === "waitlisted" || activeTab === "accepted") &&
-                                 application.evaluations?.length && application.evaluations[0]?.id && (                                  <ActionIcon
-                                    variant="subtle"
-                                    component={Link}
-                                    href={`/admin/evaluations/${application.evaluations[0]?.id}`}
-                                    title="View evaluation details"
-                                  >
-                                    <IconClipboardList size={16} />
-                                  </ActionIcon>
-                                )}
-                                {/* eslint-enable @typescript-eslint/no-unsafe-member-access */}
+                                {(() => {
+                                  if (!(activeTab === "under_review" || activeTab === "waitlisted" || activeTab === "accepted")) {
+                                    return null;
+                                  }
+                                  
+                                  // Find corresponding consensus application with evaluations
+                                  const consensusApp = consensusApplications?.find(ca => ca.id === application.id);
+                                  if (!consensusApp?.evaluations?.length || !consensusApp.evaluations[0]?.id) {
+                                    return null;
+                                  }
+                                  
+                                  return (
+                                    <ActionIcon
+                                      variant="subtle"
+                                      component={Link}
+                                      href={`/admin/evaluations/${consensusApp.evaluations[0].id}`}
+                                      title="View evaluation details"
+                                    >
+                                      <IconClipboardList size={16} />
+                                    </ActionIcon>
+                                  );
+                                })()}
 
                                 {/* Telegram icon - show on Incomplete, Under Review, and Accepted tabs */}
                                 {(activeTab === "incomplete" || activeTab === "under_review" || activeTab === "accepted") && (

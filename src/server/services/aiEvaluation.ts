@@ -95,7 +95,7 @@ export class AIEvaluationService {
     console.log('🔑 OpenAI API Key Status:', {
       hasKey: !!apiKey,
       keyLength: apiKey?.length ?? 0,
-      keyPrefix: apiKey?.slice(0, 8) + '...' ?? 'undefined',
+      keyPrefix: apiKey ? apiKey.slice(0, 8) + '...' : 'undefined',
       nodeEnv: process.env.NODE_ENV,
       timestamp: new Date().toISOString(),
     });
