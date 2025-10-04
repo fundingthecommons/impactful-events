@@ -69,7 +69,7 @@ const UpdateConsensusSchema = z.object({
 });
 
 // Helper function to calculate weighted score
-async function calculateWeightedScore(prisma: PrismaClient, evaluationId: string): Promise<number> {
+async function calculateWeightedScore(prisma: PrismaClient | any, evaluationId: string): Promise<number> {
   const scores = await prisma.evaluationScore.findMany({
     where: { evaluationId },
     include: { criteria: true },
