@@ -33,6 +33,24 @@ export interface AutoScoreResponse {
   entrepreneurialAssessment: EntrepreneurialAssessment;
 }
 
+interface RawAIResponse {
+  scores: unknown[];
+  overallComments: string;
+  recommendation: string;
+  confidence?: number;
+  confidenceFactors?: {
+    dataCompleteness?: number;
+    consistencyScore?: number;
+    specificityLevel?: number;
+    externalValidation?: number;
+  };
+  entrepreneurialAssessment?: {
+    score?: number;
+    reasoning?: string;
+    keyStrengths?: unknown;
+    developmentAreas?: unknown;
+  };
+}
 export interface ApplicationData {
   id: string;
   user: {
@@ -233,13 +251,13 @@ export class AIEvaluationService {
       
       console.log(`🔍 [${requestId}] Parsed AI Response Structure:`, {
         isValid: this.isValidAIResponse(aiResponse),
-        hasScores: !!(aiResponse as any)?.scores,
-        scoresLength: Array.isArray((aiResponse as any)?.scores) ? (aiResponse as any).scores.length : 0,
-        hasOverallComments: !!((aiResponse as any)?.overallComments),
-        hasRecommendation: !!((aiResponse as any)?.recommendation),
-        hasConfidence: !!((aiResponse as any)?.confidence),
-        recommendation: (aiResponse as any)?.recommendation,
-        confidence: (aiResponse as any)?.confidence,
+        hasScores: !!(aiResponse as RawAIResponse)?.scores,
+        scoresLength: Array.isArray((aiResponse as RawAIResponse)?.scores) ? (aiResponse as RawAIResponse).scores.length : 0,
+        hasOverallComments: !!((aiResponse as RawAIResponse)?.overallComments),
+        hasRecommendation: !!((aiResponse as RawAIResponse)?.recommendation),
+        hasConfidence: !!((aiResponse as RawAIResponse)?.confidence),
+        recommendation: (aiResponse as RawAIResponse)?.recommendation,
+        confidence: (aiResponse as RawAIResponse)?.confidence,
       });
       
       const result = this.validateAndTransformResponse(aiResponse, criteria, requestId);
@@ -402,12 +420,12 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
     // Type guard for AI response
     if (!this.isValidAIResponse(aiResponse)) {
       console.error(`❌ [${requestId}] Invalid AI response structure:`, {
-        hasScores: !!(aiResponse as any)?.scores,
-        isScoresArray: Array.isArray((aiResponse as any)?.scores),
-        hasOverallComments: typeof (aiResponse as any)?.overallComments === 'string',
-        hasRecommendation: typeof (aiResponse as any)?.recommendation === 'string',
-        hasConfidence: typeof (aiResponse as any)?.confidence === 'number',
-        actualStructure: Object.keys(aiResponse as any || {}),
+        hasScores: !!(aiResponse as RawAIResponse)?.scores,
+        isScoresArray: Array.isArray((aiResponse as RawAIResponse)?.scores),
+        hasOverallComments: typeof (aiResponse as RawAIResponse)?.overallComments === 'string',
+        hasRecommendation: typeof (aiResponse as RawAIResponse)?.recommendation === 'string',
+        hasConfidence: typeof (aiResponse as RawAIResponse)?.confidence === 'number',
+        actualStructure: Object.keys(aiResponse as Record<string, unknown> ?? {}),
       });
       throw new Error('Invalid AI response structure');
     }
@@ -415,9 +433,11 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
     console.log(`✅ [${requestId}] AI response structure is valid`);
 
     // Log AI provided scores vs expected criteria
-    const aiScores = (aiResponse as any).scores || [];
+    const aiScores = (aiResponse as RawAIResponse).scores ?? [];
     const expectedCriteriaIds = criteria.map(c => c.id);
-    const providedCriteriaIds = aiScores.map((s: any) => s.criteriaId);
+    const providedCriteriaIds = aiScores.map((s: unknown) => 
+        this.isScoreData(s) ? s.criteriaId : "unknown"
+      ).filter(id => id !== "unknown");
     
     console.log(`📊 [${requestId}] Criteria Matching Analysis:`, {
       expectedCount: expectedCriteriaIds.length,
@@ -465,7 +485,7 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
           clampedConfidence,
           confidenceWasClamped: rawConfidence !== clampedConfidence,
           reasoning: scoreDataRecord.reasoning ? 'provided' : 'fallback',
-          dataQuality: scoreDataRecord.dataQuality || 'limited'
+          dataQuality: scoreDataRecord.dataQuality ?? 'limited'
         });
         
         validatedScores.push({
@@ -484,7 +504,7 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
       totalScores: validatedScores.length,
       fallbackScores: validatedScores.filter(s => s.score === 5 && s.reasoning === 'Insufficient information provided for evaluation').length,
       averageScore: validatedScores.reduce((sum, s) => sum + s.score, 0) / validatedScores.length,
-      scoreDistribution: validatedScores.reduce((dist, s) => { dist[s.score] = (dist[s.score] || 0) + 1; return dist; }, {} as Record<number, number>),
+      scoreDistribution: validatedScores.reduce((dist, s) => { dist[s.score] = (dist[s.score] ?? 0) + 1; return dist; }, {} as Record<number, number>),
     });
 
     // Calculate confidence factors if not provided or invalid
@@ -627,7 +647,7 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
     }
     
     const validRecommendations = ['ACCEPT', 'REJECT', 'WAITLIST', 'NEEDS_MORE_INFO'];
-    if (!validRecommendations.includes(responseObj.recommendation as string)) {
+    if (!validRecommendations.includes(responseObj.recommendation)) {
       console.error('🚨 AI Response Validation Failed: Invalid recommendation value', {
         providedRecommendation: responseObj.recommendation,
         validOptions: validRecommendations

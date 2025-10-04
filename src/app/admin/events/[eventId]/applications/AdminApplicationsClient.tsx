@@ -561,6 +561,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     return completionsMap;
   }, [applications, eventQuestions]);
 
+
   // Filter applications based on search, hide rejected setting, hide reviewing/accepted setting, and incomplete tab logic
   const filteredApplications = applications?.filter(app => {
     // Search filter
@@ -581,8 +582,12 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       !missingInfoResults.get(app.id)?.isComplete;
     
     // Only show without review filter (only applies when on "under_review" tab)
-    const shouldShowOnlyWithoutReview = onlyShowWithoutReview && activeTab === "under_review" && 
-      app.reviewerAssignments.length > 0; // If has reviewer assignments, it's been reviewed (hide it)
+    // Check against UNDER_REVIEW consensus applications only (what actually appears on Consensus tab)
+    const underReviewConsensusApps = consensusApplications?.filter(consensusApp => consensusApp.status === 'UNDER_REVIEW') ?? [];
+    const hasCompletedEvaluations = underReviewConsensusApps.some(consensusApp => consensusApp.id === app.id);
+    const shouldHideReviewed = onlyShowWithoutReview && activeTab === "under_review" && 
+      hasCompletedEvaluations; // If app is on Consensus tab (has completed evaluations), hide it
+    
     
     // For incomplete tab, only show applications that are DRAFT or SUBMITTED and have missing info
     if (activeTab === "incomplete") {
@@ -596,7 +601,10 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted && !shouldHideIncomplete && hasMissingInfo;
     }
     
-    return matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted && !shouldHideIncomplete && !shouldShowOnlyWithoutReview;
+    const finalResult = matchesSearch && !shouldHideRejected && !shouldHideReviewingAccepted && !shouldHideIncomplete && !shouldHideReviewed;
+    
+    
+    return finalResult;
   }) ?? [];
 
   // Calculate incomplete applications count (DRAFT or SUBMITTED apps with missing info or unchecked)
@@ -2234,18 +2242,18 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 </ActionIcon>
 
                                 {/* Evaluation details button - show on Under Review, Waitlisted, and Accepted tabs */}
-                                {(activeTab === "under_review" || activeTab === "waitlisted" || activeTab === "accepted") && 
-                                 application.evaluations && application.evaluations.length > 0 && application.evaluations[0]?.id && (
+                                {/* @ts-ignore - evaluations may not be included in this query type */}
+                                {(activeTab === "under_review" || activeTab === "waitlisted" || activeTab === "accepted") &&
+                                 application.evaluations?.length && application.evaluations[0]?.id && (
                                   <ActionIcon
                                     variant="subtle"
                                     component={Link}
-                                    href={`/admin/evaluations/${application.evaluations[0].id}`}
+                                    href={`/admin/evaluations/${application.evaluations[0]?.id}`}
                                     title="View evaluation details"
                                   >
                                     <IconClipboardList size={16} />
                                   </ActionIcon>
                                 )}
-
                                 {/* Telegram icon - show on Incomplete, Under Review, and Accepted tabs */}
                                 {(activeTab === "incomplete" || activeTab === "under_review" || activeTab === "accepted") && (
                                   <TelegramMessageButton

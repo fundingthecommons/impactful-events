@@ -12,7 +12,6 @@ import {
   Group,
   FileInput,
   Textarea,
-  Alert,
   Progress,
   Box,
   Loader,
@@ -20,8 +19,6 @@ import {
   TextInput,
   Radio,
   Slider,
-  NumberInput,
-  Select,
   Divider,
   SimpleGrid,
   Accordion,
@@ -32,15 +29,11 @@ import {
   IconUpload,
   IconPlane,
   IconShield,
-  IconUsers,
   IconStar,
-  IconInfoCircle,
   IconCheck,
   IconX,
   IconUser,
-  IconPhone,
-  IconCalendar,
-  IconUtensils,
+  
   IconLanguage,
   IconBrain,
   IconPresentation,
@@ -281,7 +274,7 @@ export default function OnboardingForm({
         setIsSubmitted(true);
       }
     }
-  }, [onboardingData]); // form.setValues is stable, no need to include form
+  }, [onboardingData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (values: OnboardingFormData) => {
     setIsSubmitting(true);
@@ -455,14 +448,14 @@ export default function OnboardingForm({
                 Congratulations! / ¡Felicitaciones! 🎉
               </Title>
               <Text size="lg" ta="center" fw={600} c="blue.7" mb="xs">
-                You're in! You've been selected for the 2025 Builder Residency.
+                You&apos;re in! You&apos;ve been selected for the 2025 Builder Residency.
               </Text>
               <Text size="lg" ta="center" fw={600} c="blue.7" mb="md">
                 ¡Lo lograste! Has sido aceptado/a en la Residencia de Desarrolladores 2025.
               </Text>
               
               <Text size="md" ta="center" c="dimmed" style={{ lineHeight: 1.6 }}>
-                We can't wait to welcome you to Buenos Aires for three weeks of collaboration, creativity, and community. 
+                We can&apos;t wait to welcome you to Buenos Aires for three weeks of collaboration, creativity, and community. 
                 This form will help us get to know you better, prepare for your arrival, and make sure your experience is the best it can be.
               </Text>
               <Text size="md" ta="center" c="dimmed" mt="sm" style={{ lineHeight: 1.6 }}>
@@ -643,7 +636,7 @@ export default function OnboardingForm({
 
             {/* Food & Dietary Needs */}
             <Accordion.Item value="food">
-              <Accordion.Control icon={<IconUtensils size={20} />}>
+              <Accordion.Control icon={<IconHeart size={20} />}>
                 <Title order={3}>Food & Dietary Needs / Alimentación y Necesidades Dietéticas</Title>
               </Accordion.Control>
               <Accordion.Panel>
@@ -726,7 +719,7 @@ export default function OnboardingForm({
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Tell us about your goals and how you'd like to contribute to the community. / Cuéntanos sobre tus objetivos y cómo te gustaría contribuir a la comunidad.
+                    Tell us about your goals and how you&apos;d like to contribute to the community. / Cuéntanos sobre tus objetivos y cómo te gustaría contribuir a la comunidad.
                   </Text>
 
                   <Textarea
@@ -751,7 +744,7 @@ export default function OnboardingForm({
                     {...form.getInputProps('openToMentoring')}
                   >
                     <Group mt="xs">
-                      <Radio value="YES" label="Yes, I'd love to! / ¡Sí, me encantaría!" />
+                      <Radio value="YES" label="Yes, I&apos;d love to! / ¡Sí, me encantaría!" />
                       <Radio value="MAYBE" label="Maybe / Tal vez" />
                       <Radio value="NO" label="No, I prefer to focus on learning / No, prefiero enfocarme en aprender" />
                     </Group>
@@ -759,7 +752,7 @@ export default function OnboardingForm({
 
                   <Textarea
                     label="Mentors to Learn From / Mentores de Quienes Aprender"
-                    description="Are there specific people or types of experts you'd like to connect with? / ¿Hay personas específicas o tipos de expertos con quienes te gustaría conectar?"
+                    description="Are there specific people or types of experts you&apos;d like to connect with? / ¿Hay personas específicas o tipos de expertos con quienes te gustaría conectar?"
                     placeholder="e.g., Smart contract auditors, DAO founders, impact measurement experts... / ej., Auditores de contratos inteligentes, fundadores de DAO, expertos en medición de impacto..."
                     minRows={2}
                     {...form.getInputProps('mentorsToLearnFrom')}
@@ -767,7 +760,7 @@ export default function OnboardingForm({
 
                   <Textarea
                     label="Organizations to Connect With / Organizaciones para Conectar"
-                    description="Any specific organizations or communities you'd like to connect with? / ¿Alguna organización o comunidad específica con la que te gustaría conectar?"
+                    description="Any specific organizations or communities you&apos;d like to connect with? / ¿Alguna organización o comunidad específica con la que te gustaría conectar?"
                     placeholder="e.g., Gitcoin, Protocol Labs, local blockchain communities... / ej., Gitcoin, Protocol Labs, comunidades locales de blockchain..."
                     minRows={2}
                     {...form.getInputProps('organizationsToConnect')}
@@ -986,7 +979,7 @@ export default function OnboardingForm({
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Anything else you'd like us to know? / ¿Algo más que te gustaría que sepamos?
+                    Anything else you&apos;d like us to know? / ¿Algo más que te gustaría que sepamos?
                   </Text>
 
                   <Textarea

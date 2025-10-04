@@ -163,7 +163,7 @@ export const evaluationRouter = createTRPCRouter({
                   include: { question: true },
                   orderBy: { question: { order: 'asc' } }
                 },
-                user: { select: { id: true, name: true, email: true } },
+                user: { select: { id: true, name: true, email: true, adminNotes: true, adminLabels: true } },
                 event: { select: { name: true } },
               }
             });
@@ -337,7 +337,7 @@ export const evaluationRouter = createTRPCRouter({
           status: 'PENDING' as const,
         }));
 
-        const createdEvaluations = await tx.applicationEvaluation.createMany({
+        await tx.applicationEvaluation.createMany({
           data: evaluationData,
         });
 
@@ -363,7 +363,7 @@ export const evaluationRouter = createTRPCRouter({
                     include: { question: true },
                     orderBy: { question: { order: 'asc' } }
                   },
-                  user: { select: { id: true, name: true, email: true } },
+                  user: { select: { id: true, name: true, email: true, adminNotes: true, adminLabels: true } },
                   event: { select: { name: true } },
                 }
               });

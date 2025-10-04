@@ -8,7 +8,6 @@ import {
   Table,
   Paper,
   Badge,
-  Button,
   Group,
   Stack,
   Modal,
@@ -28,7 +27,7 @@ import {
   IconClock,
   IconUser,
   IconPlane,
-  IconUtensils,
+  
   IconLanguage,
   IconBrain,
   IconPresentation,
@@ -39,7 +38,6 @@ import {
   IconPhone,
   IconCalendar,
   IconHeart,
-  IconShield
 } from "@tabler/icons-react";
 import Link from "next/link";
 
@@ -135,9 +133,9 @@ function getStatusBadge(submission: OnboardingSubmission) {
   }
   
   // Check if they have provided any substantial information
-  const hasBasicInfo = submission.legalName || submission.passportNumber || submission.emergencyContactName;
-  const hasDocuments = submission.eTicketUrl || submission.healthInsuranceUrl;
-  const hasCommitments = submission.participateExperiments || submission.mintHypercert;
+  const hasBasicInfo = submission.legalName ?? submission.passportNumber ?? submission.emergencyContactName;
+  const hasDocuments = submission.eTicketUrl ?? submission.healthInsuranceUrl;
+  const hasCommitments = submission.participateExperiments ?? submission.mintHypercert;
   
   if (!submission.completed && (hasBasicInfo || hasDocuments || hasCommitments)) {
     return <Badge color="yellow" leftSection={<IconClock size={12} />}>In Progress</Badge>;
@@ -162,10 +160,6 @@ function OnboardingDetailModal({
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
   };
 
-  const formatDateOnly = (date: Date | null) => {
-    if (!date) return "Not provided";
-    return date.toLocaleDateString();
-  };
 
   return (
     <Modal 
@@ -173,7 +167,7 @@ function OnboardingDetailModal({
       onClose={onClose} 
       title={`Onboarding Details - ${submission.application.user.name}`}
       size="xl"
-      scrollAreaComponent={Modal.NativeScrollArea}
+      scrollAreaComponent={Modal.NativeScrollArea as React.ComponentType}
     >
       <Stack gap="lg">
         {/* Overview */}
@@ -294,7 +288,7 @@ function OnboardingDetailModal({
         {/* Food & Dietary */}
         <Card withBorder p="md">
           <Group gap="sm" mb="md">
-            <IconUtensils size={20} color="orange" />
+            <IconHeart size={20} color="orange" />
             <Title order={4}>Food & Dietary Needs</Title>
           </Group>
           <Grid>
@@ -601,7 +595,7 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
   };
 
   const completedCount = onboardingData.filter(s => s.completed).length;
-  const inProgressCount = onboardingData.filter(s => !s.completed && (s.eTicketUrl || s.healthInsuranceUrl)).length;
+  const inProgressCount = onboardingData.filter(s => !s.completed && (s.eTicketUrl ?? s.healthInsuranceUrl)).length;
 
   return (
     <Container size="xl" py="xl">

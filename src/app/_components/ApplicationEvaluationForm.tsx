@@ -533,6 +533,7 @@ export default function ApplicationEvaluationForm({
   // Edit application drawer state
   const [drawerOpened, setDrawerOpened] = useState(false);
 
+
   // tRPC queries and utils
   const utils = api.useUtils();
   const { data: criteria } = api.evaluation.getCriteria.useQuery();

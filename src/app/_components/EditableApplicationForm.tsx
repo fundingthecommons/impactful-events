@@ -104,7 +104,7 @@ export default function EditableApplicationForm({
   const updateUserName = api.application.updateApplicationUserName.useMutation();
   const updateAffiliation = api.application.updateApplicationAffiliation.useMutation();
   const bulkUpdateResponses = api.application.bulkUpdateApplicationResponses.useMutation();
-  const utils = api.useUtils();
+
 
   // Create stable dependency to prevent infinite loops
   const responsesHash = useMemo(() => {
