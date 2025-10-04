@@ -114,7 +114,7 @@ async function main() {
     })
     
     if (sponsor) {
-      const eventSponsor = await prisma.eventSponsor.upsert({
+      await prisma.eventSponsor.upsert({
         where: {
           eventId_sponsorId: {
             eventId: realFiEvent.id,

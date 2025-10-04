@@ -103,7 +103,7 @@ async function fixSpecificApplication(applicationId: string, userId: string) {
     
     console.log(`✅ Successfully linked application to user: ${updated.user?.name}`);
     console.log(`📝 Admin Notes: ${updated.user?.adminNotes ? 'EXISTS' : 'NONE'}`);
-    console.log(`🏷️  Admin Labels: ${updated.user?.adminLabels?.length || 0} labels`);
+    console.log(`🏷️  Admin Labels: ${updated.user?.adminLabels?.length ?? 0} labels`);
     
     return updated;
   } catch (error) {
@@ -127,4 +127,4 @@ async function main() {
 export { investigateAndFixEvaluations, fixSpecificApplication };
 
 // Run if called directly
-main();
+void main();

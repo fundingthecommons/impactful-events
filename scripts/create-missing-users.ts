@@ -46,7 +46,7 @@ async function createMissingUsers() {
         r.question.questionKey.includes('name')
       );
 
-      const extractedName = nameResponse?.answer || 'Unknown User';
+      const extractedName = nameResponse?.answer ?? 'Unknown User';
       console.log(`👤 Extracted name: ${extractedName}`);
 
       // Check if user with this email already exists (double-check)
@@ -103,8 +103,8 @@ async function createMissingUsers() {
         console.log(`✅ Verification: Application now has user data`);
         console.log(`   - Name: ${updatedApplication.user.name}`);
         console.log(`   - Email: ${updatedApplication.user.email}`);
-        console.log(`   - Admin Notes: ${updatedApplication.user.adminNotes || 'None'}`);
-        console.log(`   - Admin Labels: ${updatedApplication.user.adminLabels?.length || 0} labels`);
+        console.log(`   - Admin Notes: ${updatedApplication.user.adminNotes ?? 'None'}`);
+        console.log(`   - Admin Labels: ${updatedApplication.user.adminLabels?.length ?? 0} labels`);
       } else {
         console.log(`❌ Verification failed: Application still missing user data`);
       }
@@ -130,4 +130,4 @@ async function main() {
   }
 }
 
-main();
+void main();
