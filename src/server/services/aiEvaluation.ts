@@ -73,20 +73,39 @@ export class AIEvaluationService {
 
   constructor() {
     const apiKey = process.env.OPENAI_API_KEY;
+    
+    console.log('🔑 OpenAI API Key Status:', {
+      hasKey: !!apiKey,
+      keyLength: apiKey?.length ?? 0,
+      keyPrefix: apiKey?.slice(0, 8) + '...' ?? 'undefined',
+      nodeEnv: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+    });
+    
     if (!apiKey) {
+      console.error('❌ OPENAI_API_KEY environment variable is missing');
       throw new Error('OPENAI_API_KEY environment variable is required');
     }
     
-    this.openai = new OpenAI({
-      apiKey,
-    });
+    try {
+      this.openai = new OpenAI({
+        apiKey,
+      });
+      console.log('✅ OpenAI client initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize OpenAI client:', error);
+      throw new Error(`OpenAI client initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async evaluateApplication(input: EvaluationInput): Promise<AutoScoreResponse> {
     const { application, criteria, stage } = input;
     
-    // Log input data for debugging
-    console.log('🤖 AI Evaluation Input:', {
+    // Generate unique request ID for tracking
+    const requestId = `eval_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log(`🎯 [${requestId}] Starting AI Evaluation:`, {
+      requestId,
       applicationId: application.id,
       userId: application.user?.id,
       stage,
@@ -95,10 +114,20 @@ export class AIEvaluationService {
       hasUser: !!application.user,
       userName: application.user?.name,
       userEmail: application.user?.email,
+      timestamp: new Date().toISOString(),
     });
     
+    // Detailed criteria logging
+    console.log(`📋 [${requestId}] Evaluation Criteria:`, criteria.map(c => ({
+      id: c.id,
+      name: c.name,
+      category: c.category,
+      weight: c.weight,
+      order: c.order
+    })));
+    
     // Log sample of application responses for debugging
-    console.log('📋 Application Responses Sample:', 
+    console.log(`📝 [${requestId}] Application Responses Sample:`, 
       application.responses.slice(0, 3).map(r => ({
         questionKey: r.question.questionKey,
         questionText: r.question.questionEn?.slice(0, 100) + '...',
@@ -112,12 +141,18 @@ export class AIEvaluationService {
     const prompt = this.buildEvaluationPrompt(application, criteria, stage);
     
     // Log prompt length and sample for debugging
-    console.log('📝 AI Prompt Stats:', {
+    console.log(`📄 [${requestId}] AI Prompt Stats:`, {
       promptLength: prompt.length,
-      promptPreview: prompt.slice(0, 500) + '...'
+      promptPreview: prompt.slice(0, 500) + '...',
+      criteriaInPrompt: criteria.length,
+      expectedScoreCount: criteria.length
     });
     
     try {
+      const startTime = Date.now();
+      
+      console.log(`🤖 [${requestId}] Sending request to OpenAI GPT-4o...`);
+      
       const completion = await this.openai.chat.completions.create({
         model: "gpt-4o", // Using GPT-4 Omni for better reasoning
         messages: [
@@ -134,52 +169,101 @@ export class AIEvaluationService {
         max_tokens: 4000,
       });
 
+      const requestTime = Date.now() - startTime;
+      
+      console.log(`⏱️ [${requestId}] OpenAI request completed:`, {
+        requestTimeMs: requestTime,
+        finishReason: completion.choices[0]?.finish_reason,
+        hasResponse: !!completion.choices[0]?.message?.content,
+        usage: completion.usage
+      });
+
       const responseContent = completion.choices[0]?.message?.content;
       if (!responseContent) {
+        console.error(`❌ [${requestId}] No response content from OpenAI`);
         throw new Error('No response from AI service');
       }
 
-      // Log AI response for debugging
-      console.log('🤖 AI Raw Response:', {
+      // Enhanced AI response logging
+      console.log(`🔍 [${requestId}] AI Raw Response Analysis:`, {
         length: responseContent.length,
         preview: responseContent.slice(0, 300) + '...',
         hasCodeBlocks: responseContent.includes('```'),
         startsWithJson: responseContent.trim().startsWith('{'),
+        endsWithBrace: responseContent.trim().endsWith('}'),
+        containsScores: responseContent.includes('scores'),
+        containsRecommendation: responseContent.includes('recommendation'),
+        containsConfidence: responseContent.includes('confidence'),
       });
 
-      // Clean and parse the JSON response
-      // Remove markdown code blocks if present
+      // Clean and parse the JSON response with enhanced error handling
       let cleanContent = responseContent.trim();
+      const originalContent = cleanContent;
+      
       if (cleanContent.startsWith('```json')) {
         cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        console.log(`🧹 [${requestId}] Removed JSON markdown blocks`);
       } else if (cleanContent.startsWith('```')) {
         cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        console.log(`🧹 [${requestId}] Removed generic markdown blocks`);
       }
       
-      console.log('🧹 Cleaned Content:', {
-        length: cleanContent.length,
+      console.log(`🔧 [${requestId}] Cleaned Content Analysis:`, {
+        originalLength: originalContent.length,
+        cleanedLength: cleanContent.length,
         preview: cleanContent.slice(0, 300) + '...',
         startsWithBrace: cleanContent.startsWith('{'),
+        endsWithBrace: cleanContent.endsWith('}'),
       });
       
-      const aiResponse = JSON.parse(cleanContent) as unknown;
+      let aiResponse: unknown;
       
-      console.log("✅ Parsed AI Response:", {
-        parsedSuccessfully: this.isValidAIResponse(aiResponse),
+      try {
+        aiResponse = JSON.parse(cleanContent);
+        console.log(`✅ [${requestId}] JSON parsing successful`);
+      } catch (parseError) {
+        console.error(`❌ [${requestId}] JSON parsing failed:`, {
+          error: parseError instanceof Error ? parseError.message : 'Unknown error',
+          contentSample: cleanContent.slice(0, 200),
+          contentLength: cleanContent.length,
+          parseErrorType: parseError instanceof Error ? parseError.constructor.name : 'Unknown'
+        });
+        throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
+      
+      console.log(`🔍 [${requestId}] Parsed AI Response Structure:`, {
+        isValid: this.isValidAIResponse(aiResponse),
+        hasScores: !!(aiResponse as any)?.scores,
+        scoresLength: Array.isArray((aiResponse as any)?.scores) ? (aiResponse as any).scores.length : 0,
+        hasOverallComments: !!((aiResponse as any)?.overallComments),
+        hasRecommendation: !!((aiResponse as any)?.recommendation),
+        hasConfidence: !!((aiResponse as any)?.confidence),
+        recommendation: (aiResponse as any)?.recommendation,
+        confidence: (aiResponse as any)?.confidence,
       });
-      const result = this.validateAndTransformResponse(aiResponse, criteria);
       
-      console.log('🎯 Final AutoScore Result:', {
+      const result = this.validateAndTransformResponse(aiResponse, criteria, requestId);
+      
+      console.log(`🎯 [${requestId}] Final AutoScore Result:`, {
         scoresCount: result.scores.length,
+        expectedScoresCount: criteria.length,
         overallCommentsLength: result.overallComments.length,
         recommendation: result.recommendation,
         confidence: result.confidence,
+        entrepreneurialScore: result.entrepreneurialAssessment.score,
+        requestCompletedInMs: Date.now() - (startTime - requestTime),
       });
       
       return result;
       
     } catch (error) {
-      console.error('AI Evaluation Error:', error);
+      console.error(`💥 [${requestId}] AI Evaluation Error:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        errorType: error instanceof Error ? error.constructor.name : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined,
+        applicationId: application.id,
+        criteriaCount: criteria.length,
+      });
       throw new Error(`AI evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -233,23 +317,27 @@ ${answer ?? 'Not provided'}
 
 ## Evaluation Criteria
 ${criteria.map((c, index) => `
-**${index + 1}. ${c.name}** (${c.category}, Weight: ${(c.weight * 100).toFixed(1)}%)
-${c.description}
+**${index + 1}. ${c.name}** (ID: ${c.id})
+- Category: ${c.category}
+- Weight: ${(c.weight * 100).toFixed(1)}%
+- Description: ${c.description}
 `).join('\n')}
 
 ## Required Response Format
 
 You must respond with ONLY the raw JSON object matching this exact structure (no markdown, no code blocks, no additional text):
 
+IMPORTANT: Use the exact criteria IDs shown above (e.g., "${criteria[0]?.id ?? 'example-id'}") in the criteriaId field.
+
 {
   "scores": [
-    {
-      "criteriaId": "criteria-id-here",
+${criteria.map(c => `    {
+      "criteriaId": "${c.id}",
       "score": 7,
       "reasoning": "Detailed reasoning for the score based on evidence from application",
       "confidence": 4,
       "dataQuality": "good"
-    }
+    }`).join(',\n')}
   ],
   "overallComments": "Comprehensive evaluation summary highlighting key strengths and concerns",
   "recommendation": "ACCEPT",
@@ -268,6 +356,9 @@ You must respond with ONLY the raw JSON object matching this exact structure (no
     "developmentAreas": ["Market analysis", "Risk assessment"]
   }
 }
+
+## Criteria ID Reference (USE THESE EXACT IDs):
+${criteria.map((c, index) => `${index + 1}. "${c.id}" - ${c.name}`).join('\n')}
 
 ## Scoring Guidelines
 
@@ -303,20 +394,51 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
 
   private validateAndTransformResponse(
     aiResponse: unknown, 
-    criteria: EvaluationCriteria[]
+    criteria: EvaluationCriteria[],
+    requestId: string
   ): AutoScoreResponse {
+    console.log(`🔍 [${requestId}] Starting response validation...`);
+    
     // Type guard for AI response
     if (!this.isValidAIResponse(aiResponse)) {
+      console.error(`❌ [${requestId}] Invalid AI response structure:`, {
+        hasScores: !!(aiResponse as any)?.scores,
+        isScoresArray: Array.isArray((aiResponse as any)?.scores),
+        hasOverallComments: typeof (aiResponse as any)?.overallComments === 'string',
+        hasRecommendation: typeof (aiResponse as any)?.recommendation === 'string',
+        hasConfidence: typeof (aiResponse as any)?.confidence === 'number',
+        actualStructure: Object.keys(aiResponse as any || {}),
+      });
       throw new Error('Invalid AI response structure');
     }
+    
+    console.log(`✅ [${requestId}] AI response structure is valid`);
 
-    // Validate each score
+    // Log AI provided scores vs expected criteria
+    const aiScores = (aiResponse as any).scores || [];
+    const expectedCriteriaIds = criteria.map(c => c.id);
+    const providedCriteriaIds = aiScores.map((s: any) => s.criteriaId);
+    
+    console.log(`📊 [${requestId}] Criteria Matching Analysis:`, {
+      expectedCount: expectedCriteriaIds.length,
+      providedCount: providedCriteriaIds.length,
+      expectedIds: expectedCriteriaIds,
+      providedIds: providedCriteriaIds,
+      missingIds: expectedCriteriaIds.filter(id => !providedCriteriaIds.includes(id)),
+      extraIds: providedCriteriaIds.filter(id => !expectedCriteriaIds.includes(id)),
+      perfectMatch: expectedCriteriaIds.length === providedCriteriaIds.length && 
+                   expectedCriteriaIds.every(id => providedCriteriaIds.includes(id))
+    });
+
+    // Validate each score with detailed logging
     const validatedScores: CriteriaScore[] = [];
     for (const criterion of criteria) {
       const scoreData = aiResponse.scores.find((s: unknown) => 
         this.isScoreData(s) && s.criteriaId === criterion.id
       );
+      
       if (!scoreData) {
+        console.warn(`⚠️ [${requestId}] Missing score for criterion: ${criterion.id} (${criterion.name}), using fallback`);
         // If AI didn't provide a score for this criterion, create a default one
         validatedScores.push({
           criteriaId: criterion.id,
@@ -326,19 +448,44 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
           dataQuality: 'insufficient'
         });
       } else {
+        console.log(`✅ [${requestId}] Found score for criterion: ${criterion.id} (${criterion.name})`);
         // Validate the score data
         const scoreDataRecord = scoreData as Record<string, unknown>;
+        const rawScore = this.getNumericValue(scoreDataRecord.score, 5);
+        const clampedScore = Math.max(1, Math.min(10, Math.round(rawScore)));
+        const rawConfidence = this.getNumericValue(scoreDataRecord.confidence, 3);
+        const clampedConfidence = Math.max(1, Math.min(5, Math.round(rawConfidence)));
+        
+        console.log(`📈 [${requestId}] Score validation for ${criterion.name}:`, {
+          criteriaId: criterion.id,
+          rawScore,
+          clampedScore,
+          scoreWasClamped: rawScore !== clampedScore,
+          rawConfidence,
+          clampedConfidence,
+          confidenceWasClamped: rawConfidence !== clampedConfidence,
+          reasoning: scoreDataRecord.reasoning ? 'provided' : 'fallback',
+          dataQuality: scoreDataRecord.dataQuality || 'limited'
+        });
+        
         validatedScores.push({
           criteriaId: criterion.id,
-          score: Math.max(1, Math.min(10, Math.round(this.getNumericValue(scoreDataRecord.score, 5)))),
+          score: clampedScore,
           reasoning: this.getStringValue(scoreDataRecord.reasoning, 'No reasoning provided'),
-          confidence: Math.max(1, Math.min(5, Math.round(this.getNumericValue(scoreDataRecord.confidence, 3)))),
+          confidence: clampedConfidence,
           dataQuality: this.isValidDataQuality(scoreDataRecord.dataQuality) 
             ? scoreDataRecord.dataQuality 
             : 'limited'
         });
       }
     }
+
+    console.log(`📊 [${requestId}] Scores validation summary:`, {
+      totalScores: validatedScores.length,
+      fallbackScores: validatedScores.filter(s => s.score === 5 && s.reasoning === 'Insufficient information provided for evaluation').length,
+      averageScore: validatedScores.reduce((sum, s) => sum + s.score, 0) / validatedScores.length,
+      scoreDistribution: validatedScores.reduce((dist, s) => { dist[s.score] = (dist[s.score] || 0) + 1; return dist; }, {} as Record<number, number>),
+    });
 
     // Calculate confidence factors if not provided or invalid
     const confidenceFactors: ConfidenceFactors = {
@@ -356,10 +503,15 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
       (confidenceFactors.specificityLevel * 0.2) +
       (confidenceFactors.externalValidation * 0.15)
     );
+    
+    console.log(`🎯 [${requestId}] Confidence factors:`, confidenceFactors);
 
     // Validate entrepreneurial assessment
+    const rawEntrepreneurialScore = aiResponse.entrepreneurialAssessment?.score ?? 5;
+    const clampedEntrepreneurialScore = Math.max(1, Math.min(10, Math.round(rawEntrepreneurialScore)));
+    
     const entrepreneurialAssessment: EntrepreneurialAssessment = {
-      score: Math.max(1, Math.min(10, Math.round(aiResponse.entrepreneurialAssessment?.score ?? 5))),
+      score: clampedEntrepreneurialScore,
       reasoning: aiResponse.entrepreneurialAssessment?.reasoning ?? 'Basic entrepreneurial assessment completed',
       keyStrengths: Array.isArray(aiResponse.entrepreneurialAssessment?.keyStrengths) 
         ? (aiResponse.entrepreneurialAssessment.keyStrengths as string[]).slice(0, 5) // Limit to 5 items
@@ -368,8 +520,17 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
         ? (aiResponse.entrepreneurialAssessment.developmentAreas as string[]).slice(0, 5) // Limit to 5 items  
         : ['Further evaluation needed']
     };
+    
+    console.log(`🚀 [${requestId}] Entrepreneurial assessment:`, {
+      rawScore: rawEntrepreneurialScore,
+      finalScore: clampedEntrepreneurialScore,
+      scoreWasClamped: rawEntrepreneurialScore !== clampedEntrepreneurialScore,
+      hasReasoning: !!aiResponse.entrepreneurialAssessment?.reasoning,
+      strengthsCount: entrepreneurialAssessment.keyStrengths.length,
+      developmentAreasCount: entrepreneurialAssessment.developmentAreas.length
+    });
 
-    return {
+    const finalResult = {
       scores: validatedScores,
       overallComments: aiResponse.overallComments,
       recommendation: aiResponse.recommendation as 'ACCEPT' | 'REJECT' | 'WAITLIST' | 'NEEDS_MORE_INFO',
@@ -377,6 +538,16 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
       confidenceFactors,
       entrepreneurialAssessment
     };
+    
+    console.log(`🏁 [${requestId}] Validation completed successfully:`, {
+      finalScoresCount: finalResult.scores.length,
+      recommendation: finalResult.recommendation,
+      overallConfidence: finalResult.confidence,
+      hasOverallComments: !!finalResult.overallComments,
+      commentsLength: finalResult.overallComments.length
+    });
+
+    return finalResult;
   }
 
   // Type guards for validation
@@ -398,17 +569,74 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
       developmentAreas?: unknown;
     };
   } {
-    return (
-      typeof response === 'object' &&
-      response !== null &&
-      'scores' in response &&
-      Array.isArray((response as Record<string, unknown>).scores) &&
-      'overallComments' in response &&
-      typeof (response as Record<string, unknown>).overallComments === 'string' &&
-      'recommendation' in response &&
-      typeof (response as Record<string, unknown>).recommendation === 'string' &&
-      ['ACCEPT', 'REJECT', 'WAITLIST', 'NEEDS_MORE_INFO'].includes((response as Record<string, unknown>).recommendation as string)
-    );
+    // Enhanced validation with detailed failure logging
+    if (typeof response !== 'object' || response === null) {
+      console.error('🚨 AI Response Validation Failed: Not an object or is null', {
+        type: typeof response,
+        isNull: response === null,
+        value: response
+      });
+      return false;
+    }
+    
+    const responseObj = response as Record<string, unknown>;
+    
+    if (!('scores' in responseObj)) {
+      console.error('🚨 AI Response Validation Failed: Missing "scores" property', {
+        availableKeys: Object.keys(responseObj)
+      });
+      return false;
+    }
+    
+    if (!Array.isArray(responseObj.scores)) {
+      console.error('🚨 AI Response Validation Failed: "scores" is not an array', {
+        scoresType: typeof responseObj.scores,
+        scoresValue: responseObj.scores
+      });
+      return false;
+    }
+    
+    if (!('overallComments' in responseObj)) {
+      console.error('🚨 AI Response Validation Failed: Missing "overallComments" property', {
+        availableKeys: Object.keys(responseObj)
+      });
+      return false;
+    }
+    
+    if (typeof responseObj.overallComments !== 'string') {
+      console.error('🚨 AI Response Validation Failed: "overallComments" is not a string', {
+        overallCommentsType: typeof responseObj.overallComments,
+        overallCommentsValue: responseObj.overallComments
+      });
+      return false;
+    }
+    
+    if (!('recommendation' in responseObj)) {
+      console.error('🚨 AI Response Validation Failed: Missing "recommendation" property', {
+        availableKeys: Object.keys(responseObj)
+      });
+      return false;
+    }
+    
+    if (typeof responseObj.recommendation !== 'string') {
+      console.error('🚨 AI Response Validation Failed: "recommendation" is not a string', {
+        recommendationType: typeof responseObj.recommendation,
+        recommendationValue: responseObj.recommendation
+      });
+      return false;
+    }
+    
+    const validRecommendations = ['ACCEPT', 'REJECT', 'WAITLIST', 'NEEDS_MORE_INFO'];
+    if (!validRecommendations.includes(responseObj.recommendation as string)) {
+      console.error('🚨 AI Response Validation Failed: Invalid recommendation value', {
+        providedRecommendation: responseObj.recommendation,
+        validOptions: validRecommendations
+      });
+      return false;
+    }
+    
+    console.log('✅ AI Response passed all validation checks');
+    return true;
   }
 
   private isScoreData(data: unknown): data is {
@@ -427,16 +655,58 @@ Evaluate thoroughly and provide specific, evidence-based reasoning for all score
   }
 
   private getNumericValue(value: unknown, defaultValue: number): number {
-    if (typeof value === 'number') return value;
+    if (typeof value === 'number') {
+      if (isNaN(value) || !isFinite(value)) {
+        console.warn('⚠️ Numeric value is NaN or infinite, using fallback:', {
+          providedValue: value,
+          defaultValue,
+          isNaN: isNaN(value),
+          isFinite: isFinite(value)
+        });
+        return defaultValue;
+      }
+      return value;
+    }
+    
     if (typeof value === 'string') {
       const parsed = parseFloat(value);
-      return isNaN(parsed) ? defaultValue : parsed;
+      if (isNaN(parsed)) {
+        console.warn('⚠️ String value could not be parsed as number, using fallback:', {
+          providedValue: value,
+          defaultValue,
+          parseAttempt: parsed
+        });
+        return defaultValue;
+      }
+      return parsed;
     }
+    
+    console.warn('⚠️ Non-numeric value provided, using fallback:', {
+      providedValue: value,
+      providedType: typeof value,
+      defaultValue
+    });
     return defaultValue;
   }
 
   private getStringValue(value: unknown, defaultValue: string): string {
-    return typeof value === 'string' ? value : defaultValue;
+    if (typeof value === 'string') {
+      if (value.trim() === '') {
+        console.warn('⚠️ Empty string provided, using fallback:', {
+          providedValue: value,
+          defaultValue
+        });
+        return defaultValue;
+      }
+      return value;
+    }
+    
+    console.warn('⚠️ Non-string value provided, using fallback:', {
+      providedValue: value,
+      providedType: typeof value,
+      defaultValue
+    });
+    return defaultValue;
   }
 
   private isValidDataQuality(quality: unknown): quality is 'excellent' | 'good' | 'limited' | 'insufficient' {
