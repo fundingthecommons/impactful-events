@@ -89,6 +89,7 @@ export const userRouter = createTRPCRouter({
           name: true,
           email: true,
           role: true,
+          isAIReviewer: true,
         },
         orderBy: {
           name: "asc",

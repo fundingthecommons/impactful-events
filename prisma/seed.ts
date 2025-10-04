@@ -28,6 +28,19 @@ async function main() {
   })
   console.log(`✅ Created/updated user: ${defaultUser.name}`)
 
+  // Create Elinor Ostrom AI reviewer
+  const elinorOstrom = await prisma.user.upsert({
+    where: { email: 'ostrom@fundingthecommons.io' },
+    update: {},
+    create: {
+      email: 'ostrom@fundingthecommons.io',
+      name: 'Elinor Ostrom',
+      role: 'admin',
+      isAIReviewer: true,
+    },
+  })
+  console.log(`✅ Created/updated AI reviewer: ${elinorOstrom.name}`)
+
   // Create sponsors
   for (const sponsorData of initialSponsors) {
     const sponsor = await prisma.sponsor.upsert({

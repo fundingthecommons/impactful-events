@@ -47,6 +47,7 @@ import {
   IconUserPlus,
   IconChartBar,
   IconStar,
+  IconRobot,
   IconChevronUp,
   IconChevronDown,
   IconClipboardList,
@@ -1741,8 +1742,19 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             <Menu.Item
                               key={reviewer.id}
                               onClick={() => handleBulkAssignReviewer(reviewer.id)}
+                              leftSection={reviewer.isAIReviewer ? <IconRobot size={16} /> : undefined}
                             >
                               {reviewer.name ?? 'Unknown'} ({reviewer.email})
+                              {reviewer.isAIReviewer && (
+                                <Badge 
+                                  size="xs" 
+                                  color="violet" 
+                                  variant="light" 
+                                  ml="xs"
+                                >
+                                  AI
+                                </Badge>
+                              )}
                             </Menu.Item>
                           ))}
                           {(!reviewers || reviewers.length === 0) && (
@@ -2222,11 +2234,12 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 </ActionIcon>
 
                                 {/* Evaluation details button - show on Under Review, Waitlisted, and Accepted tabs */}
-                                {(activeTab === "under_review" || activeTab === "waitlisted" || activeTab === "accepted") && (
+                                {(activeTab === "under_review" || activeTab === "waitlisted" || activeTab === "accepted") && 
+                                 application.evaluations && application.evaluations.length > 0 && application.evaluations[0]?.id && (
                                   <ActionIcon
                                     variant="subtle"
                                     component={Link}
-                                    href={`/admin/evaluations/${application.id}`}
+                                    href={`/admin/evaluations/${application.evaluations[0].id}`}
                                     title="View evaluation details"
                                   >
                                     <IconClipboardList size={16} />
@@ -2433,8 +2446,19 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             <Menu.Item
                               key={reviewer.id}
                               onClick={() => handleBulkAssignReviewer(reviewer.id)}
+                              leftSection={reviewer.isAIReviewer ? <IconRobot size={16} /> : undefined}
                             >
                               {reviewer.name ?? 'Unknown'} ({reviewer.email})
+                              {reviewer.isAIReviewer && (
+                                <Badge 
+                                  size="xs" 
+                                  color="violet" 
+                                  variant="light" 
+                                  ml="xs"
+                                >
+                                  AI
+                                </Badge>
+                              )}
                             </Menu.Item>
                           ))}
                           {(!reviewers || reviewers.length === 0) && (

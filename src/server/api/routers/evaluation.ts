@@ -109,11 +109,24 @@ export const evaluationRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);
 
+      // Check if the assigned reviewer is an AI reviewer
+      const reviewer = await ctx.db.user.findUnique({
+        where: { id: input.reviewerId },
+        select: { id: true, name: true, email: true, isAIReviewer: true }
+      });
+
+      if (!reviewer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Reviewer not found",
+        });
+      }
+
       // Create the assignment
       const assignment = await ctx.db.reviewerAssignment.create({
         data: input,
         include: {
-          reviewer: { select: { id: true, name: true, email: true } },
+          reviewer: { select: { id: true, name: true, email: true, isAIReviewer: true } },
           application: { 
             select: { 
               id: true,
@@ -125,7 +138,7 @@ export const evaluationRouter = createTRPCRouter({
       });
 
       // Create corresponding evaluation record
-      await ctx.db.applicationEvaluation.create({
+      const evaluation = await ctx.db.applicationEvaluation.create({
         data: {
           applicationId: input.applicationId,
           reviewerId: input.reviewerId,
@@ -134,6 +147,107 @@ export const evaluationRouter = createTRPCRouter({
           status: 'PENDING',
         },
       });
+
+      // If this is an AI reviewer, automatically trigger AI evaluation
+      if (reviewer.isAIReviewer) {
+        // Process AI evaluation asynchronously to avoid blocking the assignment response
+        void (async () => {
+          try {
+            console.log(`[AI Evaluation] Starting AI evaluation for evaluation ID: ${evaluation.id}, application: ${input.applicationId}`);
+            
+            // Get full application data for AI evaluation
+            const applicationWithData = await ctx.db.application.findUnique({
+              where: { id: input.applicationId },
+              include: {
+                responses: {
+                  include: { question: true },
+                  orderBy: { question: { order: 'asc' } }
+                },
+                user: { select: { id: true, name: true, email: true } },
+                event: { select: { name: true } },
+              }
+            });
+
+            if (!applicationWithData) {
+              console.error(`[AI Evaluation] Application ${input.applicationId} not found`);
+              return;
+            }
+
+            // Get evaluation criteria
+            const criteria = await ctx.db.evaluationCriteria.findMany({
+              where: { isActive: true },
+              orderBy: { order: 'asc' },
+            });
+
+            if (criteria.length === 0) {
+              console.error('[AI Evaluation] No evaluation criteria found');
+              return;
+            }
+
+            console.log(`[AI Evaluation] Found ${criteria.length} criteria, proceeding with AI evaluation`);
+
+            // Use AI service to generate scores
+            const aiService = getAIEvaluationService();
+            const autoScoreResult = await aiService.evaluateApplication({
+              application: applicationWithData,
+              criteria,
+              stage: input.stage,
+            });
+
+            console.log(`[AI Evaluation] AI service returned ${autoScoreResult.scores?.length || 0} scores`);
+
+            // Use transaction to ensure data consistency
+            await ctx.db.$transaction(async (tx) => {
+              // Create scores in the database
+              if (autoScoreResult.scores) {
+                for (const scoreData of autoScoreResult.scores) {
+                  await tx.evaluationScore.create({
+                    data: {
+                      evaluationId: evaluation.id,
+                      criteriaId: scoreData.criteriaId,
+                      score: scoreData.score,
+                      reasoning: scoreData.reasoning,
+                    },
+                  });
+                }
+
+                // Calculate weighted overall score
+                const weightedScore = await calculateWeightedScore(tx, evaluation.id);
+
+                // Update evaluation with AI results
+                await tx.applicationEvaluation.update({
+                  where: { id: evaluation.id },
+                  data: {
+                    overallScore: weightedScore,
+                    overallComments: autoScoreResult.overallComments,
+                    recommendation: autoScoreResult.recommendation,
+                    confidence: autoScoreResult.confidence,
+                    status: 'COMPLETED',
+                    completedAt: new Date(),
+                  },
+                });
+
+                console.log(`[AI Evaluation] Successfully completed AI evaluation for evaluation ID: ${evaluation.id}`);
+              }
+            });
+          } catch (error) {
+            console.error(`[AI Evaluation] Failed for evaluation ID ${evaluation.id}:`, error);
+            
+            // Mark evaluation as failed but don't leave it in PENDING state
+            try {
+              await ctx.db.applicationEvaluation.update({
+                where: { id: evaluation.id },
+                data: {
+                  status: 'PENDING', // Keep as pending so admin can manually review
+                  overallComments: `AI evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                },
+              });
+            } catch (updateError) {
+              console.error(`[AI Evaluation] Failed to update evaluation status:`, updateError);
+            }
+          }
+        })();
+      }
 
       return assignment;
     }),
@@ -145,6 +259,19 @@ export const evaluationRouter = createTRPCRouter({
       checkAdminAccess(ctx.session.user.role);
 
       const { applicationIds, reviewerId, stage, priority, dueDate, notes } = input;
+
+      // Check if the assigned reviewer is an AI reviewer
+      const reviewer = await ctx.db.user.findUnique({
+        where: { id: reviewerId },
+        select: { id: true, name: true, email: true, isAIReviewer: true }
+      });
+
+      if (!reviewer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Reviewer not found",
+        });
+      }
 
       // Check for existing assignments to prevent duplicates
       const existingAssignments = await ctx.db.reviewerAssignment.findMany({
@@ -190,7 +317,7 @@ export const evaluationRouter = createTRPCRouter({
             stage,
           },
           include: {
-            reviewer: { select: { id: true, name: true, email: true } },
+            reviewer: { select: { id: true, name: true, email: true, isAIReviewer: true } },
             application: { 
               select: { 
                 id: true,
@@ -210,12 +337,150 @@ export const evaluationRouter = createTRPCRouter({
           status: 'PENDING' as const,
         }));
 
-        await tx.applicationEvaluation.createMany({
+        const createdEvaluations = await tx.applicationEvaluation.createMany({
           data: evaluationData,
         });
 
         return createdAssignments;
       });
+
+      // If this is an AI reviewer, automatically trigger AI evaluation for all assignments
+      if (reviewer.isAIReviewer) {
+        // Process AI evaluations asynchronously to avoid blocking the response
+        void (async () => {
+          console.log(`[AI Bulk Evaluation] Starting bulk AI evaluation for ${newApplicationIds.length} applications`);
+          
+          // Process AI evaluations in parallel for better performance
+          const aiEvaluationPromises = newApplicationIds.map(async (applicationId) => {
+            try {
+              console.log(`[AI Bulk Evaluation] Processing application: ${applicationId}`);
+              
+              // Get full application data for AI evaluation
+              const applicationWithData = await ctx.db.application.findUnique({
+                where: { id: applicationId },
+                include: {
+                  responses: {
+                    include: { question: true },
+                    orderBy: { question: { order: 'asc' } }
+                  },
+                  user: { select: { id: true, name: true, email: true } },
+                  event: { select: { name: true } },
+                }
+              });
+
+              if (!applicationWithData) {
+                console.error(`[AI Bulk Evaluation] Application ${applicationId} not found`);
+                return;
+              }
+
+              // Get evaluation criteria
+              const criteria = await ctx.db.evaluationCriteria.findMany({
+                where: { isActive: true },
+                orderBy: { order: 'asc' },
+              });
+
+              if (criteria.length === 0) {
+                console.error('[AI Bulk Evaluation] No evaluation criteria found');
+                return;
+              }
+
+              // Find the evaluation record for this application
+              const evaluation = await ctx.db.applicationEvaluation.findUnique({
+                where: {
+                  applicationId_reviewerId_stage: {
+                    applicationId,
+                    reviewerId,
+                    stage,
+                  }
+                }
+              });
+
+              if (!evaluation) {
+                console.error(`[AI Bulk Evaluation] Evaluation not found for application ${applicationId}`);
+                return;
+              }
+
+              console.log(`[AI Bulk Evaluation] Found evaluation ${evaluation.id}, proceeding with AI evaluation`);
+
+              // Use AI service to generate scores
+              const aiService = getAIEvaluationService();
+              const autoScoreResult = await aiService.evaluateApplication({
+                application: applicationWithData,
+                criteria,
+                stage,
+              });
+
+              console.log(`[AI Bulk Evaluation] AI service returned ${autoScoreResult.scores?.length || 0} scores for application ${applicationId}`);
+
+              // Use transaction to ensure data consistency
+              await ctx.db.$transaction(async (tx) => {
+                // Create scores in the database
+                if (autoScoreResult.scores) {
+                  for (const scoreData of autoScoreResult.scores) {
+                    await tx.evaluationScore.create({
+                      data: {
+                        evaluationId: evaluation.id,
+                        criteriaId: scoreData.criteriaId,
+                        score: scoreData.score,
+                        reasoning: scoreData.reasoning,
+                      },
+                    });
+                  }
+
+                  // Calculate weighted overall score
+                  const weightedScore = await calculateWeightedScore(tx, evaluation.id);
+
+                  // Update evaluation with AI results
+                  await tx.applicationEvaluation.update({
+                    where: { id: evaluation.id },
+                    data: {
+                      overallScore: weightedScore,
+                      overallComments: autoScoreResult.overallComments,
+                      recommendation: autoScoreResult.recommendation,
+                      confidence: autoScoreResult.confidence,
+                      status: 'COMPLETED',
+                      completedAt: new Date(),
+                    },
+                  });
+
+                  console.log(`[AI Bulk Evaluation] Successfully completed AI evaluation for application ${applicationId}, evaluation ${evaluation.id}`);
+                }
+              });
+            } catch (error) {
+              console.error(`[AI Bulk Evaluation] Failed for application ${applicationId}:`, error);
+              
+              // Try to mark evaluation as failed
+              try {
+                const evaluation = await ctx.db.applicationEvaluation.findUnique({
+                  where: {
+                    applicationId_reviewerId_stage: {
+                      applicationId,
+                      reviewerId,
+                      stage,
+                    }
+                  }
+                });
+                
+                if (evaluation) {
+                  await ctx.db.applicationEvaluation.update({
+                    where: { id: evaluation.id },
+                    data: {
+                      status: 'PENDING',
+                      overallComments: `AI evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                    },
+                  });
+                }
+              } catch (updateError) {
+                console.error(`[AI Bulk Evaluation] Failed to update evaluation status for ${applicationId}:`, updateError);
+              }
+            }
+          });
+
+          // Execute all AI evaluations in parallel
+          await Promise.all(aiEvaluationPromises);
+          console.log(`[AI Bulk Evaluation] Completed bulk AI evaluation for ${newApplicationIds.length} applications`);
+        })();
+      }
 
       return {
         assignments,

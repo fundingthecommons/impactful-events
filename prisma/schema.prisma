@@ -63,6 +63,7 @@ model User {
   image         String?
   password      String?   // Hashed password for email/password authentication
   role          String?   @default("user") // Add simple role field
+  isAIReviewer  Boolean   @default(false) // Identifies AI reviewers like Elinor Ostrom
   accounts      Account[]
   sessions      Session[]
   posts         Post[]
