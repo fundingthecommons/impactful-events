@@ -6,41 +6,12 @@ import Link from "next/link";
 import ApplicationPageClient from "./ApplicationPageClient";
 import ApplicationClosedMessage from "./ApplicationClosedMessage";
 
-interface PageProps {
-  searchParams: Promise<{ latePass?: string }>;
-}
-
-async function setLatePassCookie(latePassValue: string) {
-  "use server";
-  
-  const cookieStore = await cookies();
-  cookieStore.set("ftc-late-pass", latePassValue, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 24 * 60 * 60, // 24 hours
-    path: "/",
-  });
-  
-  // Redirect to clean URL without query parameter
-  redirect("/events/funding-commons-residency-2025/apply");
-}
-
-export default async function FundingCommonsResidencyApplicationPage({
-  searchParams,
-}: PageProps) {
-  // Check for late pass parameter and cookie
-  const resolvedSearchParams = await searchParams;
+export default async function FundingCommonsResidencyApplicationPage() {
+  // Check for late pass cookie (middleware handles setting from query param)
   const cookieStore = await cookies();
   const latePassCookie = cookieStore.get("ftc-late-pass")?.value;
   
-  // If late pass exists in query parameter, set cookie and redirect to clean URL
-  if (resolvedSearchParams.latePass) {
-    await setLatePassCookie(resolvedSearchParams.latePass);
-    return; // This will never be reached due to redirect, but satisfies TypeScript
-  }
-  
-  // Grant access based on existing cookie
+  // Grant access based on cookie (set by middleware)
   const hasLatePass = !!latePassCookie;
 
   // If no late pass, show closed message
@@ -178,3 +149,4 @@ export default async function FundingCommonsResidencyApplicationPage({
     </div>
   );
 }
+
