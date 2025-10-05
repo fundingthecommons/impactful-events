@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { TelegramClient, sessions, Api } from "telegram";
+import { TelegramClient, sessions } from "telegram";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { 
   encryptTelegramCredentials, 
@@ -20,12 +20,6 @@ import { db } from "~/server/db";
 const cleanupExpiredSessions = async () => {
   const now = new Date();
   try {
-    // Safety check to ensure model exists
-    if (!db || !db.telegramAuthSession) {
-      console.warn("TelegramAuthSession model not available for cleanup");
-      return;
-    }
-    
     await db.telegramAuthSession.deleteMany({
       where: {
         expiresAt: {
@@ -38,11 +32,9 @@ const cleanupExpiredSessions = async () => {
   }
 };
 
-// Clean up expired auth sessions every 5 minutes, with initial delay
-setTimeout(() => {
-  void cleanupExpiredSessions();
-  setInterval(() => void cleanupExpiredSessions(), 5 * 60 * 1000);
-}, 30000); // 30 second initial delay to ensure db is ready
+// Clean up expired auth sessions every 5 minutes
+setInterval(() => void cleanupExpiredSessions(), 5 * 60 * 1000);
+
 interface TelegramClientInterface {
   connect: () => Promise<void>;
   start: (options: {
@@ -51,8 +43,9 @@ interface TelegramClientInterface {
     phoneCode: () => Promise<string>;
     onError: (err: unknown) => void;
   }) => Promise<void>;
-  sendCode: (apiCredentials: {apiId: number, apiHash: string}, phoneNumber: string, forceSMS?: boolean) => Promise<{phoneCodeHash: string, isCodeViaApp: boolean}>;
-  invoke: (method: unknown) => Promise<unknown>;
+  sendCode: (config: {apiId: number, apiHash: string}, phone: string) => Promise<{phone_code_hash: string, type?: {_: string}}>;
+  signIn: (phone: string, phoneCode: string, phoneCodeHash: string) => Promise<void>;
+  checkPassword: (password: string) => Promise<void>;
   session: { save: () => string };
   disconnect: () => Promise<void>;
 }
@@ -165,57 +158,21 @@ export const telegramAuthRouter = createTRPCRouter({
         });
       }
 
-      // Validate user-provided credentials
-      const apiId = input.apiId.trim();
-      const apiHash = input.apiHash.trim();
-      
-      // Validate API ID (should be numeric and reasonable length)
-      const apiIdNum = parseInt(apiId);
-      if (isNaN(apiIdNum) || apiIdNum <= 0 || apiId.length < 5 || apiId.length > 10) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Invalid API ID format. Should be a 5-10 digit number from my.telegram.org",
-        });
-      }
-      
-      // Validate API Hash (should be 32 character alphanumeric)
-      if (!/^[a-f0-9]{32}$/i.test(apiHash)) {
-        throw new TRPCError({
-          code: "BAD_REQUEST", 
-          message: "Invalid API Hash format. Should be a 32-character hex string from my.telegram.org",
-        });
-      }
-      
-      // Validate phone number format (should start with +)
-      const phoneNumber = input.phoneNumber.trim();
-      if (!phoneNumber.startsWith('+') || phoneNumber.length < 10 || phoneNumber.length > 16) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Invalid phone number format. Must include country code (e.g., +1234567890)",
-        });
-      }
-
-      // Debug logging (with masked credentials for security)
-      console.log(`Sending Telegram code - API ID: ${apiId}, API Hash: ${apiHash.substring(0, 8)}..., Phone: ${phoneNumber.substring(0, 4)}...`);
+      // Use user-provided credentials instead of environment variables
+      const apiId = input.apiId;
+      const apiHash = input.apiHash;
 
       try {
-        const client = new TelegramClient(new sessions.StringSession(""), apiIdNum, apiHash, {}) as unknown as TelegramClientInterface;
+        const client = new TelegramClient(new sessions.StringSession(""), parseInt(apiId), apiHash, {}) as unknown as TelegramClientInterface;
 
         // Connect to Telegram
         await client.connect();
-        console.log(`Connected to Telegram successfully`);
 
         // Send verification code
-        console.log(`Calling sendCode with apiId: ${apiIdNum}, phoneNumber: ${phoneNumber}`);
         const result = await client.sendCode({
-          apiId: apiIdNum,
+          apiId: parseInt(apiId),
           apiHash: apiHash,
-        }, phoneNumber);
-        
-        console.log(`SendCode result:`, { 
-          hasPhoneCodeHash: !!result.phoneCodeHash, 
-          isCodeViaApp: result.isCodeViaApp 
-        });
+        }, input.phoneNumber);
         
         // Get client session string to store in database
         const clientSessionString = client.session.save();
@@ -224,7 +181,7 @@ export const telegramAuthRouter = createTRPCRouter({
         await ctx.db.telegramAuthSession.update({
           where: { sessionId: input.sessionId },
           data: {
-            phoneCodeHash: result.phoneCodeHash,
+            phoneCodeHash: result.phone_code_hash,
             apiId: input.apiId,
             apiHash: input.apiHash,
             clientData: clientSessionString,
@@ -299,15 +256,13 @@ export const telegramAuthRouter = createTRPCRouter({
         // Connect to Telegram
         await client.connect();
 
-        // Sign in with phone code using low-level API
-        const signInResult = await client.invoke(new Api.auth.SignIn({
-          phoneNumber: input.phoneNumber,
-          phoneCodeHash: session.phoneCodeHash,
-          phoneCode: input.phoneCode
-        }));
+        // Sign in with phone code
+        await client.signIn(input.phoneNumber, input.phoneCode, session.phoneCodeHash);
 
-        // 2FA is handled automatically by detecting SESSION_PASSWORD_NEEDED error
-        // The password will be handled in the catch block if needed
+        // Handle 2FA if password provided
+        if (input.password) {
+          await client.checkPassword(input.password);
+        }
 
         // Get session string
         const sessionString = client.session.save();
@@ -368,27 +323,10 @@ export const telegramAuthRouter = createTRPCRouter({
         }
         
         if (error instanceof Error && error.message.includes("SESSION_PASSWORD_NEEDED")) {
-          // If 2FA password was provided, try to authenticate with it
-          if (input.password) {
-            try {
-              // For proper SRP implementation, we'd need account.getPassword first
-              // For now, we'll provide a clear error message about 2FA complexity
-              throw new TRPCError({
-                code: "UNIMPLEMENTED",
-                message: "2FA authentication requires SRP protocol implementation. Please contact support.",
-              });
-            } catch (passwordError) {
-              throw new TRPCError({
-                code: "UNAUTHORIZED",
-                message: `2FA authentication failed: ${passwordError instanceof Error ? passwordError.message : 'Invalid password'}`,
-              });
-            }
-          } else {
-            throw new TRPCError({
-              code: "PRECONDITION_FAILED",
-              message: "Two-factor authentication password required",
-            });
-          }
+          throw new TRPCError({
+            code: "PRECONDITION_FAILED",
+            message: "Two-factor authentication password required",
+          });
         }
         
         throw new TRPCError({

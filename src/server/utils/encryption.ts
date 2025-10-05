@@ -1,9 +1,9 @@
-import { createHash, randomBytes, pbkdf2Sync, createCipher, createDecipher } from 'crypto';
+import { createHash, randomBytes, pbkdf2Sync, createCipheriv, createDecipheriv } from 'crypto';
 
 // Encryption configuration
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // 256 bits
-const IV_LENGTH = 16; // 128 bits
+const IV_LENGTH = 12; // 96 bits (recommended for GCM)
 const SALT_LENGTH = 64; // 512 bits
 const TAG_LENGTH = 16; // 128 bits
 const PBKDF2_ITERATIONS = 100000; // High iteration count for security
@@ -35,24 +35,26 @@ function deriveKey(userId: string, salt: string): Buffer {
 }
 
 // Encrypt data using AES-256-GCM
-export function encryptData(data: string, userId: string, salt: string, _iv: string): string {
+export function encryptData(data: string, userId: string, salt: string, iv: string): string {
   try {
     const key = deriveKey(userId, salt);
-    const cipher = createCipher(ALGORITHM, key) as {
-      setAAD?: (buffer: Buffer) => void;
-      update: (data: Buffer | string, inputEncoding?: BufferEncoding, outputEncoding?: BufferEncoding) => string;
-      final: (outputEncoding?: BufferEncoding) => string;
-      getAuthTag?: () => Buffer;
-    };
     
-    if (cipher.setAAD) {
-      cipher.setAAD(Buffer.from(userId, 'utf8')); // Additional authenticated data
+    // For GCM mode, IV should be 12 bytes (96 bits)
+    const ivBuffer = Buffer.from(iv, 'hex');
+    if (ivBuffer.length !== 12) {
+      throw new Error('IV must be 12 bytes for AES-256-GCM');
     }
+    
+    const cipher = createCipheriv(ALGORITHM, key, ivBuffer);
+    
+    // Set Additional Authenticated Data (AAD)
+    cipher.setAAD(Buffer.from(userId, 'utf8'));
     
     let encrypted = cipher.update(data, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     
-    const authTag = cipher.getAuthTag?.() ?? Buffer.alloc(16);
+    // Get authentication tag for GCM
+    const authTag = cipher.getAuthTag();
     
     // Combine encrypted data with auth tag
     return encrypted + authTag.toString('hex');
@@ -62,26 +64,27 @@ export function encryptData(data: string, userId: string, salt: string, _iv: str
 }
 
 // Decrypt data using AES-256-GCM
-export function decryptData(encryptedData: string, userId: string, salt: string, _iv: string): string {
+export function decryptData(encryptedData: string, userId: string, salt: string, iv: string): string {
   try {
     const key = deriveKey(userId, salt);
+    
+    // For GCM mode, IV should be 12 bytes (96 bits)
+    const ivBuffer = Buffer.from(iv, 'hex');
+    if (ivBuffer.length !== 12) {
+      throw new Error('IV must be 12 bytes for AES-256-GCM');
+    }
     
     // Split encrypted data and auth tag
     const authTagHex = encryptedData.slice(-TAG_LENGTH * 2);
     const encrypted = encryptedData.slice(0, -TAG_LENGTH * 2);
     
-    const decipher = createDecipher(ALGORITHM, key) as {
-      setAAD?: (buffer: Buffer) => void;
-      update: (data: Buffer | string, inputEncoding?: BufferEncoding, outputEncoding?: BufferEncoding) => string;
-      final: (outputEncoding?: BufferEncoding) => string;
-      setAuthTag?: (buffer: Buffer) => void;
-    };
-    if (decipher.setAAD) {
-      decipher.setAAD(Buffer.from(userId, 'utf8')); // Additional authenticated data
-    }
-    if (decipher.setAuthTag) {
-      decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
-    }
+    const decipher = createDecipheriv(ALGORITHM, key, ivBuffer);
+    
+    // Set Additional Authenticated Data (AAD) - must match encryption
+    decipher.setAAD(Buffer.from(userId, 'utf8'));
+    
+    // Set authentication tag - must be done before update/final for GCM
+    decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
     
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');

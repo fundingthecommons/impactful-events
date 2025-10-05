@@ -103,7 +103,8 @@ model User {
   adminUpdates    User[]    @relation("AdminUpdates")
   
   // Telegram authentication relation
-  telegramAuth    TelegramAuth?
+  telegramAuth         TelegramAuth?
+  telegramAuthSessions TelegramAuthSession[]
 }
 
 model VerificationToken {
@@ -1115,4 +1116,23 @@ model TelegramAuth {
   @@index([userId])
   @@index([expiresAt])
   @@index([isActive])
+}
+
+// Temporary authentication sessions (survives server restarts)
+model TelegramAuthSession {
+  id              String    @id @default(cuid())
+  sessionId       String    @unique // User-generated session ID
+  userId          String
+  phoneCodeHash   String?   // Telegram phone code hash
+  apiId           String?   // User's API ID
+  apiHash         String?   // User's API Hash  
+  clientData      String?   @db.Text // Serialized client session data
+  expiresAt       DateTime  // Session expiration (10 minutes)
+  createdAt       DateTime  @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([sessionId])
+  @@index([userId])
+  @@index([expiresAt])
 }
