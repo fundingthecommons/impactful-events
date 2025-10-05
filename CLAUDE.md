@@ -37,6 +37,22 @@ bun run format:write    # Format code with Prettier
 - **ALWAYS prefer editing an existing file to creating a new one**
 - **NEVER proactively create documentation files (*.md) or README files** - Only create documentation files if explicitly requested by the User
 
+## HYBRID AUTO-LEARNING CODE QUALITY SYSTEM
+
+**CRITICAL: All generated code must pass ESLint rules on first try using live configuration and learned patterns.**
+
+### Live Configuration Sources
+- @eslint.config.js (Current ESLint rules)
+- @.editorconfig (Formatting standards)
+
+### Auto-Learning Error Patterns  
+- @.claude/logs/eslint-violations.md (Historical ESLint violations with real fixes)
+- @.claude/logs/typescript-errors.md (TypeScript errors and resolutions)
+- @.claude/logs/build-failures.md (Build issues and solutions)
+
+### System Mandate
+Generate TypeScript code that complies with live ESLint configuration and avoids historical error patterns documented above. The system learns from actual mistakes and builds a growing knowledge base of context-specific solutions.
+
 ## CODE QUALITY REQUIREMENTS FOR VERCEL BUILD
 
 **CRITICAL: All generated code must pass these ESLint rules to deploy on Vercel.**
@@ -258,7 +274,116 @@ The project has pre-approved permissions in `.claude/settings.local.json` for:
 
 # Generate comprehensive feature plan
 /generate-prp features/payment-integration.md
+
+# Enhanced auto-learning build commands
+/fix-build-errors               # Fix build errors with auto-learning
+/fix-build-errors-and-push      # Fix build errors, learn patterns, and push
 ```
+
+## Auto-Learning Code Quality System Documentation
+
+### Overview
+
+The FTC Platform implements a **Hybrid Auto-Learning Code Quality System** that combines live ESLint configuration reading with automated error pattern learning to achieve **ESLint compliance on first code generation**.
+
+### How It Works
+
+#### 1. **Live Configuration Reading**
+Claude Code automatically reads your current project configurations:
+- `eslint.config.js` - All active ESLint rules and settings
+- `.editorconfig` - Code formatting standards
+- No manual rule documentation required - always current
+
+#### 2. **Auto-Learning Error Patterns**
+When errors occur during development, the system automatically:
+- Captures the specific violation or error
+- Records the real code that caused the issue
+- Documents the exact fix applied
+- Builds a growing knowledge base in `.claude/logs/`
+
+#### 3. **Prevention-First Generation**
+When generating new code, Claude Code:
+- Follows live ESLint configuration rules
+- Avoids patterns documented in error logs
+- Generates compliant code on first try
+- No post-edit fix cycles required
+
+### Error Log Structure
+
+#### ESLint Violations (`.claude/logs/eslint-violations.md`)
+```markdown
+## 2025-01-05 14:30 - @typescript-eslint/prefer-nullish-coalescing
+
+**Problem**: Used logical OR (||) instead of nullish coalescing (??)
+**File**: src/components/UserProfile.tsx:42
+**Code Context**: const displayName = user.name || 'Anonymous';
+**Fix Applied**: const displayName = user.name ?? 'Anonymous';
+**Prevention**: Always use ?? for default values, || only for falsy checks
+```
+
+#### TypeScript Errors (`.claude/logs/typescript-errors.md`)
+```markdown
+## 2025-01-05 15:15 - Type 'any' not assignable
+
+**Error**: Type 'any' is not assignable to parameter of type 'User'
+**File**: src/api/users.ts:28
+**Code Context**: const result: any = await fetchUser();
+**Fix Applied**: const result = await fetchUser() as User;
+**Type Pattern**: Use proper type assertions or interface definitions
+```
+
+#### Build Failures (`.claude/logs/build-failures.md`)
+```markdown
+## 2025-01-05 16:00 - Vercel Build Failed
+
+**Build Command**: vercel build
+**Error**: Module not found: 'src/utils/nonexistent'
+**Root Cause**: Import statement referencing deleted file
+**Files Affected**: src/components/DataTable.tsx
+**Fix Applied**: Removed unused import statement
+**Prevention**: Always verify imports exist before committing
+```
+
+### Team Benefits
+
+#### Individual Developer
+- **Faster Development**: No post-edit fix cycles
+- **Learning Acceleration**: Real examples from your own codebase
+- **Context Awareness**: Solutions specific to your project patterns
+
+#### Team Collaboration
+- **Shared Learning**: Error logs can be committed to git
+- **Consistent Patterns**: Everyone learns from the same mistake patterns
+- **Onboarding**: New team members see real project-specific examples
+
+### System Maintenance
+
+#### Automatic Operations
+- ✅ Error detection and logging (via `/fix-build-errors` commands)
+- ✅ Pattern recognition and documentation
+- ✅ Live configuration reading
+- ✅ Knowledge base growth
+
+#### Manual Operations (Optional)
+- 📝 Review error logs periodically for insights
+- 🧹 Archive old error logs if they become too large
+- 📚 Share interesting patterns with team members
+
+### Success Metrics
+
+The system aims to achieve:
+- **80%+ reduction** in post-edit ESLint violations
+- **Faster development velocity** through prevention-first approach
+- **Growing team knowledge** captured in learnable patterns
+- **Zero maintenance** auto-learning system
+
+### Implementation Status
+
+- ✅ **Live Configuration Reading**: CLAUDE.md references `@eslint.config.js`
+- ✅ **Error Log Infrastructure**: `.claude/logs/` directory and templates created
+- ✅ **Enhanced Commands**: `/fix-build-errors` and `/fix-build-errors-and-push` with logging
+- ✅ **Documentation**: Complete system documentation and usage guides
+- 🔄 **Validation**: Ready for testing and team adoption
 
 ## Theme System Best Practices
 
