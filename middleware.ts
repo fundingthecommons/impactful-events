@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 export function middleware(request: NextRequest) {
   // Handle late pass parameter for FTC Residency application
