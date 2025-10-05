@@ -94,13 +94,15 @@ export function decryptData(encryptedData: string, userId: string, salt: string,
 
 // Encrypt Telegram session data
 export interface TelegramCredentials {
-  sessionString: string;
+  apiId: string;
   apiHash: string;
+  sessionString: string;
 }
 
 export interface EncryptedTelegramAuth {
-  encryptedSession: string;
+  encryptedApiId: string;
   encryptedApiHash: string;
+  encryptedSession: string;
   salt: string;
   iv: string;
 }
@@ -113,8 +115,9 @@ export function encryptTelegramCredentials(
   const iv = generateIV();
   
   return {
-    encryptedSession: encryptData(credentials.sessionString, userId, salt, iv),
+    encryptedApiId: encryptData(credentials.apiId, userId, salt, iv),
     encryptedApiHash: encryptData(credentials.apiHash, userId, salt, iv),
+    encryptedSession: encryptData(credentials.sessionString, userId, salt, iv),
     salt,
     iv,
   };
@@ -125,8 +128,9 @@ export function decryptTelegramCredentials(
   userId: string
 ): TelegramCredentials {
   return {
-    sessionString: decryptData(encrypted.encryptedSession, userId, encrypted.salt, encrypted.iv),
+    apiId: decryptData(encrypted.encryptedApiId, userId, encrypted.salt, encrypted.iv),
     apiHash: decryptData(encrypted.encryptedApiHash, userId, encrypted.salt, encrypted.iv),
+    sessionString: decryptData(encrypted.encryptedSession, userId, encrypted.salt, encrypted.iv),
   };
 }
 

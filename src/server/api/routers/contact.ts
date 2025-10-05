@@ -333,7 +333,7 @@ export const contactRouter = createTRPCRouter({
       // Decrypt user's credentials
       const credentials = decryptTelegramCredentials({
         encryptedSession: userAuth.encryptedSession,
-        encryptedApiHash: userAuth.encryptedApiHash,
+        encryptedApiId: userAuth.encryptedApiId,        encryptedApiHash: userAuth.encryptedApiHash,
         salt: userAuth.salt,
         iv: userAuth.iv,
       }, ctx.session.user.id);

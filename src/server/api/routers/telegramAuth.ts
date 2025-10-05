@@ -18,6 +18,8 @@ const authSessions = new Map<string, {
   client: unknown;
   phoneCodeHash?: string;
   expiresAt: number;
+  apiId?: string;
+  apiHash?: string;
 }>();
 
 // Clean up expired auth sessions every 5 minutes
@@ -91,13 +93,7 @@ export const telegramAuthRouter = createTRPCRouter({
       });
     }
 
-    const apiId = process.env.TELEGRAM_API_ID;
-    if (!apiId) {
-      throw new TRPCError({
-        code: "PRECONDITION_FAILED",
-        message: "Telegram API credentials not configured on server",
-      });
-    }
+    // No longer need global API credentials - users provide their own
 
     // Check if user already has active auth
     const existingAuth = await ctx.db.telegramAuth.findUnique({
@@ -130,6 +126,8 @@ export const telegramAuthRouter = createTRPCRouter({
     .input(z.object({
       sessionId: z.string(),
       phoneNumber: z.string().min(1),
+      apiId: z.string().min(1),
+      apiHash: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
       const session = authSessions.get(input.sessionId);
@@ -140,15 +138,9 @@ export const telegramAuthRouter = createTRPCRouter({
         });
       }
 
-      const apiId = process.env.TELEGRAM_API_ID;
-      const apiHash = process.env.TELEGRAM_API_HASH;
-      
-      if (!apiId || !apiHash) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: "Telegram API credentials not configured",
-        });
-      }
+      // Use user-provided credentials instead of environment variables
+      const apiId = input.apiId;
+      const apiHash = input.apiHash;
 
       try {
         const client = new TelegramClient("", parseInt(apiId), apiHash, {}) as unknown as TelegramClientInterface;
@@ -161,6 +153,8 @@ export const telegramAuthRouter = createTRPCRouter({
           client,
           phoneCodeHash: result.phoneCodeHash,
           expiresAt: session.expiresAt,
+          apiId: input.apiId,
+          apiHash: input.apiHash,
         });
 
         console.log(`Sent verification code to ${hashForAudit(input.phoneNumber)} for user ${hashForAudit(ctx.session.user.id)}`);
@@ -185,18 +179,10 @@ export const telegramAuthRouter = createTRPCRouter({
     }))
     .mutation(async ({ ctx, input }) => {
       const session = authSessions.get(input.sessionId);
-      if (!session || session.expiresAt < Date.now() || !session.client || !session.phoneCodeHash) {
+      if (!session || session.expiresAt < Date.now() || !session.client || !session.phoneCodeHash || !session.apiId || !session.apiHash) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Authentication session expired or invalid. Please start over.",
-        });
-      }
-
-      const apiHash = process.env.TELEGRAM_API_HASH;
-      if (!apiHash) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: "Telegram API hash not configured",
         });
       }
 
@@ -216,8 +202,9 @@ export const telegramAuthRouter = createTRPCRouter({
 
         // Encrypt credentials
         const credentials: TelegramCredentials = {
+          apiId: session.apiId,
+          apiHash: session.apiHash,
           sessionString,
-          apiHash,
         };
 
         const encrypted = encryptTelegramCredentials(credentials, ctx.session.user.id);
@@ -226,8 +213,9 @@ export const telegramAuthRouter = createTRPCRouter({
         await ctx.db.telegramAuth.upsert({
           where: { userId: ctx.session.user.id },
           update: {
-            encryptedSession: encrypted.encryptedSession,
+            encryptedApiId: encrypted.encryptedApiId,
             encryptedApiHash: encrypted.encryptedApiHash,
+            encryptedSession: encrypted.encryptedSession,
             salt: encrypted.salt,
             iv: encrypted.iv,
             expiresAt: getSessionExpiration(),
@@ -236,8 +224,9 @@ export const telegramAuthRouter = createTRPCRouter({
           },
           create: {
             userId: ctx.session.user.id,
-            encryptedSession: encrypted.encryptedSession,
+            encryptedApiId: encrypted.encryptedApiId,
             encryptedApiHash: encrypted.encryptedApiHash,
+            encryptedSession: encrypted.encryptedSession,
             salt: encrypted.salt,
             iv: encrypted.iv,
             expiresAt: getSessionExpiration(),
@@ -300,15 +289,16 @@ export const telegramAuthRouter = createTRPCRouter({
 
     try {
       const credentials = decryptTelegramCredentials({
-        encryptedSession: auth.encryptedSession,
+        encryptedApiId: auth.encryptedApiId,
         encryptedApiHash: auth.encryptedApiHash,
+        encryptedSession: auth.encryptedSession,
         salt: auth.salt,
         iv: auth.iv,
       }, ctx.session.user.id);
 
       return credentials;
     } catch (error) {
-      console.error("Failed to decrypt Telegram credentials:", error);
+      console.error("Failed to decrypt Telegram credentials:", error instanceof Error ? error.message : String(error));
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to decrypt stored credentials",

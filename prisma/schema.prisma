@@ -1100,8 +1100,9 @@ model ApplicationOnboarding {
 model TelegramAuth {
   id                String   @id @default(cuid())
   userId            String   @unique
-  encryptedSession  String   @db.Text // Encrypted session string
+  encryptedApiId    String   // Encrypted API ID (user-specific)
   encryptedApiHash  String   // Encrypted API hash (user-specific)
+  encryptedSession  String   @db.Text // Encrypted session string
   salt              String   // For key derivation
   iv                String   // Initialization vector for encryption
   expiresAt         DateTime // Session expiration

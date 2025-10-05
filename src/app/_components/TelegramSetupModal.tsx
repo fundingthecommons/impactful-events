@@ -34,7 +34,7 @@ interface TelegramSetupModalProps {
   onSuccess: () => void;
 }
 
-type SetupStep = "welcome" | "phone" | "code" | "password" | "success";
+type SetupStep = "welcome" | "credentials" | "phone" | "code" | "password" | "success";
 
 export default function TelegramSetupModal({
   opened,
@@ -43,6 +43,8 @@ export default function TelegramSetupModal({
 }: TelegramSetupModalProps) {
   const [currentStep, setCurrentStep] = useState<SetupStep>("welcome");
   const [sessionId, setSessionId] = useState<string>("");
+  const [apiId, setApiId] = useState("");
+  const [apiHash, setApiHash] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [password, setPassword] = useState("");
@@ -57,6 +59,8 @@ export default function TelegramSetupModal({
   const reset = () => {
     setCurrentStep("welcome");
     setSessionId("");
+    setApiId("");
+    setApiHash("");
     setPhoneNumber("");
     setVerificationCode("");
     setPassword("");
@@ -74,10 +78,20 @@ export default function TelegramSetupModal({
     try {
       const result = await startAuth.mutateAsync();
       setSessionId(result.sessionId);
-      setCurrentStep("phone");
+      setCurrentStep("credentials");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start authentication");
     }
+  };
+
+  const handleCredentialsSubmit = async () => {
+    if (!apiId.trim() || !apiHash.trim()) {
+      setError("Please enter both API ID and API Hash");
+      return;
+    }
+    
+    setError("");
+    setCurrentStep("phone");
   };
 
   const handleSendCode = async () => {
@@ -91,6 +105,8 @@ export default function TelegramSetupModal({
       await sendPhoneCode.mutateAsync({
         sessionId,
         phoneNumber: phoneNumber.trim(),
+        apiId: apiId.trim(),
+        apiHash: apiHash.trim(),
       });
       setCurrentStep("code");
     } catch (err) {
@@ -154,9 +170,10 @@ export default function TelegramSetupModal({
   const getStepperStep = () => {
     switch (currentStep) {
       case "welcome": return 0;
-      case "phone": return 1;
-      case "code": case "password": return 2;
-      case "success": return 3;
+      case "credentials": return 1;
+      case "phone": return 2;
+      case "code": case "password": return 3;
+      case "success": return 4;
       default: return 0;
     }
   };
@@ -174,6 +191,7 @@ export default function TelegramSetupModal({
       <Stack gap="md">
         <Stepper active={getStepperStep()} size="sm">
           <Stepper.Step icon={<IconInfoCircle size={16} />} label="Welcome" />
+          <Stepper.Step icon={<IconShieldCheck size={16} />} label="API Keys" />
           <Stepper.Step icon={<IconPhone size={16} />} label="Phone" />
           <Stepper.Step icon={<IconMessageCircle size={16} />} label="Verify" />
           <Stepper.Step icon={<IconCheck size={16} />} label="Complete" />
@@ -226,6 +244,58 @@ export default function TelegramSetupModal({
             >
               Start Setup
             </Button>
+          </Stack>
+        )}
+
+        {currentStep === "credentials" && (
+          <Stack gap="md">
+            <Text fw={500}>Enter your Telegram API credentials</Text>
+            <Text size="sm" c="dimmed">
+              You&apos;ll need to get these from the Telegram website. This ensures your data stays private and secure.
+            </Text>
+
+            <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+              <Text fw={500} size="sm">How to get your API credentials:</Text>
+              <Text size="xs" mt={4}>
+                1. Visit <Text component="span" fw={500}>https://my.telegram.org/apps</Text><br/>
+                2. Log in with your phone number<br/>
+                3. Create a new application<br/>
+                4. Copy the API ID and API Hash below
+              </Text>
+            </Alert>
+            
+            <TextInput
+              label="API ID"
+              placeholder="1234567"
+              value={apiId}
+              onChange={(e) => setApiId(e.target.value)}
+              leftSection={<IconShieldCheck size={16} />}
+              disabled={isLoading}
+              description="Numeric ID from my.telegram.org"
+            />
+
+            <TextInput
+              label="API Hash"
+              placeholder="abcdef1234567890abcdef1234567890"
+              value={apiHash}
+              onChange={(e) => setApiHash(e.target.value)}
+              leftSection={<IconShieldCheck size={16} />}
+              disabled={isLoading}
+              description="Long string hash from my.telegram.org"
+            />
+
+            <Group justify="space-between">
+              <Button variant="subtle" onClick={handleClose} disabled={isLoading}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCredentialsSubmit}
+                disabled={isLoading || !apiId.trim() || !apiHash.trim()}
+                leftSection={<IconShieldCheck size={16} />}
+              >
+                Continue
+              </Button>
+            </Group>
           </Stack>
         )}
 
