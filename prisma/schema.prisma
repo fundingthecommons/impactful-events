@@ -101,6 +101,9 @@ model User {
   // Admin update relations
   adminUpdater    User?     @relation("AdminUpdates", fields: [adminUpdatedBy], references: [id])
   adminUpdates    User[]    @relation("AdminUpdates")
+  
+  // Telegram authentication relation
+  telegramAuth    TelegramAuth?
 }
 
 model VerificationToken {
@@ -1091,4 +1094,24 @@ model ApplicationOnboarding {
   @@index([applicationId])
   @@index([completed])
   @@index([submittedAt])
+}
+
+// Telegram Authentication System
+model TelegramAuth {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  encryptedSession  String   @db.Text // Encrypted session string
+  encryptedApiHash  String   // Encrypted API hash (user-specific)
+  salt              String   // For key derivation
+  iv                String   // Initialization vector for encryption
+  expiresAt         DateTime // Session expiration
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([isActive])
 }

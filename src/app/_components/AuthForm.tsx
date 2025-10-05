@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import {
   Paper,
@@ -63,6 +63,19 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
   const [success, setSuccess] = useState<string | null>(null);
 
   const createUserMutation = api.user.create.useMutation();
+
+  // Preserve late pass from URL parameters in client-side cookie
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const latePass = urlParams.get("latePass");
+      
+      if (latePass) {
+        // Set client-side cookie to persist late pass through auth flow
+        document.cookie = `ftc-late-pass=${latePass}; path=/; max-age=${24 * 60 * 60}; samesite=lax${process.env.NODE_ENV === "production" ? "; secure" : ""}`;
+      }
+    }
+  }, []);
 
   const signInForm = useForm<SignInFormData>({
     initialValues: {

@@ -2,6 +2,23 @@ import { z } from "zod";
 import { google, type gmail_v1 } from "googleapis";
 import { type PrismaClient } from "@prisma/client";
 import { Client as NotionClient } from "@notionhq/client";
+import { Api } from "telegram";
+
+// Type definitions for Telegram API responses
+interface TelegramUser {
+  _: string;
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  phone?: string;
+  bot?: boolean;
+  contact?: boolean;
+}
+
+interface TelegramContactsResult {
+  users?: TelegramUser[];
+}
 
 import {
   createTRPCRouter,
@@ -75,25 +92,63 @@ async function getGoogleAuthClient(ctx: Context) {
   return oauth2Client;
 }
 
-async function upsertContact(db: PrismaClient, contact: { email: string; firstName?: string; lastName?: string; }) {
-  const { email, firstName = "", lastName = "" } = contact;
-  if (!email) {
+async function upsertContact(db: PrismaClient, contact: { 
+  email?: string; 
+  firstName?: string; 
+  lastName?: string; 
+  phone?: string;
+  telegram?: string;
+}) {
+  const { email, firstName = "", lastName = "", phone, telegram } = contact;
+  
+  // For Telegram contacts, we might not have email, so use phone as fallback identifier
+  const identifier = email ?? phone;
+  if (!identifier) {
     return;
   }
 
-  const domain = email.substring(email.lastIndexOf("@") + 1);
+  let sponsor = null;
+  if (email) {
+    const domain = email.substring(email.lastIndexOf("@") + 1);
+    sponsor = await db.sponsor.upsert({
+      where: { name: domain },
+      update: {},
+      create: { name: domain },
+    });
+  }
 
-  const sponsor = await db.sponsor.upsert({
-    where: { name: domain },
-    update: {},
-    create: { name: domain },
-  });
-
-  await db.contact.upsert({
-    where: { email },
-    update: { firstName, lastName, sponsorId: sponsor.id },
-    create: { email, firstName, lastName, sponsorId: sponsor.id },
-  });
+  if (email) {
+    await db.contact.upsert({
+      where: { email },
+      update: { firstName, lastName, phone, telegram, sponsorId: sponsor?.id },
+      create: { email, firstName, lastName, phone, telegram, sponsorId: sponsor?.id },
+    });
+  } else if (phone) {
+    // Handle phone-only contacts (like from Telegram)
+    const existingContact = await db.contact.findFirst({
+      where: { phone },
+    });
+    
+    if (existingContact) {
+      await db.contact.update({
+        where: { id: existingContact.id },
+        data: { firstName, lastName, telegram },
+      });
+    } else {
+      // Create a placeholder email for phone-only contacts
+      const placeholderEmail = `${phone.replace(/\D/g, '')}@telegram.placeholder`;
+      await db.contact.create({
+        data: { 
+          email: placeholderEmail, 
+          firstName, 
+          lastName, 
+          phone, 
+          telegram,
+          sponsorId: null 
+        },
+      });
+    }
+  }
 }
 
 export const contactRouter = createTRPCRouter({
@@ -245,5 +300,131 @@ export const contactRouter = createTRPCRouter({
       }
     }
     return { count };
+  }),
+
+  importTelegramContacts: protectedProcedure.mutation(async ({ ctx }) => {
+    // Get the user's stored Telegram credentials
+    const userAuth = await ctx.db.telegramAuth.findUnique({
+      where: { userId: ctx.session.user.id },
+    });
+
+    if (!userAuth?.isActive) {
+      throw new Error("Please set up Telegram authentication first. Go to the Telegram section and click 'Set Up Telegram'.");
+    }
+
+    // Check if session is expired
+    if (new Date() > userAuth.expiresAt) {
+      await ctx.db.telegramAuth.update({
+        where: { userId: ctx.session.user.id },
+        data: { isActive: false },
+      });
+      throw new Error("Your Telegram authentication has expired. Please set up Telegram authentication again.");
+    }
+
+    const apiId = process.env.TELEGRAM_API_ID;
+    if (!apiId) {
+      throw new Error("Telegram API credentials not configured on server. Please contact an administrator.");
+    }
+
+    try {
+      // Import decryption functions
+      const { decryptTelegramCredentials } = await import("~/server/utils/encryption");
+      
+      // Decrypt user's credentials
+      const credentials = decryptTelegramCredentials({
+        encryptedSession: userAuth.encryptedSession,
+        encryptedApiHash: userAuth.encryptedApiHash,
+        salt: userAuth.salt,
+        iv: userAuth.iv,
+      }, ctx.session.user.id);
+
+      const client = new (Api as unknown as new (options: {
+        apiId: number;
+        apiHash: string;
+        stringSession: string;
+      }) => {
+        start: (options: {
+          phoneNumber: () => Promise<string>;
+          password: () => Promise<string>;
+          phoneCode: () => Promise<string>;
+          onError: (err: unknown) => void;
+        }) => Promise<void>;
+        invoke: (method: {
+          _: string;
+          hash: bigint;
+        }) => Promise<unknown>;
+        disconnect: () => Promise<void>;
+      })({
+        apiId: parseInt(apiId),
+        apiHash: credentials.apiHash,
+        stringSession: credentials.sessionString,
+      });
+
+      // Start client with existing session
+      await client.start({
+        phoneNumber: async () => {
+          throw new Error("Session expired. Please set up Telegram authentication again.");
+        },
+        password: async () => {
+          throw new Error("Session expired. Please set up Telegram authentication again.");
+        },
+        phoneCode: async () => {
+          throw new Error("Session expired. Please set up Telegram authentication again.");
+        },
+        onError: (err) => console.log(err),
+      });
+
+      // Get all contacts from Telegram
+      const result = await client.invoke({
+        _: "contacts.getContacts",
+        hash: BigInt(0),
+      }) as TelegramContactsResult;
+
+      let count = 0;
+      if (result.users && Array.isArray(result.users)) {
+        for (const user of result.users) {
+          if (user._ === 'user' && !user.bot && user.contact) {
+            const firstName = user.first_name ?? "";
+            const lastName = user.last_name ?? "";
+            const phone = user.phone ? `+${user.phone}` : undefined;
+            const telegram = user.username ?? `user_${user.id}`;
+
+            if (phone ?? telegram) {
+              await upsertContact(ctx.db, {
+                firstName,
+                lastName,
+                phone,
+                telegram,
+              });
+              count++;
+            }
+          }
+        }
+      }
+
+      await client.disconnect();
+      
+      // Log successful import (with hashed user ID for privacy)
+      const { hashForAudit } = await import("~/server/utils/encryption");
+      console.log(`Successfully imported ${count} Telegram contacts for user ${hashForAudit(ctx.session.user.id)}`);
+      
+      return { count };
+    } catch (error) {
+      console.error("Telegram import failed:", error);
+      
+      // If session is invalid, mark as inactive
+      if (error instanceof Error && 
+          (error.message.includes("SESSION_REVOKED") || 
+           error.message.includes("AUTH_KEY_INVALID") ||
+           error.message.includes("SESSION_EXPIRED"))) {
+        await ctx.db.telegramAuth.update({
+          where: { userId: ctx.session.user.id },
+          data: { isActive: false },
+        });
+        throw new Error("Your Telegram session has expired or been revoked. Please set up Telegram authentication again.");
+      }
+      
+      throw new Error(`Failed to import Telegram contacts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }),
 });

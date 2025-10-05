@@ -79,6 +79,7 @@
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
     "superjson": "^2.2.1",
+    "telegram": "^2.26.22",
     "zod": "^3.24.2"
   },
   "devDependencies": {

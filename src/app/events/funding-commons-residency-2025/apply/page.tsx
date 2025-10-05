@@ -1,6 +1,7 @@
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import ApplicationPageClient from "./ApplicationPageClient";
 import ApplicationClosedMessage from "./ApplicationClosedMessage";
@@ -9,12 +10,38 @@ interface PageProps {
   searchParams: Promise<{ latePass?: string }>;
 }
 
+async function setLatePassCookie(latePassValue: string) {
+  "use server";
+  
+  const cookieStore = await cookies();
+  cookieStore.set("ftc-late-pass", latePassValue, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 24 * 60 * 60, // 24 hours
+    path: "/",
+  });
+  
+  // Redirect to clean URL without query parameter
+  redirect("/events/funding-commons-residency-2025/apply");
+}
+
 export default async function FundingCommonsResidencyApplicationPage({
   searchParams,
 }: PageProps) {
-  // Check for late pass parameter
+  // Check for late pass parameter and cookie
   const resolvedSearchParams = await searchParams;
-  const hasLatePass = !!resolvedSearchParams.latePass;
+  const cookieStore = await cookies();
+  const latePassCookie = cookieStore.get("ftc-late-pass")?.value;
+  
+  // If late pass exists in query parameter, set cookie and redirect to clean URL
+  if (resolvedSearchParams.latePass) {
+    await setLatePassCookie(resolvedSearchParams.latePass);
+    return; // This will never be reached due to redirect, but satisfies TypeScript
+  }
+  
+  // Grant access based on existing cookie
+  const hasLatePass = !!latePassCookie;
 
   // If no late pass, show closed message
   if (!hasLatePass) {
@@ -146,6 +173,7 @@ export default async function FundingCommonsResidencyApplicationPage({
         event={typedEvent} 
         initialUserApplication={userApplication}
         initialUserId={session?.user?.id}
+        hasLatePass={hasLatePass}
       />
     </div>
   );

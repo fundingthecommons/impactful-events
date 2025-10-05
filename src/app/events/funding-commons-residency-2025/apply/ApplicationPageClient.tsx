@@ -51,6 +51,7 @@ interface ApplicationPageClientProps {
   event: ExtendedEvent;
   initialUserApplication?: ExtendedApplication | null;
   initialUserId?: string;
+  hasLatePass?: boolean;
 }
 
 // Helper function to convert types for EventDetailClient compatibility
@@ -92,6 +93,7 @@ export default function ApplicationPageClient({
   event,
   initialUserApplication,
   initialUserId,
+  hasLatePass: _hasLatePass,
 }: ApplicationPageClientProps) {
   const { data: session, status } = useSession();
   const [showApplication, setShowApplication] = useState(false);
