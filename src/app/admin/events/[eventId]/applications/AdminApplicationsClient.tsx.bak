@@ -564,8 +564,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
 
 
   // Filter applications based on search, hide rejected setting, hide reviewing/accepted setting, and incomplete tab logic
-  const filteredApplications = useMemo(() => {
-    return applications?.filter(app => {
+  const filteredApplications = applications?.filter(app => {
     // Search filter
     const matchesSearch = !searchQuery || 
       app.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -607,34 +606,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     
     
     return finalResult;
-    }) ?? [];
-  }, [applications, searchQuery, hideRejected, hideReviewingAccepted, hideIncomplete, onlyShowWithoutReview, activeTab, missingInfoResults, consensusApplications]);
+  }) ?? [];
 
-  // Create ranked waitlisted applications with position numbers
-  const rankedWaitlistedApplications = useMemo(() => {
-    if (activeTab !== "waitlisted" || !filteredApplications) return null;
-    
-    // Get applications with their consensus scores
-    const applicationsWithScores = filteredApplications
-      .map(app => {
-        const consensusApp = consensusApplications?.find(ca => ca.id === app.id);
-        return {
-          ...app,
-          averageScore: consensusApp?.averageScore ?? null
-        };
-      })
-      .filter(app => app.averageScore !== null) // Only ranked applications have scores
-      .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0)); // Sort highest first
-    
-    // Add applications without scores at the end
-    const applicationsWithoutScores = filteredApplications
-      .filter(app => {
-        const consensusApp = consensusApplications?.find(ca => ca.id === app.id);
-        return consensusApp?.averageScore == null;
-      });
-    
-    return [...applicationsWithScores, ...applicationsWithoutScores];
-  }, [activeTab, filteredApplications, consensusApplications]);
   // Calculate incomplete applications count (DRAFT or SUBMITTED apps with missing info or unchecked)
   const incompleteCount = allApplications?.filter(app => {
     // Only count DRAFT or SUBMITTED applications as potentially incomplete
@@ -2194,17 +2167,23 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             {activeTab === "waitlisted" && (
                               <Table.Td>
                                 {(() => {
-                                  // Find the current application's index in the applicationsToShow array
-                                  const appIndex = applicationsToShow.findIndex(app => app.id === application.id);
+                                  // Calculate rank based on position in sorted list
+                                  const rankedApps = applicationsToShow
+                                    .map((app, index) => {
+                                      const consensusApp = consensusApplications?.find(ca => ca.id === app.id);
+                                      return {
+                                        id: app.id,
+                                        averageScore: consensusApp?.averageScore ?? null,
+                                        rank: index + 1
+                                      };
+                                    })
+                                    .filter(app => app.averageScore !== null);
                                   
-                                  // Check if this application has a consensus score (ranked applications come first)
-                                  const consensusApp = consensusApplications?.find(ca => ca.id === application.id);
+                                  const currentAppRank = rankedApps.find(app => app.id === application.id);
                                   
-                                  if (consensusApp?.averageScore) {
-                                    const rank = appIndex + 1;
+                                  if (currentAppRank) {
                                     const ordinalSuffix = (n: number) => {
-                                      const lastTwoDigits = n % 100;
-                                      if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+                                      if (n >= 11 && n <= 13) {
                                         return n + 'th';
                                       }
                                       switch (n % 10) {
@@ -2217,10 +2196,10 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                     return (
                                       <Group gap="xs" align="center">
                                         <Text fw={600} c="orange" size="lg">
-                                          #{rank}
+                                          #{currentAppRank.rank}
                                         </Text>
                                         <Text size="xs" c="dimmed">
-                                          {ordinalSuffix(rank)}
+                                          {ordinalSuffix(currentAppRank.rank)}
                                         </Text>
                                       </Group>
                                     );

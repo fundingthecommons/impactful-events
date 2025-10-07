@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { api } from "~/trpc/react";
+import { HydrateClient } from "~/trpc/server";
 import { 
   Table, Stack, Title, Text, Badge, Avatar, Group, Paper, Container, 
-  Drawer, ActionIcon, Divider, Anchor, CopyButton, Tooltip
+  Drawer, ActionIcon, Divider, Anchor, Button, CopyButton, Tooltip
 } from "@mantine/core";
 import { 
   IconEye, IconBrandTwitter, IconBrandGithub, IconBrandLinkedin, 
@@ -150,8 +151,7 @@ export default function ContactsPage() {
   }
 
   return (
-    <>
-    
+    <HydrateClient>
       <Container size="xl" py="xl">
         <Stack gap="lg">
           <Title order={2}>Contacts</Title>
@@ -259,7 +259,7 @@ export default function ContactsPage() {
             </Stack>
 
             {/* Social Media Links */}
-            {(selectedContact.twitter ?? selectedContact.github ?? selectedContact.linkedIn ?? selectedContact.telegram) && (
+            {(selectedContact.twitter || selectedContact.github || selectedContact.linkedIn || selectedContact.telegram) && (
               <>
                 <Divider />
                 <Stack gap="sm">
@@ -361,7 +361,6 @@ export default function ContactsPage() {
           </Stack>
         )}
       </Drawer>
-    
-  </>
+    </HydrateClient>
   );
 }

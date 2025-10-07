@@ -271,7 +271,7 @@ function SelfAssignmentPrompt({ applicationId, stage }: SelfAssignmentPromptProp
 }
 
 interface ApplicationWithDetails extends Application {
-  user: Pick<User, 'id' | 'name' | 'email' | 'adminNotes' | 'adminLabels'> | null;
+  user: Pick<User, 'id' | 'name' | 'email' | 'adminNotes' | 'adminWorkExperience' | 'adminLabels'> | null;
   responses: Array<{
     answer: string;
     question: {

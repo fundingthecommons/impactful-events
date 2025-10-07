@@ -24,6 +24,7 @@ import {
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import AdminFieldsEditor from "./AdminFieldsEditor";
+import ProjectManagementSection from "./ProjectManagementSection";
 
 type Question = {
   id: string;
@@ -631,6 +632,9 @@ export default function EditableApplicationForm({
             <Paper key={question.id} p="xl" withBorder radius="md">
               <Stack gap="lg">
                 {renderQuestion(question)}
+                {question.questionKey === 'project_description' && (
+                  <ProjectManagementSection userId={application.user?.id} />
+                )}
               </Stack>
             </Paper>
           ))}

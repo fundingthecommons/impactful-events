@@ -13,6 +13,7 @@ import {
   IconX 
 } from "@tabler/icons-react";
 import AdminFieldsEditor from "./AdminFieldsEditor";
+import ProjectManagementSection from "./ProjectManagementSection";
 
 interface EditApplicationDrawerProps {
   opened: boolean;
@@ -61,6 +62,11 @@ export default function EditApplicationDrawer({
         <AdminFieldsEditor
           user={user}
           eventId={eventId}
+        />
+
+        {/* Project Management Section */}
+        <ProjectManagementSection 
+          userId={user.id}
         />
 
         {/* Action buttons */}
