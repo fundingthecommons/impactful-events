@@ -89,10 +89,11 @@ model User {
   assignedCompetencies   ReviewerCompetency[]     @relation("AssignedCompetencies")
   
   // Internal admin fields for user management
-  adminNotes      String?   @db.Text  // Internal admin notes about this user
-  adminLabels     String[]             // Array: 'Entrepreneur', 'Developer', 'Designer', 'Researcher'
-  adminUpdatedBy  String?              // Admin who last updated these fields
-  adminUpdatedAt  DateTime?            // When admin fields were last updated
+  adminNotes          String?   @db.Text  // Internal admin notes about this user
+  adminWorkExperience String?   @db.Text  // LinkedIn work experience copy
+  adminLabels         String[]             // Array: 'Entrepreneur', 'Developer', 'Designer', 'Researcher'
+  adminUpdatedBy      String?              // Admin who last updated these fields
+  adminUpdatedAt      DateTime?            // When admin fields were last updated
   
   // Profile system relations
   profile        UserProfile?

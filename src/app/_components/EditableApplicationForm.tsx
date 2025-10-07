@@ -48,6 +48,7 @@ type ApplicationWithUser = {
     name: string | null;
     email: string | null;
     adminNotes: string | null;
+    adminWorkExperience: string | null;
     adminLabels: string[];
     adminUpdatedAt: Date | null;
   } | null;
@@ -612,6 +613,7 @@ export default function EditableApplicationForm({
           user={{
             id: application.user.id,
             adminNotes: application.user.adminNotes,
+            adminWorkExperience: application.user.adminWorkExperience,
             adminLabels: application.user.adminLabels ?? [],
             adminUpdatedAt: application.user.adminUpdatedAt,
           }}

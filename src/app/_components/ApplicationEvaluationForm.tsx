@@ -1163,6 +1163,7 @@ export default function ApplicationEvaluationForm({
           name: application.user.name,
           email: application.user.email,
           adminNotes: application.user.adminNotes,
+          adminWorkExperience: application.user.adminWorkExperience,
           adminLabels: application.user.adminLabels ?? [],
         } : null}
         eventId={application.eventId}

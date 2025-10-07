@@ -98,6 +98,7 @@ type ApplicationWithUser = {
     name: string | null;
     email: string | null;
     adminNotes: string | null;
+    adminWorkExperience: string | null;
     adminLabels: string[];
     adminUpdatedAt: Date | null;
     profile?: {
@@ -2099,6 +2100,9 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             />
                           </Table.Th>
                         <Table.Th>Applicant</Table.Th>
+                        {activeTab === "waitlisted" && (
+                          <Table.Th>Waitlist Rank</Table.Th>
+                        )}
                         {activeTab === "waitlisted" && (
                           <Table.Th>Average Score</Table.Th>
                         )}

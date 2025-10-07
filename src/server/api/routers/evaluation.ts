@@ -172,7 +172,7 @@ export const evaluationRouter = createTRPCRouter({
                   include: { question: true },
                   orderBy: { question: { order: 'asc' } }
                 },
-                user: { select: { id: true, name: true, email: true, adminNotes: true, adminLabels: true } },
+                user: { select: { id: true, name: true, email: true, adminNotes: true, adminWorkExperience: true, adminLabels: true } },
                 event: { select: { name: true } },
               }
             });
@@ -372,7 +372,7 @@ export const evaluationRouter = createTRPCRouter({
                     include: { question: true },
                     orderBy: { question: { order: 'asc' } }
                   },
-                  user: { select: { id: true, name: true, email: true, adminNotes: true, adminLabels: true } },
+                  user: { select: { id: true, name: true, email: true, adminNotes: true, adminWorkExperience: true, adminLabels: true } },
                   event: { select: { name: true } },
                 }
               });
@@ -565,7 +565,7 @@ export const evaluationRouter = createTRPCRouter({
                 include: { question: true },
                 orderBy: { question: { order: 'asc' } }
               },
-              user: { select: { id: true, name: true, email: true, adminNotes: true, adminLabels: true } },
+              user: { select: { id: true, name: true, email: true, adminNotes: true, adminWorkExperience: true, adminLabels: true } },
               event: { select: { name: true } },
             }
           }

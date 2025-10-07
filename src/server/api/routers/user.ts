@@ -164,4 +164,37 @@ export const userRouter = createTRPCRouter({
 
       return user;
     }),
+
+  updateUserAdminWorkExperience: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string(),
+        adminWorkExperience: z.string().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Only allow admin users to update admin work experience
+      if (ctx.session.user.role !== "admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only admin users can update user admin work experience",
+        });
+      }
+
+      const user = await ctx.db.user.update({
+        where: { id: input.userId },
+        data: {
+          adminWorkExperience: input.adminWorkExperience,
+          adminUpdatedBy: ctx.session.user.id,
+          adminUpdatedAt: new Date(),
+        },
+        select: {
+          id: true,
+          adminWorkExperience: true,
+          adminUpdatedAt: true,
+        },
+      });
+
+      return user;
+    }),
 });

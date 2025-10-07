@@ -22,6 +22,7 @@ interface EditApplicationDrawerProps {
     name: string | null;
     email: string | null;
     adminNotes: string | null;
+    adminWorkExperience: string | null;
     adminLabels: string[];
   } | null;
   eventId: string;
