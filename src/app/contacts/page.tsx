@@ -21,12 +21,12 @@ export default async function ContactsPage() {
     
     // Transform contacts into table data format for Mantine Table
     const tableData = contacts ? {
-        head: ['Contact', 'Email', 'Associated Sponsor', 'ID'],
+        head: ['Contact', 'Phone & Telegram', 'Email', 'Associated Sponsor', 'ID'],
         body: contacts.map((contact) => [
             // Contact column with avatar and name
             <Group gap="sm" key={`contact-${contact.id}`}>
                 <Avatar size="sm" color="blue">
-                    {contact.firstName[0]?.toUpperCase()}{contact.lastName[0]?.toUpperCase()}
+                    {contact.firstName?.[0]?.toUpperCase()}{contact.lastName?.[0]?.toUpperCase()}
                 </Avatar>
                 <Stack gap={0}>
                     <Text fw={500} size="sm">
@@ -37,6 +37,28 @@ export default async function ContactsPage() {
                     </Text>
                 </Stack>
             </Group>,
+            // Phone & Telegram column
+            <Stack gap={2} key={`contact-info-${contact.id}`}>
+                {contact.phone && (
+                    <Group gap="xs">
+                        <Text size="xs" c="dimmed">📞</Text>
+                        <Text size="xs" style={{ fontFamily: 'monospace' }}>
+                            {contact.phone}
+                        </Text>
+                    </Group>
+                )}
+                {contact.telegram && (
+                    <Group gap="xs">
+                        <Text size="xs" c="dimmed">📱</Text>
+                        <Text size="xs" c="blue">
+                            @{contact.telegram}
+                        </Text>
+                    </Group>
+                )}
+                {!contact.phone && !contact.telegram && (
+                    <Text size="xs" c="dimmed">-</Text>
+                )}
+            </Stack>,
             // Email column
             contact.email,
             // Sponsor column

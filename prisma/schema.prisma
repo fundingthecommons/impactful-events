@@ -314,6 +314,8 @@ model Contact {
   sponsorId String?
   linkedIn  String?
   telegram  String?
+  twitter   String?
+  github   String?
   phone     String?
 }
 

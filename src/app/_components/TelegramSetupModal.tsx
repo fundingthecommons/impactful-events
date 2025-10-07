@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Modal,
   Stack,
@@ -25,6 +25,8 @@ import {
   IconMessageCircle,
   IconLock,
   IconInfoCircle,
+  IconTrash,
+  IconCloudDownload,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 
@@ -34,7 +36,7 @@ interface TelegramSetupModalProps {
   onSuccess: () => void;
 }
 
-type SetupStep = "welcome" | "credentials" | "phone" | "code" | "password" | "success";
+type SetupStep = "welcome" | "credentials" | "phone" | "code" | "password" | "success" | "authenticated";
 
 export default function TelegramSetupModal({
   opened,
@@ -51,10 +53,25 @@ export default function TelegramSetupModal({
   const [needsPassword, setNeedsPassword] = useState(false);
   const [error, setError] = useState("");
 
-  // tRPC mutations
+  // tRPC queries and mutations
+  const { data: authStatus, refetch: refetchAuthStatus } = api.telegramAuth.getAuthStatus.useQuery();
+  const importTelegramContacts = api.contact.importTelegramContacts.useMutation();
+  const deleteAuth = api.telegramAuth.deleteAuth.useMutation();
   const startAuth = api.telegramAuth.startAuth.useMutation();
   const sendPhoneCode = api.telegramAuth.sendPhoneCode.useMutation();
   const verifyAndStore = api.telegramAuth.verifyAndStore.useMutation();
+
+  // Check authentication status when modal opens
+  useEffect(() => {
+    if (opened) {
+      if (authStatus?.isAuthenticated) {
+        setCurrentStep("authenticated");
+      } else {
+        setCurrentStep("welcome");
+      }
+      setError("");
+    }
+  }, [opened, authStatus?.isAuthenticated]);
 
   const reset = () => {
     setCurrentStep("welcome");
@@ -167,18 +184,50 @@ export default function TelegramSetupModal({
     onClose();
   };
 
+  const handleImportContacts = async () => {
+    setError("");
+    try {
+      const result = await importTelegramContacts.mutateAsync();
+      // Show success message and close modal
+      alert(`Successfully imported ${result.count} contacts from Telegram!`);
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to import contacts");
+    }
+  };
+
+  const handleDeleteAuth = async () => {
+    if (confirm("Are you sure you want to remove your Telegram authentication? You'll need to set it up again.")) {
+      setError("");
+      try {
+        await deleteAuth.mutateAsync();
+        await refetchAuthStatus();
+        setCurrentStep("welcome");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to delete authentication");
+      }
+    }
+  };
+
+  const handleSetupNewAuth = () => {
+    setCurrentStep("welcome");
+    setError("");
+  };
+
   const getStepperStep = () => {
     switch (currentStep) {
       case "welcome": return 0;
       case "credentials": return 1;
       case "phone": return 2;
       case "code": case "password": return 3;
-      case "success": return 4;
+      case "success": case "authenticated": return 4;
       default: return 0;
     }
   };
 
-  const isLoading = startAuth.isPending || sendPhoneCode.isPending || verifyAndStore.isPending;
+  const isLoading = startAuth.isPending || sendPhoneCode.isPending || verifyAndStore.isPending || 
+                    importTelegramContacts.isPending || deleteAuth.isPending;
 
   return (
     <Modal
@@ -395,6 +444,78 @@ export default function TelegramSetupModal({
           </Stack>
         )}
 
+        {currentStep === "authenticated" && (
+          <Stack gap="md">
+            <Center>
+              <ThemeIcon color="green" size="xl" variant="light">
+                <IconShieldCheck size={24} />
+              </ThemeIcon>
+            </Center>
+            
+            <Text ta="center" fw={500} size="lg">
+              Telegram Already Connected
+            </Text>
+            
+            <Text ta="center" size="sm" c="dimmed">
+              Your Telegram authentication is active and ready to use. 
+              You can import contacts or manage your authentication below.
+            </Text>
+
+            {authStatus?.expiresAt && (
+              <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+                <Text fw={500} size="sm">Authentication Status</Text>
+                <Text size="xs" mt={4}>
+                  Connected on {new Intl.DateTimeFormat('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                  }).format(new Date(authStatus.createdAt ?? new Date()))}
+                  {authStatus.expiresAt && ` • Expires ${new Intl.DateTimeFormat('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric'
+                  }).format(new Date(authStatus.expiresAt))}`}
+                </Text>
+              </Alert>
+            )}
+
+            <Group grow>
+              <Button 
+                onClick={handleImportContacts}
+                loading={importTelegramContacts.isPending}
+                disabled={isLoading}
+                leftSection={<IconCloudDownload size={16} />}
+                variant="filled"
+              >
+                Import Contacts
+              </Button>
+              
+              <Button 
+                onClick={handleSetupNewAuth}
+                disabled={isLoading}
+                leftSection={<IconShieldCheck size={16} />}
+                variant="light"
+              >
+                Re-authenticate
+              </Button>
+            </Group>
+
+            <Group justify="space-between">
+              <Button 
+                onClick={handleDeleteAuth}
+                loading={deleteAuth.isPending}
+                disabled={isLoading}
+                color="red"
+                variant="subtle"
+                leftSection={<IconTrash size={16} />}
+                size="sm"
+              >
+                Remove Authentication
+              </Button>
+              
+              <Button variant="subtle" onClick={onClose} disabled={isLoading}>
+                Close
+              </Button>
+            </Group>
+          </Stack>
+        )}
+
         {currentStep === "success" && (
           <Stack gap="md">
             <Center>
@@ -426,7 +547,7 @@ export default function TelegramSetupModal({
           </Stack>
         )}
 
-        {isLoading && currentStep !== "success" && (
+        {isLoading && currentStep !== "success" && currentStep !== "authenticated" && (
           <Center>
             <Group gap="xs">
               <Loader size="sm" />

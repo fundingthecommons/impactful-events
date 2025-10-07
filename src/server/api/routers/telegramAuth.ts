@@ -21,7 +21,7 @@ const cleanupExpiredSessions = async () => {
   const now = new Date();
   try {
     // Safety check to ensure model exists
-    if (!db || !db.telegramAuthSession) {
+    if (!db?.telegramAuthSession) {
       console.warn("TelegramAuthSession model not available for cleanup");
       return;
     }
@@ -300,7 +300,7 @@ export const telegramAuthRouter = createTRPCRouter({
         await client.connect();
 
         // Sign in with phone code using low-level API
-        const signInResult = await client.invoke(new Api.auth.SignIn({
+        await client.invoke(new Api.auth.SignIn({
           phoneNumber: input.phoneNumber,
           phoneCodeHash: session.phoneCodeHash,
           phoneCode: input.phoneCode
@@ -374,7 +374,7 @@ export const telegramAuthRouter = createTRPCRouter({
               // For proper SRP implementation, we'd need account.getPassword first
               // For now, we'll provide a clear error message about 2FA complexity
               throw new TRPCError({
-                code: "UNIMPLEMENTED",
+                code: "NOT_IMPLEMENTED",
                 message: "2FA authentication requires SRP protocol implementation. Please contact support.",
               });
             } catch (passwordError) {

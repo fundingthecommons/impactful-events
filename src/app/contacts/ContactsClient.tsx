@@ -11,10 +11,12 @@ export default function ContactsClient() {
   const importContacts = api.contact.importGoogleContacts.useMutation();
   const importNotionContacts = api.contact.importNotionContacts.useMutation();
   const importTelegramContacts = api.contact.importTelegramContacts.useMutation();
+  const matchEventApplicants = api.contact.matchEventApplicants.useMutation();
   const { data: telegramAuthStatus, refetch: refetchTelegramAuth } = api.telegramAuth.getAuthStatus.useQuery();
   const [syncing, setSyncing] = useState(false);
   const [syncingNotion, setSyncingNotion] = useState(false);
   const [syncingTelegram, setSyncingTelegram] = useState(false);
+  const [matchingApplicants, setMatchingApplicants] = useState(false);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -55,8 +57,61 @@ export default function ContactsClient() {
     }
   };
 
+  const handleMatchApplicants = async () => {
+    setMatchingApplicants(true);
+    try {
+      const result = await matchEventApplicants.mutateAsync();
+      await refetch();
+      console.log(`Successfully processed ${result.applicationsProcessed} applications: ${result.contactsCreated} contacts created, ${result.contactsUpdated} updated, ${result.errors} errors`);
+    } catch (e) {
+      console.error("Match applicants failed:", e);
+    } finally {
+      setMatchingApplicants(false);
+    }
+  };
+
   return (
     <>
+      {/* Match Event Applicants Section */}
+      <Paper shadow="xs" p="md" radius="md" withBorder>
+        <Stack gap="md">
+          <Group justify="space-between" align="center">
+            <Text fw={500} size="lg">Match Event Applicants</Text>
+            <Button
+              leftSection={matchingApplicants ? <Loader size="xs" /> : <IconCloudDownload size={16} />}
+              onClick={handleMatchApplicants}
+              disabled={matchingApplicants || matchEventApplicants.isPending}
+              loading={matchingApplicants || matchEventApplicants.isPending}
+            >
+              {matchingApplicants || matchEventApplicants.isPending ? "Processing..." : "Match Event Applicants"}
+            </Button>
+          </Group>
+          <Text size="sm" c="dimmed">
+            Extract contact information from event applications and sync with the contacts database.
+            This will process all applications and create or update contact records based on application data.
+          </Text>
+          {matchEventApplicants.isSuccess && (
+            <Alert icon={<IconCheck size={16} />} color="green" variant="light">
+              Successfully processed applications! 
+              {matchEventApplicants.data && (
+                <Text size="sm" mt="xs">
+                  Processed {matchEventApplicants.data.applicationsProcessed} applications: 
+                  {matchEventApplicants.data.contactsCreated} contacts created, 
+                  {matchEventApplicants.data.contactsUpdated} updated
+                  {matchEventApplicants.data.errors > 0 && `, ${matchEventApplicants.data.errors} errors`}
+                </Text>
+              )}
+            </Alert>
+          )}
+          {matchEventApplicants.error && (
+            <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+              <Text fw={500}>Processing error:</Text>
+              <Text size="sm">{matchEventApplicants.error.message}</Text>
+            </Alert>
+          )}
+        </Stack>
+      </Paper>
+
       <Paper shadow="xs" p="md" radius="md" withBorder>
         <Stack gap="md">
           <Group justify="space-between" align="center">
@@ -160,4 +215,4 @@ export default function ContactsClient() {
       </Paper>
     </>
   );
-} 
+}

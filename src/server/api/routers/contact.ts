@@ -2,7 +2,8 @@ import { z } from "zod";
 import { google, type gmail_v1 } from "googleapis";
 import { type PrismaClient } from "@prisma/client";
 import { Client as NotionClient } from "@notionhq/client";
-import { Api } from "telegram";
+import { TelegramClient, sessions, Api } from "telegram";
+import bigInt from "big-integer";
 
 // Type definitions for Telegram API responses
 interface TelegramUser {
@@ -92,6 +93,192 @@ async function getGoogleAuthClient(ctx: Context) {
   return oauth2Client;
 }
 
+// Extract contact data from application responses
+async function extractContactFromApplication(db: PrismaClient, application: {
+  id: string;
+  email: string;
+  responses: Array<{
+    questionId: string;
+    answer: string;
+    question: {
+      id: string;
+    };
+  }>;
+}) {
+  // Mapping of ApplicationQuestion IDs to contact fields
+  const questionMapping = {
+    'cmeh86ipf000guo436knsqluc': 'full_name',
+    'cmeh86isu000muo43h8ju1wit': 'twitter',
+    'cmeh86itn000ouo43ycs8sygw': 'github',
+    'cmeh86iuj000quo43em4nevxd': 'linkedin',
+    'cmeh86ive000suo43k2edx15q': 'telegram',
+  } as const;
+
+  const contactData: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    twitter?: string;
+    github?: string;
+    linkedIn?: string;
+    telegram?: string;
+  } = {
+    email: application.email,
+  };
+
+  // Process each response
+  for (const response of application.responses) {
+    const fieldType = questionMapping[response.questionId as keyof typeof questionMapping];
+    if (!fieldType || !response.answer?.trim()) continue;
+
+    switch (fieldType) {
+      case 'full_name': {
+        // Split full name into firstName and lastName
+        const nameParts = response.answer.trim().split(/\s+/);
+        contactData.firstName = nameParts[0] ?? '';
+        contactData.lastName = nameParts.slice(1).join(' ') || '';
+        break;
+      }
+      case 'twitter': {
+        // Clean Twitter handle (remove @ and URLs)
+        let twitter = response.answer.trim();
+        twitter = twitter.replace(/^@/, ''); // Remove leading @
+        twitter = twitter.replace(/^https?:\/\/(www\.)?twitter\.com\//, ''); // Remove Twitter URL
+        twitter = twitter.replace(/^https?:\/\/(www\.)?x\.com\//, ''); // Remove X.com URL
+        twitter = twitter.replace(/\?.*$/, ''); // Remove query parameters
+        if (twitter && !twitter.includes('/') && !twitter.includes(' ')) {
+          contactData.twitter = twitter;
+        }
+        break;
+      }
+      case 'github': {
+        // Clean GitHub handle (remove URLs)
+        let github = response.answer.trim();
+        github = github.replace(/^@/, ''); // Remove leading @
+        github = github.replace(/^https?:\/\/(www\.)?github\.com\//, ''); // Remove GitHub URL
+        github = github.replace(/\?.*$/, ''); // Remove query parameters
+        if (github && !github.includes('/') && !github.includes(' ')) {
+          contactData.github = github;
+        }
+        break;
+      }
+      case 'linkedin': {
+        // Clean LinkedIn URL or handle
+        const linkedin = response.answer.trim();
+        if (linkedin.includes('linkedin.com')) {
+          // Keep full LinkedIn URL
+          contactData.linkedIn = linkedin;
+        } else if (linkedin && !linkedin.includes(' ')) {
+          // Convert handle to full URL
+          contactData.linkedIn = `https://linkedin.com/in/${linkedin.replace(/^@/, '')}`;
+        }
+        break;
+      }
+      case 'telegram': {
+        // Clean Telegram handle
+        let telegram = response.answer.trim();
+        telegram = telegram.replace(/^@/, ''); // Remove leading @
+        telegram = telegram.replace(/^https?:\/\/(www\.)?t\.me\//, ''); // Remove Telegram URL
+        if (telegram && !telegram.includes('/') && !telegram.includes(' ')) {
+          contactData.telegram = telegram;
+        }
+        break;
+      }
+    }
+  }
+
+  return contactData;
+}
+
+// Enhanced contact upserting for application data with social media fields
+async function upsertContactFromApplication(db: PrismaClient, contactData: {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  twitter?: string;
+  github?: string;
+  linkedIn?: string;
+  telegram?: string;
+}) {
+  const { email, firstName = "", lastName = "", twitter, github, linkedIn, telegram } = contactData;
+
+  // Find existing contact by email first, then by telegram
+  let existingContact = await db.contact.findFirst({
+    where: { email },
+  });
+
+  // If no email match and we have telegram, check by telegram  
+  if (!existingContact && telegram) {
+    existingContact = await db.contact.findFirst({
+      where: { telegram },
+    });
+  }
+
+  // Determine sponsor from email (skip placeholder emails)
+  let sponsor = null;
+  if (email && !email.endsWith('@telegram.placeholder')) {
+    const domain = email.substring(email.lastIndexOf("@") + 1);
+    sponsor = await db.sponsor.upsert({
+      where: { name: domain },
+      update: {},
+      create: { name: domain },
+    });
+  }
+
+  if (existingContact) {
+    // Update existing contact with intelligent merging
+    const updateData: {
+      firstName?: string;
+      lastName?: string;
+      twitter?: string;
+      github?: string;
+      linkedIn?: string;
+      telegram?: string;
+      email?: string;
+      sponsorId?: string | null;
+    } = {};
+
+    // Only update names if we have better data (non-empty values)
+    if (firstName?.trim()) updateData.firstName = firstName;
+    if (lastName?.trim()) updateData.lastName = lastName;
+    
+    // Update social media fields if provided
+    if (twitter?.trim()) updateData.twitter = twitter;
+    if (github?.trim()) updateData.github = github;
+    if (linkedIn?.trim()) updateData.linkedIn = linkedIn;
+    if (telegram?.trim()) updateData.telegram = telegram;
+    
+    // Special case: if found by telegram, update email with application email
+    if (existingContact.telegram === telegram && email !== existingContact.email) {
+      updateData.email = email;
+      updateData.sponsorId = sponsor?.id ?? null;
+    }
+
+    await db.contact.update({
+      where: { id: existingContact.id },
+      data: updateData,
+    });
+
+    return { created: false, updated: true, contactId: existingContact.id };
+  } else {
+    // Create new contact
+    const newContact = await db.contact.create({
+      data: { 
+        email, 
+        firstName, 
+        lastName, 
+        twitter,
+        github,
+        linkedIn,
+        telegram,
+        sponsorId: sponsor?.id ?? null
+      },
+    });
+
+    return { created: true, updated: false, contactId: newContact.id };
+  }
+}
+
 async function upsertContact(db: PrismaClient, contact: { 
   email?: string; 
   firstName?: string; 
@@ -101,14 +288,30 @@ async function upsertContact(db: PrismaClient, contact: {
 }) {
   const { email, firstName = "", lastName = "", phone, telegram } = contact;
   
-  // For Telegram contacts, we might not have email, so use phone as fallback identifier
+  // Need at least email or phone to create a contact
   const identifier = email ?? phone;
   if (!identifier) {
     return;
   }
 
+  // First, check if a contact already exists by phone number (higher priority than email for duplicates)
+  let existingContact = null;
+  if (phone) {
+    existingContact = await db.contact.findFirst({
+      where: { phone },
+    });
+  }
+
+  // If no phone match and we have email, check by email
+  if (!existingContact && email && !email.endsWith('@telegram.placeholder')) {
+    existingContact = await db.contact.findFirst({
+      where: { email },
+    });
+  }
+
+  // Set up sponsor if we have a real email
   let sponsor = null;
-  if (email) {
+  if (email && !email.endsWith('@telegram.placeholder')) {
     const domain = email.substring(email.lastIndexOf("@") + 1);
     sponsor = await db.sponsor.upsert({
       where: { name: domain },
@@ -117,37 +320,50 @@ async function upsertContact(db: PrismaClient, contact: {
     });
   }
 
-  if (email) {
-    await db.contact.upsert({
-      where: { email },
-      update: { firstName, lastName, phone, telegram, sponsorId: sponsor?.id },
-      create: { email, firstName, lastName, phone, telegram, sponsorId: sponsor?.id },
-    });
-  } else if (phone) {
-    // Handle phone-only contacts (like from Telegram)
-    const existingContact = await db.contact.findFirst({
-      where: { phone },
-    });
+  if (existingContact) {
+    // Update existing contact, merging data intelligently
+    const updateData: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      telegram?: string;
+      email?: string;
+      sponsorId?: string | null;
+    } = {};
+
+    // Only update names if we have better data (non-empty values)
+    if (firstName?.trim()) updateData.firstName = firstName;
+    if (lastName?.trim()) updateData.lastName = lastName;
     
-    if (existingContact) {
-      await db.contact.update({
-        where: { id: existingContact.id },
-        data: { firstName, lastName, telegram },
-      });
-    } else {
-      // Create a placeholder email for phone-only contacts
-      const placeholderEmail = `${phone.replace(/\D/g, '')}@telegram.placeholder`;
-      await db.contact.create({
-        data: { 
-          email: placeholderEmail, 
-          firstName, 
-          lastName, 
-          phone, 
-          telegram,
-          sponsorId: null 
-        },
-      });
+    // Always update phone and telegram if provided
+    if (phone) updateData.phone = phone;
+    if (telegram) updateData.telegram = telegram;
+    
+    // Update email if we have a real email and existing is placeholder
+    if (email && !email.endsWith('@telegram.placeholder') && 
+        existingContact.email.endsWith('@telegram.placeholder')) {
+      updateData.email = email;
+      updateData.sponsorId = sponsor?.id ?? null;
     }
+
+    await db.contact.update({
+      where: { id: existingContact.id },
+      data: updateData,
+    });
+  } else {
+    // Create new contact
+    const finalEmail = email ?? `${phone?.replace(/\D/g, '')}@telegram.placeholder`;
+    
+    await db.contact.create({
+      data: { 
+        email: finalEmail, 
+        firstName, 
+        lastName, 
+        phone, 
+        telegram,
+        sponsorId: sponsor?.id ?? null
+      },
+    });
   }
 }
 
@@ -321,44 +537,25 @@ export const contactRouter = createTRPCRouter({
       throw new Error("Your Telegram authentication has expired. Please set up Telegram authentication again.");
     }
 
-    const apiId = process.env.TELEGRAM_API_ID;
-    if (!apiId) {
-      throw new Error("Telegram API credentials not configured on server. Please contact an administrator.");
-    }
-
     try {
       // Import decryption functions
       const { decryptTelegramCredentials } = await import("~/server/utils/encryption");
       
-      // Decrypt user's credentials
+      // Decrypt user's credentials - contains everything we need
       const credentials = decryptTelegramCredentials({
         encryptedSession: userAuth.encryptedSession,
-        encryptedApiId: userAuth.encryptedApiId,        encryptedApiHash: userAuth.encryptedApiHash,
+        encryptedApiId: userAuth.encryptedApiId,
+        encryptedApiHash: userAuth.encryptedApiHash,
         salt: userAuth.salt,
         iv: userAuth.iv,
       }, ctx.session.user.id);
 
-      const client = new (Api as unknown as new (options: {
-        apiId: number;
-        apiHash: string;
-        stringSession: string;
-      }) => {
-        start: (options: {
-          phoneNumber: () => Promise<string>;
-          password: () => Promise<string>;
-          phoneCode: () => Promise<string>;
-          onError: (err: unknown) => void;
-        }) => Promise<void>;
-        invoke: (method: {
-          _: string;
-          hash: bigint;
-        }) => Promise<unknown>;
-        disconnect: () => Promise<void>;
-      })({
-        apiId: parseInt(apiId),
-        apiHash: credentials.apiHash,
-        stringSession: credentials.sessionString,
-      });
+      const client = new TelegramClient(
+        new sessions.StringSession(credentials.sessionString),
+        parseInt(credentials.apiId),
+        credentials.apiHash,
+        {}
+      );
 
       // Start client with existing session
       await client.start({
@@ -375,19 +572,26 @@ export const contactRouter = createTRPCRouter({
       });
 
       // Get all contacts from Telegram
-      const result = await client.invoke({
-        _: "contacts.getContacts",
-        hash: BigInt(0),
-      }) as TelegramContactsResult;
+      const result = await client.invoke(new Api.contacts.GetContacts({
+        hash: bigInt(0),
+      })) as TelegramContactsResult;
 
       let count = 0;
       if (result.users && Array.isArray(result.users)) {
         for (const user of result.users) {
-          if (user._ === 'user' && !user.bot && user.contact) {
-            const firstName = user.first_name ?? "";
+          // Filter for valid users - not bots and marked as contacts
+          const isValidUser = !user.bot && user.contact;
+          if (isValidUser) {
+            let firstName = user.first_name ?? "";
             const lastName = user.last_name ?? "";
             const phone = user.phone ? `+${user.phone}` : undefined;
             const telegram = user.username ?? `user_${user.id}`;
+
+            // Fallback naming strategy: use Telegram username when names are missing
+            if (!firstName.trim() && !lastName.trim() && telegram && !telegram.startsWith('user_')) {
+              // Use username as first name for better display
+              firstName = telegram;
+            }
 
             if (phone ?? telegram) {
               await upsertContact(ctx.db, {
@@ -426,5 +630,51 @@ export const contactRouter = createTRPCRouter({
       
       throw new Error(`Failed to import Telegram contacts: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }),
+  matchEventApplicants: protectedProcedure.mutation(async ({ ctx }) => {
+    // Get all applications with their responses and questions
+    const applications = await ctx.db.application.findMany({
+      include: {
+        responses: {
+          include: {
+            question: true,
+          },
+        },
+      },
+    });
+
+    let contactsCreated = 0;
+    let contactsUpdated = 0;
+    let errors = 0;
+
+    for (const application of applications) {
+      try {
+        // Extract contact data from application
+        const contactData = await extractContactFromApplication(ctx.db, application);
+        
+        if (contactData) {
+          // Try to match and upsert the contact
+          const result = await upsertContactFromApplication(ctx.db, contactData);
+          
+          if (result.created) {
+            contactsCreated++;
+          } else if (result.updated) {
+            contactsUpdated++;
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing application ${application.id}:`, error);
+        errors++;
+      }
+    }
+
+    console.log(`Match event applicants completed: ${contactsCreated} created, ${contactsUpdated} updated, ${errors} errors from ${applications.length} applications`);
+
+    return {
+      applicationsProcessed: applications.length,
+      contactsCreated,
+      contactsUpdated,
+      errors,
+    };
   }),
 });

@@ -20,7 +20,16 @@ Each entry follows this structure:
 
 ## Historical Violations
 
-*This section will be automatically populated as ESLint violations are encountered and fixed.*
+## 2025-01-05 10:45 - prefer-const - [Project: ftc-platform]
+
+**Problem**: Variable declared with 'let' but never reassigned
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/server/api/routers/contact.ts:167
+**Code Context**: `let linkedin = response.answer.trim();`
+**Fix Applied**: `const linkedin = response.answer.trim();`
+**Prevention**: Use `const` for variables that are never reassigned, `let` only when reassignment is needed
+
+---
 
 ---
 
