@@ -466,6 +466,9 @@ model Application {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
+  // Waitlist management
+  waitlistOrder Int?     // Manual override for waitlist position (null = auto-ranked)
+  
   // Legacy data tracking
   googleFormId  String?  // If migrated from Google Forms
   notionPageId  String?  // If migrated from Notion Forms

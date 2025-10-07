@@ -13,6 +13,7 @@ import {
   Table,
   Checkbox,
   TextInput,
+  NumberInput,
   ActionIcon,
   Drawer,
   Paper,
@@ -93,6 +94,7 @@ type ApplicationWithUser = {
   submittedAt: Date | null;
   createdAt: Date;
   affiliation: string | null;
+  waitlistOrder: number | null;
   user: {
     id: string;
     name: string | null;
@@ -221,6 +223,10 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // Consensus attributes filter state
   const [selectedAttributeFilter, setSelectedAttributeFilter] = useState<string | null>(null);
 
+  // Waitlist position editing state
+  const [editingPositions, setEditingPositions] = useState<Map<string, number | null>>(new Map());
+  const [savingPositions, setSavingPositions] = useState<Set<string>>(new Set());
+
   // Accepted tab filter state
   const [acceptedRegionFilter, setAcceptedRegionFilter] = useState<string | null>(null);
   const [acceptedAttributeFilter, setAcceptedAttributeFilter] = useState<string | null>(null);
@@ -315,6 +321,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const bulkAssignReviewer = api.evaluation.bulkCreateAssignments.useMutation();
   const checkMissingInfoMutation = api.email.checkMissingInfo.useMutation();
   const createMissingInfoEmail = api.email.createMissingInfoEmail.useMutation();
+  const updateWaitlistOrder = api.application.updateWaitlistOrder.useMutation();
   const sendEmail = api.email.sendEmail.useMutation();
   const deleteEmail = api.email.deleteEmail.useMutation();
   const { data: emailSafety } = api.email.getEmailSafety.useQuery();
@@ -610,30 +617,34 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     }) ?? [];
   }, [applications, searchQuery, hideRejected, hideReviewingAccepted, hideIncomplete, onlyShowWithoutReview, activeTab, missingInfoResults, consensusApplications]);
 
-  // Create ranked waitlisted applications with position numbers
+  // Create ranked waitlisted applications with position numbers (manual override + auto-ranked)
   const rankedWaitlistedApplications = useMemo(() => {
     if (activeTab !== "waitlisted" || !filteredApplications) return null;
     
-    // Get applications with their consensus scores
-    const applicationsWithScores = filteredApplications
-      .map(app => {
-        const consensusApp = consensusApplications?.find(ca => ca.id === app.id);
-        return {
-          ...app,
-          averageScore: consensusApp?.averageScore ?? null
-        };
-      })
-      .filter(app => app.averageScore !== null) // Only ranked applications have scores
-      .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0)); // Sort highest first
+    // Enhance applications with consensus scores
+    const applicationsWithScores = filteredApplications.map(app => {
+      const consensusApp = consensusApplications?.find(ca => ca.id === app.id);
+      return {
+        ...app,
+        averageScore: consensusApp?.averageScore ?? null
+      };
+    });
     
-    // Add applications without scores at the end
-    const applicationsWithoutScores = filteredApplications
-      .filter(app => {
-        const consensusApp = consensusApplications?.find(ca => ca.id === app.id);
-        return consensusApp?.averageScore == null;
-      });
+    // Tier 1: Manual Override - Applications with waitlistOrder (sorted by waitlistOrder, lowest = highest rank)
+    const manuallyRanked = applicationsWithScores
+      .filter(app => app.waitlistOrder !== null)
+      .sort((a, b) => (a.waitlistOrder ?? 0) - (b.waitlistOrder ?? 0));
     
-    return [...applicationsWithScores, ...applicationsWithoutScores];
+    // Tier 2: Auto-Ranked - Applications with consensus scores but no manual order (sorted by score, highest first)
+    const autoRanked = applicationsWithScores
+      .filter(app => app.waitlistOrder === null && app.averageScore !== null)
+      .sort((a, b) => (b.averageScore ?? 0) - (a.averageScore ?? 0));
+    
+    // Tier 3: Unranked - Applications without scores or manual order
+    const unranked = applicationsWithScores
+      .filter(app => app.waitlistOrder === null && app.averageScore === null);
+    
+    return [...manuallyRanked, ...autoRanked, ...unranked];
   }, [activeTab, filteredApplications, consensusApplications]);
   // Calculate incomplete applications count (DRAFT or SUBMITTED apps with missing info or unchecked)
   const incompleteCount = allApplications?.filter(app => {
@@ -690,6 +701,50 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         message: (error as { message?: string }).message ?? "Failed to update application status",
         color: "red",
         icon: <IconX />,
+      });
+    }
+  };
+
+  // Handle waitlist position change
+  const handlePositionChange = async (applicationId: string, position: number | null) => {
+    setSavingPositions(prev => new Set(prev).add(applicationId));
+    
+    try {
+      await updateWaitlistOrder.mutateAsync({
+        applicationId,
+        position: position ?? undefined,
+      });
+      
+      notifications.show({
+        title: "Success",
+        message: position 
+          ? `Waitlist position set to #${position}` 
+          : "Manual waitlist override cleared",
+        color: "green",
+        icon: <IconCheck />,
+      });
+      
+      // Clear editing state for this application
+      setEditingPositions(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(applicationId);
+        return newMap;
+      });
+      
+      // Refresh applications to show updated ranking
+      await utils.application.getEventApplications.invalidate({ eventId: event.id });
+    } catch (error: unknown) {
+      notifications.show({
+        title: "Error",
+        message: (error as { message?: string }).message ?? "Failed to update waitlist position",
+        color: "red",
+        icon: <IconX />,
+      });
+    } finally {
+      setSavingPositions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(applicationId);
+        return newSet;
       });
     }
   };
@@ -2194,39 +2249,127 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             {activeTab === "waitlisted" && (
                               <Table.Td>
                                 {(() => {
-                                  // Find the current application's index in the applicationsToShow array
+                                  // Find the current application's index in the ranked list
                                   const appIndex = applicationsToShow.findIndex(app => app.id === application.id);
-                                  
-                                  // Check if this application has a consensus score (ranked applications come first)
+                                  const rank = appIndex + 1;
+                                  const isManuallyRanked = application.waitlistOrder !== null;
                                   const consensusApp = consensusApplications?.find(ca => ca.id === application.id);
+                                  const hasScore = consensusApp?.averageScore !== null;
+                                  const isEditing = editingPositions.has(application.id);
+                                  const isSaving = savingPositions.has(application.id);
                                   
-                                  if (consensusApp?.averageScore) {
-                                    const rank = appIndex + 1;
-                                    const ordinalSuffix = (n: number) => {
-                                      const lastTwoDigits = n % 100;
-                                      if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
-                                        return n + 'th';
-                                      }
-                                      switch (n % 10) {
-                                        case 1: return n + 'st';
-                                        case 2: return n + 'nd'; 
-                                        case 3: return n + 'rd';
-                                        default: return n + 'th';
-                                      }
-                                    };                                    
+                                  // Helper for ordinal suffixes
+                                  const ordinalSuffix = (n: number) => {
+                                    const lastTwoDigits = n % 100;
+                                    if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+                                      return n + 'th';
+                                    }
+                                    switch (n % 10) {
+                                      case 1: return n + 'st';
+                                      case 2: return n + 'nd'; 
+                                      case 3: return n + 'rd';
+                                      default: return n + 'th';
+                                    }
+                                  };
+                                  
+                                  if (isEditing) {
                                     return (
-                                      <Group gap="xs" align="center">
-                                        <Text fw={600} c="orange" size="lg">
+                                      <Stack gap="xs" w={120}>
+                                        <NumberInput
+                                          size="xs"
+                                          min={1}
+                                          max={100}
+                                          value={editingPositions.get(application.id) ?? application.waitlistOrder ?? rank}
+                                          onChange={(value) => {
+                                            setEditingPositions(prev => {
+                                              const newMap = new Map(prev);
+                                              newMap.set(application.id, typeof value === 'number' ? value : null);
+                                              return newMap;
+                                            });
+                                          }}
+                                          onKeyDown={(event) => {
+                                            if (event.key === 'Enter') {
+                                              void handlePositionChange(application.id, editingPositions.get(application.id) ?? null);
+                                            } else if (event.key === 'Escape') {
+                                              setEditingPositions(prev => {
+                                                const newMap = new Map(prev);
+                                                newMap.delete(application.id);
+                                                return newMap;
+                                              });
+                                            }
+                                          }}
+                                          onBlur={() => {
+                                            void handlePositionChange(application.id, editingPositions.get(application.id) ?? null);
+                                          }}
+                                          placeholder="Position"
+                                          disabled={isSaving}
+                                        />
+                                        <Group gap="xs" justify="center">
+                                          <ActionIcon
+                                            size="xs"
+                                            variant="subtle"
+                                            color="red"
+                                            onClick={() => void handlePositionChange(application.id, null)}
+                                            disabled={isSaving}
+                                            title="Clear manual position"
+                                          >
+                                            <IconX size={12} />
+                                          </ActionIcon>
+                                        </Group>
+                                      </Stack>
+                                    );
+                                  }
+                                  
+                                  if (isManuallyRanked || hasScore) {
+                                    return (
+                                      <Group 
+                                        gap="xs" 
+                                        align="center"
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => {
+                                          setEditingPositions(prev => {
+                                            const newMap = new Map(prev);
+                                            newMap.set(application.id, application.waitlistOrder ?? rank);
+                                            return newMap;
+                                          });
+                                        }}
+                                      >
+                                        <Text fw={600} c={isManuallyRanked ? "orange" : "blue"} size="lg">
                                           #{rank}
                                         </Text>
                                         <Text size="xs" c="dimmed">
                                           {ordinalSuffix(rank)}
                                         </Text>
+                                        {isManuallyRanked && (
+                                          <Badge size="xs" color="orange" variant="light" title="Manually ranked">
+                                            M
+                                          </Badge>
+                                        )}
+                                        {!isManuallyRanked && hasScore && (
+                                          <Badge size="xs" color="blue" variant="light" title="Auto-ranked by score">
+                                            A
+                                          </Badge>
+                                        )}
                                       </Group>
                                     );
                                   }
                                   
-                                  return <Text size="xs" c="dimmed">Not ranked</Text>;
+                                  return (
+                                    <Text 
+                                      size="xs" 
+                                      c="dimmed"
+                                      style={{ cursor: 'pointer' }}
+                                      onClick={() => {
+                                        setEditingPositions(prev => {
+                                          const newMap = new Map(prev);
+                                          newMap.set(application.id, 1);
+                                          return newMap;
+                                        });
+                                      }}
+                                    >
+                                      Not ranked (click to set)
+                                    </Text>
+                                  );
                                 })()}
                               </Table.Td>
                             )}

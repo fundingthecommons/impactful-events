@@ -46,6 +46,11 @@ const BulkUpdateApplicationResponsesSchema = z.object({
   })),
 });
 
+const UpdateWaitlistOrderSchema = z.object({
+  applicationId: z.string(),
+  position: z.number().int().positive().optional(), // null to clear manual override
+});
+
 const CreateQuestionSchema = z.object({
   eventId: z.string(),
   questionKey: z.string(),
@@ -1407,5 +1412,56 @@ export const applicationRouter = createTRPCRouter({
       }
 
       return application;
+    }),
+
+  // Admin: Update waitlist order for manual ranking
+  updateWaitlistOrder: protectedProcedure
+    .input(UpdateWaitlistOrderSchema)
+    .mutation(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      // If position is provided, adjust other applications first
+      if (input.position !== undefined && input.position !== null) {
+        // Get the application's event to scope the reordering
+        const application = await ctx.db.application.findUnique({
+          where: { id: input.applicationId },
+          select: { eventId: true, waitlistOrder: true }
+        });
+
+        if (!application) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Application not found",
+          });
+        }
+
+        // Shift other applications down if they have the same or higher position
+        await ctx.db.application.updateMany({
+          where: {
+            eventId: application.eventId,
+            waitlistOrder: { gte: input.position },
+            id: { not: input.applicationId } // Don't update the current application
+          },
+          data: {
+            waitlistOrder: { increment: 1 }
+          }
+        });
+
+        // Update the current application
+        const updatedApplication = await ctx.db.application.update({
+          where: { id: input.applicationId },
+          data: { waitlistOrder: input.position }
+        });
+
+        return updatedApplication;
+      } else {
+        // Clear manual override - set waitlistOrder to null
+        const updatedApplication = await ctx.db.application.update({
+          where: { id: input.applicationId },
+          data: { waitlistOrder: null }
+        });
+
+        return updatedApplication;
+      }
     }),
 });

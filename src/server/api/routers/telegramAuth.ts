@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { TelegramClient, sessions, Api } from "telegram";
+import bigInt from "big-integer";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { 
   encryptTelegramCredentials, 
@@ -442,4 +443,154 @@ export const telegramAuthRouter = createTRPCRouter({
       });
     }
   }),
+
+  // Send bulk messages to multiple contacts
+  sendBulkMessage: protectedProcedure
+    .input(z.object({
+      contactIds: z.array(z.string()).min(1).max(50), // Limit to 50 recipients
+      message: z.string().min(1).max(4096), // Telegram message limit
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Check user has active Telegram authentication
+      const auth = await ctx.db.telegramAuth.findUnique({
+        where: { userId: ctx.session.user.id },
+      });
+
+      if (!auth || !auth.isActive || isSessionExpired(auth.expiresAt)) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "No active Telegram authentication found. Please set up Telegram authentication first.",
+        });
+      }
+
+      // Get contacts with Telegram usernames
+      const contacts = await ctx.db.contact.findMany({
+        where: {
+          id: { in: input.contactIds },
+          telegram: { not: null },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          telegram: true,
+        },
+      });
+
+      if (contacts.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No contacts found with Telegram usernames",
+        });
+      }
+
+      let successCount = 0;
+      let failureCount = 0;
+      const results: Array<{contactId: string, success: boolean, error?: string}> = [];
+
+      try {
+        // Decrypt user's credentials
+        const credentials = decryptTelegramCredentials({
+          encryptedApiId: auth.encryptedApiId,
+          encryptedApiHash: auth.encryptedApiHash,
+          encryptedSession: auth.encryptedSession,
+          salt: auth.salt,
+          iv: auth.iv,
+        }, ctx.session.user.id);
+
+        const client = new TelegramClient(
+          new sessions.StringSession(credentials.sessionString),
+          parseInt(credentials.apiId),
+          credentials.apiHash,
+          {}
+        );
+
+        // Connect to Telegram
+        await client.start({
+          phoneNumber: async () => {
+            throw new Error("Session expired. Please set up Telegram authentication again.");
+          },
+          password: async () => {
+            throw new Error("Session expired. Please set up Telegram authentication again.");
+          },
+          phoneCode: async () => {
+            throw new Error("Session expired. Please set up Telegram authentication again.");
+          },
+          onError: (err) => console.log(err),
+        });
+
+        // Send messages to each contact with delay to respect rate limits
+        for (const contact of contacts) {
+          try {
+            // Resolve username to get peer
+            const result = await client.invoke(new Api.contacts.ResolveUsername({
+              username: contact.telegram!,
+            }));
+
+            if (result.users && result.users.length > 0) {
+              const user = result.users[0];
+              
+              // Send message
+              await client.invoke(new Api.messages.SendMessage({
+                peer: user,
+                message: input.message,
+                randomId: bigInt(Math.floor(Math.random() * 1000000000)),
+              }));
+
+              successCount++;
+              results.push({ contactId: contact.id, success: true });
+              
+              console.log(`Message sent to @${contact.telegram} (${contact.firstName} ${contact.lastName})`);
+            } else {
+              throw new Error("User not found");
+            }
+            
+            // Rate limiting: wait 3 seconds between messages (20 messages per minute max)
+            if (contacts.indexOf(contact) < contacts.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+            
+          } catch (error) {
+            failureCount++;
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            results.push({ contactId: contact.id, success: false, error: errorMessage });
+            
+            console.error(`Failed to send message to @${contact.telegram}:`, errorMessage);
+          }
+        }
+
+        await client.disconnect();
+        
+        console.log(`Bulk message completed: ${successCount} successful, ${failureCount} failed for user ${hashForAudit(ctx.session.user.id)}`);
+
+        return {
+          successCount,
+          failureCount,
+          results,
+        };
+
+      } catch (error) {
+        console.error("Bulk message failed:", error);
+        
+        // If session is invalid, mark as inactive
+        if (error instanceof Error && 
+            (error.message.includes("SESSION_REVOKED") || 
+             error.message.includes("AUTH_KEY_INVALID") ||
+             error.message.includes("SESSION_EXPIRED"))) {
+          await ctx.db.telegramAuth.update({
+            where: { userId: ctx.session.user.id },
+            data: { isActive: false },
+          });
+          throw new TRPCError({
+            code: "UNAUTHORIZED", 
+            message: "Your Telegram session has expired. Please set up Telegram authentication again.",
+          });
+        }
+        
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to send messages: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        });
+      }
+    }),
 });
