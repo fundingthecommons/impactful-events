@@ -2099,11 +2099,18 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                             />
                           </Table.Th>
                         <Table.Th>Applicant</Table.Th>
-                        <Table.Th>Progress</Table.Th>
-                        <Table.Th>Status</Table.Th>
+                        {activeTab === "waitlisted" && (
+                          <Table.Th>Average Score</Table.Th>
+                        )}
+                        {activeTab !== "waitlisted" && activeTab !== "accepted" && (
+                          <Table.Th>Progress</Table.Th>
+                        )}
+                        {activeTab !== "waitlisted" && (
+                          <Table.Th>Status</Table.Th>
+                        )}
                         <Table.Th>Affiliation</Table.Th>
                         <Table.Th>Region</Table.Th>
-                        <Table.Th>Attributes</Table.Th>
+                        <Table.Th style={activeTab === "accepted" ? { maxWidth: '100px' } : undefined}>Attributes</Table.Th>
                         <Table.Th>Actions</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
@@ -2117,6 +2124,11 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                           completedFields: 0, 
                           totalFields: 0 
                         };
+                        
+                        // Find consensus application with score data for waitlisted tab
+                        const consensusApp = activeTab === "waitlisted" 
+                          ? consensusApplications?.find(ca => ca.id === application.id)
+                          : null;
                         
                         return (
                           <Table.Tr key={application.id}>
@@ -2144,25 +2156,73 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 </Text>
                               </Stack>
                             </Table.Td>
-                            <Table.Td>
-                              <ApplicationCompletionProgress
-                                completionPercentage={completion.completionPercentage}
-                                completedFields={completion.completedFields}
-                                totalFields={completion.totalFields}
-                                size="sm"
-                                showTooltip={true}
-                              />
-                            </Table.Td>
-                            <Table.Td>
-                              <Badge
-                                color={getStatusColor(application.status)}
-                                variant="light"
-                                leftSection={<StatusIcon size={12} />}
-                                title={`Debug: Status is "${application.status}"`}
-                              >
-                                {application.status.replace("_", " ")}
-                              </Badge>
-                            </Table.Td>
+                            {activeTab === "waitlisted" && (
+                              <Table.Td>
+                                {consensusApp ? (
+                                  <Stack gap="xs">
+                                    {/* Average Score */}
+                                    <Group gap="xs" align="center">
+                                      <IconStar size={16} color="var(--mantine-color-blue-6)" />
+                                      <Text fw={600} c="blue" size="md">
+                                        {consensusApp.averageScore.toFixed(1)} avg
+                                      </Text>
+                                    </Group>
+                                    
+                                    {/* Individual Reviewer Scores */}
+                                    <Group gap="xs" wrap="wrap">
+                                      {consensusApp.evaluations
+                                        .filter(evaluation => evaluation.overallScore !== null)
+                                        .map((evaluation, index) => (
+                                          <Tooltip
+                                            key={index}
+                                            label={`${evaluation.reviewer.name ?? evaluation.reviewer.email ?? 'Unknown Reviewer'}: ${evaluation.overallScore?.toFixed(1)}`}
+                                            position="top"
+                                            withArrow
+                                          >
+                                            <Badge
+                                              size="sm"
+                                              variant="light"
+                                              color="blue"
+                                              style={{ cursor: 'help' }}
+                                            >
+                                              {evaluation.overallScore?.toFixed(1)}
+                                            </Badge>
+                                          </Tooltip>
+                                        ))
+                                      }
+                                      {consensusApp.evaluations.filter(evaluation => evaluation.overallScore !== null).length === 0 && (
+                                        <Text size="xs" c="dimmed">No scores</Text>
+                                      )}
+                                    </Group>
+                                  </Stack>
+                                ) : (
+                                  <Text size="xs" c="dimmed">Not evaluated</Text>
+                                )}
+                              </Table.Td>
+                            )}
+                            {activeTab !== "waitlisted" && activeTab !== "accepted" && (
+                              <Table.Td>
+                                <ApplicationCompletionProgress
+                                  completionPercentage={completion.completionPercentage}
+                                  completedFields={completion.completedFields}
+                                  totalFields={completion.totalFields}
+                                  size="sm"
+                                  showTooltip={true}
+                                />
+                              </Table.Td>
+                            )}
+                            {activeTab !== "waitlisted" && (
+                              <Table.Td>
+                                <Badge
+                                  color={getStatusColor(application.status)}
+                                  variant="light"
+                                  leftSection={<StatusIcon size={12} />}
+                                  title={`Debug: Status is "${application.status}"`}
+                                >
+                                  {application.status.replace("_", " ")}
+                                </Badge>
+                              </Table.Td>
+                            )}
                             <Table.Td>
                               <Text size="sm">
                                 {application.affiliation ?? "Not specified"}
@@ -2197,40 +2257,68 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 })()}
                               </Group>
                             </Table.Td>
-                            <Table.Td>
+                            <Table.Td style={activeTab === "accepted" ? { maxWidth: '100px' } : undefined}>
                               {/* Show admin labels */}
-                              <Group gap="xs">
-                                {application.user?.adminLabels && application.user.adminLabels.length > 0 ? (
-                                  application.user.adminLabels.map((label) => (
-                                    <Badge
-                                      key={label}
-                                      variant="light"
-                                      size="sm"
-                                      color={
-                                        label === "AI / ML expert" ? "violet" :
-                                        label === "Designer" ? "green" :
-                                        label === "Developer" ? "blue" :
-                                        label === "Entrepreneur" ? "purple" :
-                                        label === "Lawyer" ? "red" :
-                                        label === "Non-Technical" ? "yellow" :
-                                        label === "Project manager" ? "cyan" :
-                                        label === "REFI" ? "lime" :
-                                        label === "Regen" ? "grape" :
-                                        label === "Researcher" ? "orange" :
-                                        label === "Scientist" ? "indigo" :
-                                        label === "Woman" ? "pink" :
-                                        label === "Writer" ? "teal" :
-                                        label === "ZK" ? "dark" :
-                                        "gray"
-                                      }
-                                    >
-                                      {label}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <Text size="xs" c="dimmed">No labels</Text>
-                                )}
-                              </Group>
+                              {activeTab === "accepted" ? (
+                                <Tooltip
+                                  label={
+                                    application.user?.adminLabels && application.user.adminLabels.length > 0 
+                                      ? application.user.adminLabels.join(", ")
+                                      : "No labels"
+                                  }
+                                  position="top"
+                                  withArrow
+                                  multiline
+                                >
+                                  <Text 
+                                    size="sm" 
+                                    style={{ 
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      cursor: 'help'
+                                    }}
+                                  >
+                                    {application.user?.adminLabels && application.user.adminLabels.length > 0 
+                                      ? application.user.adminLabels.join(", ")
+                                      : "No labels"
+                                    }
+                                  </Text>
+                                </Tooltip>
+                              ) : (
+                                <Group gap="xs">
+                                  {application.user?.adminLabels && application.user.adminLabels.length > 0 ? (
+                                    application.user.adminLabels.map((label) => (
+                                      <Badge
+                                        key={label}
+                                        variant="light"
+                                        size="sm"
+                                        color={
+                                          label === "AI / ML expert" ? "violet" :
+                                          label === "Designer" ? "green" :
+                                          label === "Developer" ? "blue" :
+                                          label === "Entrepreneur" ? "purple" :
+                                          label === "Lawyer" ? "red" :
+                                          label === "Non-Technical" ? "yellow" :
+                                          label === "Project manager" ? "cyan" :
+                                          label === "REFI" ? "lime" :
+                                          label === "Regen" ? "grape" :
+                                          label === "Researcher" ? "orange" :
+                                          label === "Scientist" ? "indigo" :
+                                          label === "Woman" ? "pink" :
+                                          label === "Writer" ? "teal" :
+                                          label === "ZK" ? "dark" :
+                                          "gray"
+                                        }
+                                      >
+                                        {label}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <Text size="xs" c="dimmed">No labels</Text>
+                                  )}
+                                </Group>
+                              )}
                             </Table.Td>
                             <Table.Td>
                               <Group gap="xs">
