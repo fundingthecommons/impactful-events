@@ -58,21 +58,6 @@ export default function ContactsPage() {
   const sendBulkMessage = api.telegramAuth.sendBulkMessage.useMutation();
   const sendBulkMessageToList = api.telegramAuth.sendBulkMessageToList.useMutation();
 
-  // Handle authentication on client side
-  if (status === "loading") {
-    return <div>Loading...</div>;
-  }
-
-  if (!session?.user) {
-    redirect("/signin?callbackUrl=/contacts");
-    return null;
-  }
-
-  if (session.user.role !== "staff" && session.user.role !== "admin") {
-    redirect("/unauthorized");  
-    return null;
-  }
-
   const openDrawer = useCallback((contact: Contact) => {
     setSelectedContact(contact);
     setDrawerOpened(true);
@@ -231,7 +216,22 @@ export default function ContactsPage() {
         <IconEye size={16} />
       </ActionIcon>
     ])
-  } : null, [contacts]);
+  } : null, [contacts, openDrawer]);
+
+  // Handle authentication on client side
+  if (status === "loading") {
+    return <div>Loading...</div>;
+  }
+
+  if (!session?.user) {
+    redirect("/signin?callbackUrl=/contacts");
+    return null;
+  }
+
+  if (session.user.role !== "staff" && session.user.role !== "admin") {
+    redirect("/unauthorized");  
+    return null;
+  }
 
   if (isLoading) {
     return <div>Loading contacts...</div>;

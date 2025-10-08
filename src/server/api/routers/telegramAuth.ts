@@ -639,72 +639,58 @@ export const telegramAuthRouter = createTRPCRouter({
     // Get counts for each list
     const eventId = 'funding-commons-residency-2025'; // Hardcoded for now, could be dynamic later
     
+    // Use raw queries to join Application with Contact via email
     const counts = await Promise.all([
-      // All residency applicants (submitted)
-      ctx.db.application.count({
-        where: {
-          eventId,
-          status: { in: ['SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED'] },
-          user: { 
-            profile: { 
-              telegramHandle: { not: null } 
-            } 
-          },
-        },
-      }),
-      // Accepted
-      ctx.db.application.count({
-        where: {
-          eventId,
-          status: 'ACCEPTED',
-          user: { 
-            profile: { 
-              telegramHandle: { not: null } 
-            } 
-          },
-        },
-      }),
-      // Rejected
-      ctx.db.application.count({
-        where: {
-          eventId,
-          status: 'REJECTED',
-          user: { 
-            profile: { 
-              telegramHandle: { not: null } 
-            } 
-          },
-        },
-      }),
-      // Waitlisted
-      ctx.db.application.count({
-        where: {
-          eventId,
-          status: 'WAITLISTED',
-          user: { 
-            profile: { 
-              telegramHandle: { not: null } 
-            } 
-          },
-        },
-      }),
-      // Under review (submitted but no decision)
-      ctx.db.application.count({
-        where: {
-          eventId,
-          status: 'SUBMITTED',
-          user: { 
-            profile: { 
-              telegramHandle: { not: null } 
-            } 
-          },
-        },
-      }),
+      // All residency applicants (submitted) with Telegram
+      ctx.db.$queryRaw`
+        SELECT COUNT(DISTINCT a.id)::integer as count
+        FROM "Application" a
+        INNER JOIN "Contact" c ON a.email = c.email
+        WHERE a."eventId" = ${eventId}
+          AND a.status IN ('SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED')
+          AND c.telegram IS NOT NULL
+      ` as [{ count: number }],
+      // Accepted with Telegram
+      ctx.db.$queryRaw`
+        SELECT COUNT(DISTINCT a.id)::integer as count
+        FROM "Application" a
+        INNER JOIN "Contact" c ON a.email = c.email
+        WHERE a."eventId" = ${eventId}
+          AND a.status = 'ACCEPTED'
+          AND c.telegram IS NOT NULL
+      ` as [{ count: number }],
+      // Rejected with Telegram
+      ctx.db.$queryRaw`
+        SELECT COUNT(DISTINCT a.id)::integer as count
+        FROM "Application" a
+        INNER JOIN "Contact" c ON a.email = c.email
+        WHERE a."eventId" = ${eventId}
+          AND a.status = 'REJECTED'
+          AND c.telegram IS NOT NULL
+      ` as [{ count: number }],
+      // Waitlisted with Telegram
+      ctx.db.$queryRaw`
+        SELECT COUNT(DISTINCT a.id)::integer as count
+        FROM "Application" a
+        INNER JOIN "Contact" c ON a.email = c.email
+        WHERE a."eventId" = ${eventId}
+          AND a.status = 'WAITLISTED'
+          AND c.telegram IS NOT NULL
+      ` as [{ count: number }],
+      // Under review (submitted) with Telegram
+      ctx.db.$queryRaw`
+        SELECT COUNT(DISTINCT a.id)::integer as count
+        FROM "Application" a
+        INNER JOIN "Contact" c ON a.email = c.email
+        WHERE a."eventId" = ${eventId}
+          AND a.status = 'SUBMITTED'
+          AND c.telegram IS NOT NULL
+      ` as [{ count: number }],
     ]);
 
     return smartLists.map((list, index) => ({
       ...list,
-      contactCount: counts[index] ?? 0,
+      contactCount: counts[index]?.[0]?.count ?? 0,
     }));
   }),
 
@@ -718,18 +704,18 @@ export const telegramAuthRouter = createTRPCRouter({
       
       interface RawContact {
         id: string;
-        name: string | null;
+        firstName: string;
+        lastName: string;
         email: string;
         telegram: string;
       }
 
       const contacts = await ctx.db.$queryRaw<RawContact[]>`
-        SELECT DISTINCT u.id, u.name, u.email, up."telegramHandle" as telegram
-        FROM "User" u
-        INNER JOIN "Application" a ON u.id = a."userId"
-        INNER JOIN "UserProfile" up ON u.id = up."userId"
+        SELECT DISTINCT c.id, c."firstName", c."lastName", c.email, c.telegram
+        FROM "Application" a
+        INNER JOIN "Contact" c ON a.email = c.email
         WHERE a."eventId" = 'funding-commons-residency-2025'
-          AND up."telegramHandle" IS NOT NULL
+          AND c.telegram IS NOT NULL
           AND CASE 
             WHEN ${input.listId} = 'all-residency-applicants' THEN a.status IN ('SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED')
             WHEN ${input.listId} = 'accepted-applicants' THEN a.status = 'ACCEPTED'
@@ -742,8 +728,8 @@ export const telegramAuthRouter = createTRPCRouter({
 
       return contacts.map(contact => ({
         id: contact.id,
-        firstName: contact.name?.split(' ')[0] ?? '',
-        lastName: contact.name?.split(' ').slice(1).join(' ') ?? '',
+        firstName: contact.firstName,
+        lastName: contact.lastName,
         email: contact.email,
         telegram: contact.telegram,
       }));
@@ -756,21 +742,21 @@ export const telegramAuthRouter = createTRPCRouter({
       message: z.string().min(1).max(4096),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Get contacts from the smart list using User and UserProfile
+      // Get contacts from the smart list using Application → Contact relationship
       interface RawContact {
         id: string;
-        name: string | null;
+        firstName: string;
+        lastName: string;
         email: string;
         telegram: string;
       }
 
       const contacts = await ctx.db.$queryRaw<RawContact[]>`
-        SELECT DISTINCT u.id, u.name, u.email, up."telegramHandle" as telegram
-        FROM "User" u
-        INNER JOIN "Application" a ON u.id = a."userId"
-        INNER JOIN "UserProfile" up ON u.id = up."userId"
+        SELECT DISTINCT c.id, c."firstName", c."lastName", c.email, c.telegram
+        FROM "Application" a
+        INNER JOIN "Contact" c ON a.email = c.email
         WHERE a."eventId" = 'funding-commons-residency-2025'
-          AND up."telegramHandle" IS NOT NULL
+          AND c.telegram IS NOT NULL
           AND CASE 
             WHEN ${input.listId} = 'all-residency-applicants' THEN a.status IN ('SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED')
             WHEN ${input.listId} = 'accepted-applicants' THEN a.status = 'ACCEPTED'
@@ -806,8 +792,8 @@ export const telegramAuthRouter = createTRPCRouter({
       // Transform raw query results to the expected format
       const fullContacts = contacts.map(contact => ({
         id: contact.id,
-        firstName: contact.name?.split(' ')[0] ?? '',
-        lastName: contact.name?.split(' ').slice(1).join(' ') ?? '',
+        firstName: contact.firstName,
+        lastName: contact.lastName,
         telegram: contact.telegram,
       }));
 
