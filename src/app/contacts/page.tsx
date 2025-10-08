@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { api } from "~/trpc/react";
 import { 
   Table, Stack, Title, Text, Badge, Avatar, Group, Paper, Container, 
@@ -73,27 +73,33 @@ export default function ContactsPage() {
     return null;
   }
 
-  const openDrawer = (contact: Contact) => {
+  const openDrawer = useCallback((contact: Contact) => {
     setSelectedContact(contact);
     setDrawerOpened(true);
-  };
+  }, []);
 
-  const closeDrawer = () => {
+  const closeDrawer = useCallback(() => {
     setDrawerOpened(false);
     setSelectedContact(null);
-  };
+  }, []);
 
-  // Get contacts with Telegram usernames for messaging
-  const telegramContacts = contacts?.filter(contact => contact.telegram) ?? [];
+  // Get contacts with Telegram usernames for messaging (memoized)
+  const telegramContacts = useMemo(() => 
+    contacts?.filter(contact => contact.telegram) ?? [], 
+    [contacts]
+  );
 
-  // Contact selector data for MultiSelect
-  const contactSelectData = telegramContacts.map(contact => ({
-    value: contact.id,
-    label: `${contact.firstName} ${contact.lastName} (@${contact.telegram})`,
-    contact: contact,
-  }));
+  // Contact selector data for MultiSelect (memoized)
+  const contactSelectData = useMemo(() => 
+    telegramContacts.map(contact => ({
+      value: contact.id,
+      label: `${contact.firstName} ${contact.lastName} (@${contact.telegram})`,
+      contact: contact,
+    })), 
+    [telegramContacts]
+  );
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!messageText.trim()) return;
     
     if (messagingMode === 'manual' && !selectedRecipients.length) return;
@@ -124,31 +130,31 @@ export default function ContactsPage() {
     } finally {
       setIsSending(false);
     }
-  };
+  }, [messageText, messagingMode, selectedRecipients, selectedSmartList, sendBulkMessageToList, sendBulkMessage]);
 
-  const removeRecipient = (contactId: string) => {
+  const removeRecipient = useCallback((contactId: string) => {
     setSelectedRecipients(prev => prev.filter(c => c.id !== contactId));
-  };
+  }, []);
 
-  // Helper to get recipient count for current mode
-  const getRecipientCount = () => {
+  // Helper to get recipient count for current mode (memoized)
+  const getRecipientCount = useCallback(() => {
     if (messagingMode === 'smartlist') {
       const selectedList = smartLists?.find(list => list.id === selectedSmartList);
       return selectedList?.contactCount ?? 0;
     }
     return selectedRecipients.length;
-  };
+  }, [messagingMode, smartLists, selectedSmartList, selectedRecipients.length]);
 
-  // Helper to check if send is enabled
-  const canSend = () => {
+  // Helper to check if send is enabled (memoized)
+  const canSend = useCallback(() => {
     if (!messageText.trim()) return false;
     if (messagingMode === 'manual') return selectedRecipients.length > 0;
     if (messagingMode === 'smartlist') return !!selectedSmartList;
     return false;
-  };
+  }, [messageText, messagingMode, selectedRecipients.length, selectedSmartList]);
 
-  // Transform contacts into table data format for Mantine Table
-  const tableData = contacts ? {
+  // Transform contacts into table data format for Mantine Table (memoized)
+  const tableData = useMemo(() => contacts ? {
     head: ['Contact', 'Phone & Telegram', 'Email', 'Associated Sponsor', 'ID', 'Actions'],
     body: contacts.map((contact) => [
       // Contact column with avatar and name
@@ -225,7 +231,7 @@ export default function ContactsPage() {
         <IconEye size={16} />
       </ActionIcon>
     ])
-  } : null;
+  } : null, [contacts]);
 
   if (isLoading) {
     return <div>Loading contacts...</div>;
