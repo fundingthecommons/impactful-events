@@ -522,9 +522,15 @@ export const telegramAuthRouter = createTRPCRouter({
         // Send messages to each contact with delay to respect rate limits
         for (const contact of contacts) {
           try {
+            // Skip contacts without telegram username
+            if (!contact.telegram) {
+              console.log(`Skipping contact ${contact.id} - no telegram username`);
+              continue;
+            }
+
             // Resolve username to get peer
             const result = await client.invoke(new Api.contacts.ResolveUsername({
-              username: contact.telegram!,
+              username: contact.telegram,
             }));
 
             if (result.users && result.users.length > 0) {
@@ -590,6 +596,333 @@ export const telegramAuthRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: `Failed to send messages: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        });
+      }
+    }),
+
+  // Get available smart lists
+  getSmartLists: protectedProcedure.query(async ({ ctx }) => {
+    // Static smart lists based on application data
+    const smartLists = [
+      {
+        id: 'all-residency-applicants',
+        name: 'All Residency Applicants',
+        description: 'All people who submitted applications for the Funding Commons Residency 2025',
+        category: 'applications',
+      },
+      {
+        id: 'accepted-applicants',
+        name: 'Accepted Applicants',
+        description: 'Applicants who have been accepted to the residency',
+        category: 'applications',
+      },
+      {
+        id: 'rejected-applicants',
+        name: 'Rejected Applicants',
+        description: 'Applicants who were not accepted',
+        category: 'applications',
+      },
+      {
+        id: 'waitlisted-applicants',
+        name: 'Waitlisted Applicants',
+        description: 'Applicants currently on the waitlist',
+        category: 'applications',
+      },
+      {
+        id: 'under-review-applicants',
+        name: 'Under Review Applicants',
+        description: 'Applications still being evaluated',
+        category: 'applications',
+      },
+    ];
+
+    // Get counts for each list
+    const eventId = 'funding-commons-residency-2025'; // Hardcoded for now, could be dynamic later
+    
+    const counts = await Promise.all([
+      // All residency applicants (submitted)
+      ctx.db.application.count({
+        where: {
+          eventId,
+          status: { in: ['SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED'] },
+          user: { 
+            profile: { 
+              telegramHandle: { not: null } 
+            } 
+          },
+        },
+      }),
+      // Accepted
+      ctx.db.application.count({
+        where: {
+          eventId,
+          status: 'ACCEPTED',
+          user: { 
+            profile: { 
+              telegramHandle: { not: null } 
+            } 
+          },
+        },
+      }),
+      // Rejected
+      ctx.db.application.count({
+        where: {
+          eventId,
+          status: 'REJECTED',
+          user: { 
+            profile: { 
+              telegramHandle: { not: null } 
+            } 
+          },
+        },
+      }),
+      // Waitlisted
+      ctx.db.application.count({
+        where: {
+          eventId,
+          status: 'WAITLISTED',
+          user: { 
+            profile: { 
+              telegramHandle: { not: null } 
+            } 
+          },
+        },
+      }),
+      // Under review (submitted but no decision)
+      ctx.db.application.count({
+        where: {
+          eventId,
+          status: 'SUBMITTED',
+          user: { 
+            profile: { 
+              telegramHandle: { not: null } 
+            } 
+          },
+        },
+      }),
+    ]);
+
+    return smartLists.map((list, index) => ({
+      ...list,
+      contactCount: counts[index] ?? 0,
+    }));
+  }),
+
+  // Get contacts for a specific smart list
+  getSmartListContacts: protectedProcedure
+    .input(z.object({
+      listId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // eventId is hardcoded in the SQL query below
+      
+      interface RawContact {
+        id: string;
+        name: string | null;
+        email: string;
+        telegram: string;
+      }
+
+      const contacts = await ctx.db.$queryRaw<RawContact[]>`
+        SELECT DISTINCT u.id, u.name, u.email, up."telegramHandle" as telegram
+        FROM "User" u
+        INNER JOIN "Application" a ON u.id = a."userId"
+        INNER JOIN "UserProfile" up ON u.id = up."userId"
+        WHERE a."eventId" = 'funding-commons-residency-2025'
+          AND up."telegramHandle" IS NOT NULL
+          AND CASE 
+            WHEN ${input.listId} = 'all-residency-applicants' THEN a.status IN ('SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED')
+            WHEN ${input.listId} = 'accepted-applicants' THEN a.status = 'ACCEPTED'
+            WHEN ${input.listId} = 'rejected-applicants' THEN a.status = 'REJECTED' 
+            WHEN ${input.listId} = 'waitlisted-applicants' THEN a.status = 'WAITLISTED'
+            WHEN ${input.listId} = 'under-review-applicants' THEN a.status = 'SUBMITTED'
+            ELSE FALSE
+          END
+      `;
+
+      return contacts.map(contact => ({
+        id: contact.id,
+        firstName: contact.name?.split(' ')[0] ?? '',
+        lastName: contact.name?.split(' ').slice(1).join(' ') ?? '',
+        email: contact.email,
+        telegram: contact.telegram,
+      }));
+    }),
+
+  // Send bulk message to a smart list
+  sendBulkMessageToList: protectedProcedure
+    .input(z.object({
+      listId: z.string(),
+      message: z.string().min(1).max(4096),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Get contacts from the smart list using User and UserProfile
+      interface RawContact {
+        id: string;
+        name: string | null;
+        email: string;
+        telegram: string;
+      }
+
+      const contacts = await ctx.db.$queryRaw<RawContact[]>`
+        SELECT DISTINCT u.id, u.name, u.email, up."telegramHandle" as telegram
+        FROM "User" u
+        INNER JOIN "Application" a ON u.id = a."userId"
+        INNER JOIN "UserProfile" up ON u.id = up."userId"
+        WHERE a."eventId" = 'funding-commons-residency-2025'
+          AND up."telegramHandle" IS NOT NULL
+          AND CASE 
+            WHEN ${input.listId} = 'all-residency-applicants' THEN a.status IN ('SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED')
+            WHEN ${input.listId} = 'accepted-applicants' THEN a.status = 'ACCEPTED'
+            WHEN ${input.listId} = 'rejected-applicants' THEN a.status = 'REJECTED' 
+            WHEN ${input.listId} = 'waitlisted-applicants' THEN a.status = 'WAITLISTED'
+            WHEN ${input.listId} = 'under-review-applicants' THEN a.status = 'SUBMITTED'
+            ELSE FALSE
+          END
+      `;
+
+      if (contacts.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No contacts found in this list with Telegram usernames",
+        });
+      }
+
+      // Reuse the existing sendBulkMessage logic by extracting it
+      // const contactIds = contacts.map(c => c.id); // Not needed
+      
+      // Get user's Telegram auth
+      const auth = await ctx.db.telegramAuth.findUnique({
+        where: { userId: ctx.session.user.id },
+      });
+
+      if (!auth || !auth.isActive || isSessionExpired(auth.expiresAt)) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "No active Telegram authentication found. Please set up Telegram authentication first.",
+        });
+      }
+
+      // Transform raw query results to the expected format
+      const fullContacts = contacts.map(contact => ({
+        id: contact.id,
+        firstName: contact.name?.split(' ')[0] ?? '',
+        lastName: contact.name?.split(' ').slice(1).join(' ') ?? '',
+        telegram: contact.telegram,
+      }));
+
+      let successCount = 0;
+      let failureCount = 0;
+      const results: Array<{contactId: string, success: boolean, error?: string}> = [];
+
+      try {
+        // Decrypt user's credentials
+        const credentials = decryptTelegramCredentials({
+          encryptedApiId: auth.encryptedApiId,
+          encryptedApiHash: auth.encryptedApiHash,
+          encryptedSession: auth.encryptedSession,
+          salt: auth.salt,
+          iv: auth.iv,
+        }, ctx.session.user.id);
+
+        const client = new TelegramClient(
+          new sessions.StringSession(credentials.sessionString),
+          parseInt(credentials.apiId),
+          credentials.apiHash,
+          {}
+        );
+
+        // Connect to Telegram
+        await client.start({
+          phoneNumber: async () => {
+            throw new Error("Session expired. Please set up Telegram authentication again.");
+          },
+          password: async () => {
+            throw new Error("Session expired. Please set up Telegram authentication again.");
+          },
+          phoneCode: async () => {
+            throw new Error("Session expired. Please set up Telegram authentication again.");
+          },
+          onError: (err) => console.log(err),
+        });
+
+        // Send messages to each contact with delay to respect rate limits
+        for (const contact of fullContacts) {
+          try {
+            // Skip contacts without telegram username
+            if (!contact.telegram) {
+              console.log(`Skipping contact ${contact.id} - no telegram username`);
+              continue;
+            }
+
+            // Resolve username to get peer
+            const result = await client.invoke(new Api.contacts.ResolveUsername({
+              username: contact.telegram,
+            }));
+
+            if (result.users && result.users.length > 0) {
+              const user = result.users[0];
+              
+              // Send message
+              await client.invoke(new Api.messages.SendMessage({
+                peer: user,
+                message: input.message,
+                randomId: bigInt(Math.floor(Math.random() * 1000000000)),
+              }));
+
+              successCount++;
+              results.push({ contactId: contact.id, success: true });
+              
+              console.log(`Message sent to @${contact.telegram} (${contact.firstName} ${contact.lastName})`);
+            } else {
+              throw new Error("User not found");
+            }
+            
+            // Rate limiting: wait 3 seconds between messages (20 messages per minute max)
+            if (fullContacts.indexOf(contact) < fullContacts.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+            
+          } catch (error) {
+            failureCount++;
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            results.push({ contactId: contact.id, success: false, error: errorMessage });
+            
+            console.error(`Failed to send message to @${contact.telegram}:`, errorMessage);
+          }
+        }
+
+        await client.disconnect();
+        
+        console.log(`Bulk message to smart list completed: ${successCount} successful, ${failureCount} failed for user ${hashForAudit(ctx.session.user.id)}`);
+
+        return {
+          successCount,
+          failureCount,
+          results,
+        };
+
+      } catch (error) {
+        console.error("Smart list bulk message failed:", error);
+        
+        // If session is invalid, mark as inactive
+        if (error instanceof Error && 
+            (error.message.includes("SESSION_REVOKED") || 
+             error.message.includes("AUTH_KEY_INVALID") ||
+             error.message.includes("SESSION_EXPIRED"))) {
+          await ctx.db.telegramAuth.update({
+            where: { userId: ctx.session.user.id },
+            data: { isActive: false },
+          });
+          throw new TRPCError({
+            code: "UNAUTHORIZED", 
+            message: "Your Telegram session has expired. Please set up Telegram authentication again.",
+          });
+        }
+        
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Failed to send messages to smart list: ${error instanceof Error ? error.message : 'Unknown error'}`,
         });
       }
     }),
