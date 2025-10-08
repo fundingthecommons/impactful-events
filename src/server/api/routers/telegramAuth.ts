@@ -649,7 +649,7 @@ export const telegramAuthRouter = createTRPCRouter({
         WHERE a."eventId" = ${eventId}
           AND a.status IN ('SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED')
           AND c.telegram IS NOT NULL
-      ` as [{ count: number }],
+      ` as unknown as [{ count: number }],
       // Accepted with Telegram
       ctx.db.$queryRaw`
         SELECT COUNT(DISTINCT a.id)::integer as count
@@ -658,7 +658,7 @@ export const telegramAuthRouter = createTRPCRouter({
         WHERE a."eventId" = ${eventId}
           AND a.status = 'ACCEPTED'
           AND c.telegram IS NOT NULL
-      ` as [{ count: number }],
+      ` as unknown as [{ count: number }],
       // Rejected with Telegram
       ctx.db.$queryRaw`
         SELECT COUNT(DISTINCT a.id)::integer as count
@@ -667,7 +667,7 @@ export const telegramAuthRouter = createTRPCRouter({
         WHERE a."eventId" = ${eventId}
           AND a.status = 'REJECTED'
           AND c.telegram IS NOT NULL
-      ` as [{ count: number }],
+      ` as unknown as [{ count: number }],
       // Waitlisted with Telegram
       ctx.db.$queryRaw`
         SELECT COUNT(DISTINCT a.id)::integer as count
@@ -676,7 +676,7 @@ export const telegramAuthRouter = createTRPCRouter({
         WHERE a."eventId" = ${eventId}
           AND a.status = 'WAITLISTED'
           AND c.telegram IS NOT NULL
-      ` as [{ count: number }],
+      ` as unknown as [{ count: number }],
       // Under review (submitted) with Telegram
       ctx.db.$queryRaw`
         SELECT COUNT(DISTINCT a.id)::integer as count
@@ -685,7 +685,7 @@ export const telegramAuthRouter = createTRPCRouter({
         WHERE a."eventId" = ${eventId}
           AND a.status = 'SUBMITTED'
           AND c.telegram IS NOT NULL
-      ` as [{ count: number }],
+      ` as unknown as [{ count: number }],
     ]);
 
     return smartLists.map((list, index) => ({
