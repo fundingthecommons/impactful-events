@@ -110,6 +110,11 @@ export default function EventDetailClient({
   userApplication, 
   userId: _userId 
 }: EventDetailClientProps) {
+  console.log("🔍 EventDetailClient props:", {
+    event,
+    userApplication,
+    userId: _userId
+  });
   const [language, setLanguage] = useState<"en" | "es">("en");
   const [activeTab, setActiveTab] = useState<string | null>("overview");
   const { data: session } = useSession();
@@ -142,7 +147,13 @@ export default function EventDetailClient({
     // Only refetch on page load, explicit refresh, or form submission
     console.log('🔍 EventDetailClient: Application updated (no refetch needed)');
   };
-
+  console.log("🔍 Debug info:", {
+    hasUser: !!session?.user,
+    userEmail: session?.user?.email,
+    userApplication: userApplication,
+    applicationStatus: userApplication?.status,
+    shouldShowBanner: session?.user && userApplication?.status === "ACCEPTED"
+  });
   return (
     <Container size="lg" py="xl">
       <Stack gap="xl">
@@ -172,6 +183,24 @@ export default function EventDetailClient({
             </ActionIcon>
           </Group>
         </Group>
+
+        {/* Congratulations Banner for Accepted Users */}
+        {session?.user && userApplication?.status === "ACCEPTED" && (
+          <Alert 
+            color="green"
+            title="🎉 Congratulations!"
+            icon={<IconCheck />}
+            variant="filled"
+            radius="md"
+          >
+            <Title order={3} c="white" mb="xs">
+              You have been accepted to the {event.name}!
+            </Title>
+            <Text c="white" size="md">
+              We&apos;re excited to have you participate in this residency program. Check your email for next steps and program details.
+            </Text>
+          </Alert>
+        )}
 
         {/* Event Header */}
         <Card shadow="lg" padding="xl" radius="md" withBorder>

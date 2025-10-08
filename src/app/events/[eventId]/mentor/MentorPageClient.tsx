@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Container, Center, Loader, Text, Stack, Card, Group, Transition } from "@mantine/core";
 import { IconCheck } from "@tabler/icons-react";
 import AuthForm from "~/app/_components/AuthForm";
-import EventDetailClient from "../../[eventId]/EventDetailClient";
+import EventDetailClient from "../EventDetailClient";
 import type { Event, Application, ApplicationResponse, ApplicationQuestion } from "@prisma/client";
 
 interface ExtendedApplication extends Application {
@@ -16,85 +16,17 @@ interface ExtendedEvent extends Event {
   applications: ExtendedApplication[];
 }
 
-// Type for EventDetailClient compatibility
-interface EventDetailApplication {
-  id: string;
-  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
-  language: string;
-  submittedAt: Date | null;
-  responses: Array<{
-    id: string;
-    answer: string;
-    question: {
-      id: string;
-      questionKey: string;
-      questionEn: string;
-      questionEs: string;
-      questionType: string;
-      required: boolean;
-    };
-  }>;
-}
-
-interface EventDetailEvent {
-  id: string;
-  name: string;
-  description: string | null;
-  startDate: Date;
-  endDate: Date;
-  location: string | null;
-  type: string;
-  applications: EventDetailApplication[];
-}
-
-interface ApplicationPageClientProps {
+interface MentorPageClientProps {
   event: ExtendedEvent;
   initialUserApplication?: ExtendedApplication | null;
   initialUserId?: string;
-  hasLatePass?: boolean;
 }
 
-// Helper function to convert types for EventDetailClient compatibility
-function convertApplicationForEventDetail(app: ExtendedApplication): EventDetailApplication {
-  return {
-    id: app.id,
-    status: app.status as EventDetailApplication["status"],
-    language: app.language,
-    submittedAt: app.submittedAt,
-    responses: app.responses?.map(r => ({
-      id: r.id,
-      answer: r.answer,
-      question: {
-        id: r.question.id,
-        questionKey: r.question.questionKey,
-        questionEn: r.question.questionEn,
-        questionEs: r.question.questionEs,
-        questionType: r.question.questionType,
-        required: r.question.required,
-      },
-    })) ?? [],
-  };
-}
-
-function convertEventForEventDetail(event: ExtendedEvent): EventDetailEvent {
-  return {
-    id: event.id,
-    name: event.name,
-    description: event.description,
-    startDate: event.startDate,
-    endDate: event.endDate,
-    location: event.location,
-    type: event.type,
-    applications: event.applications.map(convertApplicationForEventDetail),
-  };
-}
-
-export default function ApplicationPageClient({
+export default function MentorPageClient({
   event,
   initialUserApplication,
   initialUserId,
-  hasLatePass: _hasLatePass,
-}: ApplicationPageClientProps) {
+}: MentorPageClientProps) {
   const { data: session, status } = useSession();
   const [showApplication, setShowApplication] = useState(false);
   const [justAuthenticated, setJustAuthenticated] = useState(false);
@@ -154,7 +86,7 @@ export default function ApplicationPageClient({
                     Authentication Successful!
                   </Text>
                   <Text size="sm" c="dimmed" ta="center">
-                    Redirecting to your application...
+                    Redirecting to your mentor onboarding form...
                   </Text>
                 </Stack>
               </Card>
@@ -182,7 +114,7 @@ export default function ApplicationPageClient({
                 <Card p="md" radius="md" withBorder>
                   <Group justify="center" gap="lg">
                     <Group gap="xs">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 flex items-center justify-center">
                         <Text size="xs" c="white" fw={600}>1</Text>
                       </div>
                       <Text size="sm" fw={500}>Sign In</Text>
@@ -192,7 +124,7 @@ export default function ApplicationPageClient({
                       <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
                         <Text size="xs" c="dimmed" fw={600}>2</Text>
                       </div>
-                      <Text size="sm" c="dimmed">Apply</Text>
+                      <Text size="sm" c="dimmed">Onboard</Text>
                     </Group>
                     <div className="w-8 h-0.5 bg-gray-200" />
                     <Group gap="xs">
@@ -204,25 +136,28 @@ export default function ApplicationPageClient({
                   </Group>
                 </Card>
 
-                {/* Event Context Card */}
-                <Card p="lg" radius="md" withBorder className="bg-gradient-to-r from-blue-50 to-purple-50">
-                  <Stack gap="md">
-                    <Text size="lg" fw={600} className="text-blue-900">
-                      FtC RealFi Residency • Buenos Aires 2025
+                {/* Welcome Message */}
+                <Card p="xl" radius="md" withBorder>
+                  <Stack gap="md" align="center">
+                    <Text size="xl" fw={600} ta="center">
+                      Welcome to the FtC RealFi Residency
                     </Text>
-                    <Text size="sm" className="text-blue-700">
-                      Building real-world blockchain applications for everyday Argentinians
+                    <Text size="lg" fw={500} ta="center" c="emerald">
+                      Mentor Onboarding
                     </Text>
-                    <Text size="xs" c="dimmed">
-                      Please sign in to continue with your application
+                    <Text c="dimmed" ta="center">
+                      Thank you for joining as a mentor! Please sign in to complete your onboarding form and help us coordinate your participation in Buenos Aires.
+                    </Text>
+                    <Text size="sm" c="dimmed" ta="center">
+                      <strong>Dates:</strong> October 24 – November 14, 2025<br />
+                      <strong>Location:</strong> Buenos Aires, Argentina
                     </Text>
                   </Stack>
                 </Card>
 
                 {/* Auth Form */}
                 <AuthForm 
-                  callbackUrl="/events/funding-commons-residency-2025/apply" 
-                  className="shadow-lg"
+                  callbackUrl="/events/funding-commons-residency-2025/mentor" 
                 />
               </Stack>
             </div>
@@ -232,8 +167,7 @@ export default function ApplicationPageClient({
     );
   }
 
-
-  // Show application form for authenticated users who are not accepted
+  // Show the form for authenticated users
   return (
     <Transition
       mounted={showApplication}
@@ -244,9 +178,52 @@ export default function ApplicationPageClient({
       {(styles) => (
         <div style={styles}>
           <EventDetailClient
-            event={convertEventForEventDetail(event)}
-            userApplication={initialUserApplication ? convertApplicationForEventDetail(initialUserApplication) : null}
-            userId={session.user.id}
+            event={{
+              id: event.id,
+              name: event.name,
+              description: event.description,
+              startDate: event.startDate,
+              endDate: event.endDate,
+              location: event.location,
+              type: event.type,
+              applications: event.applications.map(app => ({
+                id: app.id,
+                status: app.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
+                language: app.language,
+                submittedAt: app.submittedAt,
+                responses: app.responses?.map(r => ({
+                  id: r.id,
+                  answer: r.answer,
+                  question: {
+                    id: r.question.id,
+                    questionKey: r.question.questionKey,
+                    questionEn: r.question.questionEn,
+                    questionEs: r.question.questionEs,
+                    questionType: r.question.questionType,
+                    required: r.question.required,
+                  },
+                })) ?? [],
+              }))
+            }}
+            userApplication={initialUserApplication ? {
+              id: initialUserApplication.id,
+              status: initialUserApplication.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
+              language: initialUserApplication.language,
+              submittedAt: initialUserApplication.submittedAt,
+              responses: initialUserApplication.responses?.map(r => ({
+                id: r.id,
+                answer: r.answer,
+                question: {
+                  id: r.question.id,
+                  questionKey: r.question.questionKey,
+                  questionEn: r.question.questionEn,
+                  questionEs: r.question.questionEs,
+                  questionType: r.question.questionType,
+                  required: r.question.required,
+                },
+              })) ?? [],
+            } : null}
+            userId={session?.user?.id ?? ""}
           />
         </div>
       )}
