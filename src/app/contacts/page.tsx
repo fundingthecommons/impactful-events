@@ -48,12 +48,19 @@ export default function ContactsPage() {
   const [selectedSmartList, setSelectedSmartList] = useState<string | null>(null);
   const [messagingMode, setMessagingMode] = useState<'manual' | 'smartlist'>('manual');
   
+  // Contact filtering state
+  const [selectedContactFilter, setSelectedContactFilter] = useState<string | null>(null);
+  
   const { data: contacts, isLoading } = api.contact.getContacts.useQuery();
   const { data: telegramAuthStatus } = api.telegramAuth.getAuthStatus.useQuery();
   const { data: smartLists, isLoading: smartListsLoading } = api.telegramAuth.getSmartLists.useQuery();
   const { data: smartListContacts, isLoading: smartListContactsLoading } = api.telegramAuth.getSmartListContacts.useQuery(
     { listId: selectedSmartList! },
     { enabled: !!selectedSmartList }
+  );
+  const { data: filteredContactsList, isLoading: filteredContactsLoading } = api.telegramAuth.getSmartListContacts.useQuery(
+    { listId: selectedContactFilter! },
+    { enabled: !!selectedContactFilter }
   );
   const sendBulkMessage = api.telegramAuth.sendBulkMessage.useMutation();
   const sendBulkMessageToList = api.telegramAuth.sendBulkMessageToList.useMutation();
@@ -82,6 +89,23 @@ export default function ContactsPage() {
       contact: contact,
     })), 
     [telegramContacts]
+  );
+
+  // Filtered contacts for display (memoized)
+  const displayContacts = useMemo(() => {
+    if (!selectedContactFilter || !filteredContactsList) {
+      return contacts; // Show all contacts when no filter is selected
+    }
+    
+    // Filter main contacts list to only show those in the smart list
+    const smartListEmails = new Set(filteredContactsList.map(c => c.email));
+    return contacts?.filter(contact => smartListEmails.has(contact.email)) ?? [];
+  }, [contacts, selectedContactFilter, filteredContactsList]);
+
+  // Get selected smart list info for display (memoized)
+  const selectedListInfo = useMemo(() => 
+    smartLists?.find(list => list.id === selectedContactFilter), 
+    [smartLists, selectedContactFilter]
   );
 
   const handleSendMessage = useCallback(async () => {
@@ -139,9 +163,9 @@ export default function ContactsPage() {
   }, [messageText, messagingMode, selectedRecipients.length, selectedSmartList]);
 
   // Transform contacts into table data format for Mantine Table (memoized)
-  const tableData = useMemo(() => contacts ? {
+  const tableData = useMemo(() => displayContacts ? {
     head: ['Contact', 'Phone & Telegram', 'Email', 'Associated Sponsor', 'ID', 'Actions'],
-    body: contacts.map((contact) => [
+    body: displayContacts.map((contact) => [
       // Contact column with avatar and name
       <Group gap="sm" key={`contact-${contact.id}`}>
         <Avatar size="sm" color="blue">
@@ -216,7 +240,7 @@ export default function ContactsPage() {
         <IconEye size={16} />
       </ActionIcon>
     ])
-  } : null, [contacts, openDrawer]);
+  } : null, [displayContacts, openDrawer]);
 
   // Handle authentication on client side
   if (status === "loading") {
@@ -261,12 +285,99 @@ export default function ContactsPage() {
 
             <Tabs.Panel value="contacts" pt="md">
               <Stack gap="lg">
+                {/* Smart List Filter Section */}
                 <Paper shadow="xs" p="md" radius="md" withBorder>
                   <Stack gap="md">
                     <Group justify="space-between" align="center">
                       <Text fw={500} size="lg">
-                        All Contacts ({contacts?.length ?? 0})
+                        <IconUsersGroup size={20} style={{ marginRight: 8 }} />
+                        Filter Contacts
                       </Text>
+                      {selectedContactFilter && (
+                        <Button 
+                          variant="light" 
+                          size="xs" 
+                          onClick={() => setSelectedContactFilter(null)}
+                          leftSection={<IconX size={14} />}
+                        >
+                          Clear Filter
+                        </Button>
+                      )}
+                    </Group>
+
+                    <Stack gap="sm">
+                      {smartListsLoading ? (
+                        <Group gap="sm">
+                          <Loader size="sm" />
+                          <Text size="sm" c="dimmed">Loading smart lists...</Text>
+                        </Group>
+                      ) : (
+                        <Select
+                          placeholder="Choose a contact filter..."
+                          data={smartLists?.map(list => ({
+                            value: list.id,
+                            label: `${list.name} (${list.contactCount} contacts)`,
+                            description: list.description,
+                          })) ?? []}
+                          value={selectedContactFilter}
+                          onChange={setSelectedContactFilter}
+                          clearable
+                          searchable
+                          renderOption={({ option }) => {
+                            const list = smartLists?.find(l => l.id === option.value);
+                            if (!list) return null;
+                            
+                            return (
+                              <Stack gap={2}>
+                                <Group justify="space-between">
+                                  <Text size="sm" fw={500}>{list.name}</Text>
+                                  <Badge size="xs" variant="light" color="blue">
+                                    {list.contactCount} contacts
+                                  </Badge>
+                                </Group>
+                                <Text size="xs" c="dimmed">{list.description}</Text>
+                              </Stack>
+                            );
+                          }}
+                        />
+                      )}
+
+                      {/* Filter Status */}
+                      {selectedContactFilter && selectedListInfo && (
+                        <Paper p="xs" withBorder radius="sm" bg="blue.0">
+                          <Group gap="xs">
+                            <IconUsers size={14} />
+                            <Text size="xs" fw={500}>
+                              Filtered by: {selectedListInfo.name}
+                            </Text>
+                            {filteredContactsLoading ? (
+                              <Loader size="xs" />
+                            ) : (
+                              <Badge size="xs" variant="light" color="blue">
+                                {displayContacts?.length ?? 0} contacts
+                              </Badge>
+                            )}
+                          </Group>
+                        </Paper>
+                      )}
+                    </Stack>
+                  </Stack>
+                </Paper>
+                
+                <Paper shadow="xs" p="md" radius="md" withBorder>
+                  <Stack gap="md">
+                    <Group justify="space-between" align="center">
+                      <Text fw={500} size="lg">
+                        {selectedContactFilter && selectedListInfo 
+                          ? `${selectedListInfo.name} (${displayContacts?.length ?? 0} contacts)`
+                          : `All Contacts (${contacts?.length ?? 0})`
+                        }
+                      </Text>
+                      {selectedContactFilter && (
+                        <Text size="sm" c="dimmed">
+                          Filtered from {contacts?.length ?? 0} total contacts
+                        </Text>
+                      )}
                     </Group>
                     
                     {tableData && tableData.body.length > 0 ? (
