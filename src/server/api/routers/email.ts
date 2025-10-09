@@ -675,16 +675,43 @@ export const emailRouter = createTRPCRouter({
     .input(z.object({
       limit: z.number().min(1).max(100).optional().default(50),
       offset: z.number().min(0).optional().default(0),
+      searchEmail: z.string().optional(),
     }).optional())
     .query(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);
 
       const limit = input?.limit ?? 50;
       const offset = input?.offset ?? 0;
+      const searchEmail = input?.searchEmail;
+
+      // Build where clause with email search
+      const whereClause = {
+        status: "SENT" as const,
+        ...(searchEmail && {
+          OR: [
+            {
+              toEmail: {
+                contains: searchEmail,
+                mode: "insensitive" as const,
+              },
+            },
+            {
+              application: {
+                user: {
+                  email: {
+                    contains: searchEmail,
+                    mode: "insensitive" as const,
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      };
 
       const [emails, total] = await Promise.all([
         ctx.db.email.findMany({
-          where: { status: "SENT" },
+          where: whereClause,
           include: {
             application: {
               include: {
@@ -709,7 +736,7 @@ export const emailRouter = createTRPCRouter({
           skip: offset,
         }),
         ctx.db.email.count({
-          where: { status: "SENT" },
+          where: whereClause,
         }),
       ]);
 

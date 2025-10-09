@@ -10,17 +10,6 @@
             }
           ]
         }
-      ],
-      "PostToolUse": [
-        {
-          "matcher": "Edit|MultiEdit|Write",
-          "hooks": [
-            {
-              "type": "command",
-              "command": ".claude/hooks/post-edit.sh"
-            }
-          ]
-        }
       ]
     }
   }
