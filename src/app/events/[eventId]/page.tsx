@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import EventDetailClient from "./EventDetailClient";
+import ResidentDashboard from "./ResidentDashboard";
 import { Alert, Title, Text, Container, Stack, Group, Button, ActionIcon } from "@mantine/core";
 import { IconCheck, IconArrowLeft } from "@tabler/icons-react";
 import Link from "next/link";
@@ -51,56 +52,83 @@ export default function EventPage({ params }: EventPageProps) {
     return <div>Event not found</div>;
   }
 
+  // Check if user is accepted and should see resident dashboard
+  const isAcceptedResident = session?.user && userApplication?.status === "ACCEPTED";
+  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "staff";
+
+  // Show resident dashboard for accepted users and admins
+  if (isAcceptedResident || isAdmin) {
+    return (
+      <>
+        {/* Congratulations Banner for Accepted Users */}
+        {isAcceptedResident && (
+          <Container size="lg" py="md">
+            <Alert 
+              color="green"
+              title="🎉 Congratulations!"
+              icon={<IconCheck />}
+              variant="filled"
+              radius="md"
+              mb="xl"
+            >
+              <Title order={3} c="white" mb="xs">
+                You have been accepted to the {event.name}!
+              </Title>
+              <Text c="white" size="md">
+                Welcome to your resident dashboard. Connect with fellow residents and showcase your projects!
+              </Text>
+            </Alert>
+          </Container>
+        )}
+        
+        <ResidentDashboard 
+          eventId={eventId}
+          eventName={event.name}
+          userApplication={userApplication ?? null}
+        />
+      </>
+    );
+  }
+
+  // Show application flow for non-accepted users
   return (
     <>
-    <Container size="lg" py="xl">
-      <Stack gap="xl">
-        {/* Back Button */}
-        <Group gap="xs">
-          <Link href="/events" style={{ textDecoration: 'none' }}>
-            <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
-              Back to Events
-            </Button>
-          </Link>
+      <Container size="lg" py="xl">
+        <Stack gap="xl">
+          {/* Back Button */}
+          <Group gap="xs">
+            <Link href="/events" style={{ textDecoration: 'none' }}>
+              <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
+                Back to Events
+              </Button>
+            </Link>
 
-          {/* Language Toggle */}
-          <Group gap="xs" ml="auto">
-            <ActionIcon
-              variant={language === "en" ? "filled" : "outline"}
-              onClick={() => setLanguage("en")}
-              size="sm"
-            >
-              EN
-            </ActionIcon>
-            <ActionIcon
-              variant={language === "es" ? "filled" : "outline"}
-              onClick={() => setLanguage("es")}
-              size="sm"
-            >
-              ES
-            </ActionIcon>
+            {/* Language Toggle */}
+            <Group gap="xs" ml="auto">
+              <ActionIcon
+                variant={language === "en" ? "filled" : "outline"}
+                onClick={() => setLanguage("en")}
+                size="sm"
+              >
+                EN
+              </ActionIcon>
+              <ActionIcon
+                variant={language === "es" ? "filled" : "outline"}
+                onClick={() => setLanguage("es")}
+                size="sm"
+              >
+                ES
+              </ActionIcon>
+            </Group>
           </Group>
-        </Group>
-      {/* Congratulations Banner for Accepted Users */}
-      {session?.user && userApplication?.status === "ACCEPTED" && (
-        <Alert 
-          color="green"
-          title="🎉 Congratulations!"
-          icon={<IconCheck />}
-          variant="filled"
-          radius="md"
-        >
-          <Title order={3} c="white" mb="xs">
-            You have been accepted to the {event.name}!
-          </Title>
-          <Text c="white" size="md">
-            We&apos;re excited to have you participate in this residency program. Check your email for next steps and program details.
-          </Text>
-        </Alert>
-      )}
+        </Stack>
+      </Container>
       
-    </Stack>
-    </Container>
+      <EventDetailClient 
+        event={event}
+        userApplication={userApplication ?? null}
+        userId={session?.user?.id ?? ""}
+      />
     </>
   );
 }

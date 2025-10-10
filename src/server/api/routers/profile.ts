@@ -51,6 +51,13 @@ const profileSearchSchema = z.object({
   cursor: z.string().optional(),
 });
 
+const projectsSearchSchema = z.object({
+  search: z.string().optional(),
+  technologies: z.array(z.string()).optional(),
+  limit: z.number().min(1).max(50).default(20),
+  cursor: z.string().optional(),
+});
+
 export const profileRouter = createTRPCRouter({
   // Get current user's profile
   getMyProfile: protectedProcedure
@@ -468,6 +475,119 @@ export const profileRouter = createTRPCRouter({
       await Promise.all(updatePromises);
 
       return { success: true };
+    }),
+
+  // Get all featured projects
+  getAllFeaturedProjects: publicProcedure
+    .input(projectsSearchSchema)
+    .query(async ({ ctx, input }) => {
+      const {
+        search,
+        technologies,
+        limit,
+        cursor,
+      } = input;
+
+      const where: Prisma.UserProjectWhereInput = {
+        featured: true,
+      };
+
+      // Text search across project fields
+      if (search) {
+        where.OR = [
+          { title: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
+          { technologies: { hasSome: [search] } },
+        ];
+      }
+
+      // Technologies filter
+      if (technologies && technologies.length > 0) {
+        where.technologies = { hasSome: technologies };
+      }
+
+      const projects = await ctx.db.userProject.findMany({
+        where,
+        include: {
+          profile: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: [
+          { featured: "desc" },
+          { order: "asc" },
+          { createdAt: "desc" },
+        ],
+        take: limit + 1,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+
+      let nextCursor: string | undefined = undefined;
+      if (projects.length > limit) {
+        const nextItem = projects.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return {
+        projects,
+        nextCursor,
+      };
+    }),
+
+  // Calculate profile completion percentage
+  getProfileCompletion: protectedProcedure
+    .query(async ({ ctx }) => {
+      const profile = await ctx.db.userProfile.findUnique({
+        where: { userId: ctx.session.user.id },
+        include: {
+          user: {
+            select: {
+              name: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      const user = ctx.session.user;
+      
+      const fields = {
+        name: !!user.name,
+        image: !!user.image,
+        bio: !!profile?.bio,
+        jobTitle: !!profile?.jobTitle,
+        company: !!profile?.company,
+        location: !!profile?.location,
+        skills: !!profile?.skills && profile.skills.length > 0,
+        githubUrl: !!profile?.githubUrl,
+        linkedinUrl: !!profile?.linkedinUrl,
+        website: !!profile?.website,
+      };
+
+      const completedFields = Object.values(fields).filter(Boolean).length;
+      const totalFields = Object.keys(fields).length;
+      const percentage = Math.round((completedFields / totalFields) * 100);
+
+      const missingFields = Object.entries(fields)
+        .filter(([_, completed]) => !completed)
+        .map(([field]) => field);
+
+      return {
+        percentage,
+        completedFields,
+        totalFields,
+        fields,
+        missingFields,
+        meetsThreshold: percentage >= 70, // 70% threshold for directory visibility
+      };
     }),
 
   // Get profile statistics

@@ -1464,4 +1464,122 @@ export const applicationRouter = createTRPCRouter({
         return updatedApplication;
       }
     }),
+
+  // Get accepted residents for an event
+  getAcceptedResidents: publicProcedure
+    .input(z.object({ 
+      eventId: z.string(),
+      minProfileCompletion: z.number().min(0).max(100).optional().default(70),
+    }))
+    .query(async ({ ctx, input }) => {
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              profile: {
+                include: {
+                  projects: {
+                    where: { featured: true },
+                    take: 3,
+                    orderBy: { order: "asc" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Filter residents by profile completion percentage
+      const residentsWithCompletion = acceptedApplications
+        .map(app => {
+          const user = app.user;
+          const profile = user?.profile;
+          
+          // Calculate profile completion
+          const fields = {
+            name: !!user?.name,
+            image: !!user?.image,
+            bio: !!profile?.bio,
+            jobTitle: !!profile?.jobTitle,
+            company: !!profile?.company,
+            location: !!profile?.location,
+            skills: !!profile?.skills && profile.skills.length > 0,
+            githubUrl: !!profile?.githubUrl,
+            linkedinUrl: !!profile?.linkedinUrl,
+            website: !!profile?.website,
+          };
+
+          const completedFields = Object.values(fields).filter(Boolean).length;
+          const totalFields = Object.keys(fields).length;
+          const percentage = Math.round((completedFields / totalFields) * 100);
+
+          return {
+            user,
+            completionPercentage: percentage,
+            meetsThreshold: percentage >= input.minProfileCompletion,
+          };
+        })
+        .filter(resident => resident.meetsThreshold);
+
+      return {
+        residents: residentsWithCompletion,
+        totalAccepted: acceptedApplications.length,
+        visibleResidents: residentsWithCompletion.length,
+        hiddenCount: acceptedApplications.length - residentsWithCompletion.length,
+      };
+    }),
+
+  // Get featured projects from accepted residents
+  getResidentProjects: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+        },
+        include: {
+          user: {
+            include: {
+              profile: {
+                include: {
+                  projects: {
+                    where: { featured: true },
+                    orderBy: [
+                      { featured: "desc" },
+                      { order: "asc" },
+                      { createdAt: "desc" },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const projects = acceptedApplications
+        .flatMap(app => {
+          const userProfile = app.user?.profile;
+          if (!userProfile) return [];
+          
+          return userProfile.projects.map(project => ({
+            ...project,
+            profile: {
+              ...userProfile,
+              user: app.user,
+            },
+          }));
+        });
+
+      return projects;
+    }),
 });
