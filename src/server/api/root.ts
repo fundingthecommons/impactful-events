@@ -6,6 +6,7 @@ import { coinGeckoRouter } from "~/server/api/routers/coinGecko";
 import { roleRouter } from "~/server/api/routers/role";
 import { applicationRouter } from "~/server/api/routers/application";
 import { emailRouter } from "~/server/api/routers/email";
+import { communicationRouter } from "~/server/api/routers/communication";
 import { invitationRouter } from "~/server/api/routers/invitation";
 import { mentorshipRouter } from "~/server/api/routers/mentorship";
 import { userRouter } from "~/server/api/routers/user";
@@ -31,6 +32,7 @@ export const appRouter = createTRPCRouter({
   role: roleRouter,
   application: applicationRouter,
   email: emailRouter,
+  communication: communicationRouter,
   invitation: invitationRouter,
   mentorship: mentorshipRouter,
   user: userRouter,

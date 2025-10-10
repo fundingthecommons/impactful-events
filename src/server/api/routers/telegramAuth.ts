@@ -474,6 +474,7 @@ export const telegramAuthRouter = createTRPCRouter({
           firstName: true,
           lastName: true,
           telegram: true,
+          email: true, // Add email for application lookup
         },
       });
 
@@ -486,7 +487,7 @@ export const telegramAuthRouter = createTRPCRouter({
 
       let successCount = 0;
       let failureCount = 0;
-      const results: Array<{contactId: string, success: boolean, error?: string}> = [];
+      const results: Array<{contactId: string, success: boolean, error?: string, communicationId?: string}> = [];
 
       try {
         // Decrypt user's credentials
@@ -537,14 +538,64 @@ export const telegramAuthRouter = createTRPCRouter({
               const user = result.users[0];
               
               // Send message
-              await client.invoke(new Api.messages.SendMessage({
+              const sentMessage = await client.invoke(new Api.messages.SendMessage({
                 peer: user,
                 message: input.message,
                 randomId: bigInt(Math.floor(Math.random() * 1000000000)),
               }));
 
+              // Extract message ID safely from Updates structure
+              let messageId: string | undefined;
+              if ('updates' in sentMessage && sentMessage.updates?.length > 0) {
+                const messageUpdate = sentMessage.updates.find(update => 
+                  'message' in update && 
+                  typeof update.message === 'object' && 
+                  update.message !== null && 
+                  'id' in update.message
+                );
+                if (messageUpdate && 'message' in messageUpdate && typeof messageUpdate.message === 'object' && messageUpdate.message !== null && 'id' in messageUpdate.message) {
+                  messageId = messageUpdate.message.id?.toString();
+                }
+              }
+
+              // Track the message in Communication table
+              let communicationId: string | undefined;
+              try {
+                // Find the contact's application to link the communication
+                const contactApplication = await ctx.db.application.findFirst({
+                  where: {
+                    email: contact.email, // Use contact email to find application
+                  },
+                  select: { id: true, eventId: true }
+                });
+
+                // Create communication record
+                const communication = await ctx.db.communication.create({
+                  data: {
+                    applicationId: contactApplication?.id, // May be null for non-applicant contacts
+                    eventId: contactApplication?.eventId ?? "default", // Use default if no application found
+                    toTelegram: contact.telegram,
+                    channel: "TELEGRAM",
+                    textContent: input.message,
+                    type: "BULK_MESSAGE",
+                    status: "SENT",
+                    createdBy: ctx.session.user.id,
+                    sentAt: new Date(),
+                    telegramMsgId: messageId,
+                  },
+                });
+                communicationId = communication.id;
+              } catch (dbError) {
+                // Log database error but don't fail the message sending
+                console.error(`Failed to track message for contact ${contact.id}:`, dbError);
+              }
+
               successCount++;
-              results.push({ contactId: contact.id, success: true });
+              results.push({ 
+                contactId: contact.id, 
+                success: true, 
+                communicationId 
+              });
               
               console.log(`Message sent to @${contact.telegram} (${contact.firstName} ${contact.lastName})`);
             } else {
@@ -795,11 +846,12 @@ export const telegramAuthRouter = createTRPCRouter({
         firstName: contact.firstName,
         lastName: contact.lastName,
         telegram: contact.telegram,
+        email: contact.email, // Keep email for application lookup
       }));
 
       let successCount = 0;
       let failureCount = 0;
-      const results: Array<{contactId: string, success: boolean, error?: string}> = [];
+      const results: Array<{contactId: string, success: boolean, error?: string, communicationId?: string}> = [];
 
       try {
         // Decrypt user's credentials
@@ -850,14 +902,65 @@ export const telegramAuthRouter = createTRPCRouter({
               const user = result.users[0];
               
               // Send message
-              await client.invoke(new Api.messages.SendMessage({
+              const sentMessage = await client.invoke(new Api.messages.SendMessage({
                 peer: user,
                 message: input.message,
                 randomId: bigInt(Math.floor(Math.random() * 1000000000)),
               }));
 
+              // Extract message ID safely from Updates structure
+              let messageId: string | undefined;
+              if ('updates' in sentMessage && sentMessage.updates?.length > 0) {
+                const messageUpdate = sentMessage.updates.find(update => 
+                  'message' in update && 
+                  typeof update.message === 'object' && 
+                  update.message !== null && 
+                  'id' in update.message
+                );
+                if (messageUpdate && 'message' in messageUpdate && typeof messageUpdate.message === 'object' && messageUpdate.message !== null && 'id' in messageUpdate.message) {
+                  messageId = messageUpdate.message.id?.toString();
+                }
+              }
+
+              // Track the message in Communication table
+              let communicationId: string | undefined;
+              try {
+                // Find the contact's application to link the communication
+                const contactApplication = await ctx.db.application.findFirst({
+                  where: {
+                    email: contact.email, // Use contact email to find application
+                    eventId: 'funding-commons-residency-2025', // Smart lists are for this specific event
+                  },
+                  select: { id: true, eventId: true }
+                });
+
+                // Create communication record
+                const communication = await ctx.db.communication.create({
+                  data: {
+                    applicationId: contactApplication?.id, // Should exist for smart list contacts
+                    eventId: contactApplication?.eventId ?? 'funding-commons-residency-2025',
+                    toTelegram: contact.telegram,
+                    channel: "TELEGRAM",
+                    textContent: input.message,
+                    type: "BULK_MESSAGE",
+                    status: "SENT",
+                    createdBy: ctx.session.user.id,
+                    sentAt: new Date(),
+                    telegramMsgId: messageId,
+                  },
+                });
+                communicationId = communication.id;
+              } catch (dbError) {
+                // Log database error but don't fail the message sending
+                console.error(`Failed to track message for contact ${contact.id}:`, dbError);
+              }
+
               successCount++;
-              results.push({ contactId: contact.id, success: true });
+              results.push({ 
+                contactId: contact.id, 
+                success: true, 
+                communicationId 
+              });
               
               console.log(`Message sent to @${contact.telegram} (${contact.firstName} ${contact.lastName})`);
             } else {

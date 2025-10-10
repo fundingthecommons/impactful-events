@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "~/server/auth";
-import { EmailsClient } from "./EmailsClient";
+import { CommunicationsClient } from "./CommunicationsClient";
 
-export default async function AdminEmailsPage() {
+export default async function AdminCommunicationsPage() {
   const session = await auth();
 
   if (!session?.user) {
@@ -13,5 +13,5 @@ export default async function AdminEmailsPage() {
     redirect("/");
   }
 
-  return <EmailsClient />;
+  return <CommunicationsClient />;
 }

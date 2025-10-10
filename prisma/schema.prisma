@@ -136,7 +136,8 @@ model Event {
   sponsors    EventSponsor[]
   applications Application[]
   applicationQuestions ApplicationQuestion[]
-  emails      Email[]  // Emails related to this event
+  communications Communication[]  // Communications related to this event
+  emails      Email[]  // Legacy: Emails related to this event (for backward compatibility)
   invitations Invitation[]  // Invitations for this event
 }
 
@@ -476,7 +477,8 @@ model Application {
   user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   responses     ApplicationResponse[]
-  emails        Email[]  // Emails related to this application
+  communications Communication[]  // Communications related to this application
+  emails        Email[]  // Legacy: Emails related to this application (for backward compatibility)
   
   // Evaluation system relations
   reviewerAssignments   ReviewerAssignment[]
@@ -557,7 +559,47 @@ model Invitation {
   @@index([type])
 }
 
-// Email System Models
+// Communication System Models
+enum CommunicationType {
+  EMAIL
+  TELEGRAM
+  SMS          // Future
+  DISCORD      // Future
+  WHATSAPP     // Future
+}
+
+enum CommunicationStatus {
+  DRAFT
+  QUEUED
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum CommunicationContentType {
+  // Application related
+  APPLICATION_SUBMITTED
+  APPLICATION_ACCEPTED
+  APPLICATION_REJECTED  
+  APPLICATION_WAITLISTED
+  APPLICATION_UNDER_REVIEW
+  APPLICATION_MISSING_INFO
+  
+  // Invitation related
+  INVITATION_EVENT_ROLE
+  INVITATION_ADMIN
+  
+  // General
+  GENERAL
+  BULK_MESSAGE     // New: For bulk telegram messages
+  TEST
+  
+  // Legacy (for backward compatibility)
+  MISSING_INFO    // Deprecated: Use APPLICATION_MISSING_INFO
+  STATUS_UPDATE   // Deprecated: Use specific status types
+}
+
+// Legacy enums for backward compatibility
 enum EmailStatus {
   DRAFT
   QUEUED
@@ -588,6 +630,71 @@ enum EmailType {
   STATUS_UPDATE   // Deprecated: Use specific status types
 }
 
+model Communication {
+  id            String      @id @default(cuid())
+  applicationId String?     // Optional: link to specific application  
+  eventId       String      // Required: link to event
+  
+  // Channel-specific recipient fields
+  toEmail       String?     // For email communications
+  toTelegram    String?     // For telegram (@username or user_id)
+  toPhone       String?     // For SMS (future)
+  toDiscord     String?     // For Discord (future)
+  
+  // Channel identification
+  channel       CommunicationType @default(EMAIL)
+  
+  // Content fields (channel-agnostic)
+  subject       String?     // Email subject OR Telegram summary
+  htmlContent   String?     @db.Text // HTML email content
+  textContent   String      @db.Text // Plain text (required for all channels)
+  
+  // Legacy email-specific fields for backward compatibility
+  fromEmail     String?     @default("james@fundingthecommons.io") // Email sender
+  
+  // Status and type (channel-agnostic)
+  type          CommunicationContentType @default(MISSING_INFO)
+  status        CommunicationStatus @default(DRAFT)
+  
+  // Metadata (channel-agnostic)
+  missingFields String[]    // JSON array of missing field keys
+  createdBy     String      // User ID who created
+  sentAt        DateTime?   // When actually sent
+  failureReason String?     // Error message if sending failed
+  
+  // Channel-specific tracking IDs
+  postmarkId    String?     // Email: Postmark message ID
+  telegramMsgId String?     // Telegram: Message ID from API
+  
+  // Template tracking (channel-agnostic)
+  templateName    String?     // Which template was used
+  templateVersion String?     // Template version for tracking
+  templateData    Json?       // JSON data used to render
+  
+  // Engagement tracking (channel-specific)
+  openedAt        DateTime?   // Email: when opened
+  clickedAt       DateTime?   // Email: when links clicked
+  readAt          DateTime?   // Telegram: when read (if available)
+  
+  // Standard timestamps
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  // Indexes for performance
+  @@index([applicationId])
+  @@index([eventId]) 
+  @@index([status])
+  @@index([toEmail])      // Email search
+  @@index([toTelegram])   // Telegram search
+  @@index([channel])      // Filter by communication type
+  @@index([type])         // Filter by content type
+}
+
+// Legacy Email model for backward compatibility (will be populated via view or alias)
 model Email {
   id            String      @id @default(cuid())
   applicationId String?     // Optional: link to specific application
