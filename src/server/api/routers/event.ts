@@ -711,4 +711,20 @@ export const eventRouter = createTRPCRouter({
       averageAcceptanceRate,
     };
   }),
+
+  // Check if current user is a mentor for a specific event
+  checkMentorRole: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const mentorRole = await ctx.db.userRole.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          eventId: input.eventId,
+          role: {
+            name: "mentor"
+          }
+        }
+      });
+      return !!mentorRole;
+    }),
 }); 

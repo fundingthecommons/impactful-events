@@ -6,6 +6,8 @@ import { Container, Center, Loader, Text, Stack, Card, Group, Transition } from 
 import { IconCheck } from "@tabler/icons-react";
 import AuthForm from "~/app/_components/AuthForm";
 import EventDetailClient from "../EventDetailClient";
+import MentorApplicationView from "~/app/_components/MentorApplicationView";
+import { api } from "~/trpc/react";
 import type { Event, Application, ApplicationResponse, ApplicationQuestion } from "@prisma/client";
 
 interface ExtendedApplication extends Application {
@@ -99,6 +101,12 @@ export default function ApplicationPageClient({
   const [showApplication, setShowApplication] = useState(false);
   const [justAuthenticated, setJustAuthenticated] = useState(false);
 
+  // Check if user is a mentor for this event
+  const { data: isMentor, isLoading: mentorCheckLoading } = api.event.checkMentorRole.useQuery(
+    { eventId: event.id },
+    { enabled: !!session?.user }
+  );
+
   // Handle authentication state changes
   useEffect(() => {
     if (status === "authenticated" && !showApplication) {
@@ -120,7 +128,7 @@ export default function ApplicationPageClient({
   }, [status, initialUserId, showApplication]);
 
   // Loading state
-  if (status === "loading") {
+  if (status === "loading" || mentorCheckLoading) {
     return (
       <Container size="md" py="xl">
         <Center h={400}>
@@ -233,7 +241,35 @@ export default function ApplicationPageClient({
   }
 
 
-  // Show application form for authenticated users who are not accepted
+  // Show mentor view if user is a mentor for this event
+  if (session?.user && isMentor) {
+    return (
+      <Transition
+        mounted={showApplication}
+        transition="fade"
+        duration={300}
+        timingFunction="ease"
+      >
+        {(styles) => (
+          <div style={styles}>
+            <MentorApplicationView 
+              event={{
+                id: event.id,
+                name: event.name,
+                description: event.description,
+                startDate: event.startDate,
+                endDate: event.endDate,
+                location: event.location,
+                type: event.type,
+              }}
+            />
+          </div>
+        )}
+      </Transition>
+    );
+  }
+
+  // Show application form for authenticated users who are not mentors
   return (
     <Transition
       mounted={showApplication}
