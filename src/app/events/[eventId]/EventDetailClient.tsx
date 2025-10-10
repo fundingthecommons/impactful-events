@@ -58,7 +58,7 @@ type Event = {
   endDate: Date;
   location: string | null;
   type: string;
-  applications?: any[];
+  applications?: unknown[];
 };
 
 interface EventDetailClientProps {
