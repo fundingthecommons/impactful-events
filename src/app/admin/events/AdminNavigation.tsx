@@ -21,7 +21,8 @@ export default function AdminNavigation() {
     if (pathname.startsWith("/admin/events")) return "events";
     if (pathname.startsWith("/admin/users")) return "users";
     if (pathname.startsWith("/admin/invitations")) return "invitations";
-    if (pathname.startsWith("/admin/emails")) return "emails";
+    if (pathname.startsWith("/admin/communications")) return "communications";
+    if (pathname.startsWith("/admin/emails")) return "communications"; // Redirect old emails to communications
     if (pathname.startsWith("/contacts")) return "contacts";
     if (pathname.startsWith("/crypto-nomads-import")) return "import";
     return null;
@@ -83,13 +84,13 @@ export default function AdminNavigation() {
         </TabsTab>
         
         <TabsTab 
-          value="emails" 
+          value="communications" 
           leftSection={<IconMailOpened size={16} />}
           component={Link}
-          href="/admin/emails"
+          href="/admin/communications"
           style={{ textDecoration: 'none' }}
         >
-          Sent Emails
+          Communications
         </TabsTab>
         
         <TabsTab 

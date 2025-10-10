@@ -269,17 +269,17 @@ export default function AdminDashboard() {
               <ThemeIcon size="md" color="indigo" variant="light">
                 <IconMailOpened size={18} />
               </ThemeIcon>
-              <Text fw={600}>Sent Emails</Text>
+              <Text fw={600}>Communications</Text>
             </Group>
             <Text size="sm" c="dimmed">
-              View all emails sent from the platform
+              View all communications sent from the platform
             </Text>
             <Text size="xs" c="dimmed">
-              Email history and tracking
+              Email, Telegram, and message history tracking
             </Text>
-            <Link href="/admin/emails" style={{ textDecoration: 'none' }}>
+            <Link href="/admin/communications" style={{ textDecoration: 'none' }}>
               <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
-                View Emails
+                View Communications
               </Button>
             </Link>
           </Stack>

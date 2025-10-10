@@ -72,7 +72,7 @@ export function CommunicationsClient() {
   }, [openModal]);
 
   // Helper function to get channel icon
-  const getChannelIcon = (channel: string) => {
+  const getChannelIcon = useCallback((channel: string) => {
     switch (channel) {
       case "EMAIL":
         return <IconMail size={16} />;
@@ -87,10 +87,10 @@ export function CommunicationsClient() {
       default:
         return <IconMessage size={16} />;
     }
-  };
+  }, []);
 
   // Helper function to get recipient display
-  const getRecipientDisplay = (communication: Communication) => {
+  const getRecipientDisplay = useCallback((communication: Communication) => {
     switch (communication.channel) {
       case "EMAIL":
         return communication.toEmail ?? "N/A";
@@ -105,7 +105,7 @@ export function CommunicationsClient() {
       default:
         return "N/A";
     }
-  };
+  }, []);
 
   // Memoize communication rows to prevent unnecessary re-renders
   const communicationRows = useMemo(() => {
