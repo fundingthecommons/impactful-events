@@ -56,6 +56,10 @@ export default function EventPage({ params }: EventPageProps) {
   const isAcceptedResident = session?.user && userApplication?.status === "ACCEPTED";
   const isAdmin = session?.user?.role === "admin" || session?.user?.role === "staff";
 
+  console.log("isAcceptedResident", isAcceptedResident);
+  console.log("isAdmin", isAdmin);
+  console.log("userApplication", userApplication);
+  console.log("session", session);
   // Show resident dashboard for accepted users and admins
   if (isAcceptedResident || isAdmin) {
     return (

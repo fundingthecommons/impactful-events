@@ -186,12 +186,12 @@ export default function MentorPageClient({
               endDate: event.endDate,
               location: event.location,
               type: event.type,
-              applications: event.applications.map(app => ({
+              applications: (event as any).applications?.map((app: any) => ({
                 id: app.id,
                 status: app.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
                 language: app.language,
                 submittedAt: app.submittedAt,
-                responses: app.responses?.map(r => ({
+                responses: app.responses?.map((r: any) => ({
                   id: r.id,
                   answer: r.answer,
                   question: {
