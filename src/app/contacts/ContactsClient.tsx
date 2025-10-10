@@ -12,11 +12,13 @@ export default function ContactsClient() {
   const importNotionContacts = api.contact.importNotionContacts.useMutation();
   const importTelegramContacts = api.contact.importTelegramContacts.useMutation();
   const matchEventApplicants = api.contact.matchEventApplicants.useMutation();
+  const disconnectGoogleAccount = api.contact.disconnectGoogleAccount.useMutation();
   const { data: telegramAuthStatus, refetch: refetchTelegramAuth } = api.telegramAuth.getAuthStatus.useQuery();
   const [syncing, setSyncing] = useState(false);
   const [syncingNotion, setSyncingNotion] = useState(false);
   const [syncingTelegram, setSyncingTelegram] = useState(false);
   const [matchingApplicants, setMatchingApplicants] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -67,6 +69,23 @@ export default function ContactsClient() {
       console.error("Match applicants failed:", e);
     } finally {
       setMatchingApplicants(false);
+    }
+  };
+
+  const handleReconnectGoogle = async () => {
+    setReconnecting(true);
+    try {
+      console.log("Disconnecting existing Google account...");
+      await disconnectGoogleAccount.mutateAsync();
+      console.log("Google account disconnected, redirecting to OAuth...");
+      
+      // Small delay to ensure the disconnect is processed
+      setTimeout(() => {
+        window.location.href = "/api/auth/signin?provider=google";
+      }, 500);
+    } catch (e) {
+      console.error("Failed to disconnect Google account:", e);
+      setReconnecting(false);
     }
   };
 
@@ -152,10 +171,15 @@ export default function ContactsClient() {
                 <Button 
                   size="xs" 
                   variant="outline" 
-                  leftSection={<IconRefresh size={14} />}
-                  onClick={() => window.location.href = "/api/auth/signin?provider=google&force=true"}
+                  leftSection={reconnecting ? <Loader size={14} /> : <IconRefresh size={14} />}
+                  onClick={handleReconnectGoogle}
+                  disabled={reconnecting || disconnectGoogleAccount.isPending}
+                  loading={reconnecting || disconnectGoogleAccount.isPending}
                 >
-                  Reconnect Google Account
+                  {reconnecting || disconnectGoogleAccount.isPending 
+                    ? "Reconnecting..." 
+                    : "Disconnect & Reconnect Google"
+                  }
                 </Button>
               )}
             </Alert>

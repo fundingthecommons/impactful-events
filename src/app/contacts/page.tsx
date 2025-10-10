@@ -5,13 +5,13 @@ import { api } from "~/trpc/react";
 import { 
   Table, Stack, Title, Text, Badge, Avatar, Group, Paper, Container, 
   Drawer, ActionIcon, Divider, Anchor, CopyButton, Tooltip, Tabs,
-  MultiSelect, Textarea, Button, Alert, Select, Loader
+  MultiSelect, Textarea, Button, Alert, Select, Loader, TextInput
 } from "@mantine/core";
 import { 
   IconEye, IconBrandTwitter, IconBrandGithub, IconBrandLinkedin, 
   IconBrandTelegram, IconPhone, IconMail, IconCopy, IconCheck,
   IconBuilding, IconWorld, IconUser, IconAddressBook, IconMessage,
-  IconSend, IconX, IconUsers, IconUsersGroup
+  IconSend, IconX, IconUsers, IconUsersGroup, IconPlus
 } from "@tabler/icons-react";
 import { redirect } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -51,9 +51,25 @@ export default function ContactsPage() {
   // Contact filtering state
   const [selectedContactFilter, setSelectedContactFilter] = useState<string | null>(null);
   
+  // Create contact state
+  const [createDrawerOpened, setCreateDrawerOpened] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createFormData, setCreateFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    telegram: "",
+    twitter: "",
+    github: "",
+    linkedIn: "",
+    sponsorId: "",
+  });
+  
   const { data: contacts, isLoading } = api.contact.getContacts.useQuery();
   const { data: telegramAuthStatus } = api.telegramAuth.getAuthStatus.useQuery();
   const { data: smartLists, isLoading: smartListsLoading } = api.telegramAuth.getSmartLists.useQuery();
+  const { data: sponsors } = api.sponsor.getSponsors.useQuery();
   const { data: smartListContacts, isLoading: smartListContactsLoading } = api.telegramAuth.getSmartListContacts.useQuery(
     { listId: selectedSmartList! },
     { enabled: !!selectedSmartList }
@@ -64,6 +80,8 @@ export default function ContactsPage() {
   );
   const sendBulkMessage = api.telegramAuth.sendBulkMessage.useMutation();
   const sendBulkMessageToList = api.telegramAuth.sendBulkMessageToList.useMutation();
+  const createContactMutation = api.contact.createContact.useMutation();
+  const utils = api.useUtils();
 
   const openDrawer = useCallback((contact: Contact) => {
     setSelectedContact(contact);
@@ -143,6 +161,63 @@ export default function ContactsPage() {
 
   const removeRecipient = useCallback((contactId: string) => {
     setSelectedRecipients(prev => prev.filter(c => c.id !== contactId));
+  }, []);
+
+  // Create contact handlers
+  const openCreateDrawer = useCallback(() => {
+    setCreateDrawerOpened(true);
+  }, []);
+
+  const closeCreateDrawer = useCallback(() => {
+    setCreateDrawerOpened(false);
+    setCreateFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      telegram: "",
+      twitter: "",
+      github: "",
+      linkedIn: "",
+      sponsorId: "",
+    });
+  }, []);
+
+  const handleCreateContact = useCallback(async () => {
+    if (!createFormData.firstName || !createFormData.lastName || !createFormData.email) {
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      await createContactMutation.mutateAsync({
+        firstName: createFormData.firstName,
+        lastName: createFormData.lastName,
+        email: createFormData.email,
+        phone: createFormData.phone || undefined,
+        telegram: createFormData.telegram || undefined,
+        twitter: createFormData.twitter || undefined,
+        github: createFormData.github || undefined,
+        linkedIn: createFormData.linkedIn || undefined,
+        sponsorId: createFormData.sponsorId || undefined,
+      });
+
+      // Refresh contacts list
+      void utils.contact.getContacts.invalidate();
+      
+      // Close drawer and reset form
+      closeCreateDrawer();
+      
+      console.log("Contact created successfully");
+    } catch (error) {
+      console.error("Failed to create contact:", error);
+    } finally {
+      setIsCreating(false);
+    }
+  }, [createFormData, createContactMutation, utils, closeCreateDrawer]);
+
+  const updateCreateFormField = useCallback((field: string, value: string) => {
+    setCreateFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
   // Helper to get recipient count for current mode (memoized)
@@ -373,11 +448,21 @@ export default function ContactsPage() {
                           : `All Contacts (${contacts?.length ?? 0})`
                         }
                       </Text>
-                      {selectedContactFilter && (
-                        <Text size="sm" c="dimmed">
-                          Filtered from {contacts?.length ?? 0} total contacts
-                        </Text>
-                      )}
+                      <Group gap="sm">
+                        {selectedContactFilter && (
+                          <Text size="sm" c="dimmed">
+                            Filtered from {contacts?.length ?? 0} total contacts
+                          </Text>
+                        )}
+                        <Button
+                          leftSection={<IconPlus size={16} />}
+                          onClick={openCreateDrawer}
+                          variant="filled"
+                          color="blue"
+                        >
+                          Create New Contact
+                        </Button>
+                      </Group>
                     </Group>
                     
                     {tableData && tableData.body.length > 0 ? (
@@ -807,6 +892,146 @@ export default function ContactsPage() {
             )}
           </Stack>
         )}
+      </Drawer>
+
+      {/* Create Contact Drawer */}
+      <Drawer
+        opened={createDrawerOpened}
+        onClose={closeCreateDrawer}
+        title="Create New Contact"
+        position="right"
+        size="md"
+        overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
+      >
+        <Stack gap="lg">
+          {/* Form Fields */}
+          <Stack gap="md">
+            <Text fw={500} size="md">Contact Information</Text>
+            
+            {/* Required Fields */}
+            <Group grow>
+              <TextInput
+                label="First Name"
+                placeholder="Enter first name"
+                required
+                value={createFormData.firstName}
+                onChange={(e) => updateCreateFormField("firstName", e.target.value)}
+              />
+              <TextInput
+                label="Last Name"
+                placeholder="Enter last name"
+                required
+                value={createFormData.lastName}
+                onChange={(e) => updateCreateFormField("lastName", e.target.value)}
+              />
+            </Group>
+
+            <TextInput
+              label="Email Address"
+              placeholder="Enter email address"
+              required
+              type="email"
+              value={createFormData.email}
+              onChange={(e) => updateCreateFormField("email", e.target.value)}
+            />
+
+            {/* Optional Fields */}
+            <TextInput
+              label="Phone Number"
+              placeholder="Enter phone number (optional)"
+              value={createFormData.phone}
+              onChange={(e) => updateCreateFormField("phone", e.target.value)}
+            />
+
+            <Select
+              label="Associated Sponsor"
+              placeholder="Choose a sponsor (optional)"
+              data={sponsors?.map(sponsor => ({
+                value: sponsor.id,
+                label: sponsor.name,
+              })) ?? []}
+              value={createFormData.sponsorId}
+              onChange={(value) => updateCreateFormField("sponsorId", value ?? "")}
+              clearable
+              searchable
+            />
+          </Stack>
+
+          <Divider />
+
+          {/* Social Media Fields */}
+          <Stack gap="md">
+            <Text fw={500} size="md">Social Media (Optional)</Text>
+            
+            <TextInput
+              label="Telegram Username"
+              placeholder="username (without @)"
+              value={createFormData.telegram}
+              onChange={(e) => updateCreateFormField("telegram", e.target.value)}
+              leftSection={<IconBrandTelegram size={16} />}
+            />
+
+            <TextInput
+              label="Twitter Handle"
+              placeholder="username (without @)"
+              value={createFormData.twitter}
+              onChange={(e) => updateCreateFormField("twitter", e.target.value)}
+              leftSection={<IconBrandTwitter size={16} />}
+            />
+
+            <TextInput
+              label="GitHub Username"
+              placeholder="username (without @)"
+              value={createFormData.github}
+              onChange={(e) => updateCreateFormField("github", e.target.value)}
+              leftSection={<IconBrandGithub size={16} />}
+            />
+
+            <TextInput
+              label="LinkedIn Profile"
+              placeholder="LinkedIn URL or username"
+              value={createFormData.linkedIn}
+              onChange={(e) => updateCreateFormField("linkedIn", e.target.value)}
+              leftSection={<IconBrandLinkedin size={16} />}
+            />
+          </Stack>
+
+          <Divider />
+
+          {/* Action Buttons */}
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="subtle"
+              onClick={closeCreateDrawer}
+              disabled={isCreating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateContact}
+              loading={isCreating}
+              disabled={!createFormData.firstName || !createFormData.lastName || !createFormData.email}
+              leftSection={<IconPlus size={16} />}
+            >
+              {isCreating ? "Creating..." : "Create Contact"}
+            </Button>
+          </Group>
+
+          {/* Error Display */}
+          {createContactMutation.error && (
+            <Alert color="red" variant="light">
+              <Text fw={500}>Failed to create contact</Text>
+              <Text size="sm">{createContactMutation.error.message}</Text>
+            </Alert>
+          )}
+
+          {/* Success Display */}
+          {createContactMutation.isSuccess && (
+            <Alert icon={<IconCheck size={16} />} color="green" variant="light">
+              <Text fw={500}>Contact created successfully!</Text>
+            </Alert>
+          )}
+        </Stack>
       </Drawer>
     
   </>

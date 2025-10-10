@@ -37,6 +37,8 @@ type Context = {
 };
 
 async function getGoogleAuthClient(ctx: Context) {
+  console.log(`[DEBUG] Getting Google auth client for user: ${ctx.session.user.id}`);
+  
   // 1. Get user's Google access token from session
   const account = await ctx.db.account.findFirst({
     where: {
@@ -46,7 +48,33 @@ async function getGoogleAuthClient(ctx: Context) {
   });
 
   if (!account?.access_token || !account.refresh_token) {
+    console.log(`[DEBUG] No Google account found or missing tokens for user: ${ctx.session.user.id}`);
     throw new Error("GOOGLE_NOT_CONNECTED");
+  }
+
+  // Log token information (safely)
+  const requiredScope = "https://www.googleapis.com/auth/contacts.readonly";
+  const hasContactsScope = account.scope?.includes(requiredScope) ?? false;
+  
+  console.log(`[DEBUG] Google account details for user ${ctx.session.user.id}:`, {
+    hasAccessToken: !!account.access_token,
+    accessTokenLength: account.access_token?.length,
+    hasRefreshToken: !!account.refresh_token,
+    refreshTokenLength: account.refresh_token?.length,
+    scope: account.scope,
+    hasContactsScope,
+    requiredScope,
+    expiresAt: account.expires_at,
+    currentTime: Math.floor(Date.now() / 1000),
+    isExpired: account.expires_at ? account.expires_at < Math.floor(Date.now() / 1000) : 'unknown',
+    accountId: account.id,
+    providerAccountId: account.providerAccountId
+  });
+
+  // Check if account has required contacts scope
+  if (!hasContactsScope) {
+    console.log(`[DEBUG] Account missing contacts scope for user: ${ctx.session.user.id}. Current scope: ${account.scope}`);
+    throw new Error("GOOGLE_PERMISSIONS_INSUFFICIENT");
   }
 
   // 2. Set up Google API client with credentials and refresh token handling
@@ -55,6 +83,7 @@ async function getGoogleAuthClient(ctx: Context) {
     process.env.GOOGLE_CLIENT_SECRET,
   );
 
+  console.log(`[DEBUG] Setting OAuth2 credentials for user: ${ctx.session.user.id}`);
   oauth2Client.setCredentials({
     access_token: account.access_token,
     refresh_token: account.refresh_token,
@@ -63,7 +92,14 @@ async function getGoogleAuthClient(ctx: Context) {
   // Listen for token refresh events and update the database
   oauth2Client.on('tokens', (tokens) => {
     void (async () => {
-      console.log('Google token refreshed.');
+      console.log(`[DEBUG] Google token refresh event triggered for user: ${ctx.session.user.id}`, {
+        hasNewAccessToken: !!tokens.access_token,
+        hasNewRefreshToken: !!tokens.refresh_token,
+        newExpiryDate: tokens.expiry_date,
+        tokenType: tokens.token_type,
+        scope: tokens.scope
+      });
+      
       const updateData: { access_token?: string, expires_at?: number, refresh_token?: string } = {};
 
       if (tokens.access_token) {
@@ -78,15 +114,20 @@ async function getGoogleAuthClient(ctx: Context) {
         updateData.refresh_token = tokens.refresh_token;
       }
 
-      await ctx.db.account.update({
-        where: {
-          provider_providerAccountId: {
-            provider: 'google',
-            providerAccountId: account.providerAccountId,
-          }
-        },
-        data: updateData,
-      });
+      try {
+        await ctx.db.account.update({
+          where: {
+            provider_providerAccountId: {
+              provider: 'google',
+              providerAccountId: account.providerAccountId,
+            }
+          },
+          data: updateData,
+        });
+        console.log(`[DEBUG] Successfully updated tokens in database for user: ${ctx.session.user.id}`);
+      } catch (error) {
+        console.error(`[DEBUG] Failed to update tokens in database for user: ${ctx.session.user.id}`, error);
+      }
     })();
   });
 
@@ -411,17 +452,30 @@ export const contactRouter = createTRPCRouter({
     }),
 
   importGoogleContacts: protectedProcedure.mutation(async ({ ctx }) => {
+    console.log(`[DEBUG] Starting Google Contacts import for user: ${ctx.session.user.id}`);
+    
     try {
       const oauth2Client = await getGoogleAuthClient(ctx);
+      console.log(`[DEBUG] OAuth client obtained successfully for user: ${ctx.session.user.id}`);
+      
       const people = google.people({ version: "v1", auth: oauth2Client });
+      console.log(`[DEBUG] Google People API client created for user: ${ctx.session.user.id}`);
 
+      console.log(`[DEBUG] Making API request to Google People API for user: ${ctx.session.user.id}`);
+      const requestStart = Date.now();
+      
       const res = await people.people.connections.list({
         resourceName: "people/me",
         personFields: "names,emailAddresses",
         pageSize: 1000,
       });
+      
+      const requestDuration = Date.now() - requestStart;
+      console.log(`[DEBUG] Google API request completed in ${requestDuration}ms for user: ${ctx.session.user.id}`);
+      console.log(`[DEBUG] API response status: ${res.status}, data keys: ${Object.keys(res.data ?? {}).join(', ')}`);
 
       const connections = res.data.connections ?? [];
+      console.log(`[DEBUG] Found ${connections.length} connections for user: ${ctx.session.user.id}`);
 
       for (const person of connections) {
         const email = person.emailAddresses?.[0]?.value;
@@ -434,9 +488,26 @@ export const contactRouter = createTRPCRouter({
         }
       }
 
+      console.log(`[DEBUG] Successfully imported ${connections.length} contacts for user: ${ctx.session.user.id}`);
       return { count: connections.length };
     } catch (error) {
-      console.error("Google Contacts import failed:", error);
+      console.error(`[DEBUG] Google Contacts import failed for user: ${ctx.session.user.id}:`, error);
+      
+      // Log detailed error information
+      if (error && typeof error === 'object') {
+        console.error(`[DEBUG] Error details:`, {
+          message: (error as Error).message,
+          name: (error as Error).name,
+          stack: (error as Error).stack?.split('\n').slice(0, 3), // First 3 lines of stack
+          code: (error as unknown as { code?: string }).code,
+          status: (error as unknown as { status?: number }).status,
+          response: (error as unknown as { response?: { status?: number; statusText?: string; data?: unknown } }).response ? {
+            status: (error as unknown as { response: { status?: number } }).response.status,
+            statusText: (error as unknown as { response: { statusText?: string } }).response.statusText,
+            data: (error as unknown as { response: { data?: unknown } }).response.data
+          } : undefined
+        });
+      }
       
       // Handle specific OAuth errors
       if (error instanceof Error) {
@@ -447,6 +518,21 @@ export const contactRouter = createTRPCRouter({
             errorMessage.includes("invalid_token") ||
             errorMessage.includes("token has been expired") ||
             errorMessage.includes("token_expired")) {
+          
+          // Automatically clean up invalid tokens to prevent repeated failures
+          console.log(`[DEBUG] Cleaning up invalid Google tokens for user: ${ctx.session.user.id}`);
+          try {
+            const deletedAccount = await ctx.db.account.deleteMany({
+              where: {
+                userId: ctx.session.user.id,
+                provider: "google",
+              },
+            });
+            console.log(`[DEBUG] Auto-cleanup: Deleted ${deletedAccount.count} invalid Google account(s) for user: ${ctx.session.user.id}`);
+          } catch (cleanupError) {
+            console.error(`[DEBUG] Failed to auto-cleanup invalid tokens for user: ${ctx.session.user.id}`, cleanupError);
+          }
+          
           throw new Error("GOOGLE_AUTH_EXPIRED");
         }
         
@@ -718,5 +804,74 @@ export const contactRouter = createTRPCRouter({
       contactsUpdated,
       errors,
     };
+  }),
+
+  createContact: protectedProcedure
+    .input(z.object({
+      firstName: z.string().min(1, "First name is required"),
+      lastName: z.string().min(1, "Last name is required"), 
+      email: z.string().email("Please enter a valid email address"),
+      phone: z.string().optional(),
+      telegram: z.string().optional(),
+      twitter: z.string().optional(),
+      github: z.string().optional(),
+      linkedIn: z.string().optional(),
+      sponsorId: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Check if email already exists
+      const existingContact = await ctx.db.contact.findUnique({
+        where: { email: input.email },
+      });
+
+      if (existingContact) {
+        throw new Error("A contact with this email address already exists");
+      }
+
+      // Clean up social media handles and URLs
+      const cleanedInput = {
+        ...input,
+        telegram: input.telegram?.replace(/^@/, ''), // Remove @ if present
+        twitter: input.twitter?.replace(/^@/, ''), // Remove @ if present
+        github: input.github?.replace(/^@/, ''), // Remove @ if present
+        linkedIn: input.linkedIn?.startsWith('http') 
+          ? input.linkedIn 
+          : input.linkedIn?.replace(/^@/, ''), // Keep full URLs, remove @ if present
+      };
+
+      // Create the contact
+      const contact = await ctx.db.contact.create({
+        data: cleanedInput,
+        include: {
+          sponsor: true,
+        },
+      });
+
+      return contact;
+    }),
+
+  // Disconnect Google account to force fresh authentication
+  disconnectGoogleAccount: protectedProcedure.mutation(async ({ ctx }) => {
+    console.log(`[DEBUG] Disconnecting Google account for user: ${ctx.session.user.id}`);
+    
+    try {
+      // Find and delete the user's Google account connection
+      const deletedAccount = await ctx.db.account.deleteMany({
+        where: {
+          userId: ctx.session.user.id,
+          provider: "google",
+        },
+      });
+      
+      console.log(`[DEBUG] Deleted ${deletedAccount.count} Google account(s) for user: ${ctx.session.user.id}`);
+      
+      return { 
+        success: true, 
+        message: `Disconnected ${deletedAccount.count} Google account(s)` 
+      };
+    } catch (error) {
+      console.error(`[DEBUG] Failed to disconnect Google account for user: ${ctx.session.user.id}`, error);
+      throw new Error(`Failed to disconnect Google account: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }),
 });
