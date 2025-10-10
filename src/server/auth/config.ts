@@ -106,10 +106,8 @@ export const authConfig = {
           prompt: "consent",
           access_type: "offline",
           response_type: "code",
-          // Removed sensitive scopes to avoid Google verification requirements
-          scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
-          // Commented out sensitive scopes that require Google verification:
-          // scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/contacts.readonly",
+          // Include contacts scope for Google Contacts sync functionality
+          scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/contacts.readonly",
         },
       },
     }),

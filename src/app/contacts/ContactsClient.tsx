@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Paper, Stack, Text, Alert, Group, Loader } from "@mantine/core";
-import { IconCloudDownload, IconAlertCircle, IconCheck } from "@tabler/icons-react";
+import { IconCloudDownload, IconAlertCircle, IconCheck, IconRefresh } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import TelegramAuthStatus from "~/app/_components/TelegramAuthStatus";
 
@@ -137,7 +137,27 @@ export default function ContactsClient() {
           {importContacts.error && (
             <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
               <Text fw={500}>Sync error:</Text>
-              <Text size="sm">{importContacts.error.message}</Text>
+              <Text size="sm" mb="sm">
+                {importContacts.error.message === "GOOGLE_AUTH_EXPIRED" 
+                  ? "Your Google account connection has expired. Please reconnect to sync contacts."
+                  : importContacts.error.message === "GOOGLE_NOT_CONNECTED"
+                  ? "No Google account connected. Please sign in with Google to sync contacts."
+                  : importContacts.error.message === "GOOGLE_PERMISSIONS_INSUFFICIENT"
+                  ? "Insufficient permissions to access Google Contacts. Please reconnect and grant contacts access."
+                  : importContacts.error.message}
+              </Text>
+              {(importContacts.error.message === "GOOGLE_AUTH_EXPIRED" || 
+                importContacts.error.message === "GOOGLE_NOT_CONNECTED" ||
+                importContacts.error.message === "GOOGLE_PERMISSIONS_INSUFFICIENT") && (
+                <Button 
+                  size="xs" 
+                  variant="outline" 
+                  leftSection={<IconRefresh size={14} />}
+                  onClick={() => window.location.href = "/api/auth/signin?provider=google&force=true"}
+                >
+                  Reconnect Google Account
+                </Button>
+              )}
             </Alert>
           )}
         </Stack>

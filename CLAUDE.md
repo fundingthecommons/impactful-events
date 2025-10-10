@@ -783,7 +783,7 @@ All emails are logged in the `Email` model with:
 
 ### Admin Panel Access
 
-**View Sent Emails**: `/admin/emails`
+**View Sent Communications**: `/admin/communications`
 - Complete email history with filters
 - Preview email content and template data
 - Resend failed emails
@@ -799,7 +799,7 @@ All emails are logged in the `Email` model with:
 **Testing Status Emails**:
 1. Create test application in admin panel
 2. Change status to ACCEPTED/REJECTED/WAITLISTED
-3. Check `/admin/emails` to verify email was sent
+3. Check `/admin/communications` to verify email was sent
 4. In development mode, check `TEST_EMAIL_OVERRIDE` inbox
 
 ### Adding New Templates

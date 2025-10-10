@@ -46,7 +46,7 @@ async function getGoogleAuthClient(ctx: Context) {
   });
 
   if (!account?.access_token || !account.refresh_token) {
-    throw new Error("No Google account connected or refresh token missing.");
+    throw new Error("GOOGLE_NOT_CONNECTED");
   }
 
   // 2. Set up Google API client with credentials and refresh token handling
@@ -411,29 +411,71 @@ export const contactRouter = createTRPCRouter({
     }),
 
   importGoogleContacts: protectedProcedure.mutation(async ({ ctx }) => {
-    const oauth2Client = await getGoogleAuthClient(ctx);
-    const people = google.people({ version: "v1", auth: oauth2Client });
+    try {
+      const oauth2Client = await getGoogleAuthClient(ctx);
+      const people = google.people({ version: "v1", auth: oauth2Client });
 
-    const res = await people.people.connections.list({
-      resourceName: "people/me",
-      personFields: "names,emailAddresses",
-      pageSize: 1000,
-    });
+      const res = await people.people.connections.list({
+        resourceName: "people/me",
+        personFields: "names,emailAddresses",
+        pageSize: 1000,
+      });
 
-    const connections = res.data.connections ?? [];
+      const connections = res.data.connections ?? [];
 
-    for (const person of connections) {
-      const email = person.emailAddresses?.[0]?.value;
-      if (email) {
-        await upsertContact(ctx.db, {
-          email,
-          firstName: person.names?.[0]?.givenName ?? "",
-          lastName: person.names?.[0]?.familyName ?? "",
-        });
+      for (const person of connections) {
+        const email = person.emailAddresses?.[0]?.value;
+        if (email) {
+          await upsertContact(ctx.db, {
+            email,
+            firstName: person.names?.[0]?.givenName ?? "",
+            lastName: person.names?.[0]?.familyName ?? "",
+          });
+        }
       }
-    }
 
-    return { count: connections.length };
+      return { count: connections.length };
+    } catch (error) {
+      console.error("Google Contacts import failed:", error);
+      
+      // Handle specific OAuth errors
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+        
+        // Check for token expiry/invalidity
+        if (errorMessage.includes("invalid_grant") || 
+            errorMessage.includes("invalid_token") ||
+            errorMessage.includes("token has been expired") ||
+            errorMessage.includes("token_expired")) {
+          throw new Error("GOOGLE_AUTH_EXPIRED");
+        }
+        
+        // Check for permission/scope issues
+        if (errorMessage.includes("insufficient permissions") ||
+            errorMessage.includes("access_denied") ||
+            errorMessage.includes("contacts") ||
+            errorMessage.includes("scope") ||
+            errorMessage.includes("403") ||
+            errorMessage.includes("forbidden") ||
+            errorMessage.includes("permission denied")) {
+          throw new Error("GOOGLE_PERMISSIONS_INSUFFICIENT");
+        }
+      }
+      
+      // Check for Google API error object structure
+      if (typeof error === 'object' && error !== null && 'code' in error) {
+        const apiError = error as { code?: number; status?: number };
+        if (apiError.code === 403 || apiError.status === 403) {
+          throw new Error("GOOGLE_PERMISSIONS_INSUFFICIENT");
+        }
+        if (apiError.code === 401 || apiError.status === 401) {
+          throw new Error("GOOGLE_AUTH_EXPIRED");
+        }
+      }
+      
+      // Re-throw other errors as-is
+      throw error;
+    }
   }),
 
   importGoogleContactsFromEmails: protectedProcedure.mutation(async ({ ctx }) => {
