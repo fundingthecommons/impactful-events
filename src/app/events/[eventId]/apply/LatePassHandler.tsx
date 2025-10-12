@@ -11,20 +11,21 @@ interface LatePassHandlerProps {
 export default function LatePassHandler({ children, fallback }: LatePassHandlerProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [hasLatePass, setHasLatePass] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     const latePassParam = searchParams.get("latePass");
+    const invitationParam = searchParams.get("invitation");
     
-    // Check existing cookie
+    // Check existing latePass cookie
     const existingCookie = document.cookie
       .split("; ")
       .find((row) => row.startsWith("ftc-late-pass="));
     
     const hasCookie = !!existingCookie;
     
-    // If query parameter exists, set cookie and clean URL
+    // Handle latePass parameter (existing logic)
     if (latePassParam) {
       // Set cookie for 24 hours
       const expires = new Date();
@@ -35,18 +36,37 @@ export default function LatePassHandler({ children, fallback }: LatePassHandlerP
       const newUrl = window.location.pathname;
       router.replace(newUrl);
       
-      setHasLatePass(true);
-    } else if (hasCookie) {
-      setHasLatePass(true);
+      setHasAccess(true);
+    } 
+    // Handle invitation parameter - allow access and let server-side validation handle the rest
+    else if (invitationParam) {
+      // Set a temporary cookie to remember we had an invitation
+      const expires = new Date();
+      expires.setTime(expires.getTime() + 60 * 60 * 1000); // 1 hour
+      document.cookie = `ftc-invitation-access=true; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+      
+      // Clean URL by removing query parameter  
+      const newUrl = window.location.pathname;
+      router.replace(newUrl);
+      
+      setHasAccess(true);
+    } 
+    // Check existing latePass cookie
+    else if (hasCookie) {
+      setHasAccess(true);
+    }
+    // Check if we have invitation access cookie
+    else if (document.cookie.includes("ftc-invitation-access=true")) {
+      setHasAccess(true);
     }
     
     setIsChecking(false);
   }, [searchParams, router]);
 
-  // Show loading state briefly while checking
+  // Show loading state while checking access methods
   if (isChecking) {
     return <div>Loading...</div>;
   }
 
-  return hasLatePass ? <>{children}</> : <>{fallback}</>;
+  return hasAccess ? <>{children}</> : <>{fallback}</>;
 }
