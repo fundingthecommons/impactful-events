@@ -16,6 +16,7 @@ import { profileRouter } from "~/server/api/routers/profile";
 import { onboardingRouter } from "~/server/api/routers/onboarding";
 import { telegramAuthRouter } from "~/server/api/routers/telegramAuth";
 import { projectRouter } from "~/server/api/routers/project";
+import { skillsRouter } from "~/server/api/routers/skills";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -42,6 +43,7 @@ export const appRouter = createTRPCRouter({
   onboarding: onboardingRouter,
   telegramAuth: telegramAuthRouter,
   project: projectRouter,
+  skills: skillsRouter,
 });
 
 // export type definition of API

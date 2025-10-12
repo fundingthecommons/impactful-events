@@ -106,6 +106,9 @@ model User {
   // Telegram authentication relation
   telegramAuth         TelegramAuth?
   telegramAuthSessions TelegramAuthSession[]
+  
+  // Skills system relation
+  userSkills           UserSkills[]         @relation("UserSkills")
 }
 
 model VerificationToken {
@@ -1258,4 +1261,40 @@ model TelegramAuthSession {
   @@index([sessionId])
   @@index([userId])
   @@index([expiresAt])
+}
+
+// Skills System Models
+model Skills {
+  id          String   @id @default(cuid())
+  name        String   @unique // Skill name (e.g., "React", "Solidity", "Product Management")
+  category    String?  // Optional category (e.g., "Frontend", "Backend", "Design", "Blockchain")
+  popularity  Int      @default(0) // For sorting suggestions by popularity
+  isActive    Boolean  @default(true) // For soft deletion
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  userSkills  UserSkills[]
+  
+  @@index([category])
+  @@index([popularity])
+  @@index([isActive])
+  @@index([name])
+}
+
+model UserSkills {
+  id              String   @id @default(cuid())
+  userId          String   // User who has this skill
+  skillId         String   // Reference to Skills table
+  experienceLevel Int?     // Optional 1-10 experience level
+  createdAt       DateTime @default(now())
+  
+  // Relations
+  user            User     @relation("UserSkills", fields: [userId], references: [id], onDelete: Cascade)
+  skill           Skills   @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, skillId]) // Prevent duplicate skills per user
+  @@index([userId])
+  @@index([skillId])
+  @@index([experienceLevel])
 }

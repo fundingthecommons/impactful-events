@@ -38,9 +38,10 @@ import {
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
+import SkillsMultiSelect from "./SkillsMultiSelect";
 
 const mentorApplicationSchema = z.object({
-  skills: z.array(z.string()).min(1, "Please add at least one skill"),
+  skills: z.array(z.string()).min(1, "Please add at least one skill"), // Now stores skill IDs
   interests: z.array(z.string()).min(1, "Please add at least one area of experience"),
   yearsOfExperience: z.number().min(0, "Years of experience must be 0 or greater"),
   timezone: z.string().min(1, "Timezone is required"),
@@ -68,10 +69,10 @@ const availabilityOptions = [
 ];
 
 const timeCommitmentOptions = [
-  { value: "5-10", label: "5-10 hours per week" },
-  { value: "10-15", label: "10-15 hours per week" },
-  { value: "15-20", label: "15-20 hours per week" },
-  { value: "20+", label: "20+ hours per week" },
+  { value: "1-2", label: "1-2 half days per week" },
+  { value: "2-3", label: "2-3 half days per week" },
+  { value: "3-4", label: "3-4 half days per week" },
+  { value: "4+", label: "4+ half days per week" },
   { value: "flexible", label: "Flexible based on needs" },
 ];
 
@@ -109,6 +110,12 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch skills data to convert IDs to names
+  const { data: skillsByCategory } = api.skills.getSkillsByCategory.useQuery();
+  
+  // Mutation for updating user skills
+  const updateUserSkills = api.skills.updateUserSkills.useMutation();
   
   const form = useForm<MentorApplicationData>({
     validate: zodResolver(mentorApplicationSchema),
@@ -157,9 +164,26 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
     setIsSubmitting(true);
     
     try {
+      // Convert skill IDs to skill names for backward compatibility with profile API
+      const skillNames: string[] = [];
+      if (skillsByCategory) {
+        const allSkills = Object.values(skillsByCategory).flat();
+        values.skills.forEach(skillId => {
+          const skill = allSkills.find(s => s.id === skillId);
+          if (skill) {
+            skillNames.push(skill.name);
+          }
+        });
+      }
+
+      // Update the user's skills in the new Skills system
+      await updateUserSkills.mutateAsync({
+        skillIds: values.skills,
+      });
+
       // Update the user's profile with mentor information
       await updateProfile.mutateAsync({
-        skills: values.skills,
+        skills: skillNames, // Send skill names to maintain backward compatibility
         interests: values.interests,
         yearsOfExperience: values.yearsOfExperience,
         timezone: values.timezone,
@@ -234,11 +258,14 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
 
               <Grid>
                 <Grid.Col span={12}>
-                  <TagsInput
+                  <SkillsMultiSelect
                     label="Skills & Technologies"
-                    placeholder="Add your technical skills (e.g., React, Solidity, Python)"
+                    placeholder="Select or add your technical skills (e.g., React, Solidity, Python)"
                     description="What technical skills can you mentor others on?"
-                    {...form.getInputProps("skills")}
+                    value={form.values.skills}
+                    onChange={(skillIds) => form.setFieldValue("skills", skillIds)}
+                    error={typeof form.errors.skills === 'string' ? form.errors.skills : undefined}
+                    required
                   />
                 </Grid.Col>
 
@@ -251,15 +278,6 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                   />
                 </Grid.Col>
 
-                <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <TextInput
-                    label="Years of Professional Experience"
-                    placeholder="Enter number of years"
-                    type="number"
-                    min={0}
-                    {...form.getInputProps("yearsOfExperience")}
-                  />
-                </Grid.Col>
               </Grid>
             </Stack>
           </Card>
@@ -500,7 +518,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
           {renderStep()}
 
           {/* Navigation Buttons */}
-          <Group justify="space-between">
+          <Group justify="space-between" mt="xl">
             <Button
               variant="light"
               onClick={prevStep}

@@ -585,6 +585,111 @@ async function main() {
     console.log(`✅ Created/updated evaluation criteria: ${criteria.name} (${(criteria.weight * 100).toFixed(1)}%)`)
   }
 
+  // Seed common technical skills
+  const commonSkills = [
+    // Frontend
+    { name: 'React', category: 'Frontend', popularity: 100 },
+    { name: 'Vue', category: 'Frontend', popularity: 80 },
+    { name: 'Angular', category: 'Frontend', popularity: 70 },
+    { name: 'TypeScript', category: 'Frontend', popularity: 95 },
+    { name: 'JavaScript', category: 'Frontend', popularity: 100 },
+    { name: 'HTML/CSS', category: 'Frontend', popularity: 100 },
+    { name: 'Next.js', category: 'Frontend', popularity: 85 },
+    { name: 'Svelte', category: 'Frontend', popularity: 40 },
+    { name: 'Tailwind CSS', category: 'Frontend', popularity: 75 },
+    
+    // Backend
+    { name: 'Node.js', category: 'Backend', popularity: 90 },
+    { name: 'Python', category: 'Backend', popularity: 95 },
+    { name: 'Rust', category: 'Backend', popularity: 50 },
+    { name: 'Go', category: 'Backend', popularity: 60 },
+    { name: 'Java', category: 'Backend', popularity: 80 },
+    { name: 'PHP', category: 'Backend', popularity: 70 },
+    { name: 'Ruby', category: 'Backend', popularity: 45 },
+    { name: 'Express.js', category: 'Backend', popularity: 75 },
+    { name: 'Django', category: 'Backend', popularity: 60 },
+    { name: 'FastAPI', category: 'Backend', popularity: 55 },
+    
+    // Blockchain
+    { name: 'Solidity', category: 'Blockchain', popularity: 70 },
+    { name: 'Smart Contracts', category: 'Blockchain', popularity: 75 },
+    { name: 'DeFi', category: 'Blockchain', popularity: 65 },
+    { name: 'Web3', category: 'Blockchain', popularity: 80 },
+    { name: 'Ethereum', category: 'Blockchain', popularity: 85 },
+    { name: 'Web3.js', category: 'Blockchain', popularity: 55 },
+    { name: 'Ethers.js', category: 'Blockchain', popularity: 60 },
+    { name: 'Hardhat', category: 'Blockchain', popularity: 45 },
+    { name: 'Foundry', category: 'Blockchain', popularity: 35 },
+    
+    // Database
+    { name: 'PostgreSQL', category: 'Database', popularity: 85 },
+    { name: 'MySQL', category: 'Database', popularity: 80 },
+    { name: 'MongoDB', category: 'Database', popularity: 75 },
+    { name: 'Redis', category: 'Database', popularity: 60 },
+    { name: 'SQLite', category: 'Database', popularity: 50 },
+    { name: 'Prisma', category: 'Database', popularity: 70 },
+    { name: 'Supabase', category: 'Database', popularity: 55 },
+    { name: 'Firebase', category: 'Database', popularity: 65 },
+    
+    // Design
+    { name: 'Figma', category: 'Design', popularity: 90 },
+    { name: 'UI/UX', category: 'Design', popularity: 85 },
+    { name: 'Product Design', category: 'Design', popularity: 75 },
+    { name: 'User Research', category: 'Design', popularity: 60 },
+    { name: 'Prototyping', category: 'Design', popularity: 70 },
+    { name: 'Design Systems', category: 'Design', popularity: 65 },
+    
+    // DevOps
+    { name: 'Docker', category: 'DevOps', popularity: 80 },
+    { name: 'Kubernetes', category: 'DevOps', popularity: 60 },
+    { name: 'AWS', category: 'DevOps', popularity: 85 },
+    { name: 'GCP', category: 'DevOps', popularity: 50 },
+    { name: 'Azure', category: 'DevOps', popularity: 55 },
+    { name: 'Terraform', category: 'DevOps', popularity: 45 },
+    { name: 'CI/CD', category: 'DevOps', popularity: 75 },
+    { name: 'GitHub Actions', category: 'DevOps', popularity: 70 },
+    
+    // Mobile
+    { name: 'React Native', category: 'Mobile', popularity: 70 },
+    { name: 'Flutter', category: 'Mobile', popularity: 65 },
+    { name: 'Swift', category: 'Mobile', popularity: 50 },
+    { name: 'Kotlin', category: 'Mobile', popularity: 45 },
+    { name: 'iOS Development', category: 'Mobile', popularity: 60 },
+    { name: 'Android Development', category: 'Mobile', popularity: 60 },
+    
+    // Data Science
+    { name: 'Machine Learning', category: 'Data Science', popularity: 70 },
+    { name: 'Artificial Intelligence', category: 'Data Science', popularity: 75 },
+    { name: 'Data Analysis', category: 'Data Science', popularity: 65 },
+    { name: 'Pandas', category: 'Data Science', popularity: 50 },
+    { name: 'NumPy', category: 'Data Science', popularity: 45 },
+    { name: 'TensorFlow', category: 'Data Science', popularity: 55 },
+    { name: 'PyTorch', category: 'Data Science', popularity: 60 },
+    
+    // Business
+    { name: 'Project Management', category: 'Business', popularity: 80 },
+    { name: 'Product Management', category: 'Business', popularity: 75 },
+    { name: 'Strategy', category: 'Business', popularity: 70 },
+    { name: 'Business Development', category: 'Business', popularity: 65 },
+    { name: 'Marketing', category: 'Business', popularity: 60 },
+    { name: 'Research', category: 'Business', popularity: 75 },
+    { name: 'Analytics', category: 'Business', popularity: 70 },
+    { name: 'Entrepreneurship', category: 'Business', popularity: 65 },
+    { name: 'Leadership', category: 'Business', popularity: 80 },
+    { name: 'Agile', category: 'Business', popularity: 75 },
+    { name: 'Scrum', category: 'Business', popularity: 70 },
+  ];
+
+  console.log('🎯 Creating common technical skills...');
+  for (const skillData of commonSkills) {
+    await prisma.skills.upsert({
+      where: { name: skillData.name },
+      update: skillData,
+      create: skillData,
+    });
+  }
+  console.log(`✅ Created/updated ${commonSkills.length} common skills`);
+
   console.log('🎉 Seeding completed successfully!')
 }
 
