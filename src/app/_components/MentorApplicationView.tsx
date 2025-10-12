@@ -173,21 +173,21 @@ export default function MentorApplicationView({ event }: MentorApplicationViewPr
                   <IconSettings size={24} color="var(--mantine-color-purple-6)" />
                 </div>
                 <div>
-                  <Text fw={600}>Mentor Settings</Text>
-                  <Text size="sm" c="dimmed">Manage your mentor profile</Text>
+                  <Text fw={600}>Mentor Profile</Text>
+                  <Text size="sm" c="dimmed">Complete your mentor application</Text>
                 </div>
               </Group>
               <Text size="sm" mb="md">
-                Update your mentor profile, availability, and expertise areas for this event.
+                Complete your mentor application with your skills, availability, and contact preferences.
               </Text>
               <Button 
                 variant="light" 
                 color="purple" 
                 fullWidth
                 component={Link}
-                href={`/mentor/profile`}
+                href={`/events/${event.id}/mentor`}
               >
-                Manage Profile
+                Complete Mentor Application
               </Button>
             </Card>
 

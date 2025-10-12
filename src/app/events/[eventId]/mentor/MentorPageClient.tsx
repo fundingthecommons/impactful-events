@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Container, Center, Loader, Text, Stack, Card, Group, Transition } from "@mantine/core";
 import { IconCheck } from "@tabler/icons-react";
 import AuthForm from "~/app/_components/AuthForm";
-import EventDetailClient from "../EventDetailClient";
+import MentorApplicationForm from "~/app/_components/MentorApplicationForm";
 import type { Event, Application, ApplicationResponse, ApplicationQuestion } from "@prisma/client";
 
 interface ExtendedApplication extends Application {
@@ -24,7 +24,7 @@ interface MentorPageClientProps {
 
 export default function MentorPageClient({
   event,
-  initialUserApplication,
+  initialUserApplication: _initialUserApplication,
   initialUserId,
 }: MentorPageClientProps) {
   const { data: session, status } = useSession();
@@ -177,53 +177,9 @@ export default function MentorPageClient({
     >
       {(styles) => (
         <div style={styles}>
-          <EventDetailClient
-            event={{
-              id: event.id,
-              name: event.name,
-              description: event.description,
-              startDate: event.startDate,
-              endDate: event.endDate,
-              location: event.location,
-              type: event.type,
-              applications: event.applications?.map((app: ExtendedApplication) => ({
-                id: app.id,
-                status: app.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
-                language: app.language,
-                submittedAt: app.submittedAt,
-                responses: app.responses?.map((r: ApplicationResponse & { question: ApplicationQuestion }) => ({
-                  id: r.id,
-                  answer: r.answer,
-                  question: {
-                    id: r.question.id,
-                    questionKey: r.question.questionKey,
-                    questionEn: r.question.questionEn,
-                    questionEs: r.question.questionEs,
-                    questionType: r.question.questionType,
-                    required: r.question.required,
-                  },
-                })) ?? [],
-              }))
-            }}
-            userApplication={initialUserApplication ? {
-              id: initialUserApplication.id,
-              status: initialUserApplication.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
-              language: initialUserApplication.language,
-              submittedAt: initialUserApplication.submittedAt,
-              responses: initialUserApplication.responses?.map(r => ({
-                id: r.id,
-                answer: r.answer,
-                question: {
-                  id: r.question.id,
-                  questionKey: r.question.questionKey,
-                  questionEn: r.question.questionEn,
-                  questionEs: r.question.questionEs,
-                  questionType: r.question.questionType,
-                  required: r.question.required,
-                },
-              })) ?? [],
-            } : null}
-            userId={session?.user?.id ?? ""}
+          <MentorApplicationForm
+            eventId={event.id}
+            eventName={event.name}
           />
         </div>
       )}

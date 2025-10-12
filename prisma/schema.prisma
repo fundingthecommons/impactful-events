@@ -1062,6 +1062,16 @@ model UserProfile {
   // Additional contact methods
   telegramHandle        String?
   discordHandle         String?
+  phoneNumber           String?
+  
+  // Mentor-specific fields
+  mentorshipStyle       String?    @db.Text  // How they approach mentoring
+  previousMentoringExp  String?    @db.Text  // Previous mentoring experience
+  mentorSpecializations String[]             // Specific areas they want to mentor on
+  mentorGoals          String?    @db.Text  // Goals for mentoring
+  mentorAvailableDates String[]             // Available time periods
+  mentorHoursPerWeek   String?             // Time commitment
+  mentorPreferredContact String?           // Preferred contact method
   
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

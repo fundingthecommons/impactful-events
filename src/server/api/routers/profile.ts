@@ -24,6 +24,15 @@ const profileUpdateSchema = z.object({
   yearsOfExperience: z.number().min(0).max(50).optional(),
   telegramHandle: z.string().max(100).optional(),
   discordHandle: z.string().max(100).optional(),
+  // Mentor-specific fields
+  phoneNumber: z.string().max(50).optional(),
+  mentorshipStyle: z.string().max(1000).optional(),
+  previousMentoringExp: z.string().max(1000).optional(),
+  mentorSpecializations: z.array(z.string().max(50)).max(20).optional(),
+  mentorGoals: z.string().max(1000).optional(),
+  mentorAvailableDates: z.array(z.string().max(50)).max(10).optional(),
+  mentorHoursPerWeek: z.string().max(50).optional(),
+  mentorPreferredContact: z.string().max(50).optional(),
 });
 
 const projectCreateSchema = z.object({
