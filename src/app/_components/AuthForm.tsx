@@ -63,6 +63,7 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
   const [success, setSuccess] = useState<string | null>(null);
 
   const createUserMutation = api.user.create.useMutation();
+  const acceptInvitationMutation = api.invitation.accept.useMutation();
 
   // Preserve late pass from URL parameters in client-side cookie
   useEffect(() => {
@@ -143,11 +144,26 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
     setError(null);
 
     try {
-      await createUserMutation.mutateAsync({
+      const user = await createUserMutation.mutateAsync({
         name: values.name,
         email: values.email,
         password: values.password,
       });
+
+      // Check and accept any pending invitations for this email
+      try {
+        const invitationResult = await acceptInvitationMutation.mutateAsync({
+          email: values.email,
+          userId: user.id,
+        });
+
+        if (invitationResult.accepted > 0) {
+          console.log(`Accepted ${invitationResult.accepted} invitation(s):`, invitationResult.roles);
+        }
+      } catch (invitationError) {
+        // Log but don't fail registration if invitation acceptance fails
+        console.log("No pending invitations or invitation acceptance failed:", invitationError);
+      }
 
       const result = await signIn("credentials", {
         email: values.email,
