@@ -22,7 +22,8 @@ import {
   IconHome,
   IconTrophy,
   IconMicrophone,
-  IconClipboardList
+  IconClipboardList,
+  IconUserCheck
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -144,6 +145,22 @@ function EventCard({ event }: EventCardProps) {
             <Link href={`/admin/events/${event.id}/sponsors`} style={{ textDecoration: 'none' }}>
               <Badge variant="outline" color="orange" style={{ cursor: 'pointer' }}>
                 View
+              </Badge>
+            </Link>
+          </Group>
+
+          <Group justify="space-between">
+            <Group gap="xs">
+              <ThemeIcon size="sm" variant="light" color="green">
+                <IconUserCheck size={12} />
+              </ThemeIcon>
+              <Text size="sm" fw={500}>
+                Mentors
+              </Text>
+            </Group>
+            <Link href={`/admin/events/${event.id}/mentors`} style={{ textDecoration: 'none' }}>
+              <Badge variant="outline" color="green" style={{ cursor: 'pointer' }}>
+                Manage
               </Badge>
             </Link>
           </Group>

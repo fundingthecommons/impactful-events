@@ -500,4 +500,32 @@ export const roleRouter = createTRPCRouter({
       usersWithEventRoles: usersWithRoles,
     };
   }),
+
+  // Get all event roles (for invitations and assignments)
+  getEventRoles: publicProcedure.query(async ({ ctx }) => {
+    const roles = await ctx.db.role.findMany({
+      orderBy: { name: "asc" },
+    });
+    return roles;
+  }),
+
+  // Ensure mentor role exists
+  ensureMentorRole: protectedProcedure.mutation(async ({ ctx }) => {
+    // TODO: Add admin check here once we implement it
+    
+    const mentorRole = await ctx.db.role.findFirst({
+      where: { name: "mentor" },
+    });
+
+    if (!mentorRole) {
+      const newMentorRole = await ctx.db.role.create({
+        data: {
+          name: "mentor",
+        },
+      });
+      return { created: true, role: newMentorRole };
+    }
+
+    return { created: false, role: mentorRole };
+  }),
 });
