@@ -6,7 +6,7 @@ import { Container, Center, Loader, Text, Stack, Card, Group, Transition } from 
 import { IconCheck } from "@tabler/icons-react";
 import AuthForm from "~/app/_components/AuthForm";
 import EventDetailClient from "../EventDetailClient";
-import MentorApplicationView from "~/app/_components/MentorApplicationView";
+import MentorApplicationForm from "~/app/_components/MentorApplicationForm";
 import { api } from "~/trpc/react";
 import type { Event, Application, ApplicationResponse, ApplicationQuestion } from "@prisma/client";
 
@@ -107,6 +107,12 @@ export default function ApplicationPageClient({
     { enabled: !!session?.user }
   );
 
+  // Check if mentor has completed their profile
+  const { data: mentorCompletion, isLoading: mentorCompletionLoading } = api.profile.checkMentorCompletion.useQuery(
+    undefined,
+    { enabled: !!session?.user && !!isMentor }
+  );
+
   // Handle authentication state changes
   useEffect(() => {
     if (status === "authenticated" && !showApplication) {
@@ -128,7 +134,7 @@ export default function ApplicationPageClient({
   }, [status, initialUserId, showApplication]);
 
   // Loading state
-  if (status === "loading" || mentorCheckLoading) {
+  if (status === "loading" || mentorCheckLoading || mentorCompletionLoading) {
     return (
       <Container size="md" py="xl">
         <Center h={400}>
@@ -252,17 +258,22 @@ export default function ApplicationPageClient({
       >
         {(styles) => (
           <div style={styles}>
-            <MentorApplicationView 
-              event={{
-                id: event.id,
-                name: event.name,
-                description: event.description,
-                startDate: event.startDate,
-                endDate: event.endDate,
-                location: event.location,
-                type: event.type,
-              }}
-            />
+            {mentorCompletion?.isComplete ? (
+              // Show simple heading if mentor has completed their profile
+              <Container size="md" py="xl">
+                <Card shadow="sm" padding="xl" radius="md" withBorder>
+                  <Text size="xl" fw={600} ta="center">
+                    Mentor Dashboard
+                  </Text>
+                </Card>
+              </Container>
+            ) : (
+              // Show mentor application form if not completed
+              <MentorApplicationForm 
+                eventId={event.id}
+                eventName={event.name}
+              />
+            )}
           </div>
         )}
       </Transition>

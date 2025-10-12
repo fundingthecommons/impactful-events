@@ -619,6 +619,38 @@ export const profileRouter = createTRPCRouter({
       };
     }),
 
+  // Check if mentor has completed their profile
+  checkMentorCompletion: protectedProcedure
+    .query(async ({ ctx }) => {
+      const profile = await ctx.db.userProfile.findUnique({
+        where: { userId: ctx.session.user.id },
+        select: {
+          mentorSpecializations: true,
+          mentorGoals: true,
+          mentorAvailableDates: true,
+          mentorHoursPerWeek: true,
+          mentorPreferredContact: true,
+          mentorshipStyle: true,
+        },
+      });
+
+      if (!profile) {
+        return { isComplete: false };
+      }
+
+      // Check if key mentor fields are filled
+      const isComplete = !!(
+        profile.mentorSpecializations?.length &&
+        profile.mentorGoals?.trim() &&
+        profile.mentorAvailableDates?.length &&
+        profile.mentorHoursPerWeek?.trim() &&
+        profile.mentorPreferredContact?.trim() &&
+        profile.mentorshipStyle?.trim()
+      );
+
+      return { isComplete };
+    }),
+
   // Profile-Application Sync endpoints
   getUserApplicationsForSync: protectedProcedure
     .query(async ({ ctx }) => {
