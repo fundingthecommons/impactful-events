@@ -407,9 +407,25 @@ export const invitationRouter = createTRPCRouter({
   accept: publicProcedure
     .input(z.object({
       email: z.string().email(),
-      userId: z.string(),
+      userId: z.string().optional(), // Make userId optional for sign-in flow
     }))
     .mutation(async ({ ctx, input }) => {
+      let userId = input.userId;
+      
+      // If userId not provided, look up user by email (for sign-in flow)
+      if (!userId) {
+        const user = await ctx.db.user.findUnique({
+          where: { email: input.email },
+          select: { id: true }
+        });
+        
+        if (!user) {
+          return { accepted: 0, roles: [], error: "User not found" };
+        }
+        
+        userId = user.id;
+      }
+
       // Get all pending invitations for this email
       const invitations = await ctx.db.invitation.findMany({
         where: {
@@ -438,7 +454,7 @@ export const invitationRouter = createTRPCRouter({
           const existingRole = await ctx.db.userRole.findUnique({
             where: {
               userId_eventId_roleId: {
-                userId: input.userId,
+                userId: userId,
                 eventId: invitation.eventId,
                 roleId: invitation.roleId,
               },
@@ -449,7 +465,7 @@ export const invitationRouter = createTRPCRouter({
             // Create the user role assignment
             await ctx.db.userRole.create({
               data: {
-                userId: input.userId,
+                userId: userId,
                 eventId: invitation.eventId,
                 roleId: invitation.roleId,
               },
@@ -463,7 +479,7 @@ export const invitationRouter = createTRPCRouter({
         } else if ((invitation.type === "GLOBAL_ADMIN" || invitation.type === "GLOBAL_STAFF") && invitation.globalRole) {
           // Update user's global role
           await ctx.db.user.update({
-            where: { id: input.userId },
+            where: { id: userId },
             data: { role: invitation.globalRole },
           });
 

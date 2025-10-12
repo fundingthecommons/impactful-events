@@ -129,6 +129,21 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
       if (result?.error) {
         setError("Invalid email or password");
       } else if (result?.url) {
+        // Check and accept any pending invitations for this email after successful sign-in
+        try {
+          const invitationResult = await acceptInvitationMutation.mutateAsync({
+            email: values.email,
+            // userId is now optional - API will look up user by email
+          });
+
+          if (invitationResult.accepted > 0) {
+            console.log(`Accepted ${invitationResult.accepted} invitation(s) during sign-in:`, invitationResult.roles);
+          }
+        } catch (invitationError) {
+          // Log but don't fail sign-in if invitation acceptance fails
+          console.log("No pending invitations or invitation acceptance failed during sign-in:", invitationError);
+        }
+
         setSuccess("Sign in successful! Redirecting...");
         window.location.href = result.url;
       }
@@ -137,7 +152,7 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  };;;;;
 
   const handleSignUp = async (values: SignUpFormData) => {
     setIsLoading(true);
