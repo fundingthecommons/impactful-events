@@ -159,6 +159,7 @@ export const invitationRouter = createTRPCRouter({
             inviterName: ctx.session.user.name ?? "Event Admin",
             invitationToken: invitation.token,
             expiresAt: invitation.expiresAt,
+            eventId: invitation.eventId ?? undefined,
           });
         } else {
           // Send global admin invitation email
@@ -278,6 +279,7 @@ export const invitationRouter = createTRPCRouter({
               inviterName: ctx.session.user.name ?? "Event Admin",
               invitationToken: invitation.token,
               expiresAt: invitation.expiresAt,
+              eventId: invitation.eventId ?? undefined,
             });
           } else {
             await sendInvitationEmail({
@@ -578,6 +580,7 @@ export const invitationRouter = createTRPCRouter({
             inviterName: ctx.session.user.name ?? "Event Admin",
             invitationToken: updatedInvitation.token,
             expiresAt: updatedInvitation.expiresAt,
+            eventId: updatedInvitation.eventId ?? undefined,
           });
         } else {
           await sendInvitationEmail({
