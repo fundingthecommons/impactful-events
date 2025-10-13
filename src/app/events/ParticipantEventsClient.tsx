@@ -192,20 +192,21 @@ function EventCard({ event, applicationStatus }: EventCardProps) {
           ) : (
             <>
               {/* Apply Button - always show for available events */}
-              <Link href={`/events/${event.id}/apply`} style={{ textDecoration: 'none' }}>
+              {applicationStatus?.hasApplication && (applicationStatus.application?.status !== "ACCEPTED") && (
+              <Link href={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
                 <Button 
                   fullWidth
                   variant="filled"
                   rightSection={<IconArrowRight size={16} />}
                   color={gradient.from}
                 >
-                  Apply
+                  More info
                 </Button>
               </Link>
-              
+              )}
               {/* Manage Button - only show for accepted applications */}
               {applicationStatus?.hasApplication && applicationStatus.application?.status === "ACCEPTED" && (
-                <Link href={`/events/${event.id}/manage`} style={{ textDecoration: 'none' }}>
+                <Link href={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
                   <Button 
                     fullWidth
                     variant="outline"

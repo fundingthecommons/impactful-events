@@ -177,7 +177,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
       });
       
       // Redirect back to mentor dashboard
-      router.push(`/events/${eventId}/apply`);
+      router.push(`/events/${eventId}?tab=application`);
     },
     onError: (error) => {
       notifications.show({

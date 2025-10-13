@@ -1,6 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
+import { type Session } from "next-auth";
 import {
   Container,
   Title,
@@ -17,6 +18,7 @@ import {
   Avatar,
   ActionIcon,
   Tooltip,
+  Tabs,
 } from "@mantine/core";
 import {
   IconUser,
@@ -28,6 +30,13 @@ import {
   IconPlus,
   IconCheck,
   IconEdit,
+  IconMapPin,
+  IconBriefcase,
+  IconClock,
+  IconHeart,
+  IconBrandLinkedin,
+  IconBrandTwitter,
+  IconWorld,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
@@ -244,218 +253,406 @@ export default function ResidentDashboard({
             </Card>
           </Grid.Col>
 
-          {/* Fellow Residents Directory */}
+          {/* Participants and Projects Tabs */}
           <Grid.Col span={12}>
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
-              <Group justify="space-between" mb="md">
-                <Group gap="xs">
-                  <IconUsers size={20} />
-                  <Text fw={600}>Fellow Residents</Text>
-                </Group>
-                <Group gap="xs">
-                  <Badge variant="light">
-                    {residentsData?.visibleResidents ?? 0} visible
-                  </Badge>
-                  {residentsData && residentsData.hiddenCount > 0 && (
-                    <Badge variant="outline" color="gray">
-                      {residentsData.hiddenCount} private
-                    </Badge>
-                  )}
-                </Group>
-              </Group>
+            <Tabs defaultValue="participants" variant="outline">
+              <Tabs.List grow>
+                <Tabs.Tab value="participants" leftSection={<IconUsers size={20} />}>
+                  Participants
+                </Tabs.Tab>
+                <Tabs.Tab value="projects" leftSection={<IconBulb size={20} />}>
+                  Projects
+                </Tabs.Tab>
+              </Tabs.List>
 
-              {residentsData && residentsData.hiddenCount > 0 && (
-                <Alert icon={<IconAlertCircle size={16} />} color="blue" mb="md">
-                  <Text size="sm">
-                    <strong>{residentsData.hiddenCount} residents</strong> haven&apos;t completed their profiles yet.
-                    Complete your profile above to help build our resident community!
-                  </Text>
-                </Alert>
-              )}
+              <Tabs.Panel value="participants" pt="lg">
+                <ParticipantsTab 
+                  residentsData={residentsData}
+                  session={session}
+                />
+              </Tabs.Panel>
 
-              {residentsData?.residents && residentsData.residents.length > 0 ? (
-                <Grid>
-                  {residentsData.residents.slice(0, 8).map((resident) => (
-                    <Grid.Col key={resident.user?.id} span={{ base: 6, sm: 4, md: 3 }}>
-                      <Card
-                        component={Link}
-                        href={`/profiles/${resident.user?.id}`}
-                        shadow="xs"
-                        padding="md"
-                        radius="md"
-                        withBorder
-                        style={{ textDecoration: 'none', color: 'inherit' }}
-                      >
-                        <Stack align="center" gap="xs">
-                          <Avatar
-                            src={resident.user?.image}
-                            size="md"
-                            radius="xl"
-                          />
-                          <Text fw={500} size="sm" ta="center" lineClamp={1}>
-                            {resident.user?.name ?? "Anonymous"}
-                          </Text>
-                          {resident.user?.profile?.jobTitle && (
-                            <Text size="xs" c="dimmed" ta="center" lineClamp={1}>
-                              {resident.user?.profile?.jobTitle}
-                            </Text>
-                          )}
-                          <Badge size="xs" variant="light">
-                            {resident.completionPercentage}% complete
-                          </Badge>
-                        </Stack>
-                      </Card>
-                    </Grid.Col>
-                  ))}
-                </Grid>
-              ) : (
-                <Stack align="center" gap="md" py="xl">
-                  <Text ta="center" c="dimmed">
-                    No visible residents yet
-                  </Text>
-                  <Text ta="center" size="sm" c="dimmed">
-                    Be the first to complete your profile and appear in the directory!
-                  </Text>
-                </Stack>
-              )}
-
-              {residentsData && residentsData.visibleResidents > 8 && (
-                <Group justify="center" mt="md">
-                  <Button
-                    component={Link}
-                    href="/profiles"
-                    variant="light"
-                  >
-                    View All Residents ({residentsData.visibleResidents})
-                  </Button>
-                </Group>
-              )}
-            </Card>
-          </Grid.Col>
-
-          {/* Residency Projects Showcase */}
-          <Grid.Col span={12}>
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
-              <Group justify="space-between" mb="md">
-                <Group gap="xs">
-                  <IconBulb size={20} />
-                  <Text fw={600}>Residency Projects</Text>
-                </Group>
-                <Badge variant="light">
-                  {residentProjects?.length ?? 0} projects
-                </Badge>
-              </Group>
-
-              {residentProjects && residentProjects.length > 0 ? (
-                <Grid>
-                  {residentProjects.slice(0, 6).map((project) => (
-                    <Grid.Col key={project.id} span={{ base: 12, sm: 6, md: 4 }}>
-                      <Card shadow="xs" padding="md" radius="md" withBorder h="100%">
-                        <Stack gap="xs">
-                          <Group justify="space-between" align="flex-start">
-                            <Text fw={500} size="sm" lineClamp={1}>
-                              {project.title}
-                            </Text>
-                            <Group gap="xs">
-                              {project.liveUrl && (
-                                <Tooltip label="View Demo">
-                                  <ActionIcon
-                                    component="a"
-                                    href={project.liveUrl}
-                                    target="_blank"
-                                    variant="light"
-                                    size="xs"
-                                  >
-                                    <IconExternalLink size={12} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              )}
-                              {project.githubUrl && (
-                                <Tooltip label="View Source">
-                                  <ActionIcon
-                                    component="a"
-                                    href={project.githubUrl}
-                                    target="_blank"
-                                    variant="light"
-                                    size="xs"
-                                  >
-                                    <IconBrandGithub size={12} />
-                                  </ActionIcon>
-                                </Tooltip>
-                              )}
-                            </Group>
-                          </Group>
-
-                          {project.description && (
-                            <Text size="xs" c="dimmed" lineClamp={2}>
-                              {project.description}
-                            </Text>
-                          )}
-
-                          {project.technologies.length > 0 && (
-                            <Group gap="xs">
-                              {project.technologies.slice(0, 2).map((tech) => (
-                                <Badge key={tech} size="xs" variant="outline">
-                                  {tech}
-                                </Badge>
-                              ))}
-                              {project.technologies.length > 2 && (
-                                <Badge size="xs" variant="outline" color="gray">
-                                  +{project.technologies.length - 2}
-                                </Badge>
-                              )}
-                            </Group>
-                          )}
-
-                          <Group gap="xs" mt="auto">
-                            <Avatar
-                              src={project.profile.user?.image}
-                              size="xs"
-                              radius="xl"
-                            />
-                            <Text size="xs" c="dimmed">
-                              {project.profile.user?.name ?? "Anonymous"}
-                            </Text>
-                          </Group>
-                        </Stack>
-                      </Card>
-                    </Grid.Col>
-                  ))}
-                </Grid>
-              ) : (
-                <Stack align="center" gap="md" py="xl">
-                  <Text ta="center" c="dimmed">
-                    No projects shared yet
-                  </Text>
-                  <Text ta="center" size="sm" c="dimmed">
-                    Be the first to showcase your work in the residency!
-                  </Text>
-                  <Button
-                    component={Link}
-                    href="/profile/edit"
-                    variant="light"
-                    leftSection={<IconPlus size={16} />}
-                  >
-                    Add Your Project
-                  </Button>
-                </Stack>
-              )}
-
-              {residentProjects && residentProjects.length > 6 && (
-                <Group justify="center" mt="md">
-                  <Button
-                    component={Link}
-                    href="/projects"
-                    variant="light"
-                  >
-                    View All Projects ({residentProjects.length})
-                  </Button>
-                </Group>
-              )}
-            </Card>
+              <Tabs.Panel value="projects" pt="lg">
+                <ProjectsTab 
+                  residentProjects={residentProjects}
+                />
+              </Tabs.Panel>
+            </Tabs>
           </Grid.Col>
         </Grid>
       </Stack>
     </Container>
+  );
+}
+
+// Helper function for social icons
+function getSocialIcon(url: string, type: 'github' | 'linkedin' | 'twitter' | 'website') {
+  const icons = {
+    github: IconBrandGithub,
+    linkedin: IconBrandLinkedin,
+    twitter: IconBrandTwitter,
+    website: IconWorld,
+  };
+  const Icon = icons[type];
+  return (
+    <ActionIcon
+      component="a"
+      href={url}
+      target="_blank"
+      variant="light"
+      size="sm"
+      color="blue"
+    >
+      <Icon size={16} />
+    </ActionIcon>
+  );
+}
+
+interface ParticipantsTabProps {
+  residentsData: {
+    residents: Array<{
+      user?: {
+        id: string;
+        name: string | null;
+        image: string | null;
+        profile?: {
+          jobTitle?: string | null;
+          company?: string | null;
+          location?: string | null;
+          bio?: string | null;
+          skills?: string[];
+          githubUrl?: string | null;
+          linkedinUrl?: string | null;
+          twitterUrl?: string | null;
+          website?: string | null;
+          availableForMentoring?: boolean | null;
+          availableForHiring?: boolean | null;
+          availableForOfficeHours?: boolean | null;
+        } | null;
+      } | null;
+      completionPercentage: number;
+    }>;
+    visibleResidents: number;
+    hiddenCount: number;
+  } | undefined;
+  session: Session | null;
+}
+
+function ParticipantsTab({ residentsData, session }: ParticipantsTabProps) {
+  return (
+    <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Group justify="space-between" mb="md">
+        <Group gap="xs">
+          <Text fw={600}>Event Participants</Text>
+        </Group>
+        <Group gap="xs">
+          <Badge variant="light">
+            {residentsData?.visibleResidents ?? 0} visible
+          </Badge>
+          {residentsData && residentsData.hiddenCount > 0 && (
+            <Badge variant="outline" color="gray">
+              {residentsData.hiddenCount} private
+            </Badge>
+          )}
+          {session && (
+            <Button component={Link} href="/profile/edit" size="xs" variant="light" leftSection={<IconEdit size={14} />}>
+              Edit My Profile
+            </Button>
+          )}
+        </Group>
+      </Group>
+
+      {residentsData && residentsData.hiddenCount > 0 && (
+        <Alert icon={<IconAlertCircle size={16} />} color="blue" mb="md">
+          <Text size="sm">
+            <strong>{residentsData.hiddenCount} participants</strong> haven&apos;t completed their profiles yet.
+            Complete your profile to help build our participant community!
+          </Text>
+        </Alert>
+      )}
+
+      {residentsData?.residents && residentsData.residents.length > 0 ? (
+        <Grid>
+          {residentsData.residents.map((resident) => (
+            <Grid.Col key={resident.user?.id} span={{ base: 12, sm: 6, lg: 4 }}>
+              <Card 
+                shadow="sm" 
+                padding="lg" 
+                radius="md" 
+                withBorder 
+                h="100%"
+                component={Link}
+                href={`/profiles/${resident.user?.id}`}
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
+                <Card.Section p="lg" pb="xs">
+                  <Group gap="sm">
+                    <Avatar
+                      src={resident.user?.image}
+                      size="lg"
+                      radius="md"
+                    />
+                    <div style={{ flex: 1 }}>
+                      <Text fw={600} size="lg" lineClamp={1}>
+                        {resident.user?.name ?? "Anonymous"}
+                      </Text>
+                      {resident.user?.profile?.jobTitle && (
+                        <Text size="sm" c="dimmed" lineClamp={1}>
+                          {resident.user?.profile?.jobTitle}
+                          {resident.user?.profile?.company && ` at ${resident.user?.profile?.company}`}
+                        </Text>
+                      )}
+                    </div>
+                  </Group>
+                </Card.Section>
+
+                <Card.Section px="lg" pb="xs">
+                  {resident.user?.profile?.location && (
+                    <Group gap={4} mb="xs">
+                      <IconMapPin size={14} />
+                      <Text size="xs" c="dimmed" lineClamp={1}>
+                        {resident.user?.profile?.location}
+                      </Text>
+                    </Group>
+                  )}
+
+                  {resident.user?.profile?.bio && (
+                    <Text size="sm" lineClamp={3} mb="xs">
+                      {resident.user?.profile?.bio}
+                    </Text>
+                  )}
+
+                  {resident.user?.profile?.skills && resident.user?.profile?.skills.length > 0 && (
+                    <Group gap={4} mb="xs">
+                      {resident.user?.profile?.skills.slice(0, 3).map((skill) => (
+                        <Badge key={skill} size="xs" variant="light">
+                          {skill}
+                        </Badge>
+                      ))}
+                      {resident.user?.profile?.skills.length > 3 && (
+                        <Badge size="xs" variant="outline" color="gray">
+                          +{resident.user?.profile?.skills.length - 3}
+                        </Badge>
+                      )}
+                    </Group>
+                  )}
+                </Card.Section>
+
+                <Card.Section px="lg" pb="lg">
+                  <Group justify="space-between" align="flex-end" h={40}>
+                    <Group gap={4}>
+                      {resident.user?.profile?.availableForMentoring && (
+                        <Tooltip label="Available for mentoring">
+                          <Badge
+                            size="xs"
+                            variant="light"
+                            color="green"
+                            leftSection={<IconHeart size={10} />}
+                          >
+                            Mentor
+                          </Badge>
+                        </Tooltip>
+                      )}
+                      {resident.user?.profile?.availableForHiring && (
+                        <Tooltip label="Available for hiring">
+                          <Badge
+                            size="xs"
+                            variant="light"
+                            color="blue"
+                            leftSection={<IconBriefcase size={10} />}
+                          >
+                            Hiring
+                          </Badge>
+                        </Tooltip>
+                      )}
+                      {resident.user?.profile?.availableForOfficeHours && (
+                        <Tooltip label="Office hours available">
+                          <Badge
+                            size="xs"
+                            variant="light"
+                            color="orange"
+                            leftSection={<IconClock size={10} />}
+                          >
+                            Office Hours
+                          </Badge>
+                        </Tooltip>
+                      )}
+                    </Group>
+
+                    <Group gap={4}>
+                      {resident.user?.profile?.githubUrl && getSocialIcon(resident.user?.profile?.githubUrl, 'github')}
+                      {resident.user?.profile?.linkedinUrl && getSocialIcon(resident.user?.profile?.linkedinUrl, 'linkedin')}
+                      {resident.user?.profile?.twitterUrl && getSocialIcon(resident.user?.profile?.twitterUrl, 'twitter')}
+                      {resident.user?.profile?.website && getSocialIcon(resident.user?.profile?.website, 'website')}
+                    </Group>
+                  </Group>
+                </Card.Section>
+              </Card>
+            </Grid.Col>
+          ))}
+        </Grid>
+      ) : (
+        <Stack align="center" gap="md" py="xl">
+          <Text ta="center" c="dimmed">
+            No visible participants yet
+          </Text>
+          <Text ta="center" size="sm" c="dimmed">
+            Be the first to complete your profile and appear in the directory!
+          </Text>
+        </Stack>
+      )}
+
+      {residentsData && residentsData.visibleResidents > 8 && (
+        <Group justify="center" mt="md">
+          <Button
+            component={Link}
+            href="/profiles"
+            variant="light"
+          >
+            View All Participants ({residentsData.visibleResidents})
+          </Button>
+        </Group>
+      )}
+    </Card>
+  );
+}
+
+interface ProjectsTabProps {
+  residentProjects: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    technologies: string[];
+    liveUrl: string | null;
+    githubUrl: string | null;
+    profile: {
+      user?: {
+        id: string;
+        name: string | null;
+        image: string | null;
+      } | null;
+    };
+  }> | undefined;
+}
+
+function ProjectsTab({ residentProjects }: ProjectsTabProps) {
+  return (
+    <Card shadow="sm" padding="lg" radius="md" withBorder>
+      <Group justify="space-between" mb="md">
+        <Group gap="xs">
+          <Text fw={600}>Participant Projects</Text>
+        </Group>
+        <Badge variant="light">
+          {residentProjects?.length ?? 0} projects
+        </Badge>
+      </Group>
+
+      {residentProjects && residentProjects.length > 0 ? (
+        <Grid>
+          {residentProjects.map((project) => (
+            <Grid.Col key={project.id} span={{ base: 12, sm: 6, md: 4 }}>
+              <Card shadow="xs" padding="md" radius="md" withBorder h="100%">
+                <Stack gap="xs">
+                  <Group justify="space-between" align="flex-start">
+                    <Text fw={500} size="sm" lineClamp={1}>
+                      {project.title}
+                    </Text>
+                    <Group gap="xs">
+                      {project.liveUrl && (
+                        <Tooltip label="View Demo">
+                          <ActionIcon
+                            component="a"
+                            href={project.liveUrl}
+                            target="_blank"
+                            variant="light"
+                            size="xs"
+                          >
+                            <IconExternalLink size={12} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                      {project.githubUrl && (
+                        <Tooltip label="View Source">
+                          <ActionIcon
+                            component="a"
+                            href={project.githubUrl}
+                            target="_blank"
+                            variant="light"
+                            size="xs"
+                          >
+                            <IconBrandGithub size={12} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                    </Group>
+                  </Group>
+
+                  {project.description && (
+                    <Text size="xs" c="dimmed" lineClamp={2}>
+                      {project.description}
+                    </Text>
+                  )}
+
+                  {project.technologies.length > 0 && (
+                    <Group gap="xs">
+                      {project.technologies.slice(0, 2).map((tech) => (
+                        <Badge key={tech} size="xs" variant="outline">
+                          {tech}
+                        </Badge>
+                      ))}
+                      {project.technologies.length > 2 && (
+                        <Badge size="xs" variant="outline" color="gray">
+                          +{project.technologies.length - 2}
+                        </Badge>
+                      )}
+                    </Group>
+                  )}
+
+                  <Group gap="xs" mt="auto">
+                    <Avatar
+                      src={project.profile.user?.image}
+                      size="xs"
+                      radius="xl"
+                    />
+                    <Text size="xs" c="dimmed">
+                      {project.profile.user?.name ?? "Anonymous"}
+                    </Text>
+                  </Group>
+                </Stack>
+              </Card>
+            </Grid.Col>
+          ))}
+        </Grid>
+      ) : (
+        <Stack align="center" gap="md" py="xl">
+          <Text ta="center" c="dimmed">
+            No projects shared yet
+          </Text>
+          <Text ta="center" size="sm" c="dimmed">
+            Be the first to showcase your work in the event!
+          </Text>
+          <Button
+            component={Link}
+            href="/profile/edit"
+            variant="light"
+            leftSection={<IconPlus size={16} />}
+          >
+            Add Your Project
+          </Button>
+        </Stack>
+      )}
+
+      {residentProjects && residentProjects.length > 6 && (
+        <Group justify="center" mt="md">
+          <Button
+            component={Link}
+            href="/projects"
+            variant="light"
+          >
+            View All Projects ({residentProjects.length})
+          </Button>
+        </Group>
+      )}
+    </Card>
   );
 }

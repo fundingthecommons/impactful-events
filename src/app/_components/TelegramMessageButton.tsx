@@ -68,7 +68,7 @@ I'm reviewing your application, and need to collect some more information from y
 
 Could you please create an account on our platform with the same email address you applied with and fill in the missing information 🙏
 
-You can find our platform here - https://platform.fundingthecommons.io/events/funding-commons-residency-2025/apply
+You can find our platform here - https://platform.fundingthecommons.io/events/funding-commons-residency-2025?tab=application
 
 Please let me know if you need any help?`;
   

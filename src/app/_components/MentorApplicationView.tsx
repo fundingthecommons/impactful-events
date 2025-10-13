@@ -230,7 +230,7 @@ export default function MentorApplicationView({ event }: MentorApplicationViewPr
             variant="subtle" 
             size="sm"
             component={Link}
-            href={`/events/${event.id}/apply?mentor=false`}
+            href={`/events/${event.id}?tab=application`}
           >
             View Application Form
           </Button>

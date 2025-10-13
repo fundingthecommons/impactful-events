@@ -65,6 +65,7 @@ interface EventDetailClientProps {
   event: Event;
   userApplication: Application | null;
   userId: string;
+  defaultTab?: string;
 }
 
 function getStatusColor(status: string) {
@@ -108,7 +109,8 @@ function getStatusMessage(status: string) {
 export default function EventDetailClient({ 
   event, 
   userApplication, 
-  userId: _userId 
+  userId: _userId,
+  defaultTab
 }: EventDetailClientProps) {
   console.log("🔍 EventDetailClient props:", {
     event,
@@ -116,8 +118,17 @@ export default function EventDetailClient({
     userId: _userId
   });
   const [language, setLanguage] = useState<"en" | "es">("en");
-  const [activeTab, setActiveTab] = useState<string | null>("overview");
+  const [activeTab, setActiveTab] = useState<string | null>(defaultTab ?? "overview");
   const { data: session } = useSession();
+
+  // Check if user is a mentor for this event
+  const { data: isMentor } = api.event.checkMentorRole.useQuery(
+    { eventId: event.id },
+    { enabled: !!session?.user }
+  );
+
+  // Check if user is admin/staff
+  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "staff";
 
   const utils = api.useUtils();
 
@@ -270,6 +281,14 @@ export default function EventDetailClient({
             <Tabs.Tab value="application">
               {userApplication ? "Manage Application" : "Apply Now"}
             </Tabs.Tab>
+            {(isMentor || isAdmin) && (
+              <Tabs.Tab value="mentor">
+                Mentor Dashboard
+              </Tabs.Tab>
+            )}
+            <Tabs.Tab value="resources">
+              Resources
+            </Tabs.Tab>
           </Tabs.List>
 
           <Tabs.Panel value="overview" mt="md">
@@ -359,6 +378,98 @@ export default function EventDetailClient({
                   />
                 </Stack>
               )}
+            </Paper>
+          </Tabs.Panel>
+
+          {/* Mentor Dashboard Tab */}
+          {(isMentor || isAdmin) && (
+            <Tabs.Panel value="mentor" mt="md">
+              <Paper p="xl" radius="md" withBorder>
+                <Stack gap="lg">
+                  <Title order={2}>Mentor Dashboard</Title>
+                  <Text c="dimmed">
+                    Welcome to your mentor dashboard. Here you can manage your mentorship activities and track resident progress.
+                  </Text>
+                  
+                  <Divider />
+                  
+                  <Group gap="xl">
+                    <Stack gap="xs">
+                      <Text fw={500}>Your Role</Text>
+                      <Text c="dimmed">
+                        {isMentor ? "Mentor" : "Administrator"}
+                      </Text>
+                    </Stack>
+                    
+                    <Stack gap="xs">
+                      <Text fw={500}>Access Level</Text>
+                      <Text c="dimmed">
+                        Full mentor privileges
+                      </Text>
+                    </Stack>
+                  </Group>
+
+                  <Divider />
+                  
+                  <Text size="sm" c="dimmed">
+                    More mentor features will be available soon. For now, you have full access to all event information and can bypass application restrictions.
+                  </Text>
+                </Stack>
+              </Paper>
+            </Tabs.Panel>
+          )}
+
+          {/* Resources Tab */}
+          <Tabs.Panel value="resources" mt="md">
+            <Paper p="xl" radius="md" withBorder>
+              <Stack gap="lg">
+                <Title order={2}>Event Resources</Title>
+                
+                <Stack gap="md">
+                  <Text fw={500}>Program Information</Text>
+                  <Group gap="md">
+                    <Button
+                      component="a"
+                      href="/events/funding-commons-residency-2025/about"
+                      variant="light"
+                      color="blue"
+                    >
+                      About the Residency
+                    </Button>
+                    <Button
+                      component="a"
+                      href="/events/funding-commons-residency-2025/faq"
+                      variant="light"
+                      color="purple"
+                    >
+                      Frequently Asked Questions
+                    </Button>
+                  </Group>
+                </Stack>
+
+                <Divider />
+
+                <Stack gap="md">
+                  <Text fw={500}>External Links</Text>
+                  <Group gap="md">
+                    <Button
+                      component="a"
+                      href="https://fundingthecommons.io"
+                      target="_blank"
+                      variant="outline"
+                      color="gray"
+                    >
+                      Funding the Commons Website
+                    </Button>
+                  </Group>
+                </Stack>
+
+                <Divider />
+
+                <Text size="sm" c="dimmed">
+                  Additional resources and documentation will be made available as the program progresses.
+                </Text>
+              </Stack>
             </Paper>
           </Tabs.Panel>
         </Tabs>

@@ -9,7 +9,7 @@ export default async function FundingCommonsResidencyManagePage() {
   const session = await auth();
   
   if (!session?.user) {
-    redirect("/events/funding-commons-residency-2025/apply");
+    redirect("/events/funding-commons-residency-2025?tab=application");
   }
 
   // Fetch event details and user's application
@@ -46,7 +46,7 @@ export default async function FundingCommonsResidencyManagePage() {
   // Only accepted users can access the manage page
   if (!userApplication) {
     // No application found - redirect to apply page
-    redirect("/events/funding-commons-residency-2025/apply");
+    redirect("/events/funding-commons-residency-2025?tab=application");
   }
 
   if (userApplication.status !== "ACCEPTED") {

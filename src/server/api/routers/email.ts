@@ -376,7 +376,7 @@ export const emailRouter = createTRPCRouter({
       }
 
       // Generate application URL (you'll need to adjust this based on your routing)
-      const applicationUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/events/${validation.application.eventId}/apply`;
+      const applicationUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/events/${validation.application.eventId}?tab=application`;
 
       // Generate email content
       const emailContent = generateMissingInfoEmail({
