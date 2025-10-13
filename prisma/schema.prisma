@@ -1164,11 +1164,11 @@ model ApplicationOnboarding {
   arrivalDateTime         DateTime? // Arrival date and time in Buenos Aires
   departureDateTime       DateTime? // Departure date and time
   
-  // Travel Documents
-  eTicketUrl              String?  // URL to uploaded e-ticket file
-  eTicketFileName         String?  // Original filename
-  healthInsuranceUrl      String?  // URL to uploaded insurance proof
-  healthInsuranceFileName String?  // Original filename
+  // Travel Documents - DEPRECATED: These fields were removed from the onboarding form but kept for existing data
+  eTicketUrl              String?  // URL to uploaded e-ticket file (deprecated)
+  eTicketFileName         String?  // Original filename (deprecated)
+  healthInsuranceUrl      String?  // URL to uploaded insurance proof (deprecated)
+  healthInsuranceFileName String?  // Original filename (deprecated)
   
   // Food & Dietary Needs
   dietType                DietType? // Diet type (omnivore, vegetarian, vegan, other)
@@ -1208,6 +1208,7 @@ model ApplicationOnboarding {
   participateExperiments  Boolean  @default(false)
   mintHypercert          Boolean  @default(false)
   interestedIncubation   Boolean  @default(false)
+  interestedEIR          Boolean  @default(false) // Interested in Entrepreneur in Residency program
   liabilityWaiverConsent  Boolean  @default(false) // Liability waiver consent
   codeOfConductAgreement  Boolean  @default(false) // Code of conduct agreement
   communityActivitiesConsent Boolean @default(false) // Community activities participation

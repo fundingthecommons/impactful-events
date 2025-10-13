@@ -26,8 +26,6 @@ import {
   IconX, 
   IconClock,
   IconUser,
-  IconPlane,
-  
   IconLanguage,
   IconBrain,
   IconPresentation,
@@ -38,6 +36,7 @@ import {
   IconPhone,
   IconCalendar,
   IconHeart,
+  IconArrowLeft,
 } from "@tabler/icons-react";
 import Link from "next/link";
 
@@ -57,7 +56,7 @@ interface OnboardingSubmission {
   arrivalDateTime: Date | null;
   departureDateTime: Date | null;
   
-  // Travel Documents
+  // Travel Documents - Deprecated but kept for existing data
   eTicketUrl: string | null;
   eTicketFileName: string | null;
   healthInsuranceUrl: string | null;
@@ -124,7 +123,17 @@ interface OnboardingSubmission {
   };
 }
 
-interface OnboardingAdminClientProps {
+interface Event {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  startDate: Date;
+  endDate: Date;
+}
+
+interface EventOnboardingClientProps {
+  event: Event;
   onboardingData: OnboardingSubmission[];
 }
 
@@ -135,10 +144,9 @@ function getStatusBadge(submission: OnboardingSubmission) {
   
   // Check if they have provided any substantial information
   const hasBasicInfo = submission.legalName ?? submission.passportNumber ?? submission.emergencyContactName;
-  const hasDocuments = submission.eTicketUrl ?? submission.healthInsuranceUrl;
   const hasCommitments = submission.participateExperiments ?? submission.mintHypercert;
   
-  if (!submission.completed && (hasBasicInfo || hasDocuments || hasCommitments)) {
+  if (!submission.completed && (hasBasicInfo ?? hasCommitments)) {
     return <Badge color="yellow" leftSection={<IconClock size={12} />}>In Progress</Badge>;
   }
   
@@ -160,7 +168,6 @@ function OnboardingDetailModal({
     if (!date) return "Not provided";
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
   };
-
 
   return (
     <Modal 
@@ -251,39 +258,33 @@ function OnboardingDetailModal({
           </Grid>
         </Card>
 
-        {/* Travel Documents */}
-        <Card withBorder p="md">
-          <Group gap="sm" mb="md">
-            <IconPlane size={20} color="blue" />
-            <Title order={4}>Travel Documents</Title>
-          </Group>
-          <Grid>
-            <Grid.Col span={6}>
-              <Text size="sm" fw={500}>E-Ticket</Text>
-              {submission.eTicketUrl ? (
-                <div>
+        {/* Travel Documents - Only show if data exists (deprecated fields) */}
+        {(submission.eTicketUrl ?? submission.healthInsuranceUrl) && (
+          <Card withBorder p="md">
+            <Group gap="sm" mb="md">
+              <IconPhoto size={20} color="blue" />
+              <Title order={4}>Travel Documents (Legacy)</Title>
+            </Group>
+            <Grid>
+              {submission.eTicketUrl && (
+                <Grid.Col span={6}>
+                  <Text size="sm" fw={500}>E-Ticket</Text>
                   <Anchor href={submission.eTicketUrl} target="_blank" size="sm">
                     {submission.eTicketFileName ?? "View E-Ticket"} <IconDownload size={12} />
                   </Anchor>
-                </div>
-              ) : (
-                <Text size="sm" c="dimmed">Not provided</Text>
+                </Grid.Col>
               )}
-            </Grid.Col>
-            <Grid.Col span={6}>
-              <Text size="sm" fw={500}>Health Insurance</Text>
-              {submission.healthInsuranceUrl ? (
-                <div>
+              {submission.healthInsuranceUrl && (
+                <Grid.Col span={6}>
+                  <Text size="sm" fw={500}>Health Insurance</Text>
                   <Anchor href={submission.healthInsuranceUrl} target="_blank" size="sm">
                     {submission.healthInsuranceFileName ?? "View Insurance"} <IconDownload size={12} />
                   </Anchor>
-                </div>
-              ) : (
-                <Text size="sm" c="dimmed">Not provided</Text>
+                </Grid.Col>
               )}
-            </Grid.Col>
-          </Grid>
-        </Card>
+            </Grid>
+          </Card>
+        )}
 
         {/* Food & Dietary */}
         <Card withBorder p="md">
@@ -445,31 +446,36 @@ function OnboardingDetailModal({
           </Grid>
         </Card>
 
-        {/* Media & Bio */}
+        {/* Profile Setup */}
         <Card withBorder p="md">
           <Group gap="sm" mb="md">
             <IconPhoto size={20} color="cyan" />
-            <Title order={4}>Media & Bio</Title>
+            <Title order={4}>Profile & Media</Title>
           </Group>
           <Grid>
-            <Grid.Col span={6}>
-              <Text size="sm" fw={500}>Headshot</Text>
-              {submission.headshotUrl ? (
-                <div>
-                  <Anchor href={submission.headshotUrl} target="_blank" size="sm">
-                    {submission.headshotFileName ?? "View Headshot"} <IconDownload size={12} />
-                  </Anchor>
-                </div>
-              ) : (
-                <Text size="sm" c="dimmed">Not provided</Text>
-              )}
-            </Grid.Col>
-            <Grid.Col span={12}>
-              <Text size="sm" fw={500}>Short Bio</Text>
-              <Text size="sm" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
-                {submission.shortBio ?? "Not provided"}
-              </Text>
-            </Grid.Col>
+            {submission.headshotUrl && (
+              <Grid.Col span={6}>
+                <Text size="sm" fw={500}>Headshot (Legacy)</Text>
+                <Anchor href={submission.headshotUrl} target="_blank" size="sm">
+                  {submission.headshotFileName ?? "View Headshot"} <IconDownload size={12} />
+                </Anchor>
+              </Grid.Col>
+            )}
+            {submission.shortBio && (
+              <Grid.Col span={12}>
+                <Text size="sm" fw={500}>Short Bio (Legacy)</Text>
+                <Text size="sm" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
+                  {submission.shortBio}
+                </Text>
+              </Grid.Col>
+            )}
+            {!submission.headshotUrl && !submission.shortBio && (
+              <Grid.Col span={12}>
+                <Text size="sm" c="dimmed">
+                  Profile information should be managed via the main profile system.
+                </Text>
+              </Grid.Col>
+            )}
           </Grid>
         </Card>
 
@@ -477,11 +483,11 @@ function OnboardingDetailModal({
         <Card withBorder p="md">
           <Group gap="sm" mb="md">
             <IconClipboardCheck size={20} color="red" />
-            <Title order={4}>Final Confirmations</Title>
+            <Title order={4}>Commitments & Interests</Title>
           </Group>
           <Grid>
-            <Grid.Col span={6}>
-              <Text size="sm" fw={500}>Participate in Experiments</Text>
+            <Grid.Col span={4}>
+              <Text size="sm" fw={500}>Full Participation</Text>
               <Badge 
                 color={submission.participateExperiments ? "green" : "red"} 
                 size="sm"
@@ -490,8 +496,8 @@ function OnboardingDetailModal({
                 {submission.participateExperiments ? "Yes" : "No"}
               </Badge>
             </Grid.Col>
-            <Grid.Col span={6}>
-              <Text size="sm" fw={500}>Mint Hypercert</Text>
+            <Grid.Col span={4}>
+              <Text size="sm" fw={500}>Documentation Commitment</Text>
               <Badge 
                 color={submission.mintHypercert ? "green" : "red"} 
                 size="sm"
@@ -500,7 +506,7 @@ function OnboardingDetailModal({
                 {submission.mintHypercert ? "Yes" : "No"}
               </Badge>
             </Grid.Col>
-            <Grid.Col span={6}>
+            <Grid.Col span={4}>
               <Text size="sm" fw={500}>Interested in Incubation</Text>
               <Badge 
                 color={submission.interestedIncubation ? "blue" : "gray"} 
@@ -510,7 +516,7 @@ function OnboardingDetailModal({
                 {submission.interestedIncubation ? "Yes" : "No"}
               </Badge>
             </Grid.Col>
-            <Grid.Col span={6}>
+            <Grid.Col span={4}>
               <Text size="sm" fw={500}>Interested in EIR Program</Text>
               <Badge 
                 color={submission.interestedEIR ? "purple" : "gray"} 
@@ -554,20 +560,22 @@ function OnboardingDetailModal({
         </Card>
 
         {/* Additional Information */}
-        <Card withBorder p="md">
-          <Group gap="sm" mb="md">
-            <IconStar size={20} color="yellow" />
-            <Title order={4}>Additional Information</Title>
-          </Group>
-          <Grid>
-            <Grid.Col span={12}>
-              <Text size="sm" fw={500}>Additional Comments</Text>
-              <Text size="sm" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
-                {submission.additionalComments ?? "No additional comments"}
-              </Text>
-            </Grid.Col>
-          </Grid>
-        </Card>
+        {submission.additionalComments && (
+          <Card withBorder p="md">
+            <Group gap="sm" mb="md">
+              <IconStar size={20} color="yellow" />
+              <Title order={4}>Additional Information</Title>
+            </Group>
+            <Grid>
+              <Grid.Col span={12}>
+                <Text size="sm" fw={500}>Additional Comments</Text>
+                <Text size="sm" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
+                  {submission.additionalComments}
+                </Text>
+              </Grid.Col>
+            </Grid>
+          </Card>
+        )}
 
         {/* Timestamps */}
         <Card withBorder p="md">
@@ -595,7 +603,7 @@ function OnboardingDetailModal({
   );
 }
 
-export default function OnboardingAdminClient({ onboardingData }: OnboardingAdminClientProps) {
+export default function EventOnboardingClient({ event, onboardingData }: EventOnboardingClientProps) {
   const [opened, { open, close }] = useDisclosure(false);
   const [selectedSubmission, setSelectedSubmission] = useState<OnboardingSubmission | null>(null);
 
@@ -605,21 +613,48 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
   };
 
   const completedCount = onboardingData.filter(s => s.completed).length;
-  const inProgressCount = onboardingData.filter(s => !s.completed && (s.eTicketUrl ?? s.healthInsuranceUrl)).length;
+  const inProgressCount = onboardingData.filter(s => !s.completed && (s.legalName ?? s.emergencyContactName)).length;
+  const eirInterestedCount = onboardingData.filter(s => s.interestedEIR).length;
 
   return (
     <Container size="xl" py="xl">
       <Stack gap="xl">
+        {/* Header */}
         <div>
-          <Title order={1} mb="sm">Onboarding Management</Title>
-          <Text c="dimmed">
-            Manage and review participant onboarding submissions for events
-          </Text>
+          <Group gap="md" mb="sm">
+            <ActionIcon
+              variant="subtle"
+              component={Link}
+              href={`/admin/events/${event.id}/applications`}
+              title="Back to applications"
+            >
+              <IconArrowLeft size={16} />
+            </ActionIcon>
+            <div style={{ flex: 1 }}>
+              <Title order={1}>Onboarding Management</Title>
+              <Text c="dimmed">
+                {event.name} - Manage participant onboarding submissions
+              </Text>
+            </div>
+          </Group>
         </div>
+
+        {/* Event Info Card */}
+        <Paper withBorder p="md">
+          <Group justify="space-between">
+            <div>
+              <Text fw={500} size="lg">{event.name}</Text>
+              <Text size="sm" c="dimmed">{event.type} • {event.startDate.toLocaleDateString()} - {event.endDate.toLocaleDateString()}</Text>
+            </div>
+            <Badge size="lg" variant="light" color="blue">
+              {onboardingData.length} submissions
+            </Badge>
+          </Group>
+        </Paper>
 
         {/* Stats Cards */}
         <Grid>
-          <Grid.Col span={{ base: 12, sm: 4 }}>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
             <Card withBorder p="md" ta="center">
               <Text size="xl" fw={700} c="blue">
                 {onboardingData.length}
@@ -627,7 +662,7 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
               <Text size="sm" c="dimmed">Total Submissions</Text>
             </Card>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 4 }}>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
             <Card withBorder p="md" ta="center">
               <Text size="xl" fw={700} c="green">
                 {completedCount}
@@ -635,12 +670,20 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
               <Text size="sm" c="dimmed">Completed</Text>
             </Card>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 4 }}>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
             <Card withBorder p="md" ta="center">
               <Text size="xl" fw={700} c="yellow">
                 {inProgressCount}
               </Text>
               <Text size="sm" c="dimmed">In Progress</Text>
+            </Card>
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
+            <Card withBorder p="md" ta="center">
+              <Text size="xl" fw={700} c="purple">
+                {eirInterestedCount}
+              </Text>
+              <Text size="sm" c="dimmed">EIR Interested</Text>
             </Card>
           </Grid.Col>
         </Grid>
@@ -651,11 +694,11 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Participant</Table.Th>
-                <Table.Th>Event</Table.Th>
                 <Table.Th>Status</Table.Th>
                 <Table.Th>Contact Info</Table.Th>
-                <Table.Th>Travel</Table.Th>
+                <Table.Th>Arrival</Table.Th>
                 <Table.Th>Contributions</Table.Th>
+                <Table.Th>Interests</Table.Th>
                 <Table.Th>Submitted</Table.Th>
                 <Table.Th>Actions</Table.Th>
               </Table.Tr>
@@ -664,7 +707,7 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
               {onboardingData.length === 0 ? (
                 <Table.Tr>
                   <Table.Td colSpan={8} ta="center" py="xl">
-                    <Text c="dimmed">No onboarding submissions found</Text>
+                    <Text c="dimmed">No onboarding submissions found for this event</Text>
                   </Table.Td>
                 </Table.Tr>
               ) : (
@@ -678,9 +721,6 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
                           <Text size="xs" c="dimmed">Legal: {submission.legalName}</Text>
                         )}
                       </div>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{submission.application.event.name}</Text>
                     </Table.Td>
                     <Table.Td>
                       {getStatusBadge(submission)}
@@ -701,26 +741,14 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
                       </Stack>
                     </Table.Td>
                     <Table.Td>
-                      <Group gap="xs">
-                        {submission.eTicketUrl && (
-                          <Tooltip label="E-Ticket provided">
-                            <Badge size="xs" color="blue">✈️</Badge>
-                          </Tooltip>
-                        )}
-                        {submission.healthInsuranceUrl && (
-                          <Tooltip label="Health insurance provided">
-                            <Badge size="xs" color="green">🏥</Badge>
-                          </Tooltip>
-                        )}
-                        {submission.arrivalDateTime && (
-                          <Tooltip label={`Arrives: ${submission.arrivalDateTime.toLocaleDateString()}`}>
-                            <Badge size="xs" color="teal">📅</Badge>
-                          </Tooltip>
-                        )}
-                        {!submission.eTicketUrl && !submission.healthInsuranceUrl && !submission.arrivalDateTime && (
-                          <Text size="sm" c="dimmed">None</Text>
-                        )}
-                      </Group>
+                      {submission.arrivalDateTime ? (
+                        <div>
+                          <Text size="sm">{submission.arrivalDateTime.toLocaleDateString()}</Text>
+                          <Text size="xs" c="dimmed">{submission.arrivalDateTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                        </div>
+                      ) : (
+                        <Text size="sm" c="dimmed">Not provided</Text>
+                      )}
                     </Table.Td>
                     <Table.Td>
                       <Stack gap={2}>
@@ -742,6 +770,19 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
                           <Badge size="xs" color="green">Mentor</Badge>
                         )}
                         {!submission.technicalWorkshopTitle && !submission.beyondWorkTitle && (
+                          <Text size="sm" c="dimmed">None</Text>
+                        )}
+                      </Stack>
+                    </Table.Td>
+                    <Table.Td>
+                      <Stack gap={2}>
+                        {submission.interestedIncubation && (
+                          <Badge size="xs" color="blue">Incubation</Badge>
+                        )}
+                        {submission.interestedEIR && (
+                          <Badge size="xs" color="purple">EIR</Badge>
+                        )}
+                        {!submission.interestedIncubation && !submission.interestedEIR && (
                           <Text size="sm" c="dimmed">None</Text>
                         )}
                       </Stack>
@@ -773,7 +814,7 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
                         <ActionIcon
                           variant="subtle"
                           component={Link}
-                          href={`/admin/events/${submission.application.event.id}/applications`}
+                          href={`/admin/events/${event.id}/applications`}
                           title="View application"
                         >
                           <IconDownload size={16} />

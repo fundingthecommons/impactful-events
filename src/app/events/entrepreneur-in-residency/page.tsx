@@ -1,3 +1,5 @@
+"use client";
+
 import { 
   Container, 
   Title, 
@@ -30,11 +32,11 @@ export default function EntrepreneurInResidencyPage() {
           {/* Header */}
           <Card shadow="lg" padding="xl" radius="md" withBorder>
             <Group align="flex-start" gap="lg">
-              <div className="hidden-mobile">
+              <Box visibleFrom="sm">
                 <ThemeIcon size={80} radius="md" variant="gradient" gradient={{ from: 'purple', to: 'pink' }}>
                   <IconBriefcase size={40} />
                 </ThemeIcon>
-              </div>
+              </Box>
               
               <Stack gap="sm" style={{ flex: 1 }}>
                 <Group justify="space-between" align="flex-start">
