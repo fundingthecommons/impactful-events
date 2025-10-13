@@ -25,7 +25,8 @@ export const env = createEnv({
     POSTMARK_SERVER_TOKEN: z.string(),
     POSTMARK_SANDBOX_TOKEN: z.string().optional(),
     EMAIL_MODE: z.enum(["development", "staging", "production"]).default("development"),
-    TEST_EMAIL_OVERRIDE: z.string().email().default("james@fundingthecommons.io"),
+    TEST_EMAIL_OVERRIDE: z.string().email(),
+    ADMIN_EMAIL: z.string().email(),
     MASTRA_API_KEY: z.string(),
     OPENAI_API_KEY: z.string().optional(),
   },
@@ -36,7 +37,7 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    NEXT_PUBLIC_ADMIN_EMAIL: z.string().email(),
   },
 
   /**
@@ -58,8 +59,10 @@ export const env = createEnv({
     POSTMARK_SANDBOX_TOKEN: process.env.POSTMARK_SANDBOX_TOKEN,
     EMAIL_MODE: process.env.EMAIL_MODE,
     TEST_EMAIL_OVERRIDE: process.env.TEST_EMAIL_OVERRIDE,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL,
     MASTRA_API_KEY: process.env.MASTRA_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    NEXT_PUBLIC_ADMIN_EMAIL: process.env.NEXT_PUBLIC_ADMIN_EMAIL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

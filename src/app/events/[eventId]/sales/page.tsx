@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
+import { env } from "~/env";
 
 export const metadata: Metadata = {
   title: "FtC RealFi Builder Residency 2025 - Buenos Aires",
@@ -676,7 +677,7 @@ export default async function FundingCommonsResidencyLandingPage() {
           </div>
           
           <p className="mt-8 text-sm opacity-75">
-            Questions? Email us at residency@fundingthecommons.io
+            Questions? Email us at {env.ADMIN_EMAIL}
           </p>
         </div>
       </section>

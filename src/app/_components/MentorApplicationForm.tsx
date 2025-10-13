@@ -18,6 +18,7 @@ import {
   Select,
   Checkbox,
   Radio,
+  NumberInput,
   Grid,
   Badge,
   Alert,
@@ -27,18 +28,24 @@ import { notifications } from "@mantine/notifications";
 import { 
   IconCheck, 
   IconX, 
-  IconCalendar, 
-  IconMail, 
   IconPhone,
   IconBrandTelegram,
   IconBrandDiscord,
   IconBrandLinkedin,
+  IconBrandTwitter,
+  IconBrandGithub,
+  IconWorld,
   IconUsers,
   IconBriefcase,
+  IconUser,
+  IconTool,
+  IconLink,
+  IconClock,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import SkillsMultiSelect from "./SkillsMultiSelect";
+import { env } from "~/env";
 
 const mentorApplicationSchema = z.object({
   skills: z.array(z.string()).min(1, "Please add at least one skill"), // Now stores skill IDs
@@ -48,10 +55,22 @@ const mentorApplicationSchema = z.object({
   mentorAvailableDates: z.array(z.string()).min(1, "Please select at least one availability period"),
   mentorHoursPerWeek: z.string().min(1, "Please specify your time commitment"),
   mentorPreferredContact: z.string().min(1, "Please select a preferred contact method"),
+  // Profile fields - Basic Information
+  bio: z.string().max(1000).optional(),
+  jobTitle: z.string().max(100).optional(),
+  company: z.string().max(100).optional(),
+  location: z.string().max(100).optional(),
+  // Profile fields - Links & Contact  
+  website: z.string().url().optional().or(z.literal("")),
+  githubUrl: z.string().url().optional().or(z.literal("")),
+  twitterUrl: z.string().url().optional().or(z.literal("")),
   phoneNumber: z.string().optional(),
   telegramHandle: z.string().optional(),
   discordHandle: z.string().optional(),
   linkedinUrl: z.string().url().optional().or(z.literal("")),
+  // Profile fields - Professional Details
+  languages: z.array(z.string().max(50)).max(10).optional(),
+  // Mentorship fields
   mentorshipStyle: z.string().min(1, "Please describe your mentorship approach"),
   previousMentoringExp: z.string().min(1, "Please describe your previous mentoring experience"),
   mentorSpecializations: z.array(z.string()).min(1, "Please add at least one specialization"),
@@ -69,19 +88,11 @@ const availabilityOptions = [
 ];
 
 const timeCommitmentOptions = [
-  { value: "1-2", label: "1-2 half days per week" },
-  { value: "2-3", label: "2-3 half days per week" },
-  { value: "3-4", label: "3-4 half days per week" },
-  { value: "4+", label: "4+ half days per week" },
+  { value: "1-2", label: "1-2 days per week" },
+  { value: "2-3", label: "2-3 days per week" },
+  { value: "3-4", label: "3-4 days per week" },
+  { value: "4+", label: "4+ days per week" },
   { value: "flexible", label: "Flexible based on needs" },
-];
-
-const contactMethodOptions = [
-  { value: "email", label: "Email" },
-  { value: "telegram", label: "Telegram" },
-  { value: "discord", label: "Discord" },
-  { value: "linkedin", label: "LinkedIn" },
-  { value: "phone", label: "Phone" },
 ];
 
 const timezoneOptions = [
@@ -93,12 +104,18 @@ const timezoneOptions = [
   { value: "Europe/London", label: "London (GMT)" },
   { value: "Europe/Paris", label: "Paris (CET)" },
   { value: "Europe/Berlin", label: "Berlin (CET)" },
-  { value: "America/Sao_Paulo", label: "São Paulo (BRT)" },
-  { value: "America/Argentina/Buenos_Aires", label: "Buenos Aires (ART)" },
   { value: "Asia/Tokyo", label: "Tokyo (JST)" },
   { value: "Asia/Shanghai", label: "Shanghai (CST)" },
   { value: "Asia/Kolkata", label: "India (IST)" },
   { value: "Australia/Sydney", label: "Sydney (AEDT)" },
+];
+
+const contactMethodOptions = [
+  { value: "email", label: "Email" },
+  { value: "telegram", label: "Telegram" },
+  { value: "discord", label: "Discord" },
+  { value: "linkedin", label: "LinkedIn" },
+  { value: "phone", label: "Phone" },
 ];
 
 interface MentorApplicationFormProps {
@@ -127,10 +144,22 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
       mentorAvailableDates: [],
       mentorHoursPerWeek: "",
       mentorPreferredContact: "",
+      // Profile fields - Basic Information
+      bio: "",
+      jobTitle: "",
+      company: "",
+      location: "",
+      // Profile fields - Links & Contact
+      website: "",
+      githubUrl: "",
+      twitterUrl: "",
       phoneNumber: "",
       telegramHandle: "",
       discordHandle: "",
       linkedinUrl: "",
+      // Profile fields - Professional Details
+      languages: [],
+      // Mentorship fields
       mentorshipStyle: "",
       previousMentoringExp: "",
       mentorSpecializations: [],
@@ -188,10 +217,22 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
         yearsOfExperience: values.yearsOfExperience,
         timezone: values.timezone,
         availableForMentoring: true, // Set this to true when they complete mentor application
+        // Profile fields - Basic Information
+        bio: values.bio,
+        jobTitle: values.jobTitle,
+        company: values.company,
+        location: values.location,
+        // Profile fields - Links & Contact
+        website: values.website,
+        githubUrl: values.githubUrl,
+        twitterUrl: values.twitterUrl,
         phoneNumber: values.phoneNumber,
         telegramHandle: values.telegramHandle,
         discordHandle: values.discordHandle,
         linkedinUrl: values.linkedinUrl,
+        // Profile fields - Professional Details
+        languages: values.languages,
+        // Mentorship fields
         mentorshipStyle: values.mentorshipStyle,
         previousMentoringExp: values.previousMentoringExp,
         mentorSpecializations: values.mentorSpecializations,
@@ -224,14 +265,14 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
     switch (step) {
       case 1:
         return form.values.skills.length > 0 && 
-               form.values.interests.length > 0 && 
-               form.values.yearsOfExperience >= 0;
+               form.values.interests.length > 0;
       case 2:
+        return form.values.yearsOfExperience >= 0;
+      case 3:
         return form.values.mentorAvailableDates.length > 0 && 
                form.values.mentorHoursPerWeek && 
+               form.values.mentorPreferredContact &&
                form.values.timezone;
-      case 3:
-        return form.values.mentorPreferredContact;
       case 4:
         return form.values.mentorshipStyle && 
                form.values.previousMentoringExp && 
@@ -288,14 +329,180 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
           <Card shadow="sm" padding="xl" radius="md" withBorder>
             <Stack gap="lg">
               <Group gap="md" align="center">
-                <IconCalendar size={28} color="var(--mantine-color-green-6)" />
+                <IconUsers size={28} color="var(--mantine-color-green-6)" />
                 <div>
-                  <Title order={3}>Availability</Title>
-                  <Text size="sm" c="dimmed">When are you available to mentor?</Text>
+                  <Title order={3}>Professional Background</Title>
+                  <Text size="sm" c="dimmed">Tell us about your professional experience</Text>
                 </div>
               </Group>
 
+              <Grid>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <NumberInput
+                    label="Years of Experience"
+                    placeholder="How many years of professional experience?"
+                    min={0}
+                    max={50}
+                    {...form.getInputProps("yearsOfExperience")}
+                  />
+                </Grid.Col>
+              </Grid>
+            </Stack>
+          </Card>
+        );
+
+      case 3:
+        return (
+          <Stack gap="xl">
+            {/* Basic Information */}
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Title order={2} size="h3" mb="md">
+                <Group gap="sm" align="center">
+                  <IconUser size={24} color="var(--mantine-color-blue-6)" />
+                  Basic Information
+                </Group>
+              </Title>
+              <Grid>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="Job Title"
+                    placeholder="Software Engineer, Product Manager, etc."
+                    {...form.getInputProps("jobTitle")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="Company"
+                    placeholder="Your current company"
+                    {...form.getInputProps("company")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={12}>
+                  <Textarea
+                    label="Bio"
+                    placeholder="Tell others who you are, what you're working on, and what you're looking to connect around."
+                    minRows={3}
+                    maxRows={5}
+                    {...form.getInputProps("bio")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="Location"
+                    placeholder="City, Country"
+                    {...form.getInputProps("location")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <Select
+                    label="Timezone"
+                    placeholder="Select your timezone"
+                    data={timezoneOptions}
+                    searchable
+                    clearable
+                    {...form.getInputProps("timezone")}
+                  />
+                </Grid.Col>
+              </Grid>
+            </Card>
+
+            {/* Professional Details */}
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Title order={2} size="h3" mb="md">
+                <Group gap="sm" align="center">
+                  <IconTool size={24} color="var(--mantine-color-green-6)" />
+                  Professional Details
+                </Group>
+              </Title>
+              <Grid>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TagsInput
+                    label="Languages"
+                    placeholder="English, Spanish, French, etc."
+                    {...form.getInputProps("languages")}
+                  />
+                </Grid.Col>
+              </Grid>
+            </Card>
+
+            {/* Links & Contact */}
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Title order={2} size="h3" mb="md">
+                <Group gap="sm" align="center">
+                  <IconLink size={24} color="var(--mantine-color-purple-6)" />
+                  Links & Contact
+                </Group>
+              </Title>
+              <Grid>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="Website"
+                    placeholder="https://your-website.com"
+                    leftSection={<IconWorld size={16} />}
+                    {...form.getInputProps("website")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="GitHub"
+                    placeholder="https://github.com/username"
+                    leftSection={<IconBrandGithub size={16} />}
+                    {...form.getInputProps("githubUrl")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="LinkedIn"
+                    placeholder="https://linkedin.com/in/username"
+                    leftSection={<IconBrandLinkedin size={16} />}
+                    {...form.getInputProps("linkedinUrl")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="Twitter/X"
+                    placeholder="https://twitter.com/username"
+                    leftSection={<IconBrandTwitter size={16} />}
+                    {...form.getInputProps("twitterUrl")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="Telegram Handle"
+                    placeholder="username (without @)"
+                    leftSection={<IconBrandTelegram size={16} />}
+                    {...form.getInputProps("telegramHandle")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="Discord Handle"
+                    placeholder="username#1234"
+                    leftSection={<IconBrandDiscord size={16} />}
+                    {...form.getInputProps("discordHandle")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="Phone Number"
+                    placeholder="+1 (555) 123-4567"
+                    leftSection={<IconPhone size={16} />}
+                    {...form.getInputProps("phoneNumber")}
+                  />
+                </Grid.Col>
+              </Grid>
+            </Card>
+
+            {/* Availability */}
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Title order={2} size="h3" mb="md">
+                <Group gap="sm" align="center">
+                  <IconClock size={24} color="var(--mantine-color-orange-6)" />
+                  Availability
+                </Group>
+              </Title>
               <Stack gap="md">
+                {/* Available Periods */}
                 <div>
                   <Text size="sm" fw={500} mb="xs">Available Periods</Text>
                   <Text size="xs" c="dimmed" mb="md">Select all periods when you&apos;ll be available to mentor</Text>
@@ -320,6 +527,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                   </Stack>
                 </div>
 
+                {/* Time Commitment & Contact Method */}
                 <Grid>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <Select
@@ -329,98 +537,28 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                       {...form.getInputProps("mentorHoursPerWeek")}
                     />
                   </Grid.Col>
-
                   <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <Select
-                      label="Your Timezone"
-                      placeholder="Select your timezone"
-                      data={timezoneOptions}
-                      searchable
-                      {...form.getInputProps("timezone")}
-                    />
+                    <div>
+                      <Text size="sm" fw={500} mb="xs">Preferred Contact Method</Text>
+                      <Radio.Group
+                        {...form.getInputProps("mentorPreferredContact")}
+                      >
+                        <Stack gap="xs">
+                          {contactMethodOptions.map((option) => (
+                            <Radio
+                              key={option.value}
+                              value={option.value}
+                              label={option.label}
+                            />
+                          ))}
+                        </Stack>
+                      </Radio.Group>
+                    </div>
                   </Grid.Col>
                 </Grid>
               </Stack>
-            </Stack>
-          </Card>
-        );
-
-      case 3:
-        return (
-          <Card shadow="sm" padding="xl" radius="md" withBorder>
-            <Stack gap="lg">
-              <Group gap="md" align="center">
-                <IconMail size={28} color="var(--mantine-color-purple-6)" />
-                <div>
-                  <Title order={3}>Contact Preferences</Title>
-                  <Text size="sm" c="dimmed">How should mentees contact you?</Text>
-                </div>
-              </Group>
-
-              <Grid>
-                <Grid.Col span={12}>
-                  <div>
-                    <Text size="sm" fw={500} mb="xs">Preferred Contact Method</Text>
-                    <Radio.Group
-                      {...form.getInputProps("mentorPreferredContact")}
-                    >
-                      <Stack gap="xs">
-                        {contactMethodOptions.map((option) => (
-                          <Radio
-                            key={option.value}
-                            value={option.value}
-                            label={option.label}
-                          />
-                        ))}
-                      </Stack>
-                    </Radio.Group>
-                  </div>
-                </Grid.Col>
-
-                <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <Text size="sm" c="dimmed" fw={500}>
-                    Email: Will use your account email
-                  </Text>
-                </Grid.Col>
-
-                <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <TextInput
-                    label="Phone Number"
-                    placeholder="+1 (555) 123-4567"
-                    leftSection={<IconPhone size={16} />}
-                    {...form.getInputProps("phoneNumber")}
-                  />
-                </Grid.Col>
-
-                <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <TextInput
-                    label="Telegram Username"
-                    placeholder="@username"
-                    leftSection={<IconBrandTelegram size={16} />}
-                    {...form.getInputProps("telegramHandle")}
-                  />
-                </Grid.Col>
-
-                <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <TextInput
-                    label="Discord Handle"
-                    placeholder="username#1234"
-                    leftSection={<IconBrandDiscord size={16} />}
-                    {...form.getInputProps("discordHandle")}
-                  />
-                </Grid.Col>
-
-                <Grid.Col span={12}>
-                  <TextInput
-                    label="LinkedIn Profile"
-                    placeholder="https://linkedin.com/in/yourprofile"
-                    leftSection={<IconBrandLinkedin size={16} />}
-                    {...form.getInputProps("linkedinUrl")}
-                  />
-                </Grid.Col>
-              </Grid>
-            </Stack>
-          </Card>
+            </Card>
+          </Stack>
         );
 
       case 4:
@@ -551,7 +689,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
         <Alert color="blue" title="Need Help?">
           <Text size="sm">
             If you have any questions about completing this form, please contact the residency organizers at{" "}
-            <Text component="span" fw={500}>hello@fundingthecommons.io</Text>
+            <Text component="span" fw={500}>{env.NEXT_PUBLIC_ADMIN_EMAIL}</Text>
           </Text>
         </Alert>
       </Stack>

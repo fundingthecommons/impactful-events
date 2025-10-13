@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { env } from "~/env";
 
 export const metadata: Metadata = {
   title: "FAQ - Funding the Commons Residency 2025",
@@ -138,8 +139,8 @@ export default function FundingCommonsResidencyFAQPage() {
               <h3 className="text-lg font-medium mb-2">Do I need a visa to participate?</h3>
               <p className="text-gray-700">
                 Visa requirements depend on your nationality, current location, and the specific components of the program you&rsquo;ll be participating in. If you require a visa support letter for your application to immigration authorities, please reach out to us at{" "}
-                <a href="mailto:james@fundingthecommons.io" className="text-blue-600 hover:text-blue-800 underline">
-                  james@fundingthecommons.io
+                <a href={`mailto:${env.ADMIN_EMAIL}`} className="text-blue-600 hover:text-blue-800 underline">
+                  {env.ADMIN_EMAIL}
                 </a>
                 {" "}with your program details, and we&rsquo;ll be happy to provide the necessary documentation to support your visa application.
               </p>

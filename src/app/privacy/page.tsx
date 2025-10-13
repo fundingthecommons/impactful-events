@@ -1,6 +1,7 @@
 "use client";
 
 import { Container, Title, Text, Stack, Paper, List, Anchor } from "@mantine/core";
+import { env } from "~/env";
 
 export default function PrivacyPolicy() {
   return (
@@ -110,8 +111,8 @@ export default function PrivacyPolicy() {
               <Title order={2} size="h3" mb="md">Contact Us</Title>
               <Text>
                 If you have any questions about this Privacy Policy, please contact us at:{" "}
-                <Anchor href="mailto:privacy@fundingthecommons.io">
-                  privacy@fundingthecommons.io
+                <Anchor href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`}>
+                  {env.NEXT_PUBLIC_ADMIN_EMAIL}
                 </Anchor>
               </Text>
             </section>

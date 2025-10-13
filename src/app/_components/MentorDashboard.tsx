@@ -1,5 +1,6 @@
 "use client";
 
+import { env } from "~/env";
 import { 
   Container, 
   Title, 
@@ -374,7 +375,7 @@ export default function MentorDashboard() {
                     You&apos;re not currently assigned as a mentor for any events. Contact the organizers to get involved in mentoring opportunities.
                   </Text>
                 </Stack>
-                <Anchor href="mailto:james@fundingthecommons.io">
+                <Anchor href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`}>
                   <Button leftSection={<IconMessageDots size={16} />}>
                     Express Interest
                   </Button>

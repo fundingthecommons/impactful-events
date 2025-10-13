@@ -1,6 +1,7 @@
 "use client";
 
 import { Container, Title, Text, Stack, Paper, List, Anchor } from "@mantine/core";
+import { env } from "~/env";
 
 export default function TermsOfService() {
   return (
@@ -134,8 +135,8 @@ export default function TermsOfService() {
               <Title order={2} size="h3" mb="md">Contact Information</Title>
               <Text>
                 If you have any questions about these Terms of Service, please contact us at:{" "}
-                <Anchor href="mailto:legal@fundingthecommons.io">
-                  legal@fundingthecommons.io
+                <Anchor href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`}>
+                  {env.NEXT_PUBLIC_ADMIN_EMAIL}
                 </Anchor>
               </Text>
             </section>

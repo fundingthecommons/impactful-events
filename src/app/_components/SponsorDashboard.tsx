@@ -1,5 +1,6 @@
 "use client";
 
+import { env } from "~/env";
 import { 
   Container, 
   Title, 
@@ -314,7 +315,7 @@ export default function SponsorDashboard() {
                     You don&apos;t have any sponsored events yet. Contact our team to get involved in upcoming events and support amazing builders.
                   </Text>
                 </Stack>
-                <Anchor href="mailto:james@fundingthecommons.io">
+                <Anchor href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`}>
                   <Button leftSection={<IconMail size={16} />}>
                     Get In Touch
                   </Button>

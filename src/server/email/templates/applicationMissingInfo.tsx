@@ -57,8 +57,8 @@ export const ApplicationMissingInfoTemplate: React.FC<ApplicationMissingInfoProp
 
         <Text style={paragraph}>
           If you have any questions, please contact us at{' '}
-          <a href="mailto:residency@fundingthecommons.io" style={link}>
-            residency@fundingthecommons.io
+          <a href={`mailto:${process.env.ADMIN_EMAIL}`} style={link}>
+            {process.env.ADMIN_EMAIL}
           </a>
         </Text>
 

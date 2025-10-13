@@ -1,5 +1,6 @@
 "use client";
 
+import { env } from "~/env";
 import { 
   Container, 
   Title, 
@@ -324,7 +325,7 @@ export default function OrganizerDashboard() {
                     You haven&apos;t been assigned as an organizer for any events yet. Contact your admin to get involved in event organization.
                   </Text>
                 </Stack>
-                <Anchor href="mailto:james@fundingthecommons.io">
+                <Anchor href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`}>
                   <Button leftSection={<IconMail size={16} />}>
                     Get Involved
                   </Button>

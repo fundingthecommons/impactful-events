@@ -53,7 +53,7 @@ export const BaseTemplate: React.FC<BaseTemplateProps> = ({
                 Twitter
               </Link>
               {' • '}
-              <Link href="mailto:support@fundingthecommons.io" style={link}>
+              <Link href={`mailto:${process.env.ADMIN_EMAIL}`} style={link}>
                 Contact
               </Link>
             </Text>

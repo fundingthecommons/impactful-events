@@ -1,5 +1,6 @@
 "use client";
 
+import { env } from "~/env";
 import { 
   Container, 
   Title, 
@@ -298,7 +299,7 @@ export default function DefaultUserDashboard() {
               description="Share your expertise and guide builders working on public goods projects. Help shape the next generation of impact-driven technologies."
               icon={IconBrain}
               color="teal"
-              action="mailto:james@fundingthecommons.io?subject=Mentor Interest"
+              action={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}?subject=Mentor Interest`}
               actionText="Express Interest"
             />
             
@@ -307,7 +308,7 @@ export default function DefaultUserDashboard() {
               description="Support our events and get visibility with top builders in the space. Connect your brand with meaningful impact."
               icon={IconBuildingBank}
               color="violet"
-              action="mailto:james@fundingthecommons.io?subject=Sponsorship Inquiry"
+              action={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}?subject=Sponsorship Inquiry`}
               actionText="Learn More"
             />
             
@@ -316,7 +317,7 @@ export default function DefaultUserDashboard() {
               description="Help us create amazing experiences for the community. Organize local meetups, workshops, or larger events."
               icon={IconUsersGroup}
               color="indigo"
-              action="mailto:james@fundingthecommons.io?subject=Organizer Interest"
+              action={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}?subject=Organizer Interest`}
               actionText="Get Started"
             />
           </SimpleGrid>

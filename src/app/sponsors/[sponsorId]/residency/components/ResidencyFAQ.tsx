@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { env } from "~/env";
 import {
   Card,
   Stack,
@@ -183,8 +184,8 @@ export default function ResidencyFAQ() {
 
         <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
           Have a question not covered here? Contact our team at{" "}
-          <Text component="a" href="mailto:james@fundingthecommons.io" fw={500}>
-            james@fundingthecommons.io
+          <Text component="a" href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`} fw={500}>
+            {env.NEXT_PUBLIC_ADMIN_EMAIL}
           </Text>
         </Alert>
 

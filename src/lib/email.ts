@@ -133,7 +133,7 @@ export async function sendEmail(params: SendEmailParams & {
     );
     
     const response = await postmarkClient.sendEmail({
-      From: "james@fundingthecommons.io",
+      From: env.ADMIN_EMAIL,
       To: finalRecipient,
       Subject: finalSubject,
       HtmlBody: finalHtmlContent,
