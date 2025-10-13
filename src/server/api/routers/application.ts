@@ -16,6 +16,7 @@ import {
 const CreateApplicationInputSchema = z.object({
   eventId: z.string(),
   language: z.string().default("en"),
+  applicationType: z.enum(["RESIDENT", "MENTOR"]).default("RESIDENT"),
 });
 
 const UpdateApplicationResponseSchema = z.object({
@@ -108,14 +109,16 @@ export const applicationRouter = createTRPCRouter({
 
   // Get user's application for a specific event
   getApplication: protectedProcedure
-    .input(z.object({ eventId: z.string() }))
+    .input(z.object({ 
+      eventId: z.string(),
+      applicationType: z.enum(["RESIDENT", "MENTOR"]).default("RESIDENT"),
+    }))
     .query(async ({ ctx, input }) => {
-      const application = await ctx.db.application.findUnique({
+      const application = await ctx.db.application.findFirst({
         where: {
-          userId_eventId: {
-            userId: ctx.session.user.id,
-            eventId: input.eventId,
-          },
+          userId: ctx.session.user.id,
+          eventId: input.eventId,
+          applicationType: input.applicationType,
         },
         include: {
           event: true,
@@ -138,13 +141,12 @@ export const applicationRouter = createTRPCRouter({
   createApplication: protectedProcedure
     .input(CreateApplicationInputSchema)
     .mutation(async ({ ctx, input }) => {
-      // Check if application already exists
-      const existing = await ctx.db.application.findUnique({
+      // Check if application already exists for this type
+      const existing = await ctx.db.application.findFirst({
         where: {
-          userId_eventId: {
-            userId: ctx.session.user.id,
-            eventId: input.eventId,
-          },
+          userId: ctx.session.user.id,
+          eventId: input.eventId,
+          applicationType: input.applicationType,
         },
       });
 
@@ -160,6 +162,7 @@ export const applicationRouter = createTRPCRouter({
             eventId: input.eventId,
             email: ctx.session.user.email!,
             language: input.language,
+            applicationType: input.applicationType,
             status: "DRAFT",
           },
           include: {
@@ -176,12 +179,11 @@ export const applicationRouter = createTRPCRouter({
       } catch (error: unknown) {
         // Handle race condition where application was created between our check and create attempt
         if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') { // Unique constraint error
-          const existingAfterRace = await ctx.db.application.findUnique({
+          const existingAfterRace = await ctx.db.application.findFirst({
             where: {
-              userId_eventId: {
-                userId: ctx.session.user.id,
-                eventId: input.eventId,
-              },
+              userId: ctx.session.user.id,
+              eventId: input.eventId,
+              applicationType: input.applicationType,
             },
             include: {
               event: true,
@@ -469,6 +471,7 @@ export const applicationRouter = createTRPCRouter({
     .input(z.object({ 
       eventId: z.string(),
       status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]).optional(),
+      applicationType: z.enum(["RESIDENT", "MENTOR"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);
@@ -477,6 +480,7 @@ export const applicationRouter = createTRPCRouter({
         where: {
           eventId: input.eventId,
           ...(input.status && { status: input.status }),
+          ...(input.applicationType && { applicationType: input.applicationType }),
         },
         include: {
           user: {
@@ -1581,5 +1585,48 @@ export const applicationRouter = createTRPCRouter({
         });
 
       return projects;
+    }),
+
+  // Public: Get accepted participants for an event  
+  getEventParticipants: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const participants = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+          applicationType: "RESIDENT", // Only show residents, not mentors for privacy
+        },
+        select: {
+          id: true,
+          submittedAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              profile: {
+                select: {
+                  bio: true,
+                  jobTitle: true,
+                  company: true,
+                  location: true,
+                  skills: true,
+                  interests: true,
+                  githubUrl: true,
+                  linkedinUrl: true,
+                  twitterUrl: true,
+                  website: true,
+                }
+              }
+            }
+          }
+        },
+        orderBy: {
+          submittedAt: "asc", // Show earlier applicants first
+        }
+      });
+
+      return participants;
     }),
 });

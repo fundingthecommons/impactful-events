@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 export const projectRouter = createTRPCRouter({
@@ -230,5 +230,71 @@ export const projectRouter = createTRPCRouter({
       });
 
       return updatedProject;
+    }),
+
+  // Public: Get projects from event participants
+  getEventProjects: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Get accepted participants for this event
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+          applicationType: "RESIDENT",
+        },
+        select: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              profile: {
+                select: {
+                  projects: {
+                    select: {
+                      id: true,
+                      title: true,
+                      description: true,
+                      githubUrl: true,
+                      liveUrl: true,
+                      imageUrl: true,
+                      technologies: true,
+                      featured: true,
+                      createdAt: true,
+                    },
+                    orderBy: [
+                      { featured: "desc" },
+                      { createdAt: "desc" }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Flatten projects with user information
+      const projects = acceptedApplications
+        .filter(app => app.user?.profile?.projects?.length)
+        .flatMap(app => 
+          app.user!.profile!.projects.map(project => ({
+            ...project,
+            author: {
+              id: app.user!.id,
+              name: app.user!.name,
+              image: app.user!.image,
+            }
+          }))
+        )
+        .sort((a, b) => {
+          // Sort by featured first, then by creation date
+          if (a.featured && !b.featured) return -1;
+          if (!a.featured && b.featured) return 1;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+      return projects;
     }),
 });

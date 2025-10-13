@@ -134,6 +134,9 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
   // Mutation for updating user skills
   const updateUserSkills = api.skills.updateUserSkills.useMutation();
   
+  // Mutation for creating mentor application
+  const createApplication = api.application.createApplication.useMutation();
+  
   const form = useForm<MentorApplicationData>({
     validate: zodResolver(mentorApplicationSchema),
     initialValues: {
@@ -208,6 +211,13 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
       // Update the user's skills in the new Skills system
       await updateUserSkills.mutateAsync({
         skillIds: values.skills,
+      });
+
+      // Create mentor application record
+      await createApplication.mutateAsync({
+        eventId: eventId,
+        applicationType: "MENTOR",
+        language: "en",
       });
 
       // Update the user's profile with mentor information

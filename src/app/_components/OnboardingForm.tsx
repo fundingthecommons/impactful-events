@@ -10,7 +10,6 @@ import {
   Button,
   Checkbox,
   Group,
-  FileInput,
   Textarea,
   Progress,
   Box,
@@ -26,8 +25,6 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
-  IconUpload,
-  IconPlane,
   IconShield,
   IconStar,
   IconCheck,
@@ -41,6 +38,7 @@ import {
   IconPhoto,
   IconClipboardCheck,
   IconHeart,
+  IconEdit,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 
@@ -56,9 +54,6 @@ interface OnboardingFormData {
   arrivalDateTime: string; // Use string for datetime-local inputs
   departureDateTime: string; // Use string for datetime-local inputs
   
-  // Travel Documents
-  eTicket: File | null;
-  healthInsurance: File | null;
   
   // Food & Dietary Needs
   dietType: string; // Use string for radio values
@@ -88,14 +83,11 @@ interface OnboardingFormData {
   beyondWorkDuration: string;
   beyondWorkMaterials: string;
   
-  // Media & Bio
-  headshot: File | null;
-  shortBio: string;
-  
   // Commitments & Confirmations
   participateExperiments: boolean;
   mintHypercert: boolean;
   interestedIncubation: boolean;
+  interestedEIR: boolean;
   liabilityWaiverConsent: boolean;
   codeOfConductAgreement: boolean;
   communityActivitiesConsent: boolean;
@@ -136,10 +128,6 @@ export default function OnboardingForm({
       arrivalDateTime: "",
       departureDateTime: "",
       
-      // Travel Documents
-      eTicket: null,
-      healthInsurance: null,
-      
       // Food & Dietary Needs
       dietType: "",
       dietTypeOther: "",
@@ -168,14 +156,11 @@ export default function OnboardingForm({
       beyondWorkDuration: "",
       beyondWorkMaterials: "",
       
-      // Media & Bio
-      headshot: null,
-      shortBio: "",
-      
       // Commitments & Confirmations
       participateExperiments: false,
       mintHypercert: false,
       interestedIncubation: false,
+      interestedEIR: false,
       liabilityWaiverConsent: false,
       codeOfConductAgreement: false,
       communityActivitiesConsent: false,
@@ -187,8 +172,7 @@ export default function OnboardingForm({
       legalName: (value) => (!value ? "Legal name is required" : null),
       passportNumber: (value) => (!value ? "Passport number is required" : null),
       emergencyContactName: (value) => (!value ? "Emergency contact name is required" : null),
-      eTicket: (value) => (!value ? "Please upload your e-ticket" : null),
-      healthInsurance: (value) => (!value ? "Please upload proof of health insurance" : null),
+      arrivalDateTime: (value) => (!value ? "Arrival date and time is required" : null),
       participateExperiments: (value) => (!value ? "This commitment is required for participation" : null),
       mintHypercert: (value) => (!value ? "This commitment is required for participation" : null),
       liabilityWaiverConsent: (value) => (!value ? "Liability waiver consent is required" : null),
@@ -222,10 +206,6 @@ export default function OnboardingForm({
         arrivalDateTime: formatDateTimeLocal(existing.arrivalDateTime),
         departureDateTime: formatDateTimeLocal(existing.departureDateTime),
         
-        // Travel Documents
-        eTicket: existing.eTicketUrl ? new File([], existing.eTicketFileName ?? "e-ticket") : null,
-        healthInsurance: existing.healthInsuranceUrl ? new File([], existing.healthInsuranceFileName ?? "insurance") : null,
-        
         // Food & Dietary Needs
         dietType: existing.dietType ?? "",
         dietTypeOther: existing.dietTypeOther ?? "",
@@ -254,14 +234,11 @@ export default function OnboardingForm({
         beyondWorkDuration: existing.beyondWorkDuration ?? "",
         beyondWorkMaterials: existing.beyondWorkMaterials ?? "",
         
-        // Media & Bio
-        headshot: existing.headshotUrl ? new File([], existing.headshotFileName ?? "headshot") : null,
-        shortBio: existing.shortBio ?? "",
-        
         // Commitments & Confirmations
         participateExperiments: existing.participateExperiments ?? false,
         mintHypercert: existing.mintHypercert ?? false,
         interestedIncubation: existing.interestedIncubation ?? false,
+        interestedEIR: (existing as { interestedEIR?: boolean } | null)?.interestedEIR ?? false,
         liabilityWaiverConsent: existing.liabilityWaiverConsent ?? false,
         codeOfConductAgreement: existing.codeOfConductAgreement ?? false,
         communityActivitiesConsent: existing.communityActivitiesConsent ?? false,
@@ -281,9 +258,6 @@ export default function OnboardingForm({
     try {
       // For now, we'll simulate file uploads with placeholder URLs
       // In a real implementation, you would upload files to cloud storage first
-      const eTicketUrl = values.eTicket ? `https://example.com/uploads/${values.eTicket.name}` : undefined;
-      const healthInsuranceUrl = values.healthInsurance ? `https://example.com/uploads/${values.healthInsurance.name}` : undefined;
-      const headshotUrl = values.headshot ? `https://example.com/uploads/${values.headshot.name}` : undefined;
       
       // Helper to convert string to Date or undefined
       const parseDateTime = (dateStr: string) => {
@@ -315,12 +289,6 @@ export default function OnboardingForm({
         arrivalDateTime: parseDateTime(values.arrivalDateTime),
         departureDateTime: parseDateTime(values.departureDateTime),
         
-        // Travel Documents
-        eTicketUrl,
-        eTicketFileName: values.eTicket?.name,
-        healthInsuranceUrl,
-        healthInsuranceFileName: values.healthInsurance?.name,
-        
         // Food & Dietary Needs
         dietType: emptyToUndefined(values.dietType) as "OMNIVORE" | "VEGETARIAN" | "VEGAN" | "OTHER" | undefined,
         dietTypeOther: emptyToUndefined(values.dietTypeOther),
@@ -349,11 +317,6 @@ export default function OnboardingForm({
         beyondWorkDuration: emptyToUndefined(values.beyondWorkDuration),
         beyondWorkMaterials: emptyToUndefined(values.beyondWorkMaterials),
         
-        // Media & Bio
-        headshotUrl,
-        headshotFileName: values.headshot?.name,
-        shortBio: emptyToUndefined(values.shortBio),
-        
         // Commitments & Confirmations
         participateExperiments: values.participateExperiments,
         mintHypercert: values.mintHypercert,
@@ -374,10 +337,11 @@ export default function OnboardingForm({
       });
       
       setIsSubmitted(true);
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "There was an error submitting your onboarding form. Please try again. / Hubo un error al enviar tu formulario. Por favor intenta de nuevo.";
       notifications.show({
         title: "Submission Failed / Error en el Envío",
-        message: error instanceof Error ? error.message : "There was an error submitting your onboarding form. Please try again. / Hubo un error al enviar tu formulario. Por favor intenta de nuevo.",
+        message: errorMessage,
         color: "red",
         icon: <IconX />,
       });
@@ -387,13 +351,12 @@ export default function OnboardingForm({
   };
 
   // Calculate completion percentage for key required fields
-  const requiredFields = 10; // Core required fields
+  const requiredFields = 9; // Core required fields
   const completedFields = [
     form.values.legalName,
     form.values.passportNumber,
     form.values.emergencyContactName,
-    form.values.eTicket,
-    form.values.healthInsurance,
+    form.values.arrivalDateTime,
     form.values.participateExperiments,
     form.values.mintHypercert,
     form.values.liabilityWaiverConsent,
@@ -585,6 +548,7 @@ export default function OnboardingForm({
                       description="When will you arrive in Buenos Aires? / ¿Cuándo llegarás a Buenos Aires?"
                       placeholder="e.g., Oct 24, 2025 at 3:00 PM"
                       type="datetime-local"
+                      required
                       {...form.getInputProps('arrivalDateTime')}
                     />
 
@@ -600,39 +564,6 @@ export default function OnboardingForm({
               </Accordion.Panel>
             </Accordion.Item>
 
-            {/* Travel Documents */}
-            <Accordion.Item value="travel">
-              <Accordion.Control icon={<IconPlane size={20} />}>
-                <Title order={3}>Travel Documents / Documentos de Viaje</Title>
-              </Accordion.Control>
-              <Accordion.Panel>
-                <Stack gap="md">
-                  <Text c="dimmed" mb="md">
-                    Upload your travel documents to secure your residency spot. / Sube tus documentos de viaje para asegurar tu lugar en la residencia.
-                  </Text>
-
-                  <FileInput
-                    label="E-Ticket / Flight Confirmation / Boleto Electrónico"
-                    description="Upload your flight booking confirmation or e-ticket / Sube tu confirmación de vuelo o boleto electrónico"
-                    placeholder="Choose file... / Elegir archivo..."
-                    leftSection={<IconUpload size={16} />}
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    required
-                    {...form.getInputProps('eTicket')}
-                  />
-
-                  <FileInput
-                    label="Health Insurance Proof / Prueba de Seguro Médico"
-                    description="World Nomads, SafetyWing, or other international health insurance / World Nomads, SafetyWing, u otro seguro médico internacional"
-                    placeholder="Choose file... / Elegir archivo..."
-                    leftSection={<IconShield size={16} />}
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    required
-                    {...form.getInputProps('healthInsurance')}
-                  />
-                </Stack>
-              </Accordion.Panel>
-            </Accordion.Item>
 
             {/* Food & Dietary Needs */}
             <Accordion.Item value="food">
@@ -777,7 +708,7 @@ export default function OnboardingForm({
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Share your expertise! Propose a technical workshop you could run. / ¡Comparte tu experiencia! Propón un taller técnico que podrías dirigir.
+                    Share your expertise! Propose a technical or non-technical workshop you could run. / ¡Comparte tu experiencia! Propón un taller técnico que podrías dirigir.
                   </Text>
 
                   <TextInput
@@ -865,33 +796,57 @@ export default function OnboardingForm({
               </Accordion.Panel>
             </Accordion.Item>
 
-            {/* Media & Bio */}
-            <Accordion.Item value="media">
+            {/* Profile Setup */}
+            <Accordion.Item value="profile">
               <Accordion.Control icon={<IconPhoto size={20} />}>
-                <Title order={3}>Media & Bio / Medios y Biografía</Title>
+                <Title order={3}>Profile Setup / Configuración de Perfil</Title>
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Help us showcase the amazing cohort and create our community directory. / Ayúdanos a mostrar la increíble cohorte y crear nuestro directorio comunitario.
+                    Complete your profile to connect with other residents and showcase your work. / Completa tu perfil para conectar con otros residentes y mostrar tu trabajo.
                   </Text>
 
-                  <FileInput
-                    label="Professional Headshot / Foto de Perfil Profesional"
-                    description="A clear photo of yourself for our community directory / Una foto clara de ti para nuestro directorio comunitario"
-                    placeholder="Choose photo... / Elegir foto..."
-                    leftSection={<IconPhoto size={16} />}
-                    accept=".jpg,.jpeg,.png"
-                    {...form.getInputProps('headshot')}
-                  />
+                  <Card withBorder p="lg" style={{ backgroundColor: 'var(--mantine-color-blue-0)' }}>
+                    <Stack gap="md">
+                      <Group gap="sm">
+                        <IconUser size={20} color="blue" />
+                        <Text fw={600} c="blue.7">Profile Management / Gestión de Perfil</Text>
+                      </Group>
+                      
+                      <Text size="sm" c="dimmed">
+                        Please update your profile information including your bio, headshot, and project details through the platform profile system.
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        Por favor actualiza tu información de perfil incluyendo tu biografía, foto de perfil y detalles de proyectos a través del sistema de perfiles de la plataforma.
+                      </Text>
 
-                  <Textarea
-                    label="Short Bio / Biografía Corta"
-                    description="2-3 sentences about yourself and your work (will be shared with other residents) / 2-3 oraciones sobre ti y tu trabajo (se compartirá con otros residentes)"
-                    placeholder="e.g., I'm a blockchain developer passionate about regenerative finance. I've built several DeFi protocols and am currently working on... / ej., Soy desarrollador/a de blockchain apasionado/a por las finanzas regenerativas. He construido varios protocolos DeFi y actualmente trabajo en..."
-                    minRows={3}
-                    {...form.getInputProps('shortBio')}
-                  />
+                      <Group gap="md">
+                        <Button
+                          component="a"
+                          href="https://platform.fundingthecommons.io/profiles/me"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="light"
+                          color="blue"
+                          leftSection={<IconUser size={16} />}
+                        >
+                          View My Profile / Ver Mi Perfil
+                        </Button>
+                        <Button
+                          component="a"
+                          href="https://platform.fundingthecommons.io/profile/edit"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="filled"
+                          color="blue"
+                          leftSection={<IconEdit size={16} />}
+                        >
+                          Edit Profile / Editar Perfil
+                        </Button>
+                      </Group>
+                    </Stack>
+                  </Card>
                 </Stack>
               </Accordion.Panel>
             </Accordion.Item>
@@ -916,15 +871,15 @@ export default function OnboardingForm({
                       </Group>
 
                       <Checkbox
-                        label="I will take part in as many experiments in the residency as possible / Participaré en tantos experimentos de la residencia como sea posible"
+                        label="I commit to full participation in the residency, and will try to make it as productive and successful for myself and other participants as I can / Me comprometo a participar plenamente en la residencia y trataré de hacerla lo más productiva y exitosa posible para mí y otros participantes"
                         description="Active participation in collaborative experiments is a core part of the residency experience / La participación activa en experimentos colaborativos es una parte central de la experiencia de residencia"
                         required
                         {...form.getInputProps('participateExperiments', { type: 'checkbox' })}
                       />
 
                       <Checkbox
-                        label="I will mint a Hypercert for my project, and distribute it to residents, mentors etc as part of the experiment / Crearé un Hypercert para mi proyecto y lo distribuiré a residentes, mentores, etc., como parte del experimento"
-                        description="Hypercerts are a key tool we're experimenting with for impact certification / Los Hypercerts son una herramienta clave con la que estamos experimentando para la certificación de impacto"
+                        label="I commit to documenting my work and any projects I work on before, during and after the residency in order to help document and evaluate the impact of the residency and my contribution / Me comprometo a documentar mi trabajo y cualquier proyecto en el que trabaje antes, durante y después de la residencia para ayudar a documentar y evaluar el impacto de la residencia y mi contribución"
+                        description="This includes setting milestones, minting hypercerts, making attestations etc. / Esto incluye establecer hitos, crear hypercerts, hacer atestaciones, etc."
                         required
                         {...form.getInputProps('mintHypercert', { type: 'checkbox' })}
                       />
@@ -933,6 +888,26 @@ export default function OnboardingForm({
                         label="I am interested in incubation for my project / Estoy interesado/a en incubación para mi proyecto"
                         description="Optional: Express interest in potential incubation opportunities / Opcional: Expresa interés en oportunidades potenciales de incubación"
                         {...form.getInputProps('interestedIncubation', { type: 'checkbox' })}
+                      />
+
+                      <Checkbox
+                        label={
+                          <Text>
+                            I&apos;m interested in the{" "}
+                            <Text 
+                              component="a" 
+                              href="https://platform.fundingthecommons.io/events/entrepreneur-in-residency" 
+                              target="_blank" 
+                              c="blue" 
+                              td="underline"
+                            >
+                              Entrepreneur in Residency (EIR) program
+                            </Text>
+                            {" "} / Estoy interesado/a en el programa de Emprendedor en Residencia (EIR)
+                          </Text>
+                        }
+                        description="Optional: Express interest in the EIR program at Commons Lab / Opcional: Expresa interés en el programa EIR en Commons Lab"
+                        {...form.getInputProps('interestedEIR', { type: 'checkbox' })}
                       />
                     </Stack>
                   </Card>

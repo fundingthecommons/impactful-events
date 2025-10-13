@@ -22,12 +22,10 @@ import {
   IconCalendarEvent,
   IconMapPin,
   IconClock,
-  IconArrowLeft,
   IconCheck,
   IconAlertCircle,
   IconEdit,
 } from "@tabler/icons-react";
-import Link from "next/link";
 import { api } from "~/trpc/react";
 import DynamicApplicationForm from "~/app/_components/DynamicApplicationForm";
 
@@ -127,6 +125,25 @@ export default function EventDetailClient({
     { enabled: !!session?.user }
   );
 
+  // Get user's mentor application
+  const { data: mentorApplication } = api.application.getApplication.useQuery(
+    { 
+      eventId: event.id,
+      applicationType: "MENTOR" 
+    },
+    { enabled: !!session?.user }
+  );
+
+  // Get accepted participants (public)
+  const { data: participants = [] } = api.application.getEventParticipants.useQuery({
+    eventId: event.id
+  });
+
+  // Get projects from participants (public)
+  const { data: projects = [] } = api.project.getEventProjects.useQuery({
+    eventId: event.id
+  });
+
   // Check if user is admin/staff
   const isAdmin = session?.user?.role === "admin" || session?.user?.role === "staff";
 
@@ -168,16 +185,8 @@ export default function EventDetailClient({
   return (
     <Container size="lg" py="xl">
       <Stack gap="xl">
-        {/* Back Button */}
-        <Group gap="xs">
-          <Link href="/events" style={{ textDecoration: 'none' }}>
-            <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
-              Back to Events
-            </Button>
-          </Link>
-
-          {/* Language Toggle */}
-          <Group gap="xs" ml="auto">
+        {/* Language Toggle */}
+        <Group justify="flex-end" gap="xs">
             <ActionIcon
               variant={language === "en" ? "filled" : "outline"}
               onClick={() => setLanguage("en")}
@@ -193,7 +202,6 @@ export default function EventDetailClient({
               ES
             </ActionIcon>
           </Group>
-        </Group>
 
 
         {/* Event Header */}
@@ -281,6 +289,23 @@ export default function EventDetailClient({
             <Tabs.Tab value="application">
               {userApplication ? "Manage Application" : "Apply Now"}
             </Tabs.Tab>
+            <Tabs.Tab value="participants">
+              Participants
+              {participants.length > 0 && (
+                <Badge size="sm" variant="light" ml="xs">
+                  {participants.length}
+                </Badge>
+              )}
+            </Tabs.Tab>
+            <Tabs.Tab value="projects">
+              Projects
+              {projects.length > 0 && (
+                <Badge size="sm" variant="light" ml="xs">
+                  {projects.length}
+                </Badge>
+              )}
+            </Tabs.Tab>
+            {/* eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing */}
             {(isMentor || isAdmin) && (
               <Tabs.Tab value="mentor">
                 Mentor Dashboard
@@ -382,6 +407,7 @@ export default function EventDetailClient({
           </Tabs.Panel>
 
           {/* Mentor Dashboard Tab */}
+          {/* eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing */}
           {(isMentor || isAdmin) && (
             <Tabs.Panel value="mentor" mt="md">
               <Paper p="xl" radius="md" withBorder>
@@ -402,12 +428,56 @@ export default function EventDetailClient({
                     </Stack>
                     
                     <Stack gap="xs">
+                      <Text fw={500}>Mentorship Status</Text>
+                      {mentorApplication ? (
+                        <Badge 
+                          color={mentorApplication.status === "ACCEPTED" ? "green" : 
+                                 mentorApplication.status === "REJECTED" ? "red" :
+                                 mentorApplication.status === "SUBMITTED" ? "blue" : "gray"} 
+                          variant="light"
+                        >
+                          {mentorApplication.status.replace("_", " ").toLowerCase()}
+                        </Badge>
+                      ) : (
+                        <Text c="dimmed">
+                          {isMentor ? "Active Mentor" : isAdmin ? "Admin Access" : "Not Applied"}
+                        </Text>
+                      )}
+                    </Stack>
+                    
+                    <Stack gap="xs">
                       <Text fw={500}>Access Level</Text>
                       <Text c="dimmed">
                         Full mentor privileges
                       </Text>
                     </Stack>
                   </Group>
+
+                  <Divider />
+
+                  <Stack gap="md">
+                    <Text fw={500}>Mentor Application</Text>
+                    <Group gap="md">
+                      <Button
+                        component="a"
+                        href={`/events/${event.id}/mentor`}
+                        variant="light"
+                        color={mentorApplication?.status === "ACCEPTED" ? "green" : "blue"}
+                        leftSection={<IconEdit size={16} />}
+                      >
+                        {mentorApplication?.status === "ACCEPTED" 
+                          ? "View Mentor Profile"
+                          : mentorApplication?.status === "REJECTED"
+                          ? "Update Mentor Application" 
+                          : mentorApplication?.status === "SUBMITTED"
+                          ? "Edit Mentor Application"
+                          : mentorApplication
+                          ? "Continue Mentor Application"
+                          : "Complete Mentor Application"
+                        }
+                      </Button>
+                    </Group>
+                  </Stack>
 
                   <Divider />
                   
@@ -418,6 +488,222 @@ export default function EventDetailClient({
               </Paper>
             </Tabs.Panel>
           )}
+
+          {/* Participants Tab */}
+          <Tabs.Panel value="participants" mt="md">
+            <Paper p="xl" radius="md" withBorder>
+              <Stack gap="lg">
+                <Title order={2}>Event Participants</Title>
+                {participants.length > 0 ? (
+                  <>
+                    <Text c="dimmed">
+                      Meet the {participants.length} accepted residents joining this event.
+                    </Text>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+                      {participants.map((participant) => (
+                        <Card key={participant.id} shadow="sm" padding="lg" radius="md" withBorder>
+                          <Group align="flex-start" gap="md">
+                            {participant.user?.image && (
+                              <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+                                <img 
+                                  src={participant.user.image} 
+                                  alt={participant.user.name ?? 'Participant'} 
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              </div>
+                            )}
+                            <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                              <Text fw={500} size="lg" truncate>
+                                {participant.user?.name ?? 'Anonymous Participant'}
+                              </Text>
+                              {participant.user?.profile?.jobTitle && (
+                                <Text size="sm" c="dimmed" truncate>
+                                  {participant.user.profile.jobTitle}
+                                  {participant.user.profile.company && ` at ${participant.user.profile.company}`}
+                                </Text>
+                              )}
+                              {participant.user?.profile?.location && (
+                                <Text size="sm" c="dimmed" truncate>
+                                  📍 {participant.user.profile.location}
+                                </Text>
+                              )}
+                              {participant.user?.profile?.bio && (
+                                <Text size="sm" lineClamp={2}>
+                                  {participant.user.profile.bio}
+                                </Text>
+                              )}
+                              {(participant.user?.profile?.githubUrl ?? participant.user?.profile?.linkedinUrl ?? participant.user?.profile?.twitterUrl ?? participant.user?.profile?.website) && (
+                                <Group gap="xs" mt="xs">
+                                  {participant.user?.profile?.githubUrl && (
+                                    <Button 
+                                      component="a"
+                                      href={participant.user.profile.githubUrl}
+                                      target="_blank"
+                                      variant="subtle"
+                                      size="xs"
+                                    >
+                                      GitHub
+                                    </Button>
+                                  )}
+                                  {participant.user?.profile?.linkedinUrl && (
+                                    <Button 
+                                      component="a"
+                                      href={participant.user.profile.linkedinUrl}
+                                      target="_blank"
+                                      variant="subtle"
+                                      size="xs"
+                                    >
+                                      LinkedIn
+                                    </Button>
+                                  )}
+                                  {participant.user?.profile?.twitterUrl && (
+                                    <Button 
+                                      component="a"
+                                      href={participant.user.profile.twitterUrl}
+                                      target="_blank"
+                                      variant="subtle"
+                                      size="xs"
+                                    >
+                                      Twitter
+                                    </Button>
+                                  )}
+                                  {participant.user?.profile?.website && (
+                                    <Button 
+                                      component="a"
+                                      href={participant.user.profile.website}
+                                      target="_blank"
+                                      variant="subtle"
+                                      size="xs"
+                                    >
+                                      Website
+                                    </Button>
+                                  )}
+                                </Group>
+                              )}
+                            </Stack>
+                          </Group>
+                        </Card>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <Text c="dimmed" ta="center" py="xl">
+                    No participants to display yet. Participants will appear here once applications are accepted.
+                  </Text>
+                )}
+              </Stack>
+            </Paper>
+          </Tabs.Panel>
+
+          {/* Projects Tab */}
+          <Tabs.Panel value="projects" mt="md">
+            <Paper p="xl" radius="md" withBorder>
+              <Stack gap="lg">
+                <Title order={2}>Participant Projects</Title>
+                {projects.length > 0 ? (
+                  <>
+                    <Text c="dimmed">
+                      Explore {projects.length} projects created by event participants.
+                    </Text>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1rem' }}>
+                      {projects.map((project) => (
+                        <Card key={project.id} shadow="sm" padding="lg" radius="md" withBorder>
+                          <Stack gap="md">
+                            {project.imageUrl && (
+                              <div style={{ width: '100%', height: 200, borderRadius: 8, overflow: 'hidden' }}>
+                                <img 
+                                  src={project.imageUrl} 
+                                  alt={project.title} 
+                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                              </div>
+                            )}
+                            <div>
+                              <Group justify="space-between" align="flex-start" mb="xs">
+                                <Text fw={500} size="lg" lineClamp={1}>
+                                  {project.title}
+                                </Text>
+                                {project.featured && (
+                                  <Badge variant="light" color="yellow" size="sm">
+                                    Featured
+                                  </Badge>
+                                )}
+                              </Group>
+                              {project.description && (
+                                <Text size="sm" c="dimmed" lineClamp={3} mb="sm">
+                                  {project.description}
+                                </Text>
+                              )}
+                              <Group gap="xs" mb="sm">
+                                <div style={{ width: 24, height: 24, borderRadius: '50%', overflow: 'hidden' }}>
+                                  {project.author.image ? (
+                                    <img 
+                                      src={project.author.image} 
+                                      alt={project.author.name ?? 'Author'} 
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    <div style={{ width: '100%', height: '100%', backgroundColor: '#e9ecef', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                      <Text size="xs">?</Text>
+                                    </div>
+                                  )}
+                                </div>
+                                <Text size="sm" c="dimmed">
+                                  by {project.author.name ?? 'Anonymous'}
+                                </Text>
+                              </Group>
+                              {project.technologies && project.technologies.length > 0 && (
+                                <Group gap="xs" mb="sm">
+                                  {project.technologies.slice(0, 3).map((tech, index) => (
+                                    <Badge key={index} variant="outline" size="xs">
+                                      {tech}
+                                    </Badge>
+                                  ))}
+                                  {project.technologies.length > 3 && (
+                                    <Badge variant="outline" size="xs" color="gray">
+                                      +{project.technologies.length - 3} more
+                                    </Badge>
+                                  )}
+                                </Group>
+                              )}
+                              <Group gap="xs">
+                                {project.githubUrl && (
+                                  <Button 
+                                    component="a"
+                                    href={project.githubUrl}
+                                    target="_blank"
+                                    variant="light"
+                                    size="xs"
+                                  >
+                                    View Code
+                                  </Button>
+                                )}
+                                {project.liveUrl && (
+                                  <Button 
+                                    component="a"
+                                    href={project.liveUrl}
+                                    target="_blank"
+                                    variant="filled"
+                                    size="xs"
+                                  >
+                                    Live Demo
+                                  </Button>
+                                )}
+                              </Group>
+                            </div>
+                          </Stack>
+                        </Card>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <Text c="dimmed" ta="center" py="xl">
+                    No projects to display yet. Projects will appear here as participants add them to their profiles.
+                  </Text>
+                )}
+              </Stack>
+            </Paper>
+          </Tabs.Panel>
 
           {/* Resources Tab */}
           <Tabs.Panel value="resources" mt="md">

@@ -1,9 +1,9 @@
 import { type Metadata } from "next";
-import MentorInvitationsClient from "./MentorInvitationsClient";
+import AdminMentorApplicationsClient from "./AdminMentorApplicationsClient";
 
 export const metadata: Metadata = {
-  title: "Mentor Management",
-  description: "Invite and manage mentors for this event",
+  title: "Mentor Applications",
+  description: "Review and manage mentor applications for this event",
 };
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
   }>;
 }
 
-export default async function MentorInvitationsPage({ params }: Props) {
+export default async function MentorApplicationsPage({ params }: Props) {
   const { eventId } = await params;
-  return <MentorInvitationsClient eventId={eventId} />;
+  return <AdminMentorApplicationsClient eventId={eventId} />;
 }

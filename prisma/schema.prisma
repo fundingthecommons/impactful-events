@@ -430,6 +430,11 @@ enum ApplicationStatus {
   CANCELLED
 }
 
+enum ApplicationType {
+  RESIDENT
+  MENTOR
+}
+
 enum QuestionType {
   TEXT
   TEXTAREA
@@ -461,6 +466,7 @@ model Application {
   eventId       String   // Links to event
   email         String   // For matching legacy submissions
   status        ApplicationStatus @default(DRAFT)
+  applicationType ApplicationType @default(RESIDENT) // Type of application (resident or mentor)
   language      String   @default("en") // User's preferred language
   affiliation   String?  // Organization or company affiliation
   isComplete    Boolean  @default(false) // Tracks if all required fields are filled
