@@ -1,8 +1,30 @@
 import Link from "next/link";
 import { Container, Card, Stack, Text, Group, Button } from "@mantine/core";
 import { IconCalendarX, IconArrowLeft, IconInfoCircle } from "@tabler/icons-react";
+import { getEventContent } from "~/utils/eventContent";
+import { type EventType } from "~/types/event";
 
-export default function ApplicationClosedMessage() {
+interface ApplicationClosedMessageProps {
+  event?: {
+    id: string;
+    name: string;
+    type: string;
+  };
+}
+
+export default function ApplicationClosedMessage({ event }: ApplicationClosedMessageProps) {
+  // Get event-specific content or fallback to residency
+  const eventType = (event?.type === 'residency' || event?.type === 'hackathon') 
+    ? event.type as EventType 
+    : 'residency';
+  const content = getEventContent(eventType);
+  
+  // Use dynamic event data or fallback
+  const eventName = event?.name ?? content.name;
+  const eventDescription = content.shortDescription;
+  const backUrl = event ? `/events/${event.id}` : "/events/funding-commons-residency-2025";
+  const gradientClass = `bg-gradient-to-r ${content.branding.colors.gradient}`;
+
   return (
     <Container size="md" py="xl">
       <Stack gap="xl" align="center">
@@ -15,32 +37,31 @@ export default function ApplicationClosedMessage() {
         >
           <Stack gap="xl" align="center">
             {/* Icon */}
-            <div className="bg-gradient-to-r from-gray-500 to-gray-600 rounded-full p-6">
+            <div className={`${gradientClass} rounded-full p-6`}>
               <IconCalendarX size={48} color="white" />
             </div>
 
             {/* Heading */}
             <Stack gap="sm" align="center">
               <Text size="xl" fw={700} ta="center" className="text-gray-800">
-                Applications are Currently Closed
+                {content.applicationClosedMessage.title}
               </Text>
               <Text size="md" c="dimmed" ta="center">
-                FtC RealFi Residency • Buenos Aires 2025
+                {eventName} • {eventDescription}
               </Text>
             </Stack>
 
             {/* Message */}
             <Stack gap="md">
               <Text size="md" ta="center" className="text-gray-700">
-                Thank you for your interest in the Funding the Commons RealFi Residency. 
-                The application period has ended and we are no longer accepting new applications.
+                {content.applicationClosedMessage.description}
               </Text>
               
-              <Card p="md" radius="md" className="bg-blue-50 border border-blue-200">
+              <Card p="md" radius="md" className={`bg-${content.branding.colors.primary}-50 border border-${content.branding.colors.primary}-200`}>
                 <Group gap="sm">
-                  <IconInfoCircle size={20} className="text-blue-600" />
-                  <Text size="sm" className="text-blue-800">
-                    Stay tuned for announcements about future residency programs and opportunities.
+                  <IconInfoCircle size={20} className={`text-${content.branding.colors.primary}-600`} />
+                  <Text size="sm" className={`text-${content.branding.colors.primary}-800`}>
+                    {content.applicationClosedMessage.infoMessage}
                   </Text>
                 </Group>
               </Card>
@@ -50,13 +71,13 @@ export default function ApplicationClosedMessage() {
             <Group gap="md" mt="md">
               <Button
                 component={Link}
-                href="/events/funding-commons-residency-2025"
+                href={backUrl}
                 leftSection={<IconArrowLeft size={16} />}
                 variant="filled"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                className={`bg-gradient-to-r ${content.branding.colors.gradient} hover:from-${content.branding.colors.primary}-700 hover:to-${content.branding.colors.secondary}-700`}
                 size="md"
               >
-                Back to Residency Overview
+                Back to {eventType === 'hackathon' ? 'Hackathon' : 'Residency'} Overview
               </Button>
               
               <Button
@@ -73,32 +94,32 @@ export default function ApplicationClosedMessage() {
         </Card>
 
         {/* Additional Info */}
-        <Card p="lg" radius="md" withBorder className="bg-gradient-to-r from-blue-50 to-purple-50 max-w-2xl w-full">
+        <Card p="lg" radius="md" withBorder className={`bg-gradient-to-r from-${content.branding.colors.primary}-50 to-${content.branding.colors.secondary}-50 max-w-2xl w-full`}>
           <Stack gap="md">
-            <Text size="lg" fw={600} className="text-blue-900">
-              About the RealFi Residency
+            <Text size="lg" fw={600} className={`text-${content.branding.colors.primary}-900`}>
+              About the {eventType === 'hackathon' ? 'RealFi Hackathon' : 'RealFi Residency'}
             </Text>
-            <Text size="sm" className="text-blue-700">
-              This 8-week intensive program brings together builders, researchers, and entrepreneurs 
-              to develop real-world blockchain applications that solve everyday problems for 
-              Argentinians. The residency combines hands-on development, mentorship, and 
-              collaboration in Buenos Aires.
+            <Text size="sm" className={`text-${content.branding.colors.primary}-700`}>
+              {eventType === 'hackathon' 
+                ? 'A competitive event where builders and entrepreneurs develop innovative RealFi solutions that solve everyday problems for Argentinians. Join us for an intensive coding and collaboration experience in Buenos Aires.'
+                : 'This 8-week intensive program brings together builders, researchers, and entrepreneurs to develop real-world blockchain applications that solve everyday problems for Argentinians. The residency combines hands-on development, mentorship, and collaboration in Buenos Aires.'
+              }
             </Text>
             <Group gap="md" mt="sm">
               <Button
                 component={Link}
-                href="/events/funding-commons-residency-2025/about"
+                href={`${backUrl}/about`}
                 variant="light"
-                color="blue"
+                color={content.branding.colors.primary}
                 size="sm"
               >
                 Learn More
               </Button>
               <Button
                 component={Link}
-                href="/events/funding-commons-residency-2025/faq"
+                href={`${backUrl}/faq`}
                 variant="light"
-                color="purple"
+                color={content.branding.colors.secondary}
                 size="sm"
               >
                 View FAQ

@@ -27,6 +27,8 @@ import {
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import DynamicApplicationForm from "~/app/_components/DynamicApplicationForm";
+import { getEventContent } from "~/utils/eventContent";
+import { type EventType } from "~/types/event";
 
 type Application = {
   id: string;
@@ -111,6 +113,12 @@ export default function EventDetailClient({
   defaultTab,
   language = "en"
 }: EventDetailClientProps) {
+  // Get event-specific content
+  const eventType = (event.type === 'residency' || event.type === 'hackathon') 
+    ? event.type as EventType 
+    : 'residency';
+  const content = getEventContent(eventType);
+  
   console.log("🔍 EventDetailClient props:", {
     event,
     userApplication,
@@ -478,7 +486,7 @@ export default function EventDetailClient({
                 {participants.length > 0 ? (
                   <>
                     <Text c="dimmed">
-                      Meet the {participants.length} accepted residents joining this event.
+                      Meet the {participants.length} accepted {eventType === 'hackathon' ? 'participants' : 'residents'} joining this event.
                     </Text>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
                       {participants.map((participant) => (
@@ -580,7 +588,7 @@ export default function EventDetailClient({
           <Tabs.Panel value="projects" mt="md">
             <Paper p="xl" radius="md" withBorder>
               <Stack gap="lg">
-                <Title order={2}>Participant Projects</Title>
+                <Title order={2}>{eventType === 'hackathon' ? 'Hackathon Projects' : 'Participant Projects'}</Title>
                 {projects.length > 0 ? (
                   <>
                     <Text c="dimmed">
@@ -697,17 +705,17 @@ export default function EventDetailClient({
                   <Group gap="md">
                     <Button
                       component="a"
-                      href="/events/funding-commons-residency-2025/about"
+                      href={`/events/${event.id}/about`}
                       variant="light"
-                      color="blue"
+                      color={content.branding.colors.primary}
                     >
-                      About the Residency
+                      About the {eventType === 'hackathon' ? 'Hackathon' : 'Residency'}
                     </Button>
                     <Button
                       component="a"
-                      href="/events/funding-commons-residency-2025/faq"
+                      href={`/events/${event.id}/faq`}
                       variant="light"
-                      color="purple"
+                      color={content.branding.colors.secondary}
                     >
                       Frequently Asked Questions
                     </Button>

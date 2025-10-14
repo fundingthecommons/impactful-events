@@ -33,6 +33,8 @@ import {
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import { getEventGradient } from "~/utils/eventContent";
+import { type EventType } from "~/types/event";
 
 interface OrganizedEvent {
   id: string;
@@ -55,21 +57,26 @@ interface OrganizedEvent {
   };
 }
 
-function getEventGradient(type: string) {
-  switch (type.toLowerCase()) {
-    case "residency":
-      return { from: "blue", to: "cyan" };
-    case "hackathon":
-      return { from: "orange", to: "red" };
-    case "conference":
-      return { from: "green", to: "teal" };
-    default:
-      return { from: "purple", to: "pink" };
+// Helper function to get Mantine gradient format from event type
+function getMantineGradient(eventType: string) {
+  if (eventType === "conference") {
+    return { from: "green", to: "teal" };
   }
+  
+  if (eventType === "residency" || eventType === "hackathon") {
+    const gradientString = getEventGradient(eventType as EventType);
+    if (gradientString.includes("blue")) {
+      return { from: "blue", to: "cyan" };
+    } else if (gradientString.includes("orange")) {
+      return { from: "orange", to: "red" };
+    }
+  }
+  
+  return { from: "purple", to: "pink" };
 }
 
 function OrganizedEventCard({ event }: { event: OrganizedEvent }) {
-  const gradient = getEventGradient(event.type);
+  const gradient = getMantineGradient(event.type);
   const isUpcoming = new Date(event.startDate) > new Date();
   const isOngoing = new Date() >= new Date(event.startDate) && new Date() <= new Date(event.endDate);
   

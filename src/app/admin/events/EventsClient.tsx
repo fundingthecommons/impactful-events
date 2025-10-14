@@ -19,41 +19,33 @@ import {
   IconUsers, 
   IconBuilding, 
   IconCalendarEvent,
-  IconHome,
-  IconTrophy,
-  IconMicrophone,
   IconClipboardList,
   IconUserCheck
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import { getEventIcon, getEventGradient } from "~/utils/eventContent";
+import { type EventType } from "~/types/event";
 
-// Helper function to get icon based on event type
-function getEventIcon(eventType: string) {
-  switch (eventType.toLowerCase()) {
-    case "residency":
-      return IconHome;
-    case "hackathon":
-      return IconTrophy;
-    case "conference":
-      return IconMicrophone;
-    default:
-      return IconCalendarEvent;
+// Helper function to get Mantine gradient format from event type
+function getMantineGradient(eventType: string) {
+  // Handle legacy event types that aren't in our EventType union
+  if (eventType === "conference") {
+    return { from: "green", to: "teal" };
   }
-}
-
-// Helper function to get gradient based on event type
-function getEventGradient(eventType: string) {
-  switch (eventType.toLowerCase()) {
-    case "residency":
+  
+  if (eventType === "residency" || eventType === "hackathon") {
+    const gradientString = getEventGradient(eventType as EventType);
+    // Convert Tailwind gradient to Mantine format
+    if (gradientString.includes("blue")) {
       return { from: "blue", to: "cyan" };
-    case "hackathon":
+    } else if (gradientString.includes("orange")) {
       return { from: "orange", to: "red" };
-    case "conference":
-      return { from: "green", to: "teal" };
-    default:
-      return { from: "purple", to: "pink" };
+    }
   }
+  
+  // Default fallback
+  return { from: "purple", to: "pink" };
 }
 
 interface EventCardProps {
@@ -74,8 +66,8 @@ interface EventCardProps {
 }
 
 function EventCard({ event }: EventCardProps) {
-  const Icon = getEventIcon(event.type);
-  const gradient = getEventGradient(event.type);
+  const Icon = getEventIcon(event.type as EventType) ?? IconCalendarEvent;
+  const gradient = getMantineGradient(event.type);
   
   return (
     <Card shadow="lg" padding="xl" radius="md" withBorder h="100%">

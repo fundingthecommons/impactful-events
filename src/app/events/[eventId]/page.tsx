@@ -173,7 +173,7 @@ export default function EventPage({ params }: EventPageProps) {
 
   // Show application closed message if applications are closed
   if (applicationsAreClosed) {
-    return <ApplicationClosedMessage />;
+    return <ApplicationClosedMessage event={event} />;
   }
 
   // Show application flow for non-accepted users
