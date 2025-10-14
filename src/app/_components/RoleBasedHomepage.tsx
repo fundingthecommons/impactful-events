@@ -90,6 +90,12 @@ export default function RoleBasedHomepage() {
     return <MentorDashboard />;
   }
 
+  // Judges get participant events view to see events they can judge
+  if (roleNames.includes("judge")) {
+    console.log("✅ Routing to: ParticipantEventsClient (judge view)");
+    return <ParticipantEventsClient />;
+  }
+
   // Users with applications get participant view
   if (hasApplications) {
     console.log("✅ Routing to: ParticipantEventsClient");

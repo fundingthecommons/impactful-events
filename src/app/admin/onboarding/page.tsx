@@ -6,7 +6,7 @@ import OnboardingAdminClient from "./OnboardingAdminClient";
 export default async function OnboardingAdminPage() {
   const session = await auth();
 
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== "admin") {
     redirect("/unauthorized");
   }
 

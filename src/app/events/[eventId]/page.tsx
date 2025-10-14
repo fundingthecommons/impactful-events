@@ -215,6 +215,7 @@ export default function EventPage({ params }: EventPageProps) {
         userApplication={userApplication ?? null}
         userId={session?.user?.id ?? ""}
         defaultTab={defaultTab ?? undefined}
+        language={language}
       />
     </>
   );

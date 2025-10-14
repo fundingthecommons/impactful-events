@@ -16,7 +16,6 @@ import {
   Paper,
   Tabs,
   Alert,
-  ActionIcon,
 } from "@mantine/core";
 import { 
   IconCalendarEvent,
@@ -64,6 +63,7 @@ interface EventDetailClientProps {
   userApplication: Application | null;
   userId: string;
   defaultTab?: string;
+  language?: "en" | "es";
 }
 
 function getStatusColor(status: string) {
@@ -108,14 +108,14 @@ export default function EventDetailClient({
   event, 
   userApplication, 
   userId: _userId,
-  defaultTab
+  defaultTab,
+  language = "en"
 }: EventDetailClientProps) {
   console.log("🔍 EventDetailClient props:", {
     event,
     userApplication,
     userId: _userId
   });
-  const [language, setLanguage] = useState<"en" | "es">("en");
   const [activeTab, setActiveTab] = useState<string | null>(defaultTab ?? "overview");
   const { data: session } = useSession();
 
@@ -185,25 +185,6 @@ export default function EventDetailClient({
   return (
     <Container size="lg" py="xl">
       <Stack gap="xl">
-        {/* Language Toggle */}
-        <Group justify="flex-end" gap="xs">
-            <ActionIcon
-              variant={language === "en" ? "filled" : "outline"}
-              onClick={() => setLanguage("en")}
-              size="sm"
-            >
-              EN
-            </ActionIcon>
-            <ActionIcon
-              variant={language === "es" ? "filled" : "outline"}
-              onClick={() => setLanguage("es")}
-              size="sm"
-            >
-              ES
-            </ActionIcon>
-          </Group>
-
-
         {/* Event Header */}
         <Card shadow="lg" padding="xl" radius="md" withBorder>
           <Group align="flex-start" gap="lg">
