@@ -281,6 +281,9 @@ model UserRole {
   eventId String
   role    Role     @relation(fields: [roleId], references: [id])
   roleId  String
+  
+  // Judge-specific fields
+  ethereumAddress String? // For hackathon judging (optional, only relevant for judge roles)
 
   @@unique([userId, eventId, roleId])
 }
