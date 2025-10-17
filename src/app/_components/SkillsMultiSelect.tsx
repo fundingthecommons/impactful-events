@@ -48,6 +48,16 @@ const SKILL_CATEGORIES = [
   'Mobile',
   'Data Science',
   'Business',
+  'Cryptography',
+  'Cybersecurity',
+  'Cloud Computing',
+  'Networking',
+  'Operating Systems',
+  'Virtualization',
+  'System Administration',
+  'System Security',
+  'System Architecture',
+  'System Design',
   'Other'
 ];
 
