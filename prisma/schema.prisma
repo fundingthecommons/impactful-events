@@ -109,6 +109,9 @@ model User {
   
   // Skills system relation
   userSkills           UserSkills[]         @relation("UserSkills")
+  
+  // Contact interaction relation
+  contactInteractions  ContactInteraction[] @relation("ContactInteractions")
 }
 
 model VerificationToken {
@@ -317,7 +320,7 @@ model Contact {
   id        String @id @default(cuid())
   firstName String
   lastName  String
-  email     String @unique
+  email     String? // Made optional - removed @unique constraint
   sponsor   Sponsor? @relation(fields: [sponsorId], references: [id])
   sponsorId String?
   linkedIn  String?
@@ -325,6 +328,49 @@ model Contact {
   twitter   String?
   github   String?
   phone     String?
+  
+  // New fields
+  about     String? @db.Text // Free text description
+  skills    String[] // Array of skill tags
+  
+  // Cached last interaction data for quick access
+  lastInteractionAt   DateTime?
+  lastInteractionType String?
+  lastInteractionBy   String? // User ID who made last contact
+  
+  // Relations
+  interactions ContactInteraction[]
+}
+
+model ContactInteraction {
+  id            String   @id @default(cuid())
+  contactId     String   // Which contact
+  userId        String   // Which platform user initiated the interaction
+  
+  // Interaction details
+  type          String   // "EMAIL", "TELEGRAM", "PHONE_CALL", "MEETING", "NOTE", etc.
+  direction     String   // "OUTBOUND", "INBOUND" 
+  subject       String?  // Email subject, call purpose, meeting topic, etc.
+  notes         String?  @db.Text // Interaction notes/summary
+  
+  // Platform integration tracking
+  communicationId String? // Link to Communication table if sent via platform
+  telegramMsgId   String? // If telegram message
+  emailId         String? // If email sent
+  
+  // Metadata
+  createdAt     DateTime @default(now())
+  interactedAt  DateTime @default(now()) // When interaction actually happened
+  
+  // Relations
+  contact       Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user          User    @relation("ContactInteractions", fields: [userId], references: [id])
+  communication Communication? @relation(fields: [communicationId], references: [id])
+  
+  @@index([contactId])
+  @@index([userId])
+  @@index([interactedAt])
+  @@index([type])
 }
 
 model GeckoCoin {
@@ -695,6 +741,7 @@ model Communication {
   // Relations
   application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  contactInteractions ContactInteraction[] // Contact interactions linked to this communication
   
   // Indexes for performance
   @@index([applicationId])

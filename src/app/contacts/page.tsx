@@ -21,12 +21,14 @@ interface Contact {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string | null;
   phone?: string | null;
   linkedIn?: string | null;
   telegram?: string | null;
   twitter?: string | null;
   github?: string | null;
+  about?: string | null;
+  skills?: string[];
   sponsor?: {
     id: string;
     name: string;
@@ -64,12 +66,15 @@ export default function ContactsPage() {
     github: "",
     linkedIn: "",
     sponsorId: "",
+    about: "",
+    skills: [] as string[],
   });
   
   const { data: contacts, isLoading } = api.contact.getContacts.useQuery();
   const { data: telegramAuthStatus } = api.telegramAuth.getAuthStatus.useQuery();
   const { data: smartLists, isLoading: smartListsLoading } = api.telegramAuth.getSmartLists.useQuery();
   const { data: sponsors } = api.sponsor.getSponsors.useQuery();
+  const { data: availableSkills } = api.skills.getAvailableSkills.useQuery();
   const { data: smartListContacts, isLoading: smartListContactsLoading } = api.telegramAuth.getSmartListContacts.useQuery(
     { listId: selectedSmartList! },
     { enabled: !!selectedSmartList }
@@ -116,8 +121,8 @@ export default function ContactsPage() {
     }
     
     // Filter main contacts list to only show those in the smart list
-    const smartListEmails = new Set(filteredContactsList.map(c => c.email));
-    return contacts?.filter(contact => smartListEmails.has(contact.email)) ?? [];
+    const smartListEmails = new Set(filteredContactsList.map(c => c.email).filter(Boolean));
+    return contacts?.filter(contact => contact.email && smartListEmails.has(contact.email)) ?? [];
   }, [contacts, selectedContactFilter, filteredContactsList]);
 
   // Get selected smart list info for display (memoized)
@@ -180,11 +185,13 @@ export default function ContactsPage() {
       github: "",
       linkedIn: "",
       sponsorId: "",
+      about: "",
+      skills: [],
     });
   }, []);
 
   const handleCreateContact = useCallback(async () => {
-    if (!createFormData.firstName || !createFormData.lastName || !createFormData.email) {
+    if (!createFormData.firstName || !createFormData.lastName) {
       return;
     }
 
@@ -193,13 +200,15 @@ export default function ContactsPage() {
       await createContactMutation.mutateAsync({
         firstName: createFormData.firstName,
         lastName: createFormData.lastName,
-        email: createFormData.email,
+        email: createFormData.email || undefined,
         phone: createFormData.phone || undefined,
         telegram: createFormData.telegram || undefined,
         twitter: createFormData.twitter || undefined,
         github: createFormData.github || undefined,
         linkedIn: createFormData.linkedIn || undefined,
         sponsorId: createFormData.sponsorId || undefined,
+        about: createFormData.about || undefined,
+        skills: createFormData.skills.length > 0 ? createFormData.skills : undefined,
       });
 
       // Refresh contacts list
@@ -216,7 +225,7 @@ export default function ContactsPage() {
     }
   }, [createFormData, createContactMutation, utils, closeCreateDrawer]);
 
-  const updateCreateFormField = useCallback((field: string, value: string) => {
+  const updateCreateFormField = useCallback((field: string, value: string | string[]) => {
     setCreateFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
@@ -251,7 +260,7 @@ export default function ContactsPage() {
             {contact.firstName} {contact.lastName}
           </Text>
           <Text size="xs" c="dimmed">
-            {contact.email}
+            {contact.email ?? "No email"}
           </Text>
         </Stack>
       </Group>,
@@ -278,7 +287,7 @@ export default function ContactsPage() {
         )}
       </Stack>,
       // Email column
-      contact.email,
+      contact.email ?? "No email",
       // Sponsor column
       contact.sponsor ? (
         <Group gap="xs" key={`sponsor-${contact.id}`}>
@@ -752,21 +761,28 @@ export default function ContactsPage() {
               </Text>
               
               {/* Email */}
-              <Group justify="space-between">
+              {selectedContact.email ? (
+                <Group justify="space-between">
+                  <Group gap="xs">
+                    <IconMail size={16} color="gray" />
+                    <Text size="sm">{selectedContact.email}</Text>
+                  </Group>
+                  <CopyButton value={selectedContact.email}>
+                    {({ copied, copy }) => (
+                      <Tooltip label={copied ? 'Copied' : 'Copy email'}>
+                        <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
+                          {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                        </ActionIcon>
+                      </Tooltip>
+                    )}
+                  </CopyButton>
+                </Group>
+              ) : (
                 <Group gap="xs">
                   <IconMail size={16} color="gray" />
-                  <Text size="sm">{selectedContact.email}</Text>
+                  <Text size="sm" c="dimmed">No email address</Text>
                 </Group>
-                <CopyButton value={selectedContact.email}>
-                  {({ copied, copy }) => (
-                    <Tooltip label={copied ? 'Copied' : 'Copy email'}>
-                      <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
-                        {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                      </ActionIcon>
-                    </Tooltip>
-                  )}
-                </CopyButton>
-              </Group>
+              )}
 
               {/* Phone */}
               {selectedContact.phone && (
@@ -928,8 +944,7 @@ export default function ContactsPage() {
 
             <TextInput
               label="Email Address"
-              placeholder="Enter email address"
-              required
+              placeholder="Enter email address (optional)"
               type="email"
               value={createFormData.email}
               onChange={(e) => updateCreateFormField("email", e.target.value)}
@@ -998,6 +1013,37 @@ export default function ContactsPage() {
 
           <Divider />
 
+          {/* Additional Information */}
+          <Stack gap="md">
+            <Text fw={500} size="md">Additional Information (Optional)</Text>
+            
+            <Textarea
+              label="About"
+              placeholder="Add notes about this contact..."
+              value={createFormData.about ?? ""}
+              onChange={(e) => updateCreateFormField("about", e.target.value)}
+              minRows={3}
+              autosize
+            />
+
+            <MultiSelect
+              label="Skills"
+              placeholder="Select or add skills..."
+              data={availableSkills?.map(skill => ({
+                value: skill.name,
+                label: skill.name,
+                group: skill.category ?? "Other"
+              })) ?? []}
+              value={createFormData.skills}
+              onChange={(values) => updateCreateFormField("skills", values)}
+              searchable
+              clearable
+              maxDropdownHeight={200}
+            />
+          </Stack>
+
+          <Divider />
+
           {/* Action Buttons */}
           <Group justify="flex-end" gap="sm">
             <Button
@@ -1010,7 +1056,7 @@ export default function ContactsPage() {
             <Button
               onClick={handleCreateContact}
               loading={isCreating}
-              disabled={!createFormData.firstName || !createFormData.lastName || !createFormData.email}
+              disabled={!createFormData.firstName || !createFormData.lastName}
               leftSection={<IconPlus size={16} />}
             >
               {isCreating ? "Creating..." : "Create Contact"}

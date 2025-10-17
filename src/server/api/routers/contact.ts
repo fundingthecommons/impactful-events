@@ -810,22 +810,26 @@ export const contactRouter = createTRPCRouter({
     .input(z.object({
       firstName: z.string().min(1, "First name is required"),
       lastName: z.string().min(1, "Last name is required"), 
-      email: z.string().email("Please enter a valid email address"),
+      email: z.string().email("Please enter a valid email address").optional(),
       phone: z.string().optional(),
       telegram: z.string().optional(),
       twitter: z.string().optional(),
       github: z.string().optional(),
       linkedIn: z.string().optional(),
       sponsorId: z.string().optional(),
+      about: z.string().optional(),
+      skills: z.array(z.string()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Check if email already exists
-      const existingContact = await ctx.db.contact.findUnique({
-        where: { email: input.email },
-      });
+      // Check if email already exists (only if email is provided)
+      if (input.email) {
+        const existingContact = await ctx.db.contact.findFirst({
+          where: { email: input.email },
+        });
 
-      if (existingContact) {
-        throw new Error("A contact with this email address already exists");
+        if (existingContact) {
+          throw new Error("A contact with this email address already exists");
+        }
       }
 
       // Clean up social media handles and URLs
@@ -837,6 +841,7 @@ export const contactRouter = createTRPCRouter({
         linkedIn: input.linkedIn?.startsWith('http') 
           ? input.linkedIn 
           : input.linkedIn?.replace(/^@/, ''), // Keep full URLs, remove @ if present
+        skills: input.skills ?? [], // Default to empty array
       };
 
       // Create the contact
