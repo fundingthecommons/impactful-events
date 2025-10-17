@@ -1,9 +1,10 @@
 "use client";
 
 import { Container, Title, Text, Stack, Paper, List, Anchor } from "@mantine/core";
-import { env } from "~/env";
+import { api } from "~/trpc/react";
 
 export default function TermsOfService() {
+  const { data: config } = api.config.getPublicConfig.useQuery();
   return (
     <Container size="md" py="xl">
       <Stack gap="xl">
@@ -135,8 +136,8 @@ export default function TermsOfService() {
               <Title order={2} size="h3" mb="md">Contact Information</Title>
               <Text>
                 If you have any questions about these Terms of Service, please contact us at:{" "}
-                <Anchor href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`}>
-                  {env.NEXT_PUBLIC_ADMIN_EMAIL}
+                <Anchor href={`mailto:${config?.adminEmail ?? ''}`}>
+                  {config?.adminEmail ?? ''}
                 </Anchor>
               </Text>
             </section>

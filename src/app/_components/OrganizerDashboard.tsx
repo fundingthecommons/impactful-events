@@ -1,6 +1,4 @@
 "use client";
-
-import { env } from "~/env";
 import { 
   Container, 
   Title, 
@@ -196,6 +194,7 @@ function OrganizedEventCard({ event }: { event: OrganizedEvent }) {
 export default function OrganizerDashboard() {
   const { data: organizedEvents, isLoading: loadingEvents } = api.event.getOrganizerEvents.useQuery();
   const { data: organizerStats, isLoading: loadingStats } = api.event.getOrganizerStats.useQuery();
+  const { data: config } = api.config.getPublicConfig.useQuery();
 
   if (loadingEvents || loadingStats) {
     return (
@@ -332,7 +331,7 @@ export default function OrganizerDashboard() {
                     You haven&apos;t been assigned as an organizer for any events yet. Contact your admin to get involved in event organization.
                   </Text>
                 </Stack>
-                <Anchor href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`}>
+                <Anchor href={`mailto:${config?.adminEmail ?? ''}`}>
                   <Button leftSection={<IconMail size={16} />}>
                     Get Involved
                   </Button>

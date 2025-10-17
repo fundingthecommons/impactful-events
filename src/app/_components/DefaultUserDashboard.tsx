@@ -1,6 +1,4 @@
 "use client";
-
-import { env } from "~/env";
 import { 
   Container, 
   Title, 
@@ -206,6 +204,7 @@ function EventCard({ event }: { event: AvailableEvent }) {
 export default function DefaultUserDashboard() {
   const { data: availableEvents, isLoading: loadingEvents } = api.event.getAvailableEvents.useQuery();
   const { data: userApplications, isLoading: loadingApplications } = api.application.getUserApplications.useQuery();
+  const { data: config } = api.config.getPublicConfig.useQuery();
 
   if (loadingEvents || loadingApplications) {
     return (
@@ -299,7 +298,7 @@ export default function DefaultUserDashboard() {
               description="Share your expertise and guide builders working on public goods projects. Help shape the next generation of impact-driven technologies."
               icon={IconBrain}
               color="teal"
-              action={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}?subject=Mentor Interest`}
+              action={`mailto:${config?.adminEmail ?? ''}?subject=Mentor Interest`}
               actionText="Express Interest"
             />
             
@@ -308,7 +307,7 @@ export default function DefaultUserDashboard() {
               description="Support our events and get visibility with top builders in the space. Connect your brand with meaningful impact."
               icon={IconBuildingBank}
               color="violet"
-              action={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}?subject=Sponsorship Inquiry`}
+              action={`mailto:${config?.adminEmail ?? ''}?subject=Sponsorship Inquiry`}
               actionText="Learn More"
             />
             
@@ -317,7 +316,7 @@ export default function DefaultUserDashboard() {
               description="Help us create amazing experiences for the community. Organize local meetups, workshops, or larger events."
               icon={IconUsersGroup}
               color="indigo"
-              action={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}?subject=Organizer Interest`}
+              action={`mailto:${config?.adminEmail ?? ''}?subject=Organizer Interest`}
               actionText="Get Started"
             />
           </SimpleGrid>

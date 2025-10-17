@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { env } from "~/env";
 import {
   Card,
   Stack,
@@ -20,6 +19,7 @@ import {
   IconMapPin,
   IconInfoCircle
 } from "@tabler/icons-react";
+import { api } from "~/trpc/react";
 
 const faqData = [
   {
@@ -173,6 +173,7 @@ const faqData = [
 ];
 
 export default function ResidencyFAQ() {
+  const { data: config } = api.config.getPublicConfig.useQuery();
   return (
     <Card withBorder radius="md" p="xl">
       <Stack gap="lg">
@@ -184,8 +185,8 @@ export default function ResidencyFAQ() {
 
         <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
           Have a question not covered here? Contact our team at{" "}
-          <Text component="a" href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`} fw={500}>
-            {env.NEXT_PUBLIC_ADMIN_EMAIL}
+          <Text component="a" href={`mailto:${config?.adminEmail ?? ''}`} fw={500}>
+            {config?.adminEmail ?? ''}
           </Text>
         </Alert>
 

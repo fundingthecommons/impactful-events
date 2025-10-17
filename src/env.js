@@ -37,7 +37,7 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    NEXT_PUBLIC_ADMIN_EMAIL: z.string().email(),
+    // No client-side environment variables needed
   },
 
   /**
@@ -62,7 +62,6 @@ export const env = createEnv({
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,
     MASTRA_API_KEY: process.env.MASTRA_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    NEXT_PUBLIC_ADMIN_EMAIL: process.env.NEXT_PUBLIC_ADMIN_EMAIL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

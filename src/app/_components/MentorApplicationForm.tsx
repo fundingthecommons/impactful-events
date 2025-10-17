@@ -45,7 +45,6 @@ import {
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 import SkillsMultiSelect from "./SkillsMultiSelect";
-import { env } from "~/env";
 
 const mentorApplicationSchema = z.object({
   skills: z.array(z.string()).min(1, "Please add at least one skill"), // Now stores skill IDs
@@ -127,6 +126,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { data: config } = api.config.getPublicConfig.useQuery();
 
   // Fetch skills data to convert IDs to names
   const { data: skillsByCategory } = api.skills.getSkillsByCategory.useQuery();
@@ -699,7 +699,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
         <Alert color="blue" title="Need Help?">
           <Text size="sm">
             If you have any questions about completing this form, please contact the residency organizers at{" "}
-            <Text component="span" fw={500}>{env.NEXT_PUBLIC_ADMIN_EMAIL}</Text>
+            <Text component="span" fw={500}>{config?.adminEmail ?? ''}</Text>
           </Text>
         </Alert>
       </Stack>

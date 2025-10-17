@@ -1,6 +1,4 @@
 "use client";
-
-import { env } from "~/env";
 import { 
   Container, 
   Title, 
@@ -187,6 +185,7 @@ function EventCard({ event }: { event: SponsoredEvent }) {
 export default function SponsorDashboard() {
   const { data: sponsoredEvents, isLoading: loadingEvents } = api.event.getSponsoredEvents.useQuery();
   const { data: sponsorStats, isLoading: loadingStats } = api.sponsor.getSponsorStats.useQuery();
+  const { data: config } = api.config.getPublicConfig.useQuery();
 
   if (loadingEvents || loadingStats) {
     return (
@@ -322,7 +321,7 @@ export default function SponsorDashboard() {
                     You don&apos;t have any sponsored events yet. Contact our team to get involved in upcoming events and support amazing builders.
                   </Text>
                 </Stack>
-                <Anchor href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`}>
+                <Anchor href={`mailto:${config?.adminEmail ?? ''}`}>
                   <Button leftSection={<IconMail size={16} />}>
                     Get In Touch
                   </Button>

@@ -1,6 +1,4 @@
 "use client";
-
-import { env } from "~/env";
 import { 
   Container, 
   Title, 
@@ -221,6 +219,7 @@ export default function MentorDashboard() {
   const { data: mentorEvents, isLoading: loadingEvents } = api.event.getMentorEvents.useQuery();
   const { data: upcomingSessions, isLoading: loadingSessions } = api.mentorship.getUpcomingSessions.useQuery();
   const { data: mentorStats, isLoading: loadingStats } = api.mentorship.getMentorStats.useQuery();
+  const { data: config } = api.config.getPublicConfig.useQuery();
 
   if (loadingEvents || loadingSessions || loadingStats) {
     return (
@@ -382,7 +381,7 @@ export default function MentorDashboard() {
                     You&apos;re not currently assigned as a mentor for any events. Contact the organizers to get involved in mentoring opportunities.
                   </Text>
                 </Stack>
-                <Anchor href={`mailto:${env.NEXT_PUBLIC_ADMIN_EMAIL}`}>
+                <Anchor href={`mailto:${config?.adminEmail ?? ''}`}>
                   <Button leftSection={<IconMessageDots size={16} />}>
                     Express Interest
                   </Button>
