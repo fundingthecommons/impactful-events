@@ -564,7 +564,7 @@ export const telegramAuthRouter = createTRPCRouter({
                 // Find the contact's application to link the communication
                 const contactApplication = await ctx.db.application.findFirst({
                   where: {
-                    email: contact.email, // Use contact email to find application
+                    email: contact.email ?? undefined, // Use contact email to find application
                   },
                   select: { id: true, eventId: true }
                 });
@@ -781,7 +781,7 @@ export const telegramAuthRouter = createTRPCRouter({
         id: contact.id,
         firstName: contact.firstName,
         lastName: contact.lastName,
-        email: contact.email,
+        email: contact.email ?? undefined,
         telegram: contact.telegram,
       }));
     }),
@@ -846,7 +846,7 @@ export const telegramAuthRouter = createTRPCRouter({
         firstName: contact.firstName,
         lastName: contact.lastName,
         telegram: contact.telegram,
-        email: contact.email, // Keep email for application lookup
+        email: contact.email ?? undefined, // Keep email for application lookup
       }));
 
       let successCount = 0;
@@ -928,7 +928,7 @@ export const telegramAuthRouter = createTRPCRouter({
                 // Find the contact's application to link the communication
                 const contactApplication = await ctx.db.application.findFirst({
                   where: {
-                    email: contact.email, // Use contact email to find application
+                    email: contact.email ?? undefined, // Use contact email to find application
                     eventId: 'funding-commons-residency-2025', // Smart lists are for this specific event
                   },
                   select: { id: true, eventId: true }

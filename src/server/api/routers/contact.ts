@@ -382,7 +382,7 @@ async function upsertContact(db: PrismaClient, contact: {
     
     // Update email if we have a real email and existing is placeholder
     if (email && !email.endsWith('@telegram.placeholder') && 
-        existingContact.email.endsWith('@telegram.placeholder')) {
+        existingContact.email?.endsWith('@telegram.placeholder')) {
       updateData.email = email;
       updateData.sponsorId = sponsor?.id ?? null;
     }
