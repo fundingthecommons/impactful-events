@@ -17,8 +17,6 @@ import {
   TagsInput,
   Select,
   Checkbox,
-  Radio,
-  NumberInput,
   Grid,
   Badge,
   Alert,
@@ -49,11 +47,9 @@ import SkillsMultiSelect from "./SkillsMultiSelect";
 const mentorApplicationSchema = z.object({
   skills: z.array(z.string()).min(1, "Please add at least one skill"), // Now stores skill IDs
   interests: z.array(z.string()).min(1, "Please add at least one area of experience"),
-  yearsOfExperience: z.number().min(0, "Years of experience must be 0 or greater"),
   timezone: z.string().min(1, "Timezone is required"),
   mentorAvailableDates: z.array(z.string()).min(1, "Please select at least one availability period"),
   mentorHoursPerWeek: z.string().min(1, "Please specify your time commitment"),
-  mentorPreferredContact: z.string().min(1, "Please select a preferred contact method"),
   // Profile fields - Basic Information
   bio: z.string().max(1000).optional(),
   jobTitle: z.string().max(100).optional(),
@@ -87,10 +83,10 @@ const availabilityOptions = [
 ];
 
 const timeCommitmentOptions = [
-  { value: "1-2", label: "1-2 days per week" },
-  { value: "2-3", label: "2-3 days per week" },
-  { value: "3-4", label: "3-4 days per week" },
-  { value: "4+", label: "4+ days per week" },
+  { value: "1-2", label: "1-2 days" },
+  { value: "2-3", label: "2-3 days" },
+  { value: "3-4", label: "3-4 days" },
+  { value: "4+", label: "4+ days" },
   { value: "flexible", label: "Flexible based on needs" },
 ];
 
@@ -107,14 +103,6 @@ const timezoneOptions = [
   { value: "Asia/Shanghai", label: "Shanghai (CST)" },
   { value: "Asia/Kolkata", label: "India (IST)" },
   { value: "Australia/Sydney", label: "Sydney (AEDT)" },
-];
-
-const contactMethodOptions = [
-  { value: "email", label: "Email" },
-  { value: "telegram", label: "Telegram" },
-  { value: "discord", label: "Discord" },
-  { value: "linkedin", label: "LinkedIn" },
-  { value: "phone", label: "Phone" },
 ];
 
 interface MentorApplicationFormProps {
@@ -142,11 +130,9 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
     initialValues: {
       skills: [],
       interests: [],
-      yearsOfExperience: 0,
       timezone: "",
       mentorAvailableDates: [],
       mentorHoursPerWeek: "",
-      mentorPreferredContact: "",
       // Profile fields - Basic Information
       bio: "",
       jobTitle: "",
@@ -224,7 +210,6 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
       await updateProfile.mutateAsync({
         skills: skillNames, // Send skill names to maintain backward compatibility
         interests: values.interests,
-        yearsOfExperience: values.yearsOfExperience,
         timezone: values.timezone,
         availableForMentoring: true, // Set this to true when they complete mentor application
         // Profile fields - Basic Information
@@ -249,7 +234,6 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
         mentorGoals: values.mentorGoals,
         mentorAvailableDates: values.mentorAvailableDates,
         mentorHoursPerWeek: values.mentorHoursPerWeek,
-        mentorPreferredContact: values.mentorPreferredContact,
       });
       
     } catch {
@@ -260,7 +244,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
   };
 
   const nextStep = () => {
-    if (currentStep < 4) {
+    if (currentStep < 3) {
       setCurrentStep(prev => prev + 1);
     }
   };
@@ -277,13 +261,10 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
         return form.values.skills.length > 0 && 
                form.values.interests.length > 0;
       case 2:
-        return form.values.yearsOfExperience >= 0;
-      case 3:
         return form.values.mentorAvailableDates.length > 0 && 
                form.values.mentorHoursPerWeek && 
-               form.values.mentorPreferredContact &&
                form.values.timezone;
-      case 4:
+      case 3:
         return form.values.mentorshipStyle && 
                form.values.previousMentoringExp && 
                form.values.mentorSpecializations.length > 0 && 
@@ -335,33 +316,6 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
         );
 
       case 2:
-        return (
-          <Card shadow="sm" padding="xl" radius="md" withBorder>
-            <Stack gap="lg">
-              <Group gap="md" align="center">
-                <IconUsers size={28} color="var(--mantine-color-green-6)" />
-                <div>
-                  <Title order={3}>Professional Background</Title>
-                  <Text size="sm" c="dimmed">Tell us about your professional experience</Text>
-                </div>
-              </Group>
-
-              <Grid>
-                <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <NumberInput
-                    label="Years of Experience"
-                    placeholder="How many years of professional experience?"
-                    min={0}
-                    max={50}
-                    {...form.getInputProps("yearsOfExperience")}
-                  />
-                </Grid.Col>
-              </Grid>
-            </Stack>
-          </Card>
-        );
-
-      case 3:
         return (
           <Stack gap="xl">
             {/* Basic Information */}
@@ -537,41 +491,19 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                   </Stack>
                 </div>
 
-                {/* Time Commitment & Contact Method */}
-                <Grid>
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <Select
-                      label="Time Commitment"
-                      placeholder="How much time can you dedicate?"
-                      data={timeCommitmentOptions}
-                      {...form.getInputProps("mentorHoursPerWeek")}
-                    />
-                  </Grid.Col>
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <div>
-                      <Text size="sm" fw={500} mb="xs">Preferred Contact Method</Text>
-                      <Radio.Group
-                        {...form.getInputProps("mentorPreferredContact")}
-                      >
-                        <Stack gap="xs">
-                          {contactMethodOptions.map((option) => (
-                            <Radio
-                              key={option.value}
-                              value={option.value}
-                              label={option.label}
-                            />
-                          ))}
-                        </Stack>
-                      </Radio.Group>
-                    </div>
-                  </Grid.Col>
-                </Grid>
+                {/* Time Commitment */}
+                <Select
+                  label="Time Commitment"
+                  placeholder="How much time can you dedicate?"
+                  data={timeCommitmentOptions}
+                  {...form.getInputProps("mentorHoursPerWeek")}
+                />
               </Stack>
             </Card>
           </Stack>
         );
 
-      case 4:
+      case 3:
         return (
           <Card shadow="sm" padding="xl" radius="md" withBorder>
             <Stack gap="lg">
@@ -646,16 +578,15 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
           <Card p="md" radius="md" withBorder>
             <Stack gap="md">
               <Group justify="space-between">
-                <Text size="sm" fw={500}>Step {currentStep} of 4</Text>
-                <Text size="sm" c="dimmed">{Math.round((currentStep / 4) * 100)}% Complete</Text>
+                <Text size="sm" fw={500}>Step {currentStep} of 3</Text>
+                <Text size="sm" c="dimmed">{Math.round((currentStep / 3) * 100)}% Complete</Text>
               </Group>
-              <Progress value={(currentStep / 4) * 100} size="lg" radius="xl" />
+              <Progress value={(currentStep / 3) * 100} size="lg" radius="xl" />
               
               <Group justify="space-between">
                 <Badge size="sm" variant={currentStep >= 1 ? "filled" : "light"}>Skills</Badge>
                 <Badge size="sm" variant={currentStep >= 2 ? "filled" : "light"}>Availability</Badge>
-                <Badge size="sm" variant={currentStep >= 3 ? "filled" : "light"}>Contact</Badge>
-                <Badge size="sm" variant={currentStep >= 4 ? "filled" : "light"}>Details</Badge>
+                <Badge size="sm" variant={currentStep >= 3 ? "filled" : "light"}>Details</Badge>
               </Group>
             </Stack>
           </Card>
@@ -675,7 +606,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
               Previous
             </Button>
 
-            {currentStep < 4 ? (
+            {currentStep < 3 ? (
               <Button
                 onClick={nextStep}
                 disabled={!getStepValidation(currentStep)}
