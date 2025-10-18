@@ -266,6 +266,23 @@ export default function EventDetailClient({
                 Submitted on {formatDate(userApplication.submittedAt)}
               </Text>
             )}
+            {userApplication.status === "ACCEPTED" && (
+              <Group mt="md" gap="md">
+                <Button
+                  component="a"
+                  href={`/events/${event.id}/onboarding`}
+                  variant="light"
+                  color="green"
+                  leftSection={<IconEdit size={16} />}
+                  size="sm"
+                >
+                  Complete Onboarding
+                </Button>
+                <Text size="sm" c="dimmed">
+                  Please complete your onboarding form to finalize your participation.
+                </Text>
+              </Group>
+            )}
           </Alert>
         )}
 
