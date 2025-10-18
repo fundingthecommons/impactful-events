@@ -245,7 +245,14 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
 
   const nextStep = () => {
     if (currentStep < 3) {
-      setCurrentStep(prev => prev + 1);
+      // Validate current step before proceeding
+      const isValid = getStepValidation(currentStep);
+      if (isValid) {
+        setCurrentStep(prev => prev + 1);
+      } else {
+        // Trigger validation to show errors
+        form.validate();
+      }
     }
   };
 
@@ -618,7 +625,6 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
             {currentStep < 3 ? (
               <Button
                 onClick={nextStep}
-                disabled={!getStepValidation(currentStep)}
               >
                 Next Step
               </Button>
