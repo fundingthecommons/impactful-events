@@ -58,6 +58,7 @@ interface DynamicApplicationFormProps {
   existingApplication?: ExistingApplication;
   language: "en" | "es";
   userEmail?: string;
+  applicationType?: "RESIDENT" | "MENTOR";
   onSubmitted?: () => void;
   onUpdated?: () => void;
 }
@@ -67,6 +68,7 @@ export default function DynamicApplicationForm({
   existingApplication,
   language,
   userEmail,
+  applicationType = "RESIDENT", // Default to RESIDENT for backward compatibility
   onSubmitted,
   onUpdated,
 }: DynamicApplicationFormProps) {
@@ -161,6 +163,7 @@ export default function DynamicApplicationForm({
       const application = await createApplication.mutateAsync({
         eventId,
         language,
+        applicationType, // Pass through the applicationType prop
       });
       setApplicationId(application.id);
       return application.id;
@@ -180,7 +183,7 @@ export default function DynamicApplicationForm({
     } finally {
       setIsCreatingApplication(false);
     }
-  }, [applicationId, isCreatingApplication, createApplication, eventId, language]);
+  }, [applicationId, isCreatingApplication, createApplication, eventId, language, applicationType]);
 
   // Initialize form values ONCE when questions load (prevent infinite loops)
   useEffect(() => {

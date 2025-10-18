@@ -141,6 +141,13 @@ export const applicationRouter = createTRPCRouter({
   createApplication: protectedProcedure
     .input(CreateApplicationInputSchema)
     .mutation(async ({ ctx, input }) => {
+      console.log('🔍 createApplication called with:', {
+        userId: ctx.session.user.id,
+        eventId: input.eventId,
+        applicationType: input.applicationType,
+        language: input.language
+      });
+
       // Check if application already exists (matches the unique constraint: userId + eventId)
       const existing = await ctx.db.application.findFirst({
         where: {
@@ -150,8 +157,15 @@ export const applicationRouter = createTRPCRouter({
       });
 
       if (existing) {
+        console.log('📋 Found existing application:', {
+          id: existing.id,
+          currentType: existing.applicationType,
+          requestedType: input.applicationType
+        });
+
         // If existing application has different type, update it to the requested type
         if (existing.applicationType !== input.applicationType) {
+          console.log('🔄 Updating application type from', existing.applicationType, 'to', input.applicationType);
           const updated = await ctx.db.application.update({
             where: { id: existing.id },
             data: { applicationType: input.applicationType },
@@ -164,12 +178,16 @@ export const applicationRouter = createTRPCRouter({
               },
             },
           });
+          console.log('✅ Application type updated successfully');
           return updated;
         }
+        
+        console.log('ℹ️ Application type already matches, returning existing application');
         return existing;
       }
 
       // Create new application with race condition handling
+      console.log('🆕 Creating new application');
       try {
         const application = await ctx.db.application.create({
           data: {
@@ -190,10 +208,14 @@ export const applicationRouter = createTRPCRouter({
           },
         });
 
+        console.log('✅ New application created successfully with type:', application.applicationType);
         return application;
       } catch (error: unknown) {
+        console.log('⚠️ Error creating application, checking for race condition:', error);
+        
         // Handle race condition where application was created between our check and create attempt
         if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') { // Unique constraint error
+          console.log('🏃 Race condition detected, fetching existing application');
           const existingAfterRace = await ctx.db.application.findFirst({
             where: {
               userId: ctx.session.user.id,
@@ -210,8 +232,15 @@ export const applicationRouter = createTRPCRouter({
           });
           
           if (existingAfterRace) {
+            console.log('📋 Found application after race condition:', {
+              id: existingAfterRace.id,
+              currentType: existingAfterRace.applicationType,
+              requestedType: input.applicationType
+            });
+
             // Update the application type if different
             if (existingAfterRace.applicationType !== input.applicationType) {
+              console.log('🔄 Updating application type after race condition from', existingAfterRace.applicationType, 'to', input.applicationType);
               const updated = await ctx.db.application.update({
                 where: { id: existingAfterRace.id },
                 data: { applicationType: input.applicationType },
@@ -224,6 +253,7 @@ export const applicationRouter = createTRPCRouter({
                   },
                 },
               });
+              console.log('✅ Application type updated successfully after race condition');
               return updated;
             }
             return existingAfterRace;
@@ -231,6 +261,7 @@ export const applicationRouter = createTRPCRouter({
         }
         
         // Re-throw if it's not a race condition we can handle
+        console.log('❌ Unhandled error in createApplication:', error);
         throw error;
       }
     }),

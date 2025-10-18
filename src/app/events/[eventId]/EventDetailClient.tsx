@@ -367,6 +367,7 @@ export default function EventDetailClient({
                     existingApplication={userApplication}
                     language={language}
                     userEmail={session?.user?.email ?? undefined}
+                    applicationType={isMentor ? "MENTOR" : "RESIDENT"}
                     onSubmitted={handleApplicationSubmitted}
                     onUpdated={handleApplicationUpdated}
                   />
@@ -387,6 +388,7 @@ export default function EventDetailClient({
                     eventId={event.id}
                     language={language}
                     userEmail={session?.user?.email ?? undefined}
+                    applicationType={isMentor ? "MENTOR" : "RESIDENT"}
                     onSubmitted={handleApplicationSubmitted}
                     onUpdated={handleApplicationUpdated}
                   />
