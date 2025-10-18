@@ -307,6 +307,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                     placeholder="Add your areas of expertise (e.g., DeFi, Product Strategy, Startups)"
                     description="What domains or industries do you have experience in?"
                     {...form.getInputProps("interests")}
+                    required
                   />
                 </Grid.Col>
 
@@ -365,6 +366,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                     searchable
                     clearable
                     {...form.getInputProps("timezone")}
+                    required
                   />
                 </Grid.Col>
               </Grid>
@@ -468,7 +470,9 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
               <Stack gap="md">
                 {/* Available Periods */}
                 <div>
-                  <Text size="sm" fw={500} mb="xs">Available Periods</Text>
+                  <Text size="sm" fw={500} mb="xs">
+                    Available Periods <Text component="span" c="red">*</Text>
+                  </Text>
                   <Text size="xs" c="dimmed" mb="md">Select all periods when you&apos;ll be available to mentor</Text>
                   <Stack gap="xs">
                     {availabilityOptions.map((option) => (
@@ -497,6 +501,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                   placeholder="How much time can you dedicate?"
                   data={timeCommitmentOptions}
                   {...form.getInputProps("mentorHoursPerWeek")}
+                  required
                 />
               </Stack>
             </Card>
@@ -522,6 +527,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                     placeholder="Add specific areas you'd like to focus on (e.g., Smart Contract Security, UX Design)"
                     description="What specific topics or skills do you want to mentor on during the residency?"
                     {...form.getInputProps("mentorSpecializations")}
+                    required
                   />
                 </Grid.Col>
 
@@ -532,6 +538,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                     description="How do you like to mentor? What's your approach to helping others learn and grow?"
                     minRows={4}
                     {...form.getInputProps("mentorshipStyle")}
+                    required
                   />
                 </Grid.Col>
 
@@ -542,6 +549,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                     description="What's your background with mentoring? This can include formal programs, informal guidance, teaching, etc."
                     minRows={3}
                     {...form.getInputProps("previousMentoringExp")}
+                    required
                   />
                 </Grid.Col>
 
@@ -552,6 +560,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
                     description="What are your personal goals for participating as a mentor?"
                     minRows={3}
                     {...form.getInputProps("mentorGoals")}
+                    required
                   />
                 </Grid.Col>
               </Grid>
