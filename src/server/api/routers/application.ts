@@ -150,6 +150,22 @@ export const applicationRouter = createTRPCRouter({
       });
 
       if (existing) {
+        // If existing application has different type, update it to the requested type
+        if (existing.applicationType !== input.applicationType) {
+          const updated = await ctx.db.application.update({
+            where: { id: existing.id },
+            data: { applicationType: input.applicationType },
+            include: {
+              event: true,
+              responses: {
+                include: {
+                  question: true,
+                },
+              },
+            },
+          });
+          return updated;
+        }
         return existing;
       }
 
@@ -194,6 +210,22 @@ export const applicationRouter = createTRPCRouter({
           });
           
           if (existingAfterRace) {
+            // Update the application type if different
+            if (existingAfterRace.applicationType !== input.applicationType) {
+              const updated = await ctx.db.application.update({
+                where: { id: existingAfterRace.id },
+                data: { applicationType: input.applicationType },
+                include: {
+                  event: true,
+                  responses: {
+                    include: {
+                      question: true,
+                    },
+                  },
+                },
+              });
+              return updated;
+            }
             return existingAfterRace;
           }
         }

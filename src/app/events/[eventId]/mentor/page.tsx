@@ -14,7 +14,10 @@ export default async function FundingCommonsResidencyMentorPage() {
     include: {
       applications: session?.user
         ? {
-            where: { userId: session.user.id },
+            where: { 
+              userId: session.user.id,
+              applicationType: "MENTOR",
+            },
             include: {
               responses: {
                 include: {
