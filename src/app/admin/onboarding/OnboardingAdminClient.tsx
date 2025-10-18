@@ -47,9 +47,6 @@ interface OnboardingSubmission {
   submittedAt: Date | null;
   
   // Contact & Logistics
-  legalName: string | null;
-  passportNumber: string | null;
-  needsVisaLetter: boolean | null;
   bloodType: string | null;
   emergencyContactName: string | null;
   emergencyContactRelationship: string | null;
@@ -134,7 +131,7 @@ function getStatusBadge(submission: OnboardingSubmission) {
   }
   
   // Check if they have provided any substantial information
-  const hasBasicInfo = submission.legalName ?? submission.passportNumber ?? submission.emergencyContactName;
+  const hasBasicInfo = submission.emergencyContactName;
   const hasDocuments = submission.eTicketUrl ?? submission.healthInsuranceUrl;
   const hasCommitments = submission.participateExperiments ?? submission.mintHypercert;
   
@@ -203,23 +200,6 @@ function OnboardingDetailModal({
             <Title order={4}>Contact & Logistics</Title>
           </Group>
           <Grid>
-            <Grid.Col span={6}>
-              <Text size="sm" fw={500}>Legal Name</Text>
-              <Text size="sm" c="dimmed">{submission.legalName ?? "Not provided"}</Text>
-            </Grid.Col>
-            <Grid.Col span={6}>
-              <Text size="sm" fw={500}>Passport Number</Text>
-              <Text size="sm" c="dimmed">{submission.passportNumber ?? "Not provided"}</Text>
-            </Grid.Col>
-            <Grid.Col span={6}>
-              <Text size="sm" fw={500}>Needs Visa Letter</Text>
-              <Badge 
-                color={submission.needsVisaLetter === true ? "yellow" : submission.needsVisaLetter === false ? "green" : "gray"} 
-                size="sm"
-              >
-                {submission.needsVisaLetter === true ? "Yes" : submission.needsVisaLetter === false ? "No" : "Not specified"}
-              </Badge>
-            </Grid.Col>
             <Grid.Col span={6}>
               <Text size="sm" fw={500}>Blood Type</Text>
               <Text size="sm" c="dimmed">{submission.bloodType ?? "Not provided"}</Text>
@@ -674,9 +654,6 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
                       <div>
                         <Text fw={500}>{submission.application.user?.name ?? "Unknown"}</Text>
                         <Text size="sm" c="dimmed">{submission.application.user?.email ?? "N/A"}</Text>
-                        {submission.legalName && submission.legalName !== submission.application.user?.name && (
-                          <Text size="xs" c="dimmed">Legal: {submission.legalName}</Text>
-                        )}
                       </div>
                     </Table.Td>
                     <Table.Td>
@@ -691,9 +668,6 @@ export default function OnboardingAdminClient({ onboardingData }: OnboardingAdmi
                           <Text size="xs" c="dimmed">
                             Emergency: {submission.emergencyContactName}
                           </Text>
-                        )}
-                        {submission.needsVisaLetter === true && (
-                          <Badge size="xs" color="yellow">Visa Letter Needed</Badge>
                         )}
                         {submission.dietType && (
                           <Badge size="xs" color="orange">{submission.dietType}</Badge>

@@ -10,9 +10,6 @@ const onboardingDataSchema = z.object({
   applicationId: z.string(),
   
   // Contact & Logistics
-  legalName: z.string().optional(),
-  passportNumber: z.string().optional(),
-  needsVisaLetter: z.boolean().optional(),
   bloodType: z.string().optional(),
   emergencyContactName: z.string().optional(),
   emergencyContactRelationship: z.string().optional(),
@@ -129,10 +126,10 @@ export const onboardingRouter = createTRPCRouter({
       }
 
       // Validate essential contact information
-      if (!onboardingData.legalName || !onboardingData.passportNumber || !onboardingData.emergencyContactName) {
+      if (!onboardingData.emergencyContactName) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Legal name, passport number, and emergency contact are required",
+          message: "Emergency contact is required",
         });
       }
 
@@ -201,9 +198,6 @@ export const onboardingRouter = createTRPCRouter({
       applicationId: z.string(),
       
       // Contact & Logistics
-      legalName: z.string().optional(),
-      passportNumber: z.string().optional(),
-      needsVisaLetter: z.boolean().optional(),
       bloodType: z.string().optional(),
       emergencyContactName: z.string().optional(),
       emergencyContactRelationship: z.string().optional(),

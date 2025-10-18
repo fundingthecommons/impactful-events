@@ -44,9 +44,6 @@ import { api } from "~/trpc/react";
 
 interface OnboardingFormData {
   // Contact & Logistics
-  legalName: string;
-  passportNumber: string;
-  needsVisaLetter: string; // Use string for radio values
   bloodType: string;
   emergencyContactName: string;
   emergencyContactRelationship: string;
@@ -118,9 +115,6 @@ export default function OnboardingForm({
   const form = useForm<OnboardingFormData>({
     initialValues: {
       // Contact & Logistics
-      legalName: "",
-      passportNumber: "",
-      needsVisaLetter: "",
       bloodType: "",
       emergencyContactName: "",
       emergencyContactRelationship: "",
@@ -169,8 +163,6 @@ export default function OnboardingForm({
       additionalComments: "",
     },
     validate: {
-      legalName: (value) => (!value ? "Legal name is required" : null),
-      passportNumber: (value) => (!value ? "Passport number is required" : null),
       emergencyContactName: (value) => (!value ? "Emergency contact name is required" : null),
       arrivalDateTime: (value) => (!value ? "Arrival date and time is required" : null),
       participateExperiments: (value) => (!value ? "This commitment is required for participation" : null),
@@ -196,9 +188,6 @@ export default function OnboardingForm({
       
       form.setValues({
         // Contact & Logistics
-        legalName: existing.legalName ?? "",
-        passportNumber: existing.passportNumber ?? "",
-        needsVisaLetter: existing.needsVisaLetter === true ? "true" : existing.needsVisaLetter === false ? "false" : "",
         bloodType: existing.bloodType ?? "",
         emergencyContactName: existing.emergencyContactName ?? "",
         emergencyContactRelationship: existing.emergencyContactRelationship ?? "",
@@ -265,13 +254,6 @@ export default function OnboardingForm({
         return new Date(dateStr);
       };
       
-      // Helper to convert string to boolean or undefined
-      const parseBoolean = (str: string) => {
-        if (str === "true") return true;
-        if (str === "false") return false;
-        return undefined;
-      };
-      
       // Helper to convert empty strings to undefined
       const emptyToUndefined = (str: string) => str || undefined;
       
@@ -279,9 +261,6 @@ export default function OnboardingForm({
         applicationId,
         
         // Contact & Logistics
-        legalName: values.legalName,
-        passportNumber: values.passportNumber,
-        needsVisaLetter: parseBoolean(values.needsVisaLetter),
         bloodType: emptyToUndefined(values.bloodType),
         emergencyContactName: values.emergencyContactName,
         emergencyContactRelationship: emptyToUndefined(values.emergencyContactRelationship),
@@ -353,8 +332,6 @@ export default function OnboardingForm({
   // Calculate completion percentage for key required fields
   const requiredFields = 9; // Core required fields
   const completedFields = [
-    form.values.legalName,
-    form.values.passportNumber,
     form.values.emergencyContactName,
     form.values.arrivalDateTime,
     form.values.participateExperiments,
@@ -480,34 +457,6 @@ export default function OnboardingForm({
                     Essential information for your arrival and stay. / Información esencial para tu llegada y estadía.
                   </Text>
 
-                  <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-                    <TextInput
-                      label="Legal Name / Nombre Legal"
-                      description="Full name as it appears on your passport / Nombre completo como aparece en tu pasaporte"
-                      placeholder="e.g., John Doe"
-                      required
-                      {...form.getInputProps('legalName')}
-                    />
-
-                    <TextInput
-                      label="Passport Number / Número de Pasaporte"
-                      description="For visa and travel documentation / Para documentación de visa y viaje"
-                      placeholder="e.g., A12345678"
-                      required
-                      {...form.getInputProps('passportNumber')}
-                    />
-                  </SimpleGrid>
-
-                  <Radio.Group
-                    label="Do you need a visa letter? / ¿Necesitas una carta de visa?"
-                    description="We can provide an invitation letter if required / Podemos proporcionar una carta de invitación si es necesaria"
-                    {...form.getInputProps('needsVisaLetter')}
-                  >
-                    <Group mt="xs">
-                      <Radio value="true" label="Yes / Sí" />
-                      <Radio value="false" label="No" />
-                    </Group>
-                  </Radio.Group>
 
                   <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
                     <TextInput

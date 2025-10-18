@@ -1204,9 +1204,6 @@ model ApplicationOnboarding {
   applicationId           String   @unique // One onboarding per application
   
   // Contact & Logistics
-  legalName               String?  // Legal name as in passport
-  passportNumber          String?  // Passport number
-  needsVisaLetter         Boolean? // Needs visa letter
   bloodType               String?  // Blood type
   emergencyContactName    String?  // Emergency contact name
   emergencyContactRelationship String? // Emergency contact relationship
