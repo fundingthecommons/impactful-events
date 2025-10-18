@@ -141,12 +141,11 @@ export const applicationRouter = createTRPCRouter({
   createApplication: protectedProcedure
     .input(CreateApplicationInputSchema)
     .mutation(async ({ ctx, input }) => {
-      // Check if application already exists for this type
+      // Check if application already exists (matches the unique constraint: userId + eventId)
       const existing = await ctx.db.application.findFirst({
         where: {
           userId: ctx.session.user.id,
           eventId: input.eventId,
-          applicationType: input.applicationType,
         },
       });
 
@@ -183,7 +182,6 @@ export const applicationRouter = createTRPCRouter({
             where: {
               userId: ctx.session.user.id,
               eventId: input.eventId,
-              applicationType: input.applicationType,
             },
             include: {
               event: true,
