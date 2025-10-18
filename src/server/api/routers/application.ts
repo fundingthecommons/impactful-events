@@ -111,14 +111,14 @@ export const applicationRouter = createTRPCRouter({
   getApplication: protectedProcedure
     .input(z.object({ 
       eventId: z.string(),
-      applicationType: z.enum(["RESIDENT", "MENTOR"]).default("RESIDENT"),
+      applicationType: z.enum(["RESIDENT", "MENTOR"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       const application = await ctx.db.application.findFirst({
         where: {
           userId: ctx.session.user.id,
           eventId: input.eventId,
-          applicationType: input.applicationType,
+          ...(input.applicationType && { applicationType: input.applicationType }),
         },
         include: {
           event: true,
