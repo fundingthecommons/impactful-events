@@ -1690,4 +1690,73 @@ export const applicationRouter = createTRPCRouter({
 
       return participants;
     }),
+
+  // Admin: Get single application by ID with full details
+  getApplicationById: protectedProcedure
+    .input(z.object({ applicationId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      checkAdminAccess(ctx.session.user.role);
+
+      const application = await ctx.db.application.findUnique({
+        where: { id: input.applicationId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              adminNotes: true,
+              adminWorkExperience: true,
+              adminLabels: true,
+              adminUpdatedAt: true,
+              profile: true,
+            },
+          },
+          event: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              type: true,
+              startDate: true,
+              endDate: true,
+            },
+          },
+          responses: {
+            include: {
+              question: true,
+            },
+            orderBy: {
+              question: {
+                order: "asc",
+              },
+            },
+          },
+          reviewerAssignments: {
+            include: {
+              reviewer: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+            },
+            orderBy: {
+              assignedAt: 'desc',
+            },
+          },
+        },
+      });
+
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Application not found",
+        });
+      }
+
+      return application;
+    }),
 });

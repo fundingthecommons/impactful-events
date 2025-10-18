@@ -19,6 +19,7 @@ import {
   Checkbox,
   Modal,
 } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { 
   IconCheck,
@@ -31,6 +32,7 @@ import {
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import ApplicationDetailsDrawer from "../applications/ApplicationDetailsDrawer";
 
 interface Props {
   eventId: string;
@@ -80,6 +82,10 @@ export default function AdminMentorApplicationsClient({ eventId }: Props) {
   const [selectedApplications, setSelectedApplications] = useState<string[]>([]);
   const [bulkStatusModalOpen, setBulkStatusModalOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<"ACCEPTED" | "REJECTED" | null>(null);
+  
+  // Drawer state management
+  const [viewDrawerOpened, { open: openViewDrawer, close: closeViewDrawer }] = useDisclosure(false);
+  const [viewingApplication, setViewingApplication] = useState<{ id: string } | null>(null);
 
   // Get event details
   const { data: event, isLoading: loadingEvent } = api.event.getEvent.useQuery({
@@ -179,6 +185,11 @@ export default function AdminMentorApplicationsClient({ eventId }: Props) {
 
   const handleStatusUpdate = (applicationId: string, status: "ACCEPTED" | "REJECTED") => {
     updateApplicationStatus.mutate({ applicationId, status });
+  };
+
+  const viewApplication = (applicationId: string) => {
+    setViewingApplication({ id: applicationId });
+    openViewDrawer();
   };
 
   const handleBulkStatusUpdate = () => {
@@ -333,6 +344,7 @@ export default function AdminMentorApplicationsClient({ eventId }: Props) {
               onSelectAll={handleSelectAll}
               onSelectApplication={handleSelectApplication}
               onStatusUpdate={handleStatusUpdate}
+              onViewApplication={viewApplication}
               isUpdating={updateApplicationStatus.isPending}
             />
           </Tabs.Panel>
@@ -344,6 +356,7 @@ export default function AdminMentorApplicationsClient({ eventId }: Props) {
               onSelectAll={handleSelectAll}
               onSelectApplication={handleSelectApplication}
               onStatusUpdate={handleStatusUpdate}
+              onViewApplication={viewApplication}
               isUpdating={updateApplicationStatus.isPending}
             />
           </Tabs.Panel>
@@ -355,6 +368,7 @@ export default function AdminMentorApplicationsClient({ eventId }: Props) {
               onSelectAll={handleSelectAll}
               onSelectApplication={handleSelectApplication}
               onStatusUpdate={handleStatusUpdate}
+              onViewApplication={viewApplication}
               isUpdating={updateApplicationStatus.isPending}
             />
           </Tabs.Panel>
@@ -398,6 +412,13 @@ export default function AdminMentorApplicationsClient({ eventId }: Props) {
           </Group>
         </Stack>
       </Modal>
+
+      {/* Application Detail Drawer */}
+      <ApplicationDetailsDrawer
+        applicationId={viewingApplication?.id ?? null}
+        opened={viewDrawerOpened}
+        onClose={closeViewDrawer}
+      />
     </Container>
   );
 }
@@ -419,6 +440,7 @@ interface MentorApplicationsTableProps {
   onSelectAll: () => void;
   onSelectApplication: (applicationId: string) => void;
   onStatusUpdate: (applicationId: string, status: "ACCEPTED" | "REJECTED") => void;
+  onViewApplication: (applicationId: string) => void;
   isUpdating: boolean;
 }
 
@@ -428,6 +450,7 @@ function MentorApplicationsTable({
   onSelectAll,
   onSelectApplication,
   onStatusUpdate,
+  onViewApplication,
   isUpdating,
 }: MentorApplicationsTableProps) {
   if (applications.length === 0) {
@@ -499,36 +522,37 @@ function MentorApplicationsTable({
               </Table.Td>
               <Table.Td>
                 <Group gap={4}>
-                  {!["ACCEPTED", "REJECTED"].includes(application.status) && (
-                    <>
-                      <ActionIcon
-                        variant="light"
-                        color="green"
-                        size="sm"
-                        onClick={() => onStatusUpdate(application.id, "ACCEPTED")}
-                        loading={isUpdating}
-                        title="Accept mentor application"
-                      >
-                        <IconCheck size={14} />
-                      </ActionIcon>
-                      <ActionIcon
-                        variant="light"
-                        color="red"
-                        size="sm"
-                        onClick={() => onStatusUpdate(application.id, "REJECTED")}
-                        loading={isUpdating}
-                        title="Reject mentor application"
-                      >
-                        <IconX size={14} />
-                      </ActionIcon>
-                    </>
+                  {/* Accept button - only show if not already accepted */}
+                  {application.status !== "ACCEPTED" && (
+                    <ActionIcon
+                      variant="light"
+                      color="green"
+                      size="sm"
+                      onClick={() => onStatusUpdate(application.id, "ACCEPTED")}
+                      loading={isUpdating}
+                      title="Accept mentor application"
+                    >
+                      <IconCheck size={14} />
+                    </ActionIcon>
+                  )}
+                  {/* Reject button - always show (can reject accepted applications) */}
+                  {application.status !== "REJECTED" && (
+                    <ActionIcon
+                      variant="light"
+                      color="red"
+                      size="sm"
+                      onClick={() => onStatusUpdate(application.id, "REJECTED")}
+                      loading={isUpdating}
+                      title="Reject mentor application"
+                    >
+                      <IconX size={14} />
+                    </ActionIcon>
                   )}
                   <ActionIcon
                     variant="light"
                     color="blue"
                     size="sm"
-                    component={Link}
-                    href={`/admin/events/${application.eventId}/applications/${application.id}`}
+                    onClick={() => onViewApplication(application.id)}
                     title="View mentor application details"
                   >
                     <IconEye size={14} />
