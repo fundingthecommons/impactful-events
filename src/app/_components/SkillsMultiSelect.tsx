@@ -38,6 +38,7 @@ interface SkillsMultiSelectProps {
   disabled?: boolean;
 }
 
+// Skill categories for the skills multiselect
 const SKILL_CATEGORIES = [
   'Frontend',
   'Backend', 
