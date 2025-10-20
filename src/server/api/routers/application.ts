@@ -148,6 +148,59 @@ export const applicationRouter = createTRPCRouter({
         language: input.language
       });
 
+      // Check if user has latePass access or is admin/mentor
+      const isAdmin = ctx.session.user.role === "admin" || ctx.session.user.role === "staff";
+      
+      // Check if user is a mentor for this event
+      const mentorRole = await ctx.db.userRole.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          eventId: input.eventId,
+          role: {
+            name: "mentor"
+          }
+        }
+      });
+      const isMentor = !!mentorRole;
+
+      // Get event details to check if applications are open
+      const event = await ctx.db.event.findUnique({
+        where: { id: input.eventId },
+        select: {
+          id: true,
+          name: true,
+          startDate: true,
+          endDate: true
+        }
+      });
+
+      if (!event) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
+      }
+
+      // Check if applications are currently open (within deadline)
+      const now = new Date();
+      const applicationsOpen = now <= event.startDate; // Applications close when event starts
+      
+      console.log('🕐 Application timing check:', {
+        now: now.toISOString(),
+        eventStart: event.startDate.toISOString(),
+        applicationsOpen,
+        isAdmin,
+        isMentor
+      });
+
+      // If applications are closed and user is not admin/mentor, they need latePass
+      if (!applicationsOpen && !isAdmin && !isMentor) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Applications for this event are closed. A late pass is required to apply.",
+        });
+      }
+
       // Check if application already exists (matches the unique constraint: userId + eventId)
       const existing = await ctx.db.application.findFirst({
         where: {

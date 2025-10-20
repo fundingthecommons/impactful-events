@@ -69,6 +69,7 @@ interface EventDetailClientProps {
   userId: string;
   defaultTab?: string;
   language?: "en" | "es";
+  hasLatePassAccess?: boolean;
 }
 
 function getStatusColor(status: string) {
@@ -114,7 +115,8 @@ export default function EventDetailClient({
   userApplication, 
   userId: _userId,
   defaultTab,
-  language = "en"
+  language = "en",
+  hasLatePassAccess = false
 }: EventDetailClientProps) {
   // Get event-specific content
   const eventType = (event.type === 'residency' || event.type === 'hackathon') 
@@ -295,8 +297,18 @@ export default function EventDetailClient({
             <Tabs.Tab value="overview">
               Event Overview
             </Tabs.Tab>
-            <Tabs.Tab value="application">
-              {userApplication ? "Manage Application" : "Apply Now"}
+            <Tabs.Tab 
+              value="application"
+              disabled={!hasLatePassAccess && !userApplication}
+            >
+              <Group gap="xs">
+                {userApplication ? "Manage Application" : "Apply Now"}
+                {!hasLatePassAccess && !userApplication && (
+                  <Badge size="xs" variant="light" color="red">
+                    Closed
+                  </Badge>
+                )}
+              </Group>
             </Tabs.Tab>
             <Tabs.Tab value="participants">
               Participants
@@ -392,7 +404,7 @@ export default function EventDetailClient({
                     onUpdated={handleApplicationUpdated}
                   />
                 </Stack>
-              ) : (
+              ) : hasLatePassAccess ? (
                 <Stack gap="lg">
                   <Title order={2}>
                     {language === "es" ? "Aplicar al Evento" : "Apply to Event"}
@@ -412,6 +424,30 @@ export default function EventDetailClient({
                     onSubmitted={handleApplicationSubmitted}
                     onUpdated={handleApplicationUpdated}
                   />
+                </Stack>
+              ) : (
+                <Stack gap="lg" align="center">
+                  <Alert 
+                    color="orange" 
+                    title="Applications Closed"
+                    icon={<IconAlertCircle />}
+                    variant="light"
+                    radius="md"
+                    style={{ maxWidth: 500, width: '100%' }}
+                  >
+                    <Text size="md">
+                      {language === "es" 
+                        ? "Las aplicaciones para este evento están cerradas. Si tienes un código de acceso tardío, usa el enlace proporcionado por los organizadores."
+                        : "Applications for this event are currently closed. If you have a late pass code, please use the link provided by the organizers."
+                      }
+                    </Text>
+                  </Alert>
+                  <Text size="sm" c="dimmed" ta="center">
+                    {language === "es"
+                      ? "Contacta a los organizadores si crees que esto es un error."
+                      : "Contact the organizers if you believe this is an error."
+                    }
+                  </Text>
                 </Stack>
               )}
             </Paper>

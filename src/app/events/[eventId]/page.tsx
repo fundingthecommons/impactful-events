@@ -45,49 +45,71 @@ export default function EventPage({ params }: EventPageProps) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
+    setIsCheckingAccess(true);
+    
     const latePassParam = searchParams.get("latePass");
     const invitationParam = searchParams.get("invitation");
     
-    // Check existing latePass cookie
-    const existingCookie = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("ftc-late-pass="));
+    // Helper function to check for cookies
+    const getCookie = (name: string) => {
+      return document.cookie
+        .split("; ")
+        .find((row) => row.startsWith(`${name}=`))
+        ?.split("=")[1];
+    };
     
-    const hasCookie = !!existingCookie;
+    const hasLatePassCookie = !!getCookie("ftc-late-pass");
+    const hasInvitationCookie = !!getCookie("ftc-invitation-access");
     
-    // Handle latePass parameter (existing logic)
+    // Handle latePass parameter
     if (latePassParam) {
+      console.log("🔑 Processing latePass parameter:", latePassParam);
+      
       // Set cookie for 24 hours
       const expires = new Date();
       expires.setTime(expires.getTime() + 24 * 60 * 60 * 1000);
-      document.cookie = `ftc-late-pass=${latePassParam}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
-      
-      // Clean URL by removing query parameter
-      const newUrl = window.location.pathname;
-      router.replace(newUrl);
+      document.cookie = `ftc-late-pass=${latePassParam}; expires=${expires.toUTCString()}; path=/; SameSite=Lax; Secure`;
       
       setHasLatePassAccess(true);
+      setIsCheckingAccess(false);
+      
+      // Clean URL after state updates
+      setTimeout(() => {
+        const newUrl = window.location.pathname;
+        router.replace(newUrl);
+      }, 100);
+      
+      return;
     } 
-    // Handle invitation parameter - allow access and let server-side validation handle the rest
-    else if (invitationParam) {
-      // Set a temporary cookie to remember we had an invitation
+    
+    // Handle invitation parameter
+    if (invitationParam) {
+      console.log("📧 Processing invitation parameter:", invitationParam);
+      
+      // Set a temporary cookie for 1 hour
       const expires = new Date();
-      expires.setTime(expires.getTime() + 60 * 60 * 1000); // 1 hour
-      document.cookie = `ftc-invitation-access=true; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
-      
-      // Clean URL by removing query parameter  
-      const newUrl = window.location.pathname;
-      router.replace(newUrl);
+      expires.setTime(expires.getTime() + 60 * 60 * 1000);
+      document.cookie = `ftc-invitation-access=true; expires=${expires.toUTCString()}; path=/; SameSite=Lax; Secure`;
       
       setHasLatePassAccess(true);
+      setIsCheckingAccess(false);
+      
+      // Clean URL after state updates
+      setTimeout(() => {
+        const newUrl = window.location.pathname;
+        router.replace(newUrl);
+      }, 100);
+      
+      return;
     } 
-    // Check existing latePass cookie
-    else if (hasCookie) {
+    
+    // Check existing cookies
+    if (hasLatePassCookie || hasInvitationCookie) {
+      console.log("🍪 Found existing access cookie:", { hasLatePassCookie, hasInvitationCookie });
       setHasLatePassAccess(true);
-    }
-    // Check if we have invitation access cookie
-    else if (document.cookie.includes("ftc-invitation-access=true")) {
-      setHasLatePassAccess(true);
+    } else {
+      console.log("❌ No access cookies found");
+      setHasLatePassAccess(false);
     }
     
     setIsCheckingAccess(false);
@@ -117,38 +139,79 @@ export default function EventPage({ params }: EventPageProps) {
     { enabled: !!userApplication?.id && userApplication?.status === "ACCEPTED" }
   );
 
-  // Don't redirect unauthenticated users - let them see the page content
-  // Authentication will be handled by individual components (like DynamicApplicationForm)
-
   if (status === "loading" || eventLoading) {
     return <div>Loading...</div>;
+  }
+
+  // Require authentication for this page
+  if (!session?.user) {
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+    const callbackUrl = encodeURIComponent(currentUrl);
+    router.push(`/signin?callbackUrl=${callbackUrl}`);
+    return <div>Redirecting to sign in...</div>;
   }
 
   if (!event) {
     return <div>Event not found</div>;
   }
 
-  // Check if user is accepted and should see resident dashboard
-  const isAcceptedResident = session?.user && userApplication?.status === "ACCEPTED";
-  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "staff";
+  // Check if user is accepted for this specific event
+  const isAcceptedForThisEvent = userApplication?.status === "ACCEPTED";
+  const isAdmin = session.user.role === "admin" || session.user.role === "staff";
+  
+  // Determine if user can view this page
+  const canViewPage = isAcceptedForThisEvent || isAdmin || hasLatePassAccess || isMentor;
   
   // Check if applications are closed (no late pass, no admin/mentor privileges)
   const applicationsAreClosed = !hasLatePassAccess && !isAdmin && !isMentor && !isCheckingAccess;
 
-  console.log("isAcceptedResident", isAcceptedResident);
-  console.log("isAdmin", isAdmin);
-  console.log("userApplication", userApplication);
-  console.log("session", session);
-  console.log("applicationsAreClosed", applicationsAreClosed);
-  console.log("hasLatePassAccess", hasLatePassAccess);
-  console.log("isMentor", isMentor);
+  console.log("🔍 Access Control Debug:", {
+    isAcceptedForThisEvent,
+    isAdmin,
+    hasLatePassAccess,
+    isMentor,
+    canViewPage,
+    userApplication: userApplication?.status,
+    applicationsAreClosed
+  });
+  
+  // Deny access if user doesn't meet requirements
+  if (!canViewPage) {
+    return (
+      <Container size="md" py="xl">
+        <Stack gap="xl" align="center">
+          <Alert
+            color="orange"
+            title="Access Restricted"
+            icon={<IconCheck />}
+            variant="filled"
+            radius="md"
+            style={{ maxWidth: 500, width: '100%' }}
+          >
+            <Text c="white" size="md">
+              This event page is only accessible to accepted residents. 
+              If you have a late pass code, please use the provided link.
+            </Text>
+          </Alert>
+          <Button
+            component={Link}
+            href="/events"
+            variant="light"
+            leftSection={<IconArrowLeft size={16} />}
+          >
+            Back to Events
+          </Button>
+        </Stack>
+      </Container>
+    );
+  }
   
   // Show resident dashboard for accepted users and admins
-  if (isAcceptedResident || isAdmin) {
+  if (isAcceptedForThisEvent || isAdmin) {
     return (
       <>
         {/* Congratulations Banner for Accepted Users */}
-        {isAcceptedResident && (
+        {isAcceptedForThisEvent && (
           <Container size="lg" py="md">
             <Alert 
               color="green"
@@ -242,6 +305,7 @@ export default function EventPage({ params }: EventPageProps) {
         userId={session?.user?.id ?? ""}
         defaultTab={defaultTab ?? undefined}
         language={language}
+        hasLatePassAccess={hasLatePassAccess}
       />
     </>
   );
