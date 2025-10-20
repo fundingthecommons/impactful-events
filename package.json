@@ -58,7 +58,7 @@
     "@react-email/components": "^0.5.1",
     "@react-email/render": "^1.2.1",
     "@t3-oss/env-nextjs": "^0.12.0",
-    "@tabler/icons-react": "^3.34.0",
+    "@tabler/icons-react": "^3.35.0",
     "@tanstack/react-query": "^5.69.0",
     "@trpc/client": "^11.0.0",
     "@trpc/react-query": "^11.0.0",

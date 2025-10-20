@@ -37,10 +37,12 @@ import {
   IconX,
   IconClock,
   IconAlertTriangle,
-  IconUpload
+  IconUpload,
+  IconCopy
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
 
 interface CreateInvitationForm {
   email: string;
@@ -251,6 +253,69 @@ export default function InvitationsClient() {
     }
   };
 
+  const copyInvitationLink = (token: string) => {
+    const invitationUrl = `${window.location.origin}/accept-invitation?token=${token}`;
+    navigator.clipboard.writeText(invitationUrl)
+      .then(() => {
+        notifications.show({
+          title: "Success",
+          message: "Invitation link copied to clipboard!",
+          color: "green",
+        });
+      })
+      .catch(() => {
+        notifications.show({
+          title: "Error",
+          message: "Failed to copy invitation link",
+          color: "red",
+        });
+      });
+  };
+
+  // Transform invitation data for TelegramMessageButton
+  const createMockApplicationForTelegram = (invitation: {
+    email: string;
+  }) => {
+    return {
+      responses: [
+        {
+          answer: invitation.email, // Use email as fallback for telegram handle
+          question: {
+            questionKey: "telegram",
+            questionEn: "Telegram Handle",
+            order: 1,
+          },
+        },
+      ],
+      user: {
+        name: invitation.email.split('@')[0] ?? null, // Extract name from email
+        email: invitation.email,
+      },
+    };
+  };
+
+  const createInvitationTelegramMessage = (invitation: {
+    token: string;
+    type: string;
+    event?: { name: string } | null;
+    role?: { name: string } | null;
+    globalRole?: string | null;
+    expiresAt: string | Date;
+  }) => {
+    const invitationUrl = `${window.location.origin}/accept-invitation?token=${invitation.token}`;
+    const eventName = invitation.type === "EVENT_ROLE" ? invitation.event?.name : "Platform Administration";
+    const roleName = invitation.type === "EVENT_ROLE" ? invitation.role?.name : invitation.globalRole;
+    
+    return `🎉 You've been invited to join ${eventName} as ${roleName}!
+
+Click here to accept your invitation:
+${invitationUrl}
+
+This invitation expires on ${new Date(invitation.expiresAt).toLocaleDateString()}.
+
+We're excited to have you on board!`;
+  };
+
   if (loadingInvitations || loadingEvents || loadingRoles) {
     return (
       <Container size="xl" py="xl">
@@ -421,6 +486,22 @@ export default function InvitationsClient() {
                   <Group gap={4}>
                     {invitation.status === "PENDING" && (
                       <>
+                        <ActionIcon
+                          variant="light"
+                          color="green"
+                          size="sm"
+                          onClick={() => copyInvitationLink(invitation.token)}
+                          title="Copy invitation link"
+                        >
+                          <IconCopy size={14} />
+                        </ActionIcon>
+                        <TelegramMessageButton
+                          application={createMockApplicationForTelegram(invitation)}
+                          customMessage={createInvitationTelegramMessage(invitation)}
+                          size={14}
+                          variant="light"
+                          color="blue"
+                        />
                         <ActionIcon
                           variant="light"
                           color="blue"
