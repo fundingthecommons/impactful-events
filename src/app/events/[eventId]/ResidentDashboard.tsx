@@ -74,7 +74,6 @@ export default function ResidentDashboard({
   });
 
   const userProjects = userProfile?.projects ?? [];
-  const featuredProjects = userProjects.filter(p => p.featured);
 
   return (
     <Container size="xl" py="xl">
@@ -280,6 +279,7 @@ export default function ResidentDashboard({
               <Tabs.Panel value="participants" pt="lg">
                 <ParticipantsTab 
                   residentsData={residentsData}
+                  eventId={eventId}
                   session={session}
                 />
               </Tabs.Panel>
@@ -287,6 +287,7 @@ export default function ResidentDashboard({
               <Tabs.Panel value="projects" pt="lg">
                 <ProjectsTab 
                   residentProjects={residentProjects}
+                  eventId={eventId}
                 />
               </Tabs.Panel>
             </Tabs>
@@ -348,9 +349,9 @@ interface ParticipantsTabProps {
     hiddenCount: number;
   } | undefined;
   session: Session | null;
+  eventId: string;
 }
-
-function ParticipantsTab({ residentsData, session }: ParticipantsTabProps) {
+function ParticipantsTab({ residentsData, session, eventId }: ParticipantsTabProps) {
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder>
       <Group justify="space-between" mb="md">
@@ -545,9 +546,10 @@ interface ProjectsTabProps {
       } | null;
     };
   }> | undefined;
+  eventId: string;
 }
 
-function ProjectsTab({ residentProjects }: ProjectsTabProps) {
+function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder>
       <Group justify="space-between" mb="md">

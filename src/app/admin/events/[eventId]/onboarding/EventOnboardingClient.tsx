@@ -17,6 +17,7 @@ import {
   Grid,
   ActionIcon,
   Tooltip,
+  Button,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { 
@@ -592,6 +593,114 @@ export default function EventOnboardingClient({ event, onboardingData }: EventOn
     open();
   };
 
+  const downloadCSV = () => {
+    // Define CSV headers
+    const headers = [
+      'Name',
+      'Email',
+      'Status', 
+      'Submitted At',
+      'Blood Type',
+      'Emergency Contact Name',
+      'Emergency Contact Relationship',
+      'Emergency Contact Phone',
+      'Arrival Date Time',
+      'Departure Date Time',
+      'Diet Type',
+      'Diet Type Other',
+      'Allergies Intolerances',
+      'English Proficiency Level',
+      'Primary Goals',
+      'Skills To Gain',
+      'Open To Mentoring',
+      'Mentors To Learn From',
+      'Organizations To Connect',
+      'Technical Workshop Title',
+      'Technical Workshop Description',
+      'Technical Workshop Duration',
+      'Technical Workshop Materials',
+      'Beyond Work Interests',
+      'Beyond Work Title',
+      'Beyond Work Description',
+      'Beyond Work Duration',
+      'Beyond Work Materials',
+      'Participate Experiments',
+      'Mint Hypercert',
+      'Interested Incubation',
+      'Interested EIR',
+      'Liability Waiver Consent',
+      'Code Of Conduct Agreement',
+      'Community Activities Consent',
+      'Additional Comments'
+    ];
+
+    // Convert data to CSV format
+    const csvData = onboardingData.map(submission => [
+      submission.application.user?.name ?? '',
+      submission.application.user?.email ?? '',
+      submission.completed ? 'Completed' : 'Incomplete',
+      submission.submittedAt ? submission.submittedAt.toISOString() : '',
+      submission.bloodType ?? '',
+      submission.emergencyContactName ?? '',
+      submission.emergencyContactRelationship ?? '',
+      submission.emergencyContactPhone ?? '',
+      submission.arrivalDateTime ? submission.arrivalDateTime.toISOString() : '',
+      submission.departureDateTime ? submission.departureDateTime.toISOString() : '',
+      submission.dietType ?? '',
+      submission.dietTypeOther ?? '',
+      submission.allergiesIntolerances ?? '',
+      submission.englishProficiencyLevel ?? '',
+      submission.primaryGoals ?? '',
+      submission.skillsToGain ?? '',
+      submission.openToMentoring ?? '',
+      submission.mentorsToLearnFrom ?? '',
+      submission.organizationsToConnect ?? '',
+      submission.technicalWorkshopTitle ?? '',
+      submission.technicalWorkshopDescription ?? '',
+      submission.technicalWorkshopDuration ?? '',
+      submission.technicalWorkshopMaterials ?? '',
+      submission.beyondWorkInterests ?? '',
+      submission.beyondWorkTitle ?? '',
+      submission.beyondWorkDescription ?? '',
+      submission.beyondWorkDuration ?? '',
+      submission.beyondWorkMaterials ?? '',
+      submission.participateExperiments ? 'Yes' : 'No',
+      submission.mintHypercert ? 'Yes' : 'No',
+      submission.interestedIncubation ? 'Yes' : 'No',
+      submission.interestedEIR ? 'Yes' : 'No',
+      submission.liabilityWaiverConsent ? 'Yes' : 'No',
+      submission.codeOfConductAgreement ? 'Yes' : 'No',
+      submission.communityActivitiesConsent ? 'Yes' : 'No',
+      submission.additionalComments ?? ''
+    ]);
+
+    // Escape CSV values that contain commas, quotes, or newlines
+    const escapeCSVValue = (value: string | number) => {
+      const stringValue = String(value);
+      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    };
+
+    // Build CSV content
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.map(escapeCSVValue).join(','))
+    ].join('\n');
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_onboarding_data.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const completedCount = onboardingData.filter(s => s.completed).length;
   const inProgressCount = onboardingData.filter(s => !s.completed && s.emergencyContactName).length;
   const eirInterestedCount = onboardingData.filter(s => s.interestedEIR).length;
@@ -626,9 +735,20 @@ export default function EventOnboardingClient({ event, onboardingData }: EventOn
               <Text fw={500} size="lg">{event.name}</Text>
               <Text size="sm" c="dimmed">{event.type} • {event.startDate.toLocaleDateString()} - {event.endDate.toLocaleDateString()}</Text>
             </div>
-            <Badge size="lg" variant="light" color="blue">
-              {onboardingData.length} submissions
-            </Badge>
+            <Group gap="md">
+              <Badge size="lg" variant="light" color="blue">
+                {onboardingData.length} submissions
+              </Badge>
+              <Button
+                leftSection={<IconDownload size={16} />}
+                variant="light"
+                color="green"
+                onClick={downloadCSV}
+                disabled={onboardingData.length === 0}
+              >
+                Download CSV
+              </Button>
+            </Group>
           </Group>
         </Paper>
 

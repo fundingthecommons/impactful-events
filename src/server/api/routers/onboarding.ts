@@ -118,12 +118,7 @@ export const onboardingRouter = createTRPCRouter({
         });
       }
 
-      if (!onboardingData.eTicketUrl || !onboardingData.healthInsuranceUrl) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Both e-ticket and health insurance documents are required",
-        });
-      }
+      // Note: e-ticket and health insurance documents are optional
 
       // Validate essential contact information
       if (!onboardingData.emergencyContactName) {

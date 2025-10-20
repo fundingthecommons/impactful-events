@@ -25,6 +25,7 @@ import {
   IconAlertCircle,
   IconEdit,
 } from "@tabler/icons-react";
+import Image from "next/image";
 import { api } from "~/trpc/react";
 import DynamicApplicationForm from "~/app/_components/DynamicApplicationForm";
 import { getEventContent } from "~/utils/eventContent";
@@ -515,10 +516,12 @@ export default function EventDetailClient({
                           <Group align="flex-start" gap="md">
                             {participant.user?.image && (
                               <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
-                                <img 
+                                <Image 
                                   src={participant.user.image} 
-                                  alt={participant.user.name ?? 'Participant'} 
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  alt={participant.user.name ?? "Participant"} 
+                                  width={60} 
+                                  height={60} 
+                                  style={{ width: "100%", height: "100%", objectFit: "cover" }} 
                                 />
                               </div>
                             )}
@@ -621,10 +624,12 @@ export default function EventDetailClient({
                           <Stack gap="md">
                             {project.imageUrl && (
                               <div style={{ width: '100%', height: 200, borderRadius: 8, overflow: 'hidden' }}>
-                                <img 
+                                <Image 
                                   src={project.imageUrl} 
                                   alt={project.title} 
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  width={350} 
+                                  height={200} 
+                                  style={{ width: "100%", height: "100%", objectFit: "cover" }} 
                                 />
                               </div>
                             )}
@@ -647,13 +652,15 @@ export default function EventDetailClient({
                               <Group gap="xs" mb="sm">
                                 <div style={{ width: 24, height: 24, borderRadius: '50%', overflow: 'hidden' }}>
                                   {project.author.image ? (
-                                    <img 
+                                    <Image 
                                       src={project.author.image} 
-                                      alt={project.author.name ?? 'Author'} 
-                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                      alt={project.author.name ?? "Author"} 
+                                      width={24} 
+                                      height={24} 
+                                      style={{ width: "100%", height: "100%", objectFit: "cover" }} 
                                     />
                                   ) : (
-                                    <div style={{ width: '100%', height: '100%', backgroundColor: '#e9ecef', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <div style={{ width: "100%", height: "100%", backgroundColor: "#e9ecef", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                       <Text size="xs">?</Text>
                                     </div>
                                   )}
