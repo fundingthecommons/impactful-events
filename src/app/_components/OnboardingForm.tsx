@@ -309,17 +309,17 @@ export default function OnboardingForm({
       });
       
       notifications.show({
-        title: "¡Onboarding Complete! / ¡Incorporación Completa!",
-        message: "Thank you for completing your onboarding. We'll be in touch soon with more details. / Gracias por completar tu incorporación. Nos pondremos en contacto pronto con más detalles.",
+        title: "Onboarding Complete!",
+        message: "Thank you for completing your onboarding. We'll be in touch soon with more details.",
         color: "green",
         icon: <IconCheck />,
       });
       
       setIsSubmitted(true);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "There was an error submitting your onboarding form. Please try again. / Hubo un error al enviar tu formulario. Por favor intenta de nuevo.";
+      const errorMessage = error instanceof Error ? error.message : "There was an error submitting your onboarding form. Please try again.";
       notifications.show({
-        title: "Submission Failed / Error en el Envío",
+        title: "Submission Failed",
         message: errorMessage,
         color: "red",
         icon: <IconX />,
@@ -330,7 +330,7 @@ export default function OnboardingForm({
   };
 
   // Calculate completion percentage for key required fields
-  const requiredFields = 9; // Core required fields
+  const requiredFields = 7; // Core required fields - updated to match actual validation
   const completedFields = [
     form.values.emergencyContactName,
     form.values.arrivalDateTime,
@@ -342,6 +342,25 @@ export default function OnboardingForm({
   ].filter(Boolean).length;
   
   const completionPercentage = (completedFields / requiredFields) * 100;
+  
+  // Debug logging for form completion
+  console.log('🔍 Onboarding Form Debug:', {
+    requiredFields,
+    completedFields,
+    completionPercentage: Math.round(completionPercentage),
+    formValid: form.isValid(),
+    buttonDisabled: completionPercentage < 100,
+    fieldValues: {
+      emergencyContactName: !!form.values.emergencyContactName,
+      arrivalDateTime: !!form.values.arrivalDateTime,
+      participateExperiments: form.values.participateExperiments,
+      mintHypercert: form.values.mintHypercert,
+      liabilityWaiverConsent: form.values.liabilityWaiverConsent,
+      codeOfConductAgreement: form.values.codeOfConductAgreement,
+      communityActivitiesConsent: form.values.communityActivitiesConsent,
+    },
+    formErrors: form.errors
+  });
 
   // Loading state
   if (isLoading) {
@@ -385,22 +404,15 @@ export default function OnboardingForm({
           <Stack gap="lg">
             <div>
               <Title order={1} ta="center" c="blue.8" mb="sm">
-                Congratulations! / ¡Felicitaciones! 🎉
+                Congratulations! 🎉
               </Title>
-              <Text size="lg" ta="center" fw={600} c="blue.7" mb="xs">
-                You&apos;re in! You&apos;ve been selected for the 2025 Builder Residency.
-              </Text>
               <Text size="lg" ta="center" fw={600} c="blue.7" mb="md">
-                ¡Lo lograste! Has sido aceptado/a en la Residencia de Desarrolladores 2025.
+                You&apos;re in! You&apos;ve been selected for the 2025 Builder Residency.
               </Text>
               
               <Text size="md" ta="center" c="dimmed" style={{ lineHeight: 1.6 }}>
                 We can&apos;t wait to welcome you to Buenos Aires for three weeks of collaboration, creativity, and community. 
                 This form will help us get to know you better, prepare for your arrival, and make sure your experience is the best it can be.
-              </Text>
-              <Text size="md" ta="center" c="dimmed" mt="sm" style={{ lineHeight: 1.6 }}>
-                Estamos felices de recibirte en Buenos Aires para tres semanas de colaboración, creatividad y comunidad. 
-                Este formulario nos ayudará a conocerte mejor, preparar tu llegada y asegurar que tu experiencia sea la mejor posible.
               </Text>
             </div>
 
@@ -408,18 +420,18 @@ export default function OnboardingForm({
             
             <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
               <div>
-                <Text fw={600} c="blue.7">Dates / Fechas:</Text>
+                <Text fw={600} c="blue.7">Dates:</Text>
                 <Text size="sm">October 24 – November 14, 2025</Text>
               </div>
               <div>
-                <Text fw={600} c="blue.7">Location / Ubicación:</Text>
+                <Text fw={600} c="blue.7">Location:</Text>
                 <Text size="sm">Senador Dupont, JC23+9F Tigre, Buenos Aires Province, Argentina</Text>
               </div>
               <div>
-                <Text fw={600} c="blue.7">Telegram Group / Grupo Telegram:</Text>
+                <Text fw={600} c="blue.7">Telegram Group:</Text>
                 <Text size="sm">
                   <a href="https://t.me/+L_kFV7eIdQ9mN2Iy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--mantine-color-blue-6)' }}>
-                    Join Group / Unirse al Grupo
+                    Join Group
                   </a>
                 </Text>
               </div>
@@ -429,9 +441,9 @@ export default function OnboardingForm({
             
             <Group justify="space-between" align="center">
               <div>
-                <Text fw={500}>Progress / Progreso</Text>
+                <Text fw={500}>Progress</Text>
                 <Text size="sm" c="dimmed">
-                  {completedFields}/{requiredFields} required items completed / elementos requeridos completados
+                  {completedFields}/{requiredFields} required items completed
                 </Text>
               </div>
               <Box w={200}>
@@ -449,26 +461,26 @@ export default function OnboardingForm({
             {/* Contact & Logistics */}
             <Accordion.Item value="contact">
               <Accordion.Control icon={<IconUser size={20} />}>
-                <Title order={3}>Contact & Logistics / Contacto y Logística</Title>
+                <Title order={3}>Contact & Logistics</Title>
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Essential information for your arrival and stay. / Información esencial para tu llegada y estadía.
+                    Essential information for your arrival and stay.
                   </Text>
 
 
                   <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
                     <TextInput
-                      label="Blood Type / Tipo de Sangre"
-                      description="Optional, for medical emergencies / Opcional, para emergencias médicas"
+                      label="Blood Type"
+                      description="Optional, for medical emergencies"
                       placeholder="e.g., O+, A-, AB+"
                       {...form.getInputProps('bloodType')}
                     />
 
                     <TextInput
-                      label="Emergency Contact Name / Nombre de Contacto de Emergencia"
-                      description="Someone we can contact in case of emergency / Alguien a quien podamos contactar en caso de emergencia"
+                      label="Emergency Contact Name"
+                      description="Someone we can contact in case of emergency"
                       placeholder="e.g., Jane Doe"
                       required
                       {...form.getInputProps('emergencyContactName')}
@@ -477,15 +489,15 @@ export default function OnboardingForm({
 
                   <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
                     <TextInput
-                      label="Emergency Contact Relationship / Relación del Contacto de Emergencia"
-                      description="Relationship to you / Relación contigo"
+                      label="Emergency Contact Relationship"
+                      description="Relationship to you"
                       placeholder="e.g., Parent, Spouse, Friend"
                       {...form.getInputProps('emergencyContactRelationship')}
                     />
 
                     <TextInput
-                      label="Emergency Contact Phone / Teléfono de Contacto de Emergencia"
-                      description="Include country code / Incluir código de país"
+                      label="Emergency Contact Phone"
+                      description="Include country code"
                       placeholder="e.g., +1-555-123-4567"
                       {...form.getInputProps('emergencyContactPhone')}
                     />
@@ -493,8 +505,8 @@ export default function OnboardingForm({
 
                   <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
                     <TextInput
-                      label="Arrival Date & Time / Fecha y Hora de Llegada"
-                      description="When will you arrive in Buenos Aires? / ¿Cuándo llegarás a Buenos Aires?"
+                      label="Arrival Date & Time"
+                      description="When will you arrive in Buenos Aires?"
                       placeholder="e.g., Oct 24, 2025 at 3:00 PM"
                       type="datetime-local"
                       required
@@ -502,8 +514,8 @@ export default function OnboardingForm({
                     />
 
                     <TextInput
-                      label="Departure Date & Time / Fecha y Hora de Partida"
-                      description="When will you depart? / ¿Cuándo partirás?"
+                      label="Departure Date & Time"
+                      description="When will you depart?"
                       placeholder="e.g., Nov 14, 2025 at 10:00 AM"
                       type="datetime-local"
                       {...form.getInputProps('departureDateTime')}
@@ -517,38 +529,38 @@ export default function OnboardingForm({
             {/* Food & Dietary Needs */}
             <Accordion.Item value="food">
               <Accordion.Control icon={<IconHeart size={20} />}>
-                <Title order={3}>Food & Dietary Needs / Alimentación y Necesidades Dietéticas</Title>
+                <Title order={3}>Food & Dietary Needs</Title>
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Help us accommodate your dietary preferences and needs. / Ayúdanos a acomodar tus preferencias y necesidades dietéticas.
+                    Help us accommodate your dietary preferences and needs.
                   </Text>
 
                   <Radio.Group
-                    label="Diet Type / Tipo de Dieta"
-                    description="What best describes your diet? / ¿Qué describe mejor tu dieta?"
+                    label="Diet Type"
+                    description="What best describes your diet?"
                     {...form.getInputProps('dietType')}
                   >
                     <Stack mt="xs" gap="xs">
-                      <Radio value="OMNIVORE" label="Omnivore / Omnívoro" />
-                      <Radio value="VEGETARIAN" label="Vegetarian / Vegetariano" />
-                      <Radio value="VEGAN" label="Vegan / Vegano" />
-                      <Radio value="OTHER" label="Other / Otro" />
+                      <Radio value="OMNIVORE" label="Omnivore" />
+                      <Radio value="VEGETARIAN" label="Vegetarian" />
+                      <Radio value="VEGAN" label="Vegan" />
+                      <Radio value="OTHER" label="Other" />
                     </Stack>
                   </Radio.Group>
 
                   {form.values.dietType === "OTHER" && (
                     <TextInput
-                      label="Please specify / Por favor especifica"
+                      label="Please specify"
                       placeholder="e.g., Pescatarian, Keto, etc."
                       {...form.getInputProps('dietTypeOther')}
                     />
                   )}
 
                   <Textarea
-                    label="Allergies & Intolerances / Alergias e Intolerancias"
-                    description="List any food allergies or intolerances / Lista cualquier alergia o intolerancia alimentaria"
+                    label="Allergies & Intolerances"
+                    description="List any food allergies or intolerances"
                     placeholder="e.g., Nuts, shellfish, lactose intolerant... / ej., Nueces, mariscos, intolerante a la lactosa..."
                     minRows={2}
                     {...form.getInputProps('allergiesIntolerances')}
@@ -560,31 +572,32 @@ export default function OnboardingForm({
             {/* English Proficiency */}
             <Accordion.Item value="english">
               <Accordion.Control icon={<IconLanguage size={20} />}>
-                <Title order={3}>English Proficiency / Competencia en Inglés</Title>
+                <Title order={3}>English Proficiency</Title>
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Help us understand your English comfort level for workshops and collaboration. / Ayúdanos a entender tu nivel de comodidad con el inglés para talleres y colaboración.
+                    Help us understand your English comfort level for workshops and collaboration.
                   </Text>
 
                   <div>
                     <Text fw={500} mb="xs">
-                      English Proficiency Level / Nivel de Competencia en Inglés: {form.values.englishProficiencyLevel}%
+                      English Proficiency Level: {form.values.englishProficiencyLevel}%
                     </Text>
                     <Slider
                       min={0}
                       max={100}
                       step={5}
                       marks={[
-                        { value: 0, label: 'Beginner / Principiante' },
-                        { value: 50, label: 'Intermediate / Intermedio' },
-                        { value: 100, label: 'Fluent / Fluido' }
+                        { value: 0, label: 'Beginner' },
+                        { value: 50, label: 'Intermediate' },
+                        { value: 100, label: 'Fluent' }
                       ]}
                       {...form.getInputProps('englishProficiencyLevel')}
                     />
-                    <Text size="sm" c="dimmed" mt="xs">
-                      Be honest - we want to support you! / Sé honesto/a - ¡queremos apoyarte!
+                    <br/>
+                    <Text size="sm" c="dimmed" mt="md">
+                      Be honest - we want to support you!
                     </Text>
                   </div>
                 </Stack>
@@ -594,54 +607,54 @@ export default function OnboardingForm({
             {/* Knowledge Sharing, Community & Mentorship */}
             <Accordion.Item value="community">
               <Accordion.Control icon={<IconBrain size={20} />}>
-                <Title order={3}>Knowledge Sharing & Community / Intercambio de Conocimiento y Comunidad</Title>
+                <Title order={3}>Knowledge Sharing & Community</Title>
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Tell us about your goals and how you&apos;d like to contribute to the community. / Cuéntanos sobre tus objetivos y cómo te gustaría contribuir a la comunidad.
+                    Tell us about your goals and how you&apos;d like to contribute to the community.
                   </Text>
 
                   <Textarea
-                    label="Primary Goals / Objetivos Principales"
-                    description="What are your main goals for the residency? / ¿Cuáles son tus objetivos principales para la residencia?"
-                    placeholder="e.g., Build connections, advance my project, learn new skills... / ej., Crear conexiones, avanzar mi proyecto, aprender nuevas habilidades..."
+                    label="Primary Goals"
+                    description="What are your main goals for the residency?"
+                    placeholder="e.g., Build connections, advance my project, learn new skills..."
                     minRows={3}
                     {...form.getInputProps('primaryGoals')}
                   />
 
                   <Textarea
-                    label="Skills to Gain / Habilidades a Adquirir"
-                    description="What specific skills do you hope to develop? / ¿Qué habilidades específicas esperas desarrollar?"
-                    placeholder="e.g., Solidity programming, governance design, fundraising... / ej., Programación en Solidity, diseño de gobernanza, recaudación de fondos..."
+                    label="Skills to Gain"
+                    description="What specific skills do you hope to develop?"
+                    placeholder="e.g., Solidity programming, governance design, fundraising..."
                     minRows={2}
                     {...form.getInputProps('skillsToGain')}
                   />
 
                   <Radio.Group
-                    label="Open to Mentoring Others? / ¿Dispuesto/a a Mentorear a Otros?"
-                    description="Would you be interested in mentoring other residents? / ¿Te interesaría mentorear a otros residentes?"
+                    label="Open to Mentoring Others?"
+                    description="Would you be interested in mentoring other residents?"
                     {...form.getInputProps('openToMentoring')}
                   >
                     <Group mt="xs">
-                      <Radio value="YES" label="Yes, I&apos;d love to! / ¡Sí, me encantaría!" />
-                      <Radio value="MAYBE" label="Maybe / Tal vez" />
-                      <Radio value="NO" label="No, I prefer to focus on learning / No, prefiero enfocarme en aprender" />
+                      <Radio value="YES" label="Yes, I&apos;d love to!" />
+                      <Radio value="MAYBE" label="Maybe" />
+                      <Radio value="NO" label="No, I prefer to focus on learning" />
                     </Group>
                   </Radio.Group>
 
                   <Textarea
-                    label="Mentors to Learn From / Mentores de Quienes Aprender"
-                    description="Are there specific people or types of experts you&apos;d like to connect with? / ¿Hay personas específicas o tipos de expertos con quienes te gustaría conectar?"
-                    placeholder="e.g., Smart contract auditors, DAO founders, impact measurement experts... / ej., Auditores de contratos inteligentes, fundadores de DAO, expertos en medición de impacto..."
+                    label="Mentors to Learn From"
+                    description="Are there specific people or types of experts you&apos;d like to connect with?"
+                    placeholder="e.g., Smart contract auditors, DAO founders, impact measurement experts..."
                     minRows={2}
                     {...form.getInputProps('mentorsToLearnFrom')}
                   />
 
                   <Textarea
-                    label="Organizations to Connect With / Organizaciones para Conectar"
-                    description="Any specific organizations or communities you&apos;d like to connect with? / ¿Alguna organización o comunidad específica con la que te gustaría conectar?"
-                    placeholder="e.g., Gitcoin, Protocol Labs, local blockchain communities... / ej., Gitcoin, Protocol Labs, comunidades locales de blockchain..."
+                    label="Organizations to Connect With"
+                    description="Any specific organizations or communities you&apos;d like to connect with?"
+                    placeholder="e.g., Gitcoin, Protocol Labs, local blockchain communities..."
                     minRows={2}
                     {...form.getInputProps('organizationsToConnect')}
                   />
@@ -652,40 +665,40 @@ export default function OnboardingForm({
             {/* Technical Workshop */}
             <Accordion.Item value="workshop">
               <Accordion.Control icon={<IconPresentation size={20} />}>
-                <Title order={3}>Technical Workshop / Taller Técnico</Title>
+                <Title order={3}>Technical Workshop</Title>
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Share your expertise! Propose a technical or non-technical workshop you could run. / ¡Comparte tu experiencia! Propón un taller técnico que podrías dirigir.
+                    Share your expertise! Propose a technical or non-technical workshop you could run.
                   </Text>
 
                   <TextInput
-                    label="Workshop Title / Título del Taller"
-                    description="What would you call your workshop? / ¿Cómo llamarías a tu taller?"
-                    placeholder="e.g., Introduction to Zero-Knowledge Proofs / ej., Introducción a las Pruebas de Conocimiento Cero"
+                    label="Workshop Title"
+                    description="What would you call your workshop?"
+                    placeholder="e.g., Introduction to Zero-Knowledge Proofs"
                     {...form.getInputProps('technicalWorkshopTitle')}
                   />
 
                   <Textarea
-                    label="Workshop Description / Descripción del Taller"
-                    description="What would you teach and why is it valuable? / ¿Qué enseñarías y por qué es valioso?"
-                    placeholder="Describe the content, learning objectives, and audience... / Describe el contenido, objetivos de aprendizaje y audiencia..."
+                    label="Workshop Description"
+                    description="What would you teach and why is it valuable?"
+                    placeholder="Describe the content, learning objectives, and audience..."
                     minRows={4}
                     {...form.getInputProps('technicalWorkshopDescription')}
                   />
 
                   <TextInput
-                    label="Duration / Duración"
-                    description="How long would your workshop be? / ¿Cuánto duraría tu taller?"
+                    label="Duration"
+                    description="How long would your workshop be?"
                     placeholder="e.g., 2 hours, Half day, 3 sessions of 1 hour each"
                     {...form.getInputProps('technicalWorkshopDuration')}
                   />
 
                   <Textarea
-                    label="Materials Needed / Materiales Necesarios"
-                    description="What equipment or setup would you need? / ¿Qué equipo o configuración necesitarías?"
-                    placeholder="e.g., Projector, laptops with specific software, whiteboards... / ej., Proyector, laptops con software específico, pizarras..."
+                    label="Materials Needed"
+                    description="What equipment or setup would you need?"
+                    placeholder="e.g., Projector, laptops with specific software, whiteboards..."
                     minRows={2}
                     {...form.getInputProps('technicalWorkshopMaterials')}
                   />
@@ -696,48 +709,48 @@ export default function OnboardingForm({
             {/* Beyond Work Activities */}
             <Accordion.Item value="beyond">
               <Accordion.Control icon={<IconPalette size={20} />}>
-                <Title order={3}>Beyond Work Activities / Actividades Más Allá del Trabajo</Title>
+                <Title order={3}>Beyond Work Activities</Title>
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Balance is important! What non-work activity would you like to share or organize? / ¡El equilibrio es importante! ¿Qué actividad no relacionada con el trabajo te gustaría compartir u organizar?
+                    Balance is important! What non-work activity would you like to share or organize?
                   </Text>
 
                   <Textarea
-                    label="Interests / Intereses"
-                    description="What do you enjoy doing outside of work? / ¿Qué disfrutas hacer fuera del trabajo?"
-                    placeholder="e.g., Photography, cooking, music, sports, art... / ej., Fotografía, cocina, música, deportes, arte..."
+                    label="Interests"
+                    description="What do you enjoy doing outside of work?"
+                    placeholder="e.g., Photography, cooking, music, sports, art..."
                     minRows={2}
                     {...form.getInputProps('beyondWorkInterests')}
                   />
 
                   <TextInput
-                    label="Activity Title / Título de la Actividad"
-                    description="What activity could you lead or organize? / ¿Qué actividad podrías liderar u organizar?"
-                    placeholder="e.g., Morning Yoga Session, Photography Walk, Cooking Class... / ej., Sesión de Yoga Matutina, Caminata Fotográfica, Clase de Cocina..."
+                    label="Activity Title"
+                    description="What activity could you lead or organize?"
+                    placeholder="e.g., Morning Yoga Session, Photography Walk, Cooking Class..."
                     {...form.getInputProps('beyondWorkTitle')}
                   />
 
                   <Textarea
-                    label="Activity Description / Descripción de la Actividad"
-                    description="Describe what participants would do and enjoy / Describe qué harían y disfrutarían los participantes"
-                    placeholder="What would make this fun and engaging for the group? / ¿Qué haría esto divertido y atractivo para el grupo?"
+                    label="Activity Description"
+                    description="Describe what participants would do and enjoy"
+                    placeholder="What would make this fun and engaging for the group?"
                     minRows={3}
                     {...form.getInputProps('beyondWorkDescription')}
                   />
 
                   <TextInput
-                    label="Duration / Duración"
-                    description="How long would this activity take? / ¿Cuánto tiempo tomaría esta actividad?"
+                    label="Duration"
+                    description="How long would this activity take?"
                     placeholder="e.g., 1 hour, Evening session, Weekend morning"
                     {...form.getInputProps('beyondWorkDuration')}
                   />
 
                   <Textarea
-                    label="Materials Needed / Materiales Necesarios"
-                    description="What would you need to make this happen? / ¿Qué necesitarías para que esto suceda?"
-                    placeholder="e.g., Yoga mats, camera equipment, kitchen access, music speakers... / ej., Colchonetas de yoga, equipo de cámara, acceso a cocina, altavoces..."
+                    label="Materials Needed"
+                    description="What would you need to make this happen?"
+                    placeholder="e.g., Yoga mats, camera equipment, kitchen access, music speakers..."
                     minRows={2}
                     {...form.getInputProps('beyondWorkMaterials')}
                   />
@@ -748,26 +761,23 @@ export default function OnboardingForm({
             {/* Profile Setup */}
             <Accordion.Item value="profile">
               <Accordion.Control icon={<IconPhoto size={20} />}>
-                <Title order={3}>Profile Setup / Configuración de Perfil</Title>
+                <Title order={3}>Profile Setup</Title>
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Complete your profile to connect with other residents and showcase your work. / Completa tu perfil para conectar con otros residentes y mostrar tu trabajo.
+                    Complete your profile to connect with other residents and showcase your work.
                   </Text>
 
                   <Card withBorder p="lg" style={{ backgroundColor: 'var(--mantine-color-blue-0)' }}>
                     <Stack gap="md">
                       <Group gap="sm">
                         <IconUser size={20} color="blue" />
-                        <Text fw={600} c="blue.7">Profile Management / Gestión de Perfil</Text>
+                        <Text fw={600} c="blue.7">Profile Management</Text>
                       </Group>
                       
                       <Text size="sm" c="dimmed">
                         Please update your profile information including your bio, headshot, and project details through the platform profile system.
-                      </Text>
-                      <Text size="sm" c="dimmed">
-                        Por favor actualiza tu información de perfil incluyendo tu biografía, foto de perfil y detalles de proyectos a través del sistema de perfiles de la plataforma.
                       </Text>
 
                       <Group gap="md">
@@ -780,7 +790,7 @@ export default function OnboardingForm({
                           color="blue"
                           leftSection={<IconUser size={16} />}
                         >
-                          View My Profile / Ver Mi Perfil
+                          View My Profile
                         </Button>
                         <Button
                           component="a"
@@ -791,7 +801,7 @@ export default function OnboardingForm({
                           color="blue"
                           leftSection={<IconEdit size={16} />}
                         >
-                          Edit Profile / Editar Perfil
+                          Edit Profile
                         </Button>
                       </Group>
                     </Stack>
@@ -803,12 +813,12 @@ export default function OnboardingForm({
             {/* Final Confirmations */}
             <Accordion.Item value="confirmations">
               <Accordion.Control icon={<IconClipboardCheck size={20} />}>
-                <Title order={3}>Final Confirmations / Confirmaciones Finales</Title>
+                <Title order={3}>Final Confirmations</Title>
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Please read and confirm your agreement with our policies. / Por favor lee y confirma tu acuerdo con nuestras políticas.
+                    Please read and confirm your agreement with our policies.
                   </Text>
 
                   {/* Residency Commitments */}
@@ -816,26 +826,26 @@ export default function OnboardingForm({
                     <Stack gap="md">
                       <Group gap="sm">
                         <IconHeart size={20} color="blue" />
-                        <Text fw={600} c="blue.7">Residency Commitments / Compromisos de la Residencia</Text>
+                        <Text fw={600} c="blue.7">Residency Commitments</Text>
                       </Group>
 
                       <Checkbox
-                        label="I commit to full participation in the residency, and will try to make it as productive and successful for myself and other participants as I can / Me comprometo a participar plenamente en la residencia y trataré de hacerla lo más productiva y exitosa posible para mí y otros participantes"
-                        description="Active participation in collaborative experiments is a core part of the residency experience / La participación activa en experimentos colaborativos es una parte central de la experiencia de residencia"
+                        label="I commit to full participation in the residency, and will try to make it as productive and successful for myself and other participants as I can"
+                        description="Active participation in collaborative experiments is a core part of the residency experience"
                         required
                         {...form.getInputProps('participateExperiments', { type: 'checkbox' })}
                       />
 
                       <Checkbox
-                        label="I commit to documenting my work and any projects I work on before, during and after the residency in order to help document and evaluate the impact of the residency and my contribution / Me comprometo a documentar mi trabajo y cualquier proyecto en el que trabaje antes, durante y después de la residencia para ayudar a documentar y evaluar el impacto de la residencia y mi contribución"
-                        description="This includes setting milestones, minting hypercerts, making attestations etc. / Esto incluye establecer hitos, crear hypercerts, hacer atestaciones, etc."
+                        label="I commit to documenting my work and any projects I work on before, during and after the residency in order to help document and evaluate the impact of the residency and my contribution"
+                        description="This includes setting milestones, minting hypercerts, making attestations etc."
                         required
                         {...form.getInputProps('mintHypercert', { type: 'checkbox' })}
                       />
 
                       <Checkbox
-                        label="I am interested in incubation for my project / Estoy interesado/a en incubación para mi proyecto"
-                        description="Optional: Express interest in potential incubation opportunities / Opcional: Expresa interés en oportunidades potenciales de incubación"
+                        label="I am interested in incubation for my project"
+                        description="Optional: Express interest in potential incubation opportunities"
                         {...form.getInputProps('interestedIncubation', { type: 'checkbox' })}
                       />
 
@@ -852,10 +862,9 @@ export default function OnboardingForm({
                             >
                               Entrepreneur in Residency (EIR) program
                             </Text>
-                            {" "} / Estoy interesado/a en el programa de Emprendedor en Residencia (EIR)
                           </Text>
                         }
-                        description="Optional: Express interest in the EIR program at Commons Lab / Opcional: Expresa interés en el programa EIR en Commons Lab"
+                        description="Optional: Express interest in the EIR program at Commons Lab"
                         {...form.getInputProps('interestedEIR', { type: 'checkbox' })}
                       />
                     </Stack>
@@ -866,26 +875,26 @@ export default function OnboardingForm({
                     <Stack gap="md">
                       <Group gap="sm">
                         <IconShield size={20} color="orange" />
-                        <Text fw={600} c="orange.7">Legal & Safety / Legal y Seguridad</Text>
+                        <Text fw={600} c="orange.7">Legal & Safety</Text>
                       </Group>
 
                       <Checkbox
-                        label="I consent to the liability waiver and understand the risks / Consiento la exención de responsabilidad y entiendo los riesgos"
-                        description="I understand that I participate at my own risk and release FtC from liability / Entiendo que participo bajo mi propio riesgo y libero a FtC de responsabilidad"
+                        label="I consent to the liability waiver and understand the risks"
+                        description="I understand that I participate at my own risk and release FtC from liability"
                         required
                         {...form.getInputProps('liabilityWaiverConsent', { type: 'checkbox' })}
                       />
 
                       <Checkbox
-                        label="I agree to follow the Code of Conduct / Acepto seguir el Código de Conducta"
-                        description="I commit to maintaining a respectful, inclusive, and safe environment / Me comprometo a mantener un ambiente respetuoso, inclusivo y seguro"
+                        label="I agree to follow the Code of Conduct"
+                        description="I commit to maintaining a respectful, inclusive, and safe environment"
                         required
                         {...form.getInputProps('codeOfConductAgreement', { type: 'checkbox' })}
                       />
 
                       <Checkbox
-                        label="I consent to participation in community activities and documentation / Consiento la participación en actividades comunitarias y documentación"
-                        description="This may include photos, videos, and other content for community building / Esto puede incluir fotos, videos y otro contenido para la construcción de comunidad"
+                        label="I consent to participation in community activities and documentation"
+                        description="This may include photos, videos, and other content for community building"
                         required
                         {...form.getInputProps('communityActivitiesConsent', { type: 'checkbox' })}
                       />
@@ -898,18 +907,18 @@ export default function OnboardingForm({
             {/* Additional Information */}
             <Accordion.Item value="additional">
               <Accordion.Control icon={<IconStar size={20} />}>
-                <Title order={3}>Additional Information / Información Adicional</Title>
+                <Title order={3}>Additional Information</Title>
               </Accordion.Control>
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Anything else you&apos;d like us to know? / ¿Algo más que te gustaría que sepamos?
+                    Anything else you&apos;d like us to know?
                   </Text>
 
                   <Textarea
-                    label="Additional Comments / Comentarios Adicionales"
-                    description="Questions, special requests, accessibility needs, or anything else... / Preguntas, solicitudes especiales, necesidades de accesibilidad, o cualquier otra cosa..."
-                    placeholder="Optional comments... / Comentarios opcionales..."
+                    label="Additional Comments"
+                    description="Questions, special requests, accessibility needs, or anything else..."
+                    placeholder="Optional comments..."
                     minRows={4}
                     {...form.getInputProps('additionalComments')}
                   />
@@ -922,9 +931,9 @@ export default function OnboardingForm({
           <Card shadow="sm" padding="lg" radius="md" mt="xl">
             <Group justify="space-between" align="center">
               <div>
-                <Text fw={500}>Ready to submit? / ¿Listo para enviar?</Text>
+                <Text fw={500}>Ready to submit?</Text>
                 <Text size="sm" c="dimmed">
-                  Make sure all required items are completed. / Asegúrate de que todos los elementos requeridos estén completados.
+                  Make sure all required items are completed.
                 </Text>
               </div>
               <Button
@@ -934,7 +943,7 @@ export default function OnboardingForm({
                 disabled={completionPercentage < 100}
                 leftSection={<IconCheck size={18} />}
               >
-                Complete Onboarding / Completar Incorporación
+                Complete Onboarding
               </Button>
             </Group>
           </Card>

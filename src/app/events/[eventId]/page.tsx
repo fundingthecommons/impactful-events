@@ -7,7 +7,7 @@ import EventDetailClient from "./EventDetailClient";
 import ResidentDashboard from "./ResidentDashboard";
 import ApplicationClosedMessage from "~/app/_components/ApplicationClosedMessage";
 import { Alert, Title, Text, Container, Stack, Group, Button, ActionIcon } from "@mantine/core";
-import { IconCheck, IconArrowLeft } from "@tabler/icons-react";
+import { IconCheck, IconArrowLeft, IconEdit } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 
@@ -111,6 +111,12 @@ export default function EventPage({ params }: EventPageProps) {
     { enabled: !!session?.user && !!eventId }
   );
 
+  // Get onboarding status for accepted users
+  const { data: onboardingData } = api.onboarding.getOnboarding.useQuery(
+    { applicationId: userApplication?.id ?? "" },
+    { enabled: !!userApplication?.id && userApplication?.status === "ACCEPTED" }
+  );
+
   // Don't redirect unauthenticated users - let them see the page content
   // Authentication will be handled by individual components (like DynamicApplicationForm)
 
@@ -155,9 +161,29 @@ export default function EventPage({ params }: EventPageProps) {
               <Title order={3} c="white" mb="xs">
                 You have been accepted to the {event.name}!
               </Title>
-              <Text c="white" size="md">
+              <Text c="white" size="md" mb="md">
                 Welcome to your resident dashboard. Connect with fellow residents and showcase your projects!
               </Text>
+              
+              {/* Show Complete Onboarding button if onboarding is not completed */}
+              {(!onboardingData?.onboarding?.completed) && (
+                <Group mt="md">
+                  <Button
+                    component={Link}
+                    href={`/events/${eventId}/onboarding`}
+                    variant="light"
+                    color="green"
+                    leftSection={<IconEdit size={16} />}
+                    size="md"
+                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', color: 'white', borderColor: 'rgba(255, 255, 255, 0.3)' }}
+                  >
+                    Complete Onboarding
+                  </Button>
+                  <Text c="white" size="sm" style={{ opacity: 0.9 }}>
+                    Please complete your onboarding form to finalize your participation.
+                  </Text>
+                </Group>
+              )}
             </Alert>
           </Container>
         )}

@@ -29,7 +29,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import { IconCheck, IconX, IconArrowLeft, IconDownload, IconEye } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ProjectManager } from "~/app/_components/ProjectManager";
 
@@ -73,7 +73,11 @@ const timezoneOptions = [
 
 export function ProfileEditClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [hasInitialized, setHasInitialized] = useState(false);
+  
+  // Check if user came from an event page
+  const referrerEventId = searchParams.get('from-event');
 
   const { data: currentProfile, isLoading, refetch: refetchProfile } = api.profile.getMyProfile.useQuery();
   const updateProfile = api.profile.updateProfile.useMutation({
@@ -84,7 +88,11 @@ export function ProfileEditClient() {
         color: "green",
         icon: <IconCheck size={16} />,
       });
-      if (currentProfile?.user?.id) {
+      if (referrerEventId) {
+        // Redirect back to the event page if they came from there
+        router.push(`/events/${referrerEventId}`);
+      } else if (currentProfile?.user?.id) {
+        // Default redirect to their profile page
         router.push(`/profiles/${currentProfile.user.id}`);
       }
     },
@@ -179,9 +187,15 @@ export function ProfileEditClient() {
         leftSection={<IconArrowLeft size={16} />}
         mb="xl"
         component={Link}
-        href={currentProfile?.user?.id ? `/profiles/${currentProfile.user.id}` : "/profile"}
+        href={
+          referrerEventId 
+            ? `/events/${referrerEventId}`
+            : currentProfile?.user?.id 
+              ? `/profiles/${currentProfile.user.id}` 
+              : "/profile"
+        }
       >
-        Back to My Profile
+        {referrerEventId ? "Back to Event" : "Back to My Profile"}
       </Button>
 
       <Title order={1} mb="xl">
@@ -396,7 +410,13 @@ export function ProfileEditClient() {
             <Button
               variant="light"
               component={Link}
-              href={currentProfile?.user?.id ? `/profiles/${currentProfile.user.id}` : "/profile"}
+              href={
+                referrerEventId 
+                  ? `/events/${referrerEventId}`
+                  : currentProfile?.user?.id 
+                    ? `/profiles/${currentProfile.user.id}` 
+                    : "/profile"
+              }
             >
               Cancel
             </Button>

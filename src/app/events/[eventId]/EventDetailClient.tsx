@@ -32,6 +32,8 @@ import { type EventType } from "~/types/event";
 
 type Application = {
   id: string;
+  userId: string | null;
+  eventId: string;
   status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
   language: string;
   submittedAt: Date | null;

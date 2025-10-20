@@ -37,6 +37,7 @@ import {
   IconBrandLinkedin,
   IconBrandTwitter,
   IconWorld,
+  IconStar,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
@@ -117,8 +118,12 @@ export default function ResidentDashboard({
                   Great! Your profile is complete and visible to other residents.
                 </Alert>
               ) : (
-                <Alert icon={<IconAlertCircle size={16} />} color="orange" mb="md">
-                  Complete your profile to connect with other residents and showcase your work.
+                <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">
+                  <Text size="sm">
+                    <strong>Other residents will not be able to find you</strong> until you complete your profile 
+                    (currently at {profileCompletion?.percentage ?? 0}%). Complete your profile to be visible 
+                    in the participant directory.
+                  </Text>
                 </Alert>
               )}
 
@@ -140,7 +145,7 @@ export default function ResidentDashboard({
 
               <Button
                 component={Link}
-                href="/profile/edit"
+                href={`/profile/edit?from-event=${eventId}`}
                 leftSection={<IconEdit size={16} />}
                 variant={profileCompletion?.meetsThreshold ? "light" : "filled"}
                 fullWidth
@@ -159,7 +164,7 @@ export default function ResidentDashboard({
                   <Text fw={600}>Your Projects</Text>
                 </Group>
                 <Badge variant="light">
-                  {featuredProjects.length} featured
+                  {userProjects.length} project{userProjects.length !== 1 ? 's' : ''}
                 </Badge>
               </Group>
 
@@ -173,7 +178,7 @@ export default function ResidentDashboard({
                   </Text>
                   <Button
                     component={Link}
-                    href="/profile/edit"
+                    href={`/profile/edit?from-event=${eventId}`}
                     leftSection={<IconPlus size={16} />}
                     variant="light"
                   >
@@ -182,13 +187,20 @@ export default function ResidentDashboard({
                 </Stack>
               ) : (
                 <Stack gap="md">
-                  {featuredProjects.slice(0, 2).map((project) => (
+                  {userProjects.slice(0, 2).map((project) => (
                     <Paper key={project.id} p="sm" withBorder>
                       <Group justify="space-between" align="flex-start">
                         <div style={{ flex: 1 }}>
-                          <Text fw={500} size="sm" lineClamp={1}>
-                            {project.title}
-                          </Text>
+                          <Group gap="xs" align="center">
+                            <Text fw={500} size="sm" lineClamp={1} style={{ flex: 1 }}>
+                              {project.title}
+                            </Text>
+                            {project.featured && (
+                              <Tooltip label="Featured project">
+                                <IconStar size={14} style={{ color: 'var(--mantine-color-yellow-6)' }} />
+                              </Tooltip>
+                            )}
+                          </Group>
                           {project.description && (
                             <Text size="xs" c="dimmed" lineClamp={2}>
                               {project.description}
@@ -230,7 +242,7 @@ export default function ResidentDashboard({
                   <Group justify="space-between">
                     <Button
                       component={Link}
-                      href="/profile/edit"
+                      href={`/profile/edit?from-event=${eventId}`}
                       variant="light"
                       size="xs"
                       leftSection={<IconPlus size={14} />}
@@ -355,7 +367,7 @@ function ParticipantsTab({ residentsData, session }: ParticipantsTabProps) {
             </Badge>
           )}
           {session && (
-            <Button component={Link} href="/profile/edit" size="xs" variant="light" leftSection={<IconEdit size={14} />}>
+            <Button component={Link} href={`/profile/edit?from-event=${eventId}`} size="xs" variant="light" leftSection={<IconEdit size={14} />}>
               Edit My Profile
             </Button>
           )}
@@ -633,7 +645,7 @@ function ProjectsTab({ residentProjects }: ProjectsTabProps) {
           </Text>
           <Button
             component={Link}
-            href="/profile/edit"
+            href={`/profile/edit?from-event=${eventId}`}
             variant="light"
             leftSection={<IconPlus size={16} />}
           >
