@@ -912,7 +912,7 @@ export default function OnboardingForm({
               <Accordion.Panel>
                 <Stack gap="md">
                   <Text c="dimmed" mb="md">
-                    Anything else you&apos;d like us to know?
+                    Is there anything else you&apos;d like us to know?
                   </Text>
 
                   <Textarea
