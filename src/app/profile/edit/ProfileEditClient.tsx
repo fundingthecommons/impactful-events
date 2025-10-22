@@ -56,19 +56,92 @@ const schema = z.object({
 
 type ProfileFormData = z.infer<typeof schema>;
 
+// Helper component for required field labels with red asterisk
+// NOTE: All fields are currently optional per Zod schemas, but this infrastructure
+// allows easy addition of required field indicators if validation changes
+interface FieldLabelProps {
+  children: React.ReactNode;
+  required?: boolean;
+}
+
+function FieldLabel({ children, required = false }: FieldLabelProps) {
+  if (!required) {
+    return <>{children}</>;
+  }
+  
+  return (
+    <Group gap={4}>
+      {children}
+      <Text c="red" size="sm">*</Text>
+    </Group>
+  );
+}
+
 const timezoneOptions = [
+  // UTC
   { value: "UTC", label: "UTC" },
-  { value: "America/New_York", label: "Eastern Time (ET)" },
-  { value: "America/Chicago", label: "Central Time (CT)" },
-  { value: "America/Denver", label: "Mountain Time (MT)" },
-  { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
+  
+  // Americas
+  { value: "America/New_York", label: "New York (ET)" },
+  { value: "America/Chicago", label: "Chicago (CT)" },
+  { value: "America/Denver", label: "Denver (MT)" },
+  { value: "America/Los_Angeles", label: "Los Angeles (PT)" },
+  { value: "America/Anchorage", label: "Anchorage (AKT)" },
+  { value: "America/Phoenix", label: "Phoenix (MST)" },
+  { value: "America/Toronto", label: "Toronto (ET)" },
+  { value: "America/Vancouver", label: "Vancouver (PT)" },
+  { value: "America/Mexico_City", label: "Mexico City (CST)" },
+  { value: "America/Sao_Paulo", label: "São Paulo (BRT)" },
+  { value: "America/Argentina/Buenos_Aires", label: "Buenos Aires (ART)" },
+  { value: "America/Lima", label: "Lima (PET)" },
+  { value: "America/Bogota", label: "Bogotá (COT)" },
+  { value: "America/Caracas", label: "Caracas (VET)" },
+  
+  // Europe
   { value: "Europe/London", label: "London (GMT)" },
   { value: "Europe/Paris", label: "Paris (CET)" },
   { value: "Europe/Berlin", label: "Berlin (CET)" },
+  { value: "Europe/Rome", label: "Rome (CET)" },
+  { value: "Europe/Madrid", label: "Madrid (CET)" },
+  { value: "Europe/Amsterdam", label: "Amsterdam (CET)" },
+  { value: "Europe/Zurich", label: "Zurich (CET)" },
+  { value: "Europe/Vienna", label: "Vienna (CET)" },
+  { value: "Europe/Prague", label: "Prague (CET)" },
+  { value: "Europe/Warsaw", label: "Warsaw (CET)" },
+  { value: "Europe/Stockholm", label: "Stockholm (CET)" },
+  { value: "Europe/Helsinki", label: "Helsinki (EET)" },
+  { value: "Europe/Athens", label: "Athens (EET)" },
+  { value: "Europe/Istanbul", label: "Istanbul (TRT)" },
+  { value: "Europe/Moscow", label: "Moscow (MSK)" },
+  
+  // Asia-Pacific
   { value: "Asia/Tokyo", label: "Tokyo (JST)" },
+  { value: "Asia/Seoul", label: "Seoul (KST)" },
   { value: "Asia/Shanghai", label: "Shanghai (CST)" },
-  { value: "Asia/Kolkata", label: "India (IST)" },
+  { value: "Asia/Hong_Kong", label: "Hong Kong (HKT)" },
+  { value: "Asia/Taipei", label: "Taipei (CST)" },
+  { value: "Asia/Singapore", label: "Singapore (SGT)" },
+  { value: "Asia/Bangkok", label: "Bangkok (ICT)" },
+  { value: "Asia/Jakarta", label: "Jakarta (WIB)" },
+  { value: "Asia/Manila", label: "Manila (PHT)" },
+  { value: "Asia/Kolkata", label: "Mumbai (IST)" },
+  { value: "Asia/Karachi", label: "Karachi (PKT)" },
+  { value: "Asia/Dhaka", label: "Dhaka (BST)" },
+  { value: "Asia/Dubai", label: "Dubai (GST)" },
+  { value: "Asia/Riyadh", label: "Riyadh (AST)" },
+  { value: "Asia/Tehran", label: "Tehran (IRST)" },
+  { value: "Asia/Yerevan", label: "Yerevan (AMT)" },
   { value: "Australia/Sydney", label: "Sydney (AEDT)" },
+  { value: "Australia/Melbourne", label: "Melbourne (AEDT)" },
+  { value: "Australia/Perth", label: "Perth (AWST)" },
+  { value: "Pacific/Auckland", label: "Auckland (NZDT)" },
+  
+  // Africa
+  { value: "Africa/Cairo", label: "Cairo (EET)" },
+  { value: "Africa/Johannesburg", label: "Johannesburg (SAST)" },
+  { value: "Africa/Lagos", label: "Lagos (WAT)" },
+  { value: "Africa/Nairobi", label: "Nairobi (EAT)" },
+  { value: "Africa/Casablanca", label: "Casablanca (WET)" },
 ];
 
 export function ProfileEditClient() {
@@ -130,7 +203,7 @@ export function ProfileEditClient() {
     },
   });
 
-  // Initialize form when profile data loads
+  // Initialize form when profile data loads - stable dependencies only
   useEffect(() => {
     if (currentProfile && !hasInitialized) {
       form.setValues({
@@ -155,7 +228,9 @@ export function ProfileEditClient() {
       });
       setHasInitialized(true);
     }
-  }, [currentProfile, hasInitialized, form]);
+  // ESLint disabled: intentionally using only primitive dependencies to prevent infinite re-renders
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProfile?.id, hasInitialized]); // Only primitive dependencies
 
   const handleSubmit = (values: ProfileFormData) => {
     // Clean up empty strings and convert to undefined
@@ -372,29 +447,8 @@ export function ProfileEditClient() {
           {/* Application Import Section */}
           <ApplicationImportSection onImportComplete={() => {
             void refetchProfile();
-            // Reload current values into form
-            if (currentProfile) {
-              form.setValues({
-                bio: currentProfile.bio ?? "",
-                jobTitle: currentProfile.jobTitle ?? "",
-                company: currentProfile.company ?? "",
-                location: currentProfile.location ?? "",
-                website: currentProfile.website ?? "",
-                githubUrl: currentProfile.githubUrl ?? "",
-                linkedinUrl: currentProfile.linkedinUrl ?? "",
-                twitterUrl: currentProfile.twitterUrl ?? "",
-                skills: currentProfile.skills ?? [],
-                interests: currentProfile.interests ?? [],
-                availableForMentoring: currentProfile.availableForMentoring ?? false,
-                availableForHiring: currentProfile.availableForHiring ?? false,
-                availableForOfficeHours: currentProfile.availableForOfficeHours ?? false,
-                timezone: currentProfile.timezone ?? "",
-                languages: currentProfile.languages ?? [],
-                yearsOfExperience: currentProfile.yearsOfExperience ?? undefined,
-                telegramHandle: currentProfile.telegramHandle ?? "",
-                discordHandle: currentProfile.discordHandle ?? "",
-              });
-            }
+            // Force re-initialization after import
+            setHasInitialized(false);
           }} />
 
           {/* Projects Section */}
