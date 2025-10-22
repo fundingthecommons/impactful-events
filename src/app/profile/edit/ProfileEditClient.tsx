@@ -56,26 +56,8 @@ const schema = z.object({
 
 type ProfileFormData = z.infer<typeof schema>;
 
-// Helper component for required field labels with red asterisk
-// NOTE: All fields are currently optional per Zod schemas, but this infrastructure
-// allows easy addition of required field indicators if validation changes
-interface FieldLabelProps {
-  children: React.ReactNode;
-  required?: boolean;
-}
-
-function FieldLabel({ children, required = false }: FieldLabelProps) {
-  if (!required) {
-    return <>{children}</>;
-  }
-  
-  return (
-    <Group gap={4}>
-      {children}
-      <Text c="red" size="sm">*</Text>
-    </Group>
-  );
-}
+// NOTE: All fields are currently optional per Zod validation schemas
+// If required fields are added in the future, add red asterisk indicators here
 
 const timezoneOptions = [
   // UTC
