@@ -245,7 +245,7 @@ export function validateAnonymization(
   }
   
   // Check that anonymous ID follows expected pattern
-  if (!anonymized.anonymousId.match(/^[A-Z]+_[a-f0-9]+$/)) {
+  if (!/^[A-Z]+_[a-f0-9]+$/.exec(anonymized.anonymousId)) {
     issues.push('Anonymous ID does not follow expected pattern');
   }
   

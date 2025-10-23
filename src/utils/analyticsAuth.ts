@@ -7,7 +7,7 @@
 
 import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "@prisma/client";
-import type { AnalyticsEndpoint } from "@prisma/client";
+import type { AnalyticsEndpoint, Prisma } from "@prisma/client";
 
 /**
  * Check if user has researcher access to analytics endpoints
@@ -56,7 +56,7 @@ export async function logAnalyticsAccess(
         endpoint: params.endpoint,
         eventId: params.eventId,
         dataRequested: params.dataRequested,
-        requestParams: params.requestParams,
+        requestParams: params.requestParams as Prisma.InputJsonValue,
         responseSize: params.responseSize,
         ipAddress: params.ipAddress,
         userAgent: params.userAgent,
@@ -234,7 +234,7 @@ export async function getRateLimitStatus(
     },
   });
 
-  rateLimitRecord ??= await db.analyticsRateLimit.create({
+  if (!rateLimitRecord) {
     return {
       requestCount: 0,
       maxRequests: config.maxRequests,
@@ -307,7 +307,7 @@ export async function resetUserRateLimit(
  */
 export async function getAnalyticsAccessSummary(
   db: PrismaClient,
-  days: number = 30
+  days = 30
 ): Promise<{
   totalRequests: number;
   uniqueUsers: number;

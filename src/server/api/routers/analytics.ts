@@ -12,6 +12,15 @@ import { sanitizeTextForAnalysis } from "~/utils/textSanitization";
 import { generateParticipantId, generateEventContextId } from "~/utils/anonymization";
 
 /**
+ * Interface for experience level tracking
+ */
+interface ExperienceLevels {
+  junior: number;
+  mid: number;
+  senior: number;
+  unspecified: number;
+}
+/**
  * Minimum threshold for returning aggregated data
  * Groups with fewer than this many participants will not be returned
  */
@@ -76,7 +85,6 @@ export const analyticsRouter = createTRPCRouter({
         
         for (const response of application.responses) {
           const questionKey = response.question.questionKey;
-          
           // Only include text-based responses
           if (!['TEXT', 'TEXTAREA'].includes(response.question.questionType)) {
             continue;
@@ -208,7 +216,7 @@ export const analyticsRouter = createTRPCRouter({
       let unspecifiedRegionCount = 0;
 
       // Experience level tracking
-      const experienceLevels: Record<string, number> = {
+      const experienceLevels: ExperienceLevels = {
         junior: 0,      // 0-2 years
         mid: 0,         // 3-7 years
         senior: 0,      // 8+ years
@@ -506,18 +514,15 @@ export const analyticsRouter = createTRPCRouter({
           statusBreakdown: {},
           typeBreakdown: {},
         };
-        timeGroups[timeKey].count++;
+        timeGroups[timeKey]!.count++;
 
         if (input.includeStatus) {
-          if (!timeGroups[timeKey].statusBreakdown![app.status]) {
-            timeGroups[timeKey].statusBreakdown![app.status] = 0;
-          }
-          timeGroups[timeKey].statusBreakdown![app.status]++;
+          const timeGroup = timeGroups[timeKey]!;
+          const statusBreakdown = timeGroup.statusBreakdown!;
+          const typeBreakdown = timeGroup.typeBreakdown!;
+          statusBreakdown[app.status] = (statusBreakdown[app.status] ?? 0) + 1;
 
-          if (!timeGroups[timeKey].typeBreakdown![app.applicationType]) {
-            timeGroups[timeKey].typeBreakdown![app.applicationType] = 0;
-          }
-          timeGroups[timeKey].typeBreakdown![app.applicationType]++;
+          typeBreakdown[app.applicationType] = (typeBreakdown[app.applicationType] ?? 0) + 1;
         }
       }
 

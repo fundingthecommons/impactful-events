@@ -240,7 +240,7 @@ export default function OnboardingForm({
         setIsSubmitted(true);
       }
     }
-  }, [onboardingData?.onboarding?.id]); // Only depend on stable identifier
+  }, [onboardingData?.onboarding?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (values: OnboardingFormData) => {
     setIsSubmitting(true);

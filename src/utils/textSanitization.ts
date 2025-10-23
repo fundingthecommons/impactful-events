@@ -176,7 +176,7 @@ export function detectPotentialPII(text: string): {
   const warnings: string[] = [];
   
   // Check for patterns that might be PII
-  if (/@/.test(text)) {
+  if (text.includes('@')) {
     warnings.push('Contains @ symbol - possible email');
   }
   
