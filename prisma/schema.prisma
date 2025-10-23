@@ -112,6 +112,10 @@ model User {
   
   // Contact interaction relation
   contactInteractions  ContactInteraction[] @relation("ContactInteractions")
+  
+  // Analytics system relations
+  analyticsAudits      AnalyticsAudit[]     @relation("AnalyticsAudits")
+  analyticsRateLimits  AnalyticsRateLimit[] @relation("AnalyticsRateLimits")
 }
 
 model VerificationToken {
@@ -1351,4 +1355,53 @@ model UserSkills {
   @@index([userId])
   @@index([skillId])
   @@index([experienceLevel])
+}
+
+// Analytics System Models
+enum AnalyticsEndpoint {
+  APPLICATION_TEXT_CORPUS
+  DEMOGRAPHICS_BREAKDOWN  
+  SKILLS_WORD_CLOUD
+  APPLICATION_TIMELINE
+  REVIEW_METRICS
+}
+
+model AnalyticsAudit {
+  id            String            @id @default(cuid())
+  userId        String            // User who made the request
+  endpoint      AnalyticsEndpoint // Which analytics endpoint was accessed
+  eventId       String?           // Event context (if applicable)
+  dataRequested String?           // Additional context about what data was requested
+  requestParams Json?             // JSON of request parameters for debugging
+  responseSize  Int?              // Size of response data (for monitoring)
+  ipAddress     String?           // IP address for security monitoring
+  userAgent     String?           // User agent for security monitoring
+  createdAt     DateTime          @default(now())
+  
+  // Relations
+  user          User              @relation("AnalyticsAudits", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([endpoint])
+  @@index([eventId])
+  @@index([createdAt])
+}
+
+model AnalyticsRateLimit {
+  id            String   @id @default(cuid())
+  userId        String   // User being rate limited
+  endpoint      AnalyticsEndpoint // Which endpoint
+  requestCount  Int      @default(0) // Number of requests in current window
+  windowStart   DateTime @default(now()) // Start of current rate limit window
+  lastRequest   DateTime @default(now()) // Last request timestamp
+  isBlocked     Boolean  @default(false) // Whether user is currently blocked
+  
+  // Relations
+  user          User     @relation("AnalyticsRateLimits", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, endpoint]) // One rate limit record per user per endpoint
+  @@index([userId])
+  @@index([endpoint])
+  @@index([windowStart])
+  @@index([isBlocked])
 }
