@@ -4,6 +4,7 @@ import { ApplicationWaitlistedTemplate } from './applicationWaitlisted';
 import { ApplicationSubmittedTemplate } from './applicationSubmitted';
 import { ApplicationMissingInfoTemplate } from './applicationMissingInfo';
 import { InvitationTemplate } from './invitation';
+import { PasswordReset } from './passwordReset';
 
 // Template registry with all available templates
 export const templates = {
@@ -16,6 +17,9 @@ export const templates = {
   
   // Invitation templates
   invitation: InvitationTemplate,
+  
+  // Authentication templates
+  passwordReset: PasswordReset,
 } as const;
 
 export type TemplateName = keyof typeof templates;
@@ -28,6 +32,7 @@ export const templateToEmailType = {
   applicationSubmitted: 'APPLICATION_SUBMITTED',
   applicationMissingInfo: 'APPLICATION_MISSING_INFO',
   invitation: 'INVITATION_EVENT_ROLE',
+  passwordReset: 'PASSWORD_RESET',
 } as const;
 
 // Export individual templates for direct import
@@ -37,6 +42,7 @@ export { ApplicationWaitlistedTemplate } from './applicationWaitlisted';
 export { ApplicationSubmittedTemplate } from './applicationSubmitted';
 export { ApplicationMissingInfoTemplate } from './applicationMissingInfo';
 export { InvitationTemplate } from './invitation';
+export { PasswordReset } from './passwordReset';
 
 // Export prop types
 export type { ApplicationAcceptedProps } from './applicationAccepted';
@@ -45,3 +51,4 @@ export type { ApplicationWaitlistedProps } from './applicationWaitlisted';
 export type { ApplicationSubmittedProps } from './applicationSubmitted';
 export type { ApplicationMissingInfoProps } from './applicationMissingInfo';
 export type { InvitationProps } from './invitation';
+export type { PasswordResetProps } from './passwordReset';

@@ -116,6 +116,9 @@ model User {
   // Analytics system relations
   analyticsAudits      AnalyticsAudit[]     @relation("AnalyticsAudits")
   analyticsRateLimits  AnalyticsRateLimit[] @relation("AnalyticsRateLimits")
+  
+  // Password reset tokens
+  passwordResetTokens  PasswordResetToken[] @relation("PasswordResetTokens")
 }
 
 model VerificationToken {
@@ -124,6 +127,22 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique  // Hashed token for security
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation("PasswordResetTokens", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Event {
@@ -682,6 +701,9 @@ enum EmailType {
   // Invitation related
   INVITATION_EVENT_ROLE
   INVITATION_ADMIN
+  
+  // Authentication related
+  PASSWORD_RESET
   
   // General
   GENERAL

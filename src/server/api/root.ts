@@ -19,6 +19,7 @@ import { projectRouter } from "~/server/api/routers/project";
 import { skillsRouter } from "~/server/api/routers/skills";
 import { configRouter } from "~/server/api/routers/config";
 import { analyticsRouter } from "~/server/api/routers/analytics";
+import { passwordResetRouter } from "~/server/api/routers/passwordReset";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -48,6 +49,7 @@ export const appRouter = createTRPCRouter({
   skills: skillsRouter,
   config: configRouter,
   analytics: analyticsRouter,
+  passwordReset: passwordResetRouter,
 });
 
 // export type definition of API

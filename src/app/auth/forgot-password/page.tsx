@@ -15,6 +15,7 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { IconArrowLeft, IconCheck, IconAlertCircle, IconMail } from "@tabler/icons-react";
+import { api } from "~/trpc/react";
 
 interface ForgotPasswordFormData {
   email: string;
@@ -34,17 +35,24 @@ export default function ForgotPasswordPage() {
     },
   });
 
-  const handleSubmit = async (_values: ForgotPasswordFormData) => {
+  const requestResetMutation = api.passwordReset.requestReset.useMutation();
+
+  const handleSubmit = async (values: ForgotPasswordFormData) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // TODO: Implement password reset functionality
-      // For now, just show a success message
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      setSuccess(true);
+      const result = await requestResetMutation.mutateAsync({
+        email: values.email.toLowerCase().trim(),
+      });
+
+      if (result.success) {
+        setSuccess(true);
+      } else {
+        setError("Failed to send reset email. Please try again.");
+      }
     } catch {
+      // Always show generic message to prevent email enumeration
       setError("Failed to send reset email. Please try again.");
     } finally {
       setIsLoading(false);

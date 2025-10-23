@@ -68,7 +68,7 @@ export default function EventPage({ params }: EventPageProps) {
       // Set cookie for 24 hours
       const expires = new Date();
       expires.setTime(expires.getTime() + 24 * 60 * 60 * 1000);
-      document.cookie = `ftc-late-pass=${latePassParam}; expires=${expires.toUTCString()}; path=/; SameSite=Lax; Secure`;
+      document.cookie = `ftc-late-pass=${latePassParam}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
       
       setHasLatePassAccess(true);
       setIsCheckingAccess(false);
@@ -89,7 +89,7 @@ export default function EventPage({ params }: EventPageProps) {
       // Set a temporary cookie for 1 hour
       const expires = new Date();
       expires.setTime(expires.getTime() + 60 * 60 * 1000);
-      document.cookie = `ftc-invitation-access=true; expires=${expires.toUTCString()}; path=/; SameSite=Lax; Secure`;
+      document.cookie = `ftc-invitation-access=true; expires=${expires.toUTCString()}; path=/; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
       
       setHasLatePassAccess(true);
       setIsCheckingAccess(false);

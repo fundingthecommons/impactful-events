@@ -9,6 +9,7 @@ import type {
   ApplicationSubmittedProps,
   ApplicationMissingInfoProps,
   InvitationProps,
+  PasswordResetProps,
 } from './templates';
 
 type TemplateProps = 
@@ -17,7 +18,8 @@ type TemplateProps =
   | ApplicationWaitlistedProps
   | ApplicationSubmittedProps
   | ApplicationMissingInfoProps
-  | InvitationProps;
+  | InvitationProps
+  | PasswordResetProps;
 
 // Strongly typed application data interface
 interface ApplicationWithUserAndEvent {
@@ -226,6 +228,8 @@ export class EmailService {
         return `Action required: Complete your ${(data as ApplicationMissingInfoProps).eventName} application`;
       case 'invitation':
         return `You're invited to join ${(data as InvitationProps).eventName}`;
+      case 'passwordReset':
+        return 'Reset your Funding the Commons password';
       default:
         return 'Notification from Funding the Commons';
     }
