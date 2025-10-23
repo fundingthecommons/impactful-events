@@ -29,6 +29,8 @@ export const env = createEnv({
     ADMIN_EMAIL: z.string().email(),
     MASTRA_API_KEY: z.string(),
     OPENAI_API_KEY: z.string().optional(),
+    SENTRY_DSN: z.string().optional(),
+    SENTRY_AUTH_TOKEN: z.string().optional(),
   },
 
   /**
@@ -37,7 +39,7 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    // No client-side environment variables needed
+    NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
   },
 
   /**
@@ -62,6 +64,9 @@ export const env = createEnv({
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,
     MASTRA_API_KEY: process.env.MASTRA_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    SENTRY_DSN: process.env.SENTRY_DSN,
+    SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

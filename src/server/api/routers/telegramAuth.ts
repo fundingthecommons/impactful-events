@@ -12,6 +12,7 @@ import {
   type TelegramCredentials 
 } from "~/server/utils/encryption";
 import { checkTelegramAuthRateLimit } from "~/server/utils/telegramCleanup";
+import { captureAuthError, captureApiError } from "~/utils/errorCapture";
 
 // Note: Auth sessions now stored in database for persistence across server restarts
 // Clean up expired auth sessions every 5 minutes
@@ -36,6 +37,10 @@ const cleanupExpiredSessions = async () => {
     });
   } catch (error) {
     console.error("Failed to cleanup expired Telegram auth sessions:", error);
+    captureAuthError(error, {
+      operation: "cleanup_expired_sessions",
+      provider: "telegram"
+    });
   }
 };
 
@@ -240,6 +245,11 @@ export const telegramAuthRouter = createTRPCRouter({
         return { success: true };
       } catch (error) {
         console.error("Failed to send phone code:", error);
+        captureAuthError(error, {
+          userId: ctx.session.user.id,
+          operation: "send_phone_code",
+          provider: "telegram"
+        });
         
         // Clean up session on error
         try {
@@ -358,6 +368,11 @@ export const telegramAuthRouter = createTRPCRouter({
         return { success: true };
       } catch (error) {
         console.error("Telegram authentication failed:", error);
+        captureAuthError(error, {
+          userId: ctx.session.user.id,
+          operation: "telegram_authentication",
+          provider: "telegram"
+        });
         
         // Clean up on failure
         try {
@@ -437,6 +452,11 @@ export const telegramAuthRouter = createTRPCRouter({
       return credentials;
     } catch (error) {
       console.error("Failed to decrypt Telegram credentials:", error instanceof Error ? error.message : String(error));
+      captureAuthError(error, {
+        userId: ctx.session.user.id,
+        operation: "decrypt_telegram_credentials",
+        provider: "telegram"
+      });
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to decrypt stored credentials",
@@ -628,6 +648,12 @@ export const telegramAuthRouter = createTRPCRouter({
 
       } catch (error) {
         console.error("Bulk message failed:", error);
+        captureApiError(error, {
+          userId: ctx.session.user.id,
+          route: "telegram.sendBulkMessage",
+          method: "POST",
+          input: { contactIds: input.contactIds, message: input.message }
+        });
         
         // If session is invalid, mark as inactive
         if (error instanceof Error && 
@@ -993,6 +1019,12 @@ export const telegramAuthRouter = createTRPCRouter({
 
       } catch (error) {
         console.error("Smart list bulk message failed:", error);
+        captureApiError(error, {
+          userId: ctx.session.user.id,
+          route: "telegram.sendSmartListMessage",
+          method: "POST",
+          input: { listId: input.listId, message: input.message }
+        });
         
         // If session is invalid, mark as inactive
         if (error instanceof Error && 

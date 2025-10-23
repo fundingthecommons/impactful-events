@@ -11,6 +11,7 @@ import {
   updateApplicationCompletionStatus,
   sendSubmissionNotification 
 } from "~/server/api/utils/applicationCompletion";
+import { captureApiError, captureEmailError } from "~/utils/errorCapture";
 
 // Input schemas
 const CreateApplicationInputSchema = z.object({
@@ -471,6 +472,12 @@ export const applicationRouter = createTRPCRouter({
       } catch (error) {
         // Log error but don't fail the response update
         console.error('Error checking application completeness:', error);
+        captureApiError(error, {
+          userId: ctx.session.user.id,
+          route: "application.updateResponse",
+          method: "POST",
+          input: { applicationId: input.applicationId, questionId: input.questionId }
+        });
       }
 
       return response;
@@ -564,6 +571,11 @@ export const applicationRouter = createTRPCRouter({
       } catch (error) {
         // Log error but don't fail the submission
         console.error('Failed to send submission notification email:', error);
+        captureEmailError(error, {
+          userId: ctx.session.user.id,
+          emailType: "application_submission",
+          templateName: "applicationSubmitted"
+        });
       }
 
       return submitted;
@@ -780,6 +792,11 @@ export const applicationRouter = createTRPCRouter({
           }
         } catch (error) {
           console.error('Error sending status change email:', error);
+          captureEmailError(error, {
+            userId: application.userId,
+            emailType: "status_change",
+            templateName: `application${input.status.toLowerCase().charAt(0).toUpperCase() + input.status.toLowerCase().slice(1)}`
+          });
           // Don't fail the status update if email fails
         }
       }
@@ -915,6 +932,12 @@ export const applicationRouter = createTRPCRouter({
           }
         } catch (error) {
           console.error('Error auto-syncing profile:', error);
+          captureApiError(error, {
+            userId: application.userId,
+            route: "application.updateStatus.profileSync",
+            method: "POST",
+            input: { applicationId: input.applicationId, status: input.status }
+          });
           // Don't fail the status update if profile sync fails
         }
       }
@@ -986,6 +1009,11 @@ export const applicationRouter = createTRPCRouter({
           console.log(`Bulk status emails: ${successCount}/${fullApplications.length} sent successfully`);
         } catch (error) {
           console.error('Error sending bulk status change emails:', error);
+          captureEmailError(error, {
+            emailType: "bulk_status_change",
+            templateName: `application${input.status.toLowerCase().charAt(0).toUpperCase() + input.status.toLowerCase().slice(1)}`,
+            recipient: `${input.applicationIds.length} applications`
+          });
           // Don't fail the status update if emails fail
         }
       }

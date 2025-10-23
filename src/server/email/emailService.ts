@@ -2,6 +2,7 @@ import { render } from '@react-email/render';
 import type { PrismaClient, EmailType, EmailStatus, Prisma } from '@prisma/client';
 import { sendEmail as sendViaPostmark } from '~/lib/email';
 import { templates, type TemplateName, templateToEmailType } from './templates';
+import { captureEmailError } from '~/utils/errorCapture';
 import type { 
   ApplicationAcceptedProps,
   ApplicationRejectedProps,
@@ -118,6 +119,12 @@ export class EmailService {
       };
     } catch (error) {
       console.error('Error sending email:', error);
+      captureEmailError(error, {
+        userId: userId,
+        emailType: templateName,
+        recipient: to,
+        templateName: templateName
+      });
       
       // Try to save the failure to database
       try {
