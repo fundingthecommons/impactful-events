@@ -240,7 +240,7 @@ export default function OnboardingForm({
         setIsSubmitted(true);
       }
     }
-  }, [onboardingData]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [onboardingData?.onboarding?.id]); // Only depend on stable identifier
 
   const handleSubmit = async (values: OnboardingFormData) => {
     setIsSubmitting(true);
@@ -343,24 +343,7 @@ export default function OnboardingForm({
   
   const completionPercentage = (completedFields / requiredFields) * 100;
   
-  // Debug logging for form completion
-  console.log('🔍 Onboarding Form Debug:', {
-    requiredFields,
-    completedFields,
-    completionPercentage: Math.round(completionPercentage),
-    formValid: form.isValid(),
-    buttonDisabled: completionPercentage < 100,
-    fieldValues: {
-      emergencyContactName: !!form.values.emergencyContactName,
-      arrivalDateTime: !!form.values.arrivalDateTime,
-      participateExperiments: form.values.participateExperiments,
-      mintHypercert: form.values.mintHypercert,
-      liabilityWaiverConsent: form.values.liabilityWaiverConsent,
-      codeOfConductAgreement: form.values.codeOfConductAgreement,
-      communityActivitiesConsent: form.values.communityActivitiesConsent,
-    },
-    formErrors: form.errors
-  });
+  // Form completion tracking (debug logging removed for production)
 
   // Loading state
   if (isLoading) {
@@ -935,16 +918,62 @@ export default function OnboardingForm({
                 <Text size="sm" c="dimmed">
                   Make sure all required items are completed.
                 </Text>
+                {/* Show validation errors clearly */}
+                {!form.isValid() && (
+                  <Stack gap="xs" mt="sm">
+                    {Object.entries(form.errors).map(([field, error]) => (
+                      <Text key={field} size="xs" c="red">
+                        • {error}
+                      </Text>
+                    ))}
+                  </Stack>
+                )}
+                {/* Show missing required fields when submit button is disabled */}
+                {completionPercentage < 100 && (
+                  <Stack gap="xs" mt="sm">
+                    <Text size="xs" c="orange" fw={500}>
+                      Missing required fields:
+                    </Text>
+                    {!form.values.emergencyContactName && (
+                      <Text size="xs" c="orange">• Emergency Contact Name</Text>
+                    )}
+                    {!form.values.arrivalDateTime && (
+                      <Text size="xs" c="orange">• Arrival Date & Time</Text>
+                    )}
+                    {!form.values.participateExperiments && (
+                      <Text size="xs" c="orange">• Participation commitment (Final Confirmations section)</Text>
+                    )}
+                    {!form.values.mintHypercert && (
+                      <Text size="xs" c="orange">• Documentation commitment (Final Confirmations section)</Text>
+                    )}
+                    {!form.values.liabilityWaiverConsent && (
+                      <Text size="xs" c="orange">• Liability waiver consent (Final Confirmations section)</Text>
+                    )}
+                    {!form.values.codeOfConductAgreement && (
+                      <Text size="xs" c="orange">• Code of conduct agreement (Final Confirmations section)</Text>
+                    )}
+                    {!form.values.communityActivitiesConsent && (
+                      <Text size="xs" c="orange">• Community activities consent (Final Confirmations section)</Text>
+                    )}
+                  </Stack>
+                )}
               </div>
-              <Button
-                type="submit"
-                size="lg"
-                loading={isSubmitting}
-                disabled={completionPercentage < 100}
-                leftSection={<IconCheck size={18} />}
-              >
-                Complete Onboarding
-              </Button>
+              <div>
+                <Button
+                  type="submit"
+                  size="lg"
+                  loading={isSubmitting}
+                  disabled={completionPercentage < 100}
+                  leftSection={<IconCheck size={18} />}
+                >
+                  Complete Onboarding
+                </Button>
+                {completionPercentage < 100 && (
+                  <Text size="xs" c="dimmed" ta="center" mt="xs">
+                    {Math.round(completionPercentage)}% complete
+                  </Text>
+                )}
+              </div>
             </Group>
           </Card>
         </form>
