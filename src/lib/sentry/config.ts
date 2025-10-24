@@ -48,21 +48,22 @@ export const SENTRY_CONFIG = {
   // Privacy and security
   privacy: {
     sendDefaultPii: true, // Include user IP and headers for better debugging
-    beforeSend: (event: any) => {
+    beforeSend: (event: unknown) => {
       // Filter out sensitive data
-      if (event.request?.headers) {
-        delete event.request.headers['authorization'];
-        delete event.request.headers['cookie'];
-        delete event.request.headers['x-auth-token'];
+      const sentryEvent = event as { request?: { headers?: Record<string, unknown> } };
+      if (sentryEvent.request?.headers) {
+        delete sentryEvent.request.headers.authorization;
+        delete sentryEvent.request.headers.cookie;
+        delete sentryEvent.request.headers['x-auth-token'];
       }
-      return event;
+      return sentryEvent;
     },
   },
   
   // Release and deployment tracking
   release: {
     // Automatically set by Vercel, but can be overridden
-    name: process.env.VERCEL_GIT_COMMIT_SHA || process.env.SENTRY_RELEASE,
+    name: process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.SENTRY_RELEASE,
   },
 };
 

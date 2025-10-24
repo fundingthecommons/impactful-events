@@ -295,7 +295,96 @@ export default function ApplicationDetailsDrawer({
             <Tabs.Panel value="responses" pt="md">
               <Card withBorder p="md">
                 <Title order={4} mb="md">Application Responses</Title>
-                {application.responses.length === 0 ? (
+                {application.applicationType === "MENTOR" && application.user?.profile ? (
+                  <Stack gap="md">
+                    {/* Mentor Specializations */}
+                    {application.user.profile.mentorSpecializations && application.user.profile.mentorSpecializations.length > 0 && (
+                      <div>
+                        <Text fw={500} mb="xs">
+                          Specializations *
+                          <Text component="span" c="red" ml="xs">*</Text>
+                        </Text>
+                        <Text size="sm" c="dimmed" mb="xs">
+                          What specific topics or skills do you want to mentor on during the residency?
+                        </Text>
+                        <Card withBorder p="sm" bg="gray.0">
+                          <Group gap="xs">
+                            {application.user.profile.mentorSpecializations.map((spec, index) => (
+                              <Badge key={index} variant="light" size="sm">
+                                {spec}
+                              </Badge>
+                            ))}
+                          </Group>
+                        </Card>
+                        <Divider mt="md" />
+                      </div>
+                    )}
+
+                    {/* Mentorship Style & Approach */}
+                    {application.user.profile.mentorshipStyle && (
+                      <div>
+                        <Text fw={500} mb="xs">
+                          Mentorship Style & Approach
+                        </Text>
+                        <Text size="sm" c="dimmed" mb="xs">
+                          How do you approach mentoring?
+                        </Text>
+                        <Card withBorder p="sm" bg="gray.0">
+                          <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                            {application.user.profile.mentorshipStyle}
+                          </Text>
+                        </Card>
+                        <Divider mt="md" />
+                      </div>
+                    )}
+
+                    {/* Previous Mentoring Experience */}
+                    {application.user.profile.previousMentoringExp && (
+                      <div>
+                        <Text fw={500} mb="xs">
+                          Previous Mentoring Experience
+                        </Text>
+                        <Text size="sm" c="dimmed" mb="xs">
+                          Tell us about your previous mentoring experience
+                        </Text>
+                        <Card withBorder p="sm" bg="gray.0">
+                          <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                            {application.user.profile.previousMentoringExp}
+                          </Text>
+                        </Card>
+                        <Divider mt="md" />
+                      </div>
+                    )}
+
+                    {/* Mentor Goals */}
+                    {application.user.profile.mentorGoals && (
+                      <div>
+                        <Text fw={500} mb="xs">
+                          Mentoring Goals
+                        </Text>
+                        <Text size="sm" c="dimmed" mb="xs">
+                          What are your goals for mentoring during this residency?
+                        </Text>
+                        <Card withBorder p="sm" bg="gray.0">
+                          <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                            {application.user.profile.mentorGoals}
+                          </Text>
+                        </Card>
+                        <Divider mt="md" />
+                      </div>
+                    )}
+
+                    {/* Show message if no mentor data */}
+                    {(!application.user.profile.mentorSpecializations || application.user.profile.mentorSpecializations.length === 0) &&
+                     !application.user.profile.mentorshipStyle &&
+                     !application.user.profile.previousMentoringExp &&
+                     !application.user.profile.mentorGoals && (
+                      <Text c="dimmed" ta="center" py="xl">
+                        No mentor responses found
+                      </Text>
+                    )}
+                  </Stack>
+                ) : application.responses.length === 0 ? (
                   <Text c="dimmed" ta="center" py="xl">
                     No responses found
                   </Text>

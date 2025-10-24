@@ -20,7 +20,7 @@ export default function Page() {
       const result = await Sentry.diagnoseSdkConnectivity();
       setIsConnected(result !== 'sentry-unreachable');
     }
-    checkConnectivity();
+    void checkConnectivity();
   }, []);
 
   return (

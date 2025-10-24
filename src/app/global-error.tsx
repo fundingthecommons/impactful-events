@@ -45,7 +45,7 @@ export default function GlobalError({
             Something went wrong!
           </h1>
           <p style={{ color: '#6b7280', marginBottom: '1.5rem' }}>
-            We've been notified of this error and will look into it. Please try refreshing the page.
+            We&apos;ve been notified of this error and will look into it. Please try refreshing the page.
           </p>
           <button 
             onClick={reset}

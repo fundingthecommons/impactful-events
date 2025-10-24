@@ -239,7 +239,7 @@ class AnalyticsAPITester {
 
       console.log(`✅ Success: ${response.totalUniqueSkills} unique skills from ${result.participantCount} participants`);
       console.log('🔝 Top skills:');
-      response.skills.slice(0, 5).forEach((skill, i) => {
+      response.skills.slice(0, 5).forEach((skill: { skill: string; count: number; percentage: number }, i: number) => {
         console.log(`   ${i + 1}. ${skill.skill}: ${skill.count} participants (${skill.percentage}%)`);
       });
 
@@ -286,7 +286,7 @@ class AnalyticsAPITester {
       console.log(`📅 Time range: ${response.metadata.timeRange.earliest} to ${response.metadata.timeRange.latest}`);
 
       // Show submission pattern
-      const peakDay = response.timeline.reduce((max, day) => day.count > max.count ? day : max);
+      const peakDay = response.timeline.reduce((max: { count: number; timestamp: string }, day: { count: number; timestamp: string }) => day.count > max.count ? day : max);
       console.log(`📊 Peak submission day: ${peakDay.timestamp} (${peakDay.count} submissions)`);
 
     } catch (error: any) {

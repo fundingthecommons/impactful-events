@@ -793,7 +793,7 @@ export const applicationRouter = createTRPCRouter({
         } catch (error) {
           console.error('Error sending status change email:', error);
           captureEmailError(error, {
-            userId: application.userId,
+            userId: application.userId ?? undefined,
             emailType: "status_change",
             templateName: `application${input.status.toLowerCase().charAt(0).toUpperCase() + input.status.toLowerCase().slice(1)}`
           });

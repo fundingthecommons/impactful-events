@@ -177,10 +177,7 @@ export default function MentorPageClient({
     >
       {(styles) => (
         <div style={styles}>
-          <MentorApplicationForm
-            eventId={event.id}
-            eventName={event.name}
-          />
+          <MentorApplicationForm eventId={event.id} eventName={event.name} />
         </div>
       )}
     </Transition>
