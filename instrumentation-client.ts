@@ -31,8 +31,8 @@ Sentry.init({
   beforeSend(event) {
     // Remove sensitive headers
     if (event.request?.headers) {
-      delete event.request.headers['authorization'];
-      delete event.request.headers['cookie'];
+      delete event.request.headers.authorization;
+      delete event.request.headers.cookie;
       delete event.request.headers['x-auth-token'];
     }
     return event;
