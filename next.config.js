@@ -10,7 +10,7 @@ const config = {};
 
 // Make sure adding Sentry options is the last code to run before exporting
 export default withSentryConfig(config, {
-  org: "ftc-platform",
+  org: "funding-the-commons",
   project: "ftc-platform",
 
   // An auth token is required for uploading source maps.
@@ -18,6 +18,8 @@ export default withSentryConfig(config, {
 
   silent: false, // Can be used to suppress logs
 
-  hideSourceMaps: true,
+  sourcemaps: {
+    disable: true, // Disable source map uploads
+  },
   disableLogger: true,
 });

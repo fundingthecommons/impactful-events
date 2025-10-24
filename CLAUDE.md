@@ -899,6 +899,213 @@ bunx prisma migrate reset
 
 **WHY:** Using `db push` instead of `migrate dev` is what causes migration drift. Always create proper migration files to keep the database in sync.
 
+## Error Monitoring with Sentry
+
+**CRITICAL: All errors must be captured using the project's error capture utilities for Sentry monitoring and Slack alerts.**
+
+### Error Capture Utilities
+
+Use the specialized error capture functions from `~/utils/errorCapture` instead of raw Sentry calls:
+
+#### API Route Errors
+```typescript
+import { captureApiError } from '~/utils/errorCapture';
+
+// ✅ CORRECT - Use for tRPC procedures and API routes
+try {
+  const result = await someApiOperation();
+} catch (error) {
+  captureApiError(error, {
+    userId: ctx.session.user.id,
+    route: "application.updateStatus",
+    method: "POST",
+    input: { applicationId, status }
+  });
+  throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Operation failed" });
+}
+```
+
+#### Authentication Errors
+```typescript
+import { captureAuthError } from '~/utils/errorCapture';
+
+// ✅ CORRECT - Use for auth-related failures
+try {
+  await authenticateUser();
+} catch (error) {
+  captureAuthError(error, {
+    userId: ctx.session.user?.id,
+    operation: "telegram_authentication",
+    provider: "telegram"
+  });
+}
+```
+
+#### Email System Errors
+```typescript
+import { captureEmailError } from '~/utils/errorCapture';
+
+// ✅ CORRECT - Use for email sending failures
+try {
+  await emailService.sendEmail(params);
+} catch (error) {
+  captureEmailError(error, {
+    userId: application.userId,
+    emailType: "status_change",
+    recipient: "user@example.com",
+    templateName: "applicationAccepted"
+  });
+}
+```
+
+#### Database Operation Errors
+```typescript
+import { captureDatabaseError } from '~/utils/errorCapture';
+
+// ✅ CORRECT - Use for database operation failures
+try {
+  await ctx.db.application.create(data);
+} catch (error) {
+  captureDatabaseError(error, {
+    userId: ctx.session.user.id,
+    operation: "create_application",
+    table: "application"
+  });
+}
+```
+
+### Error Capture Standards
+
+**ALWAYS include context when capturing errors:**
+- User ID (when available)
+- Operation being performed
+- Relevant input data (sanitized)
+- Request metadata
+
+**NEVER capture errors without context:**
+```typescript
+// ❌ WRONG - No context
+Sentry.captureException(error);
+
+// ✅ CORRECT - Rich context for debugging
+captureApiError(error, {
+  userId: ctx.session.user.id,
+  route: "contact.importTelegram", 
+  method: "POST",
+  input: { contactCount: contacts.length }
+});
+```
+
+### Performance Monitoring
+
+For critical user flows, add performance spans:
+
+```typescript
+import * as Sentry from "@sentry/nextjs";
+
+// ✅ Application submission flow
+async function submitApplication(applicationId: string) {
+  return Sentry.startSpan(
+    {
+      op: "application.submit",
+      name: "Submit Application",
+    },
+    async (span) => {
+      span.setAttribute("applicationId", applicationId);
+      span.setAttribute("userRole", ctx.session.user.role);
+      
+      const result = await processSubmission(applicationId);
+      span.setAttribute("submissionResult", result.success);
+      return result;
+    }
+  );
+}
+
+// ✅ Email sending operations
+async function sendStatusEmail(application: Application) {
+  return Sentry.startSpan(
+    {
+      op: "email.send", 
+      name: `Send ${application.status} Email`,
+    },
+    async (span) => {
+      span.setAttribute("emailType", application.status);
+      span.setAttribute("eventId", application.eventId);
+      
+      return await emailService.sendApplicationStatusEmail(application);
+    }
+  );
+}
+```
+
+### Integration with Auto-Learning System
+
+Error captures feed into the auto-learning error pattern system:
+- Errors are automatically categorized and logged
+- Slack notifications sent for critical issues
+- Context preserved for debugging and learning
+- Historical patterns help prevent similar issues
+
+**Never bypass the error capture utilities** - they provide essential context for debugging production issues and maintaining system reliability.
+
+### Sentry Logging Integration
+
+For structured logging that integrates with Sentry:
+
+```typescript
+import * as Sentry from "@sentry/nextjs";
+
+// Initialize logger (already configured in Sentry setup)
+const { logger } = Sentry;
+
+// ✅ Structured logging examples
+logger.info("Application submitted successfully", {
+  applicationId: "app_123",
+  userId: "user_456",
+  eventId: "event_789"
+});
+
+logger.warn("Rate limit approaching", {
+  endpoint: "/api/applications",
+  currentCount: 95,
+  limit: 100,
+  userId: ctx.session.user.id
+});
+
+logger.error("Email delivery failed", {
+  emailType: "application_status",
+  recipient: "user@example.com",
+  errorCode: "SMTP_TIMEOUT",
+  retryAttempt: 3
+});
+
+// ✅ Use template literals for dynamic content
+logger.debug(logger.fmt`Cache miss for application: ${applicationId}`);
+logger.info(logger.fmt`User ${userId} submitted application to ${eventName}`);
+```
+
+### When to Use Each Logging Level
+
+- **`logger.trace`** - Detailed debugging info (development only)
+- **`logger.debug`** - General debugging info 
+- **`logger.info`** - Important application events (submissions, status changes)
+- **`logger.warn`** - Potential issues that don't break functionality
+- **`logger.error`** - Errors that affect user experience
+- **`logger.fatal`** - Critical system failures
+
+### Logging Best Practices
+
+**DO:**
+- Include relevant context (user ID, operation, metadata)
+- Use structured data objects for searchability
+- Log important state changes and user actions
+- Use appropriate log levels
+
+**DON'T:**
+- Log sensitive data (passwords, API keys, PII)
+- Over-log in high-traffic areas (can impact performance)
+- Log without context - always include operation details
+
 ## Automatic ESLint Validation
 
 **CRITICAL: Post-edit hooks automatically run `bun run check` after file changes.**
