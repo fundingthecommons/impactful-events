@@ -54,6 +54,7 @@ import {
   IconClipboardList,
   IconAnalyze,
   IconQuestionMark,
+  IconEar,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -1603,6 +1604,280 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     });
   };
 
+  // Export Listening All - export all responses with smart filtering
+  const exportListeningAll = () => {
+    if (!applications || applications.length === 0) {
+      notifications.show({
+        title: "No Applications",
+        message: "There are no applications to export",
+        color: "orange",
+      });
+      return;
+    }
+
+    // Helper function to filter out low-quality responses
+    const isValidResponse = (answer: string): boolean => {
+      if (!answer || answer.trim().length === 0) return false;
+      
+      const trimmedAnswer = answer.trim();
+      
+      // Check against excluded phrases (case-insensitive)
+      const excludedPhrases = [
+        "N/A", "No / No", "Yes / Si", "No", "NA", "n/a", "f", "ff", 
+        "atestes", "testest", "rwar",
+        // Additional low-quality single words and symbols
+        "-", ".", "2", "a", "ai", "am", "an", "as", "at", "be", "by", 
+        "d", "de", "do", "e.g", "is", "it", "it.", "l", "la", "m", "me", 
+        "n", "no", "of", "on", "or", "other.", "re", "s", "so", "t", "to", 
+        "up", "us", "ve", "we", "x", "y", "yes", "yes.",
+        // Social media and communication platforms
+        "twitter", "github", "telegram", "linkedin", "discord", "instagram", 
+        "facebook", "email", "gmail", "whatsapp", "signal", "t.me", 
+        "http", "https"
+      ];
+      
+      if (excludedPhrases.some(phrase => 
+        trimmedAnswer.toLowerCase() === phrase.toLowerCase()
+      )) {
+        return false;
+      }
+      
+      // Exclude if contains @ symbol (likely email)
+      if (trimmedAnswer.includes("@")) {
+        return false;
+      }
+      
+      // Exclude if it's a URL
+      if (trimmedAnswer.toLowerCase().includes("http://") || 
+          trimmedAnswer.toLowerCase().includes("https://")) {
+        return false;
+      }
+      
+      // Exclude if it's purely numeric
+      if (/^\d+$/.test(trimmedAnswer)) {
+        return false;
+      }
+      
+      // Must be at least 10 characters long to be meaningful
+      if (trimmedAnswer.length < 10) {
+        return false;
+      }
+      
+      return true;
+    };
+
+    const csvData: Array<{uniqueId: string, anonymizedName: string, question: string, answer: string}> = [];
+    let uniqueId = 1;
+
+    // Create applicant name mapping for consistency
+    const applicantNames = new Map();
+    let applicantCounter = 1;
+
+    applications.forEach((app) => {
+      const responses = app.responses ?? [];
+      
+      // Get or create anonymized name for this applicant
+      if (!applicantNames.has(app.id)) {
+        applicantNames.set(app.id, `Applicant ${applicantCounter}`);
+        applicantCounter++;
+      }
+      const anonymizedName: string = (applicantNames.get(app.id) as string | undefined) ?? `Applicant ${applicantCounter}`;
+
+      // Process each response for this application
+      responses.forEach((response) => {
+        if (isValidResponse(response.answer)) {
+          const questionText = response.question?.questionEn || response.question?.questionKey || "Unknown Question";
+          
+          csvData.push({
+            uniqueId: uniqueId.toString(),
+            anonymizedName,
+            question: escapeCsvValue(questionText),
+            answer: escapeCsvValue(response.answer)
+          });
+          
+          uniqueId++;
+        }
+      });
+    });
+
+    if (csvData.length === 0) {
+      notifications.show({
+        title: "No Valid Responses",
+        message: "No substantial responses found to export after filtering",
+        color: "orange",
+      });
+      return;
+    }
+
+    // Create CSV content
+    const headers = ["Unique ID", "Anonymized Name", "Question", "Answer"];
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map(row => `${row.uniqueId},${row.anonymizedName},${row.question},${row.answer}`)
+    ].join("\n");
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${event.name.replace(/\s+/g, "_")}_listening_all.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    notifications.show({
+      title: "Export Complete",
+      message: `Exported ${csvData.length} response(s) from ${applicantNames.size} applicant(s) for listening session`,
+      color: "green",
+      icon: <IconCheck />,
+    });
+  };
+
+  // Export Listening Accepted - export all responses from accepted applications with smart filtering
+  const exportListeningAccepted = () => {
+    if (!applications || applications.length === 0) {
+      notifications.show({
+        title: "No Applications",
+        message: "There are no applications to export",
+        color: "orange",
+      });
+      return;
+    }
+
+    // Filter only accepted applications
+    const acceptedApplications = applications.filter(app => app.status === "ACCEPTED");
+    
+    if (acceptedApplications.length === 0) {
+      notifications.show({
+        title: "No Accepted Applications",
+        message: "There are no accepted applications to export",
+        color: "orange",
+      });
+      return;
+    }
+
+    // Helper function to filter out low-quality responses (same as exportListeningAll)
+    const isValidResponse = (answer: string): boolean => {
+      if (!answer || answer.trim().length === 0) return false;
+      
+      const trimmedAnswer = answer.trim();
+      
+      // Check against excluded phrases (case-insensitive)
+      const excludedPhrases = [
+        "N/A", "No / No", "Yes / Si", "No", "NA", "n/a", "f", "ff", 
+        "atestes", "testest", "rwar",
+        // Additional low-quality single words and symbols
+        "-", ".", "2", "a", "ai", "am", "an", "as", "at", "be", "by", 
+        "d", "de", "do", "e.g", "is", "it", "it.", "l", "la", "m", "me", 
+        "n", "no", "of", "on", "or", "other.", "re", "s", "so", "t", "to", 
+        "up", "us", "ve", "we", "x", "y", "yes", "yes.",
+        // Social media and communication platforms
+        "twitter", "github", "telegram", "linkedin", "discord", "instagram", 
+        "facebook", "email", "gmail", "whatsapp", "signal", "t.me", 
+        "http", "https"
+      ];
+      
+      if (excludedPhrases.some(phrase => 
+        trimmedAnswer.toLowerCase() === phrase.toLowerCase()
+      )) {
+        return false;
+      }
+      
+      // Exclude if contains @ symbol (likely email)
+      if (trimmedAnswer.includes("@")) {
+        return false;
+      }
+      
+      // Exclude if it's a URL
+      if (trimmedAnswer.toLowerCase().includes("http://") || 
+          trimmedAnswer.toLowerCase().includes("https://")) {
+        return false;
+      }
+      
+      // Exclude if it's purely numeric
+      if (/^\d+$/.test(trimmedAnswer)) {
+        return false;
+      }
+      
+      // Must be at least 10 characters long to be meaningful
+      if (trimmedAnswer.length < 10) {
+        return false;
+      }
+      
+      return true;
+    };
+
+    const csvData: Array<{uniqueId: string, anonymizedName: string, question: string, answer: string}> = [];
+    let uniqueId = 1;
+
+    // Create applicant name mapping for consistency
+    const applicantNames = new Map();
+    let applicantCounter = 1;
+
+    acceptedApplications.forEach((app) => {
+      const responses = app.responses ?? [];
+      
+      // Get or create anonymized name for this applicant
+      if (!applicantNames.has(app.id)) {
+        applicantNames.set(app.id, `Accepted Applicant ${applicantCounter}`);
+        applicantCounter++;
+      }
+      const anonymizedName: string = (applicantNames.get(app.id) as string | undefined) ?? `Accepted Applicant ${applicantCounter}`;
+
+      // Process each response for this application
+      responses.forEach((response) => {
+        if (isValidResponse(response.answer)) {
+          const questionText = response.question?.questionEn || response.question?.questionKey || "Unknown Question";
+          
+          csvData.push({
+            uniqueId: uniqueId.toString(),
+            anonymizedName,
+            question: escapeCsvValue(questionText),
+            answer: escapeCsvValue(response.answer)
+          });
+          
+          uniqueId++;
+        }
+      });
+    });
+
+    if (csvData.length === 0) {
+      notifications.show({
+        title: "No Valid Responses",
+        message: "No substantial responses found from accepted applications after filtering",
+        color: "orange",
+      });
+      return;
+    }
+
+    // Create CSV content
+    const headers = ["Unique ID", "Anonymized Name", "Question", "Answer"];
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map(row => `${row.uniqueId},${row.anonymizedName},${row.question},${row.answer}`)
+    ].join("\n");
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${event.name.replace(/\s+/g, "_")}_listening_accepted.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    notifications.show({
+      title: "Export Complete",
+      message: `Exported ${csvData.length} response(s) from ${applicantNames.size} accepted applicant(s) for listening session`,
+      color: "green",
+      icon: <IconCheck />,
+    });
+  };
+
   const statusOptions = [
     { value: "DRAFT", label: "Incomplete" },
     { value: "UNDER_REVIEW", label: "Under Review" },
@@ -1953,6 +2228,27 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                       </Button>
                     </Menu.Target>
                     <Menu.Dropdown>
+                      <Menu.Item
+                        leftSection={<IconEar size={16} />}
+                        onClick={exportListeningAll}
+                        disabled={!applications || applications.length === 0}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>Export Listening All</Text>
+                          <Text size="xs" c="dimmed">4 fields: ID, anonymized name, question, answer (all valid responses)</Text>
+                        </Stack>
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconEar size={16} />}
+                        onClick={exportListeningAccepted}
+                        disabled={!applications || applications.length === 0}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>Export Listening Accepted</Text>
+                          <Text size="xs" c="dimmed">4 fields: ID, anonymized name, question, answer (accepted only)</Text>
+                        </Stack>
+                      </Menu.Item>
+                      <Menu.Divider />
                       <Menu.Item
                         leftSection={<IconCheck size={16} />}
                         onClick={exportAcceptedBuilders}
