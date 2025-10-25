@@ -31,8 +31,18 @@ export function AddProjectButton({
     children,
   };
 
-  // If eventId is provided, render as Link to profile edit
-  if (eventId && !onClick) {
+  // If onClick is provided, render as regular button with onClick (prioritize modal behavior)
+  if (onClick) {
+    return (
+      <Button
+        onClick={onClick}
+        {...buttonContent}
+      />
+    );
+  }
+
+  // If eventId is provided (and no onClick), render as Link to profile edit
+  if (eventId) {
     return (
       <Button
         component={Link}
@@ -42,10 +52,10 @@ export function AddProjectButton({
     );
   }
 
-  // Otherwise, render as regular button with onClick
+  // Fallback: render as disabled button
   return (
     <Button
-      onClick={onClick}
+      disabled
       {...buttonContent}
     />
   );

@@ -1,7 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { type Session } from "next-auth";
+import { useForm } from "@mantine/form";
+import { zodResolver } from "mantine-form-zod-resolver";
+import { z } from "zod";
 import {
   Container,
   Title,
@@ -19,6 +23,11 @@ import {
   ActionIcon,
   Tooltip,
   Tabs,
+  Modal,
+  TextInput,
+  Textarea,
+  TagsInput,
+  Switch,
 } from "@mantine/core";
 import {
   IconUser,
@@ -27,7 +36,6 @@ import {
   IconAlertCircle,
   IconExternalLink,
   IconBrandGithub,
-  IconPlus,
   IconCheck,
   IconEdit,
   IconMapPin,
@@ -38,10 +46,25 @@ import {
   IconBrandTwitter,
   IconWorld,
   IconStar,
+  IconX,
 } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
 import { api } from "~/trpc/react";
 import Link from "next/link";
 import { AddProjectButton } from "~/app/_components/AddProjectButton";
+import type { UserProject } from "@prisma/client";
+
+const projectSchema = z.object({
+  title: z.string().min(1, "Title is required").max(100),
+  description: z.string().max(500).optional(),
+  githubUrl: z.string().url("Invalid GitHub URL").optional().or(z.literal("")),
+  liveUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+  imageUrl: z.string().url("Invalid image URL").optional().or(z.literal("")),
+  technologies: z.array(z.string().max(30)).max(20),
+  featured: z.boolean().optional().default(false),
+});
+
+type ProjectFormData = z.infer<typeof projectSchema>;
 
 interface ResidentDashboardProps {
   eventId: string;
@@ -57,12 +80,14 @@ export default function ResidentDashboard({
   userApplication: _userApplication,
 }: ResidentDashboardProps) {
   const { data: session } = useSession();
+  const [modalOpened, setModalOpened] = useState(false);
+  const [editingProject, setEditingProject] = useState<UserProject | null>(null);
 
   // Get profile completion data
   const { data: profileCompletion } = api.profile.getProfileCompletion.useQuery();
 
-  // Get current user's projects
-  const { data: userProfile } = api.profile.getMyProfile.useQuery();
+  // Get current user's projects - we'll need to refetch this when projects change
+  const { data: userProfile, refetch: refetchUserProfile } = api.profile.getMyProfile.useQuery();
 
   // Get accepted residents
   const { data: residentsData } = api.application.getAcceptedResidents.useQuery({
@@ -75,6 +100,93 @@ export default function ResidentDashboard({
   });
 
   const userProjects = userProfile?.projects ?? [];
+
+  // Project mutations
+  const createProject = api.profile.createProject.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Success",
+        message: "Project created successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      setModalOpened(false);
+      form.reset();
+      void refetchUserProfile();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to create project",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  const updateProject = api.profile.updateProject.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Success",
+        message: "Project updated successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      setModalOpened(false);
+      form.reset();
+      setEditingProject(null);
+      void refetchUserProfile();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to update project",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  // Form for project creation/editing
+  const form = useForm<ProjectFormData>({
+    validate: zodResolver(projectSchema),
+    initialValues: {
+      title: "",
+      description: "",
+      githubUrl: "",
+      liveUrl: "",
+      imageUrl: "",
+      technologies: [],
+      featured: false,
+    },
+  });
+
+  // Handler for form submission
+  const handleSubmit = (values: ProjectFormData) => {
+    // Clean up empty strings
+    const cleanedValues = Object.fromEntries(
+      Object.entries(values).map(([key, value]) => [
+        key,
+        value === "" ? undefined : value,
+      ])
+    ) as ProjectFormData;
+
+    if (editingProject) {
+      updateProject.mutate({
+        id: editingProject.id,
+        ...cleanedValues,
+      });
+    } else {
+      createProject.mutate(cleanedValues);
+    }
+  };
+
+  // Handler for opening add project modal
+  const handleAddProject = () => {
+    setEditingProject(null);
+    form.reset();
+    setModalOpened(true);
+  };
 
   return (
     <Container size="xl" py="xl">
@@ -176,7 +288,7 @@ export default function ResidentDashboard({
                   <Text ta="center" size="sm" c="dimmed">
                     Showcase your work by adding your projects to connect with other residents
                   </Text>
-                  <AddProjectButton eventId={eventId}>
+                  <AddProjectButton onClick={handleAddProject}>
                     Add Your First Project
                   </AddProjectButton>
                 </Stack>
@@ -206,11 +318,9 @@ export default function ResidentDashboard({
                           {project.liveUrl && (
                             <Tooltip label="View Live Demo">
                               <ActionIcon
-                                component="a"
-                                href={project.liveUrl}
-                                target="_blank"
                                 variant="light"
                                 size="sm"
+                                onClick={() => window.open(project.liveUrl!, '_blank')}
                               >
                                 <IconExternalLink size={14} />
                               </ActionIcon>
@@ -219,11 +329,9 @@ export default function ResidentDashboard({
                           {project.githubUrl && (
                             <Tooltip label="View Source">
                               <ActionIcon
-                                component="a"
-                                href={project.githubUrl}
-                                target="_blank"
                                 variant="light"
                                 size="sm"
+                                onClick={() => window.open(project.githubUrl!, '_blank')}
                               >
                                 <IconBrandGithub size={14} />
                               </ActionIcon>
@@ -236,7 +344,7 @@ export default function ResidentDashboard({
                   
                   <Group justify="space-between">
                     <AddProjectButton 
-                      eventId={eventId}
+                      onClick={handleAddProject}
                       size="xs"
                       iconSize={14}
                     >
@@ -282,12 +390,96 @@ export default function ResidentDashboard({
                 <ProjectsTab 
                   residentProjects={residentProjects}
                   eventId={eventId}
+                  onAddProject={handleAddProject}
                 />
               </Tabs.Panel>
             </Tabs>
           </Grid.Col>
         </Grid>
       </Stack>
+
+      {/* Project Creation/Editing Modal */}
+      <Modal
+        opened={modalOpened}
+        onClose={() => {
+          setModalOpened(false);
+          setEditingProject(null);
+          form.reset();
+        }}
+        title={editingProject ? "Edit Project" : "Add Project"}
+        size="lg"
+      >
+        <form onSubmit={form.onSubmit(handleSubmit)}>
+          <Stack gap="md">
+            <TextInput
+              label="Project Title"
+              placeholder="My Awesome Project"
+              required
+              {...form.getInputProps("title")}
+            />
+
+            <Textarea
+              label="Description"
+              placeholder="Brief description of your project"
+              minRows={3}
+              {...form.getInputProps("description")}
+            />
+
+            <Group grow>
+              <TextInput
+                label="GitHub URL"
+                placeholder="https://github.com/user/repo"
+                {...form.getInputProps("githubUrl")}
+              />
+              <TextInput
+                label="Live Demo URL"
+                placeholder="https://your-project.com"
+                {...form.getInputProps("liveUrl")}
+              />
+            </Group>
+
+            <TextInput
+              label="Image URL"
+              placeholder="https://example.com/screenshot.png"
+              description="Optional screenshot or logo for your project"
+              {...form.getInputProps("imageUrl")}
+            />
+
+            <TagsInput
+              label="Technologies"
+              placeholder="React, TypeScript, Node.js, etc."
+              description="Technologies and tools used in this project"
+              {...form.getInputProps("technologies")}
+            />
+
+            <Switch
+              label="Featured Project"
+              description="Show this project prominently on your profile"
+              {...form.getInputProps("featured", { type: "checkbox" })}
+            />
+
+            <Group justify="flex-end" mt="md">
+              <Button
+                variant="light"
+                onClick={() => {
+                  setModalOpened(false);
+                  setEditingProject(null);
+                  form.reset();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                loading={createProject.isPending || updateProject.isPending}
+                leftSection={<IconCheck size={16} />}
+              >
+                {editingProject ? "Update Project" : "Add Project"}
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
     </Container>
   );
 }
@@ -303,12 +495,10 @@ function getSocialIcon(url: string, type: 'github' | 'linkedin' | 'twitter' | 'w
   const Icon = icons[type];
   return (
     <ActionIcon
-      component="a"
-      href={url}
-      target="_blank"
       variant="light"
       size="sm"
       color="blue"
+      onClick={() => window.open(url, '_blank')}
     >
       <Icon size={16} />
     </ActionIcon>
@@ -541,9 +731,10 @@ interface ProjectsTabProps {
     };
   }> | undefined;
   eventId: string;
+  onAddProject: () => void;
 }
 
-function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
+function ProjectsTab({ residentProjects, eventId, onAddProject }: ProjectsTabProps) {
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder>
       <Group justify="space-between" mb="md">
@@ -578,12 +769,12 @@ function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
                       {project.liveUrl && (
                         <Tooltip label="View Demo">
                           <ActionIcon
-                            component="a"
-                            href={project.liveUrl}
-                            target="_blank"
                             variant="light"
                             size="xs"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(project.liveUrl!, '_blank');
+                            }}
                           >
                             <IconExternalLink size={12} />
                           </ActionIcon>
@@ -592,12 +783,12 @@ function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
                       {project.githubUrl && (
                         <Tooltip label="View Source">
                           <ActionIcon
-                            component="a"
-                            href={project.githubUrl}
-                            target="_blank"
                             variant="light"
                             size="xs"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(project.githubUrl!, '_blank');
+                            }}
                           >
                             <IconBrandGithub size={12} />
                           </ActionIcon>
@@ -650,7 +841,7 @@ function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
           <Text ta="center" size="sm" c="dimmed">
             Be the first to showcase your work in the event!
           </Text>
-          <AddProjectButton eventId={eventId}>
+          <AddProjectButton onClick={onAddProject}>
             Add Your Project
           </AddProjectButton>
         </Stack>

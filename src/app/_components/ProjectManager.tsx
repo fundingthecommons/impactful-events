@@ -23,7 +23,6 @@ import {
   Title,
 } from "@mantine/core";
 import {
-  IconPlus,
   IconEdit,
   IconTrash,
   IconBrandGithub,
