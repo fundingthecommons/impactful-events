@@ -41,6 +41,7 @@ import {
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
+import { AddProjectButton } from "~/app/_components/AddProjectButton";
 
 interface ResidentDashboardProps {
   eventId: string;
@@ -175,14 +176,9 @@ export default function ResidentDashboard({
                   <Text ta="center" size="sm" c="dimmed">
                     Showcase your work by adding your projects to connect with other residents
                   </Text>
-                  <Button
-                    component={Link}
-                    href={`/profile/edit?from-event=${eventId}`}
-                    leftSection={<IconPlus size={16} />}
-                    variant="light"
-                  >
+                  <AddProjectButton eventId={eventId}>
                     Add Your First Project
-                  </Button>
+                  </AddProjectButton>
                 </Stack>
               ) : (
                 <Stack gap="md">
@@ -239,15 +235,13 @@ export default function ResidentDashboard({
                   ))}
                   
                   <Group justify="space-between">
-                    <Button
-                      component={Link}
-                      href={`/profile/edit?from-event=${eventId}`}
-                      variant="light"
+                    <AddProjectButton 
+                      eventId={eventId}
                       size="xs"
-                      leftSection={<IconPlus size={14} />}
+                      iconSize={14}
                     >
                       Add Project
-                    </Button>
+                    </AddProjectButton>
                     {userProjects.length > 2 && (
                       <Button
                         component={Link}
@@ -656,14 +650,9 @@ function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
           <Text ta="center" size="sm" c="dimmed">
             Be the first to showcase your work in the event!
           </Text>
-          <Button
-            component={Link}
-            href={`/profile/edit?from-event=${eventId}`}
-            variant="light"
-            leftSection={<IconPlus size={16} />}
-          >
+          <AddProjectButton eventId={eventId}>
             Add Your Project
-          </Button>
+          </AddProjectButton>
         </Stack>
       )}
 

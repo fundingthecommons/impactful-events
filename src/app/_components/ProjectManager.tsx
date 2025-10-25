@@ -34,6 +34,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import { api } from "~/trpc/react";
 import type { UserProject } from "@prisma/client";
+import { AddProjectButton } from "./AddProjectButton";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -186,13 +187,9 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
           <Title order={2} size="h3">
             Projects Showcase
           </Title>
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={handleAddNew}
-            variant="light"
-          >
+          <AddProjectButton onClick={handleAddNew}>
             Add Project
-          </Button>
+          </AddProjectButton>
         </Group>
 
         {projects.length === 0 ? (
