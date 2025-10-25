@@ -565,7 +565,16 @@ function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
         <Grid>
           {residentProjects.map((project) => (
             <Grid.Col key={project.id} span={{ base: 12, sm: 6, md: 4 }}>
-              <Card shadow="xs" padding="md" radius="md" withBorder h="100%">
+              <Card 
+                shadow="xs" 
+                padding="md" 
+                radius="md" 
+                withBorder 
+                h="100%"
+                component={Link}
+                href={`/events/${eventId}/projects/${project.id}`}
+                style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+              >
                 <Stack gap="xs">
                   <Group justify="space-between" align="flex-start">
                     <Text fw={500} size="sm" lineClamp={1}>
@@ -580,6 +589,7 @@ function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
                             target="_blank"
                             variant="light"
                             size="xs"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <IconExternalLink size={12} />
                           </ActionIcon>
@@ -593,6 +603,7 @@ function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
                             target="_blank"
                             variant="light"
                             size="xs"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             <IconBrandGithub size={12} />
                           </ActionIcon>

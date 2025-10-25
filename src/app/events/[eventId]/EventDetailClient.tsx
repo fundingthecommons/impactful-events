@@ -656,7 +656,25 @@ export default function EventDetailClient({
                     </Text>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1rem' }}>
                       {projects.map((project) => (
-                        <Card key={project.id} shadow="sm" padding="lg" radius="md" withBorder>
+                        <Card 
+                          key={project.id} 
+                          shadow="sm" 
+                          padding="lg" 
+                          radius="md" 
+                          withBorder
+                          style={{ cursor: 'pointer', transition: 'transform 0.2s ease, box-shadow 0.2s ease' }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-4px)';
+                            e.currentTarget.style.boxShadow = '0 8px 25px rgba(0, 0, 0, 0.15)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '';
+                          }}
+                          onClick={() => {
+                            window.location.href = `/events/${event.id}/projects/${project.id}`;
+                          }}
+                        >
                           <Stack gap="md">
                             {project.imageUrl && (
                               <div style={{ width: '100%', height: 200, borderRadius: 8, overflow: 'hidden' }}>
@@ -727,6 +745,7 @@ export default function EventDetailClient({
                                     target="_blank"
                                     variant="light"
                                     size="xs"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
                                     View Code
                                   </Button>
@@ -738,6 +757,7 @@ export default function EventDetailClient({
                                     target="_blank"
                                     variant="filled"
                                     size="xs"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
                                     Live Demo
                                   </Button>

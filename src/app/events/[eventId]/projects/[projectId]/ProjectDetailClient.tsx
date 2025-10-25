@@ -1,0 +1,622 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Container,
+  Title,
+  Text,
+  Card,
+  Group,
+  Stack,
+  Button,
+  Badge,
+  Divider,
+  Paper,
+  Tabs,
+  Timeline,
+  Modal,
+  Textarea,
+  TextInput,
+  NumberInput,
+  ActionIcon,
+  Image,
+  Anchor,
+} from "@mantine/core";
+import {
+  IconArrowLeft,
+  IconBrandGithub,
+  IconExternalLink,
+  IconPlus,
+  IconCalendarEvent,
+  IconUser,
+  IconMapPin,
+} from "@tabler/icons-react";
+import { useRouter } from "next/navigation";
+import { api } from "~/trpc/react";
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
+
+interface ProjectDetailClientProps {
+  project: {
+    id: string;
+    title: string;
+    description: string | null;
+    githubUrl: string | null;
+    liveUrl: string | null;
+    imageUrl: string | null;
+    technologies: string[];
+    featured: boolean;
+    createdAt: Date;
+    author: {
+      id: string;
+      name: string | null;
+      image: string | null;
+      profile?: {
+        jobTitle: string | null;
+        company: string | null;
+        location: string | null;
+        bio: string | null;
+        githubUrl: string | null;
+        linkedinUrl: string | null;
+        twitterUrl: string | null;
+        website: string | null;
+      } | null;
+    };
+  };
+  timeline: Array<{
+    id: string;
+    title: string;
+    content: string;
+    weekNumber: number | undefined;
+    imageUrls: string[];
+    githubUrls: string[];
+    demoUrls: string[];
+    tags: string[];
+    createdAt: Date;
+    author: {
+      id: string;
+      name: string | null;
+      image: string | null;
+    };
+  }>;
+  eventId: string;
+  isOwner: boolean;
+  userId?: string;
+}
+
+export default function ProjectDetailClient({
+  project,
+  timeline: initialTimeline,
+  isOwner,
+}: ProjectDetailClientProps) {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+
+  const utils = api.useUtils();
+
+  // Get fresh timeline data
+  const { data: timeline = initialTimeline } = api.project.getProjectTimeline.useQuery({
+    projectId: project.id,
+  });
+
+  // Create project update mutation
+  const createUpdate = api.project.createProjectUpdate.useMutation({
+    onSuccess: async () => {
+      notifications.show({
+        title: "Update posted!",
+        message: "Your project update has been added to the timeline.",
+        color: "green",
+      });
+      setUpdateModalOpen(false);
+      form.reset();
+      await utils.project.getProjectTimeline.invalidate({ projectId: project.id });
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  // Form for creating updates
+  const form = useForm({
+    initialValues: {
+      title: "",
+      content: "",
+      weekNumber: undefined as number | undefined,
+      imageUrls: [] as string[],
+      githubUrls: [] as string[],
+      demoUrls: [] as string[],
+      tags: [] as string[],
+    },
+  });
+
+  const handleCreateUpdate = async (values: typeof form.values) => {
+    await createUpdate.mutateAsync({
+      projectId: project.id,
+      title: values.title,
+      content: values.content,
+      weekNumber: values.weekNumber,
+      imageUrls: values.imageUrls.filter(url => url.trim() !== ""),
+      githubUrls: values.githubUrls.filter(url => url.trim() !== ""),
+      demoUrls: values.demoUrls.filter(url => url.trim() !== ""),
+      tags: values.tags.filter(tag => tag.trim() !== ""),
+    });
+  };
+
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(date);
+  };
+
+  const getRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return `${Math.floor(diffDays / 30)} months ago`;
+  };
+
+  return (
+    <>
+      <Container size="lg" py="xl">
+        <Stack gap="xl">
+          {/* Back Navigation */}
+          <Group>
+            <ActionIcon
+              variant="subtle"
+              size="lg"
+              onClick={() => router.back()}
+            >
+              <IconArrowLeft size={20} />
+            </ActionIcon>
+            <Text size="sm" c="dimmed">
+              Back to projects
+            </Text>
+          </Group>
+
+          {/* Project Header */}
+          <Card shadow="lg" padding="xl" radius="md" withBorder>
+            <Stack gap="lg">
+              {project.imageUrl && (
+                <div style={{ width: '100%', height: 300, borderRadius: 8, overflow: 'hidden' }}>
+                  <Image 
+                    src={project.imageUrl} 
+                    alt={project.title}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                </div>
+              )}
+              
+              <Group justify="space-between" align="flex-start">
+                <Stack gap="sm" style={{ flex: 1 }}>
+                  <Group gap="md">
+                    <Title order={1}>{project.title}</Title>
+                    {project.featured && (
+                      <Badge variant="light" color="yellow" size="lg">
+                        Featured
+                      </Badge>
+                    )}
+                  </Group>
+                  
+                  {project.description && (
+                    <Text size="lg" c="dimmed">
+                      {project.description}
+                    </Text>
+                  )}
+                </Stack>
+              </Group>
+
+              {/* Technologies */}
+              {project.technologies.length > 0 && (
+                <Group gap="xs">
+                  {project.technologies.map((tech, index) => (
+                    <Badge key={index} variant="outline" size="sm">
+                      {tech}
+                    </Badge>
+                  ))}
+                </Group>
+              )}
+
+              {/* Action buttons */}
+              <Group gap="md">
+                {project.githubUrl && (
+                  <Button
+                    component="a"
+                    href={project.githubUrl}
+                    target="_blank"
+                    leftSection={<IconBrandGithub size={16} />}
+                    variant="light"
+                  >
+                    View Code
+                  </Button>
+                )}
+                {project.liveUrl && (
+                  <Button
+                    component="a"
+                    href={project.liveUrl}
+                    target="_blank"
+                    leftSection={<IconExternalLink size={16} />}
+                    variant="filled"
+                  >
+                    Live Demo
+                  </Button>
+                )}
+              </Group>
+            </Stack>
+          </Card>
+
+          {/* Author Section */}
+          <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Group gap="md">
+              {project.author.image && (
+                <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden' }}>
+                  <Image 
+                    src={project.author.image} 
+                    alt={project.author.name ?? "Author"} 
+                    width={60} 
+                    height={60} 
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                  />
+                </div>
+              )}
+              <Stack gap="xs" style={{ flex: 1 }}>
+                <Group gap="xs">
+                  <IconUser size={16} />
+                  <Text fw={500}>{project.author.name ?? 'Anonymous'}</Text>
+                </Group>
+                {project.author.profile?.jobTitle && (
+                  <Text size="sm" c="dimmed">
+                    {project.author.profile.jobTitle}
+                    {project.author.profile.company && ` at ${project.author.profile.company}`}
+                  </Text>
+                )}
+                {project.author.profile?.location && (
+                  <Group gap="xs">
+                    <IconMapPin size={14} />
+                    <Text size="sm" c="dimmed">
+                      {project.author.profile.location}
+                    </Text>
+                  </Group>
+                )}
+                {project.author.profile?.bio && (
+                  <Text size="sm" lineClamp={2}>
+                    {project.author.profile.bio}
+                  </Text>
+                )}
+              </Stack>
+            </Group>
+          </Card>
+
+          {/* Main Content Tabs */}
+          <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? 'overview')}>
+            <Tabs.List>
+              <Tabs.Tab value="overview">Overview</Tabs.Tab>
+              <Tabs.Tab value="timeline">
+                Timeline
+                {timeline.length > 0 && (
+                  <Badge size="sm" variant="light" ml="xs">
+                    {timeline.length}
+                  </Badge>
+                )}
+              </Tabs.Tab>
+            </Tabs.List>
+
+            <Tabs.Panel value="overview" mt="md">
+              <Paper p="xl" radius="md" withBorder>
+                <Stack gap="lg">
+                  <Title order={2}>Project Details</Title>
+                  
+                  <Group gap="xl">
+                    <Stack gap="xs">
+                      <Text fw={500}>Created</Text>
+                      <Text c="dimmed">{formatDate(project.createdAt)}</Text>
+                    </Stack>
+                    
+                    <Stack gap="xs">
+                      <Text fw={500}>Technologies</Text>
+                      <Text c="dimmed">{project.technologies.length} technologies</Text>
+                    </Stack>
+                    
+                    <Stack gap="xs">
+                      <Text fw={500}>Updates</Text>
+                      <Text c="dimmed">{timeline.length} timeline updates</Text>
+                    </Stack>
+                  </Group>
+
+                  {project.description && (
+                    <>
+                      <Divider />
+                      <Stack gap="md">
+                        <Title order={3}>Description</Title>
+                        <Text style={{ whiteSpace: 'pre-wrap' }}>
+                          {project.description}
+                        </Text>
+                      </Stack>
+                    </>
+                  )}
+
+                  {/* Author contact info */}
+                  {(project.author.profile?.githubUrl ?? project.author.profile?.linkedinUrl ?? project.author.profile?.twitterUrl ?? project.author.profile?.website) && (
+                    <>
+                      <Divider />
+                      <Stack gap="md">
+                        <Title order={3}>Contact Author</Title>
+                        <Group gap="md">
+                          {project.author.profile?.githubUrl && (
+                            <Button 
+                              component="a"
+                              href={project.author.profile.githubUrl}
+                              target="_blank"
+                              variant="subtle"
+                              size="sm"
+                            >
+                              GitHub
+                            </Button>
+                          )}
+                          {project.author.profile?.linkedinUrl && (
+                            <Button 
+                              component="a"
+                              href={project.author.profile.linkedinUrl}
+                              target="_blank"
+                              variant="subtle"
+                              size="sm"
+                            >
+                              LinkedIn
+                            </Button>
+                          )}
+                          {project.author.profile?.twitterUrl && (
+                            <Button 
+                              component="a"
+                              href={project.author.profile.twitterUrl}
+                              target="_blank"
+                              variant="subtle"
+                              size="sm"
+                            >
+                              Twitter
+                            </Button>
+                          )}
+                          {project.author.profile?.website && (
+                            <Button 
+                              component="a"
+                              href={project.author.profile.website}
+                              target="_blank"
+                              variant="subtle"
+                              size="sm"
+                            >
+                              Website
+                            </Button>
+                          )}
+                        </Group>
+                      </Stack>
+                    </>
+                  )}
+                </Stack>
+              </Paper>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="timeline" mt="md">
+              <Paper p="xl" radius="md" withBorder>
+                <Stack gap="lg">
+                  <Group justify="space-between">
+                    <Title order={2}>Project Timeline</Title>
+                    {isOwner && (
+                      <Button
+                        leftSection={<IconPlus size={16} />}
+                        onClick={() => setUpdateModalOpen(true)}
+                      >
+                        Add Update
+                      </Button>
+                    )}
+                  </Group>
+
+                  {timeline.length > 0 ? (
+                    <Timeline active={timeline.length} bulletSize={24} lineWidth={2}>
+                      {timeline.map((update) => (
+                        <Timeline.Item
+                          key={update.id}
+                          bullet={<IconCalendarEvent size={12} />}
+                          title={
+                            <Group gap="xs">
+                              <Text fw={500}>{update.title}</Text>
+                              {update.weekNumber && (
+                                <Badge size="xs" variant="outline">
+                                  Week {update.weekNumber}
+                                </Badge>
+                              )}
+                            </Group>
+                          }
+                        >
+                          <Stack gap="sm" mt="xs">
+                            <Group gap="xs">
+                              <div style={{ width: 20, height: 20, borderRadius: '50%', overflow: 'hidden' }}>
+                                {update.author.image ? (
+                                  <Image 
+                                    src={update.author.image} 
+                                    alt={update.author.name ?? "Author"} 
+                                    width={20} 
+                                    height={20} 
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                                  />
+                                ) : (
+                                  <div style={{ width: "100%", height: "100%", backgroundColor: "#e9ecef", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    <Text size="xs">?</Text>
+                                  </div>
+                                )}
+                              </div>
+                              <Text size="sm" c="dimmed">
+                                {update.author.name ?? 'Anonymous'} • {getRelativeTime(update.createdAt)}
+                              </Text>
+                            </Group>
+                            
+                            <Text style={{ whiteSpace: 'pre-wrap' }}>
+                              {update.content}
+                            </Text>
+
+                            {/* Images */}
+                            {update.imageUrls.length > 0 && (
+                              <Group gap="xs">
+                                {update.imageUrls.map((url, imgIndex) => (
+                                  <div key={imgIndex} style={{ width: 100, height: 100, borderRadius: 4, overflow: 'hidden' }}>
+                                    <Image 
+                                      src={url} 
+                                      alt={`Update image ${imgIndex + 1}`}
+                                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                    />
+                                  </div>
+                                ))}
+                              </Group>
+                            )}
+
+                            {/* Links */}
+                            {(update.githubUrls.length > 0 || update.demoUrls.length > 0) && (
+                              <Group gap="xs">
+                                {update.githubUrls.map((url, urlIndex) => (
+                                  <Anchor key={urlIndex} href={url} target="_blank" size="sm">
+                                    <Group gap={4}>
+                                      <IconBrandGithub size={14} />
+                                      GitHub
+                                    </Group>
+                                  </Anchor>
+                                ))}
+                                {update.demoUrls.map((url, urlIndex) => (
+                                  <Anchor key={urlIndex} href={url} target="_blank" size="sm">
+                                    <Group gap={4}>
+                                      <IconExternalLink size={14} />
+                                      Demo
+                                    </Group>
+                                  </Anchor>
+                                ))}
+                              </Group>
+                            )}
+
+                            {/* Tags */}
+                            {update.tags.length > 0 && (
+                              <Group gap="xs">
+                                {update.tags.map((tag, tagIndex) => (
+                                  <Badge key={tagIndex} size="xs" variant="outline">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </Group>
+                            )}
+                          </Stack>
+                        </Timeline.Item>
+                      ))}
+                    </Timeline>
+                  ) : (
+                    <Stack align="center" py="xl">
+                      <Text c="dimmed" ta="center">
+                        No updates yet. {isOwner ? "Add the first update to start documenting your progress!" : "Check back later for project updates."}
+                      </Text>
+                      {isOwner && (
+                        <Button
+                          variant="light"
+                          leftSection={<IconPlus size={16} />}
+                          onClick={() => setUpdateModalOpen(true)}
+                        >
+                          Add First Update
+                        </Button>
+                      )}
+                    </Stack>
+                  )}
+                </Stack>
+              </Paper>
+            </Tabs.Panel>
+          </Tabs>
+        </Stack>
+      </Container>
+
+      {/* Add Update Modal */}
+      <Modal
+        opened={updateModalOpen}
+        onClose={() => setUpdateModalOpen(false)}
+        title="Add Project Update"
+        size="lg"
+      >
+        <form onSubmit={form.onSubmit(handleCreateUpdate)}>
+          <Stack gap="md">
+            <TextInput
+              label="Update Title"
+              placeholder="e.g., Implemented user authentication"
+              required
+              {...form.getInputProps('title')}
+            />
+
+            <Textarea
+              label="Description"
+              placeholder="Describe what you've accomplished, challenges faced, next steps..."
+              minRows={4}
+              required
+              {...form.getInputProps('content')}
+            />
+
+            <NumberInput
+              label="Week Number (Optional)"
+              placeholder="Which week of the program?"
+              min={1}
+              max={20}
+              {...form.getInputProps('weekNumber')}
+            />
+
+            <TextInput
+              label="Image URLs (comma-separated)"
+              placeholder="https://example.com/screenshot1.png, https://example.com/demo.gif"
+              onChange={(event) => {
+                const urls = event.target.value.split(',').map(url => url.trim());
+                form.setFieldValue('imageUrls', urls);
+              }}
+            />
+
+            <TextInput
+              label="GitHub URLs (comma-separated)"
+              placeholder="https://github.com/user/repo/commit/abc123, https://github.com/user/repo/pull/5"
+              onChange={(event) => {
+                const urls = event.target.value.split(',').map(url => url.trim());
+                form.setFieldValue('githubUrls', urls);
+              }}
+            />
+
+            <TextInput
+              label="Demo URLs (comma-separated)"
+              placeholder="https://myproject.vercel.app, https://demo.example.com"
+              onChange={(event) => {
+                const urls = event.target.value.split(',').map(url => url.trim());
+                form.setFieldValue('demoUrls', urls);
+              }}
+            />
+
+            <TextInput
+              label="Tags (comma-separated)"
+              placeholder="milestone, frontend, demo, challenge"
+              onChange={(event) => {
+                const tags = event.target.value.split(',').map(tag => tag.trim());
+                form.setFieldValue('tags', tags);
+              }}
+            />
+
+            <Group justify="flex-end" mt="md">
+              <Button variant="subtle" onClick={() => setUpdateModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={createUpdate.isPending}>
+                Post Update
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
+    </>
+  );
+}

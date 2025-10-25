@@ -297,4 +297,258 @@ export const projectRouter = createTRPCRouter({
 
       return projects;
     }),
+
+  // Public: Get detailed project information
+  getProjectDetails: publicProcedure
+    .input(z.object({ 
+      projectId: z.string(),
+      eventId: z.string() 
+    }))
+    .query(async ({ ctx, input }) => {
+      // Get project from UserProject model (not the hackathon Project model)
+      const project = await ctx.db.userProject.findUnique({
+        where: { id: input.projectId },
+        include: {
+          profile: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                  applications: {
+                    where: {
+                      eventId: input.eventId,
+                      status: "ACCEPTED",
+                    },
+                    take: 1,
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      // Verify the project owner is an accepted participant of this event
+      if (!project.profile.user.applications.length) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found for this event",
+        });
+      }
+
+      return {
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        githubUrl: project.githubUrl,
+        liveUrl: project.liveUrl,
+        imageUrl: project.imageUrl,
+        technologies: project.technologies,
+        featured: project.featured,
+        createdAt: project.createdAt,
+        author: {
+          id: project.profile.user.id,
+          name: project.profile.user.name,
+          image: project.profile.user.image,
+          profile: {
+            jobTitle: project.profile.jobTitle,
+            company: project.profile.company,
+            location: project.profile.location,
+            bio: project.profile.bio,
+            githubUrl: project.profile.githubUrl,
+            linkedinUrl: project.profile.linkedinUrl,
+            twitterUrl: project.profile.twitterUrl,
+            website: project.profile.website,
+          }
+        }
+      };
+    }),
+
+  // Public: Get project timeline updates
+  getProjectTimeline: publicProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const updates = await ctx.db.projectUpdate.findMany({
+        where: { projectId: input.projectId },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            }
+          }
+        },
+        orderBy: { createdAt: "desc" }
+      });
+
+      return updates;
+    }),
+
+  // Protected: Create project update (only project owner)
+  createProjectUpdate: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+      title: z.string().min(1, "Update title is required"),
+      content: z.string().min(1, "Update content is required"),
+      weekNumber: z.number().optional(),
+      imageUrls: z.array(z.string().url()).optional(),
+      githubUrls: z.array(z.string().url()).optional(),
+      demoUrls: z.array(z.string().url()).optional(),
+      tags: z.array(z.string()).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verify the project exists and the user owns it
+      const project = await ctx.db.userProject.findUnique({
+        where: { id: input.projectId },
+        include: {
+          profile: {
+            select: {
+              userId: true,
+            }
+          }
+        }
+      });
+
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      if (project.profile.userId !== userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You don't have permission to update this project",
+        });
+      }
+
+      const update = await ctx.db.projectUpdate.create({
+        data: {
+          projectId: input.projectId,
+          userId,
+          title: input.title,
+          content: input.content,
+          weekNumber: input.weekNumber ?? null,
+          imageUrls: input.imageUrls ?? [],
+          githubUrls: input.githubUrls ?? [],
+          demoUrls: input.demoUrls ?? [],
+          tags: input.tags ?? [],
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            }
+          }
+        }
+      });
+
+      return update;
+    }),
+
+  // Protected: Update project update (only author)
+  updateProjectUpdate: protectedProcedure
+    .input(z.object({
+      updateId: z.string(),
+      title: z.string().min(1, "Update title is required").optional(),
+      content: z.string().min(1, "Update content is required").optional(),
+      weekNumber: z.number().optional(),
+      imageUrls: z.array(z.string().url()).optional(),
+      githubUrls: z.array(z.string().url()).optional(),
+      demoUrls: z.array(z.string().url()).optional(),
+      tags: z.array(z.string()).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verify the update exists and the user owns it
+      const update = await ctx.db.projectUpdate.findUnique({
+        where: { id: input.updateId },
+      });
+
+      if (!update) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Update not found",
+        });
+      }
+
+      if (update.userId !== userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You don't have permission to edit this update",
+        });
+      }
+
+      const updatedUpdate = await ctx.db.projectUpdate.update({
+        where: { id: input.updateId },
+        data: {
+          ...(input.title && { title: input.title }),
+          ...(input.content && { content: input.content }),
+          ...(input.weekNumber !== undefined && { weekNumber: input.weekNumber }),
+          ...(input.imageUrls && { imageUrls: input.imageUrls }),
+          ...(input.githubUrls && { githubUrls: input.githubUrls }),
+          ...(input.demoUrls && { demoUrls: input.demoUrls }),
+          ...(input.tags && { tags: input.tags }),
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            }
+          }
+        }
+      });
+
+      return updatedUpdate;
+    }),
+
+  // Protected: Delete project update (only author)
+  deleteProjectUpdate: protectedProcedure
+    .input(z.object({ updateId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Verify the update exists and the user owns it
+      const update = await ctx.db.projectUpdate.findUnique({
+        where: { id: input.updateId },
+      });
+
+      if (!update) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Update not found",
+        });
+      }
+
+      if (update.userId !== userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You don't have permission to delete this update",
+        });
+      }
+
+      await ctx.db.projectUpdate.delete({
+        where: { id: input.updateId },
+      });
+
+      return { success: true };
+    }),
 });

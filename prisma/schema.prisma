@@ -119,6 +119,9 @@ model User {
   
   // Password reset tokens
   passwordResetTokens  PasswordResetToken[] @relation("PasswordResetTokens")
+  
+  // Project update relations
+  projectUpdates       ProjectUpdate[]      @relation("ProjectUpdates")
 }
 
 model VerificationToken {
@@ -1188,9 +1191,35 @@ model UserProject {
   
   // Relations
   profile       UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  updates       ProjectUpdate[] // Project timeline updates
   
   @@index([profileId])
   @@index([featured])
+}
+
+model ProjectUpdate {
+  id            String      @id @default(cuid())
+  projectId     String      // Links to UserProject
+  userId        String      // User who created the update
+  title         String      // Update title/milestone
+  content       String      @db.Text // Update content (markdown supported)
+  weekNumber    Int?        // Which week of the program (optional)
+  imageUrls     String[]    // Progress screenshots
+  githubUrls    String[]    // Links to relevant commits/PRs
+  demoUrls      String[]    // Links to demos/prototypes
+  tags          String[]    // Tags for categorization (e.g., "milestone", "challenge", "demo")
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  project       UserProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author        User        @relation("ProjectUpdates", fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([projectId])
+  @@index([userId])
+  @@index([weekNumber])
+  @@index([createdAt])
 }
 
 model ProfileSync {

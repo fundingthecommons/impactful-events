@@ -8,6 +8,43 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 
+// Calculate profile completion percentage
+function calculateProfileCompletion(profile: unknown): number {
+  if (!profile) return 0;
+
+  const fields = [
+    'bio',
+    'jobTitle', 
+    'company',
+    'location',
+    'skills',
+    'interests',
+    'yearsOfExperience',
+    'timezone',
+    'languages'
+  ];
+
+  let filledFields = 0;
+  const totalFields = fields.length;
+
+  fields.forEach(field => {
+    const value = (profile as Record<string, unknown>)?.[field];
+    if (field === 'skills' || field === 'interests' || field === 'languages') {
+      // Array fields - count as filled if they have at least one item
+      if (Array.isArray(value) && value.length > 0) {
+        filledFields++;
+      }
+    } else {
+      // Regular fields - count as filled if they have a non-empty value
+      if (value && typeof value === 'string' && value.trim().length > 0) {
+        filledFields++;
+      }
+    }
+  });
+
+  return Math.round((filledFields / totalFields) * 100);
+}
+
 // Define the event data structure based on your sample - more flexible to handle real-world data
 const EventDataSchema = z.object({
   id: z.string(),
@@ -726,5 +763,149 @@ export const eventRouter = createTRPCRouter({
         }
       });
       return !!mentorRole;
+    }),
+
+  getEventMetrics: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Get all RESIDENT applications for this event with user profile data
+      const applications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          applicationType: "RESIDENT",
+          status: {
+            in: ["SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"]
+          }
+        },
+        include: {
+          user: {
+            include: {
+              profile: true
+            }
+          }
+        }
+      });
+
+      const totalApplicants = applications.length;
+
+      // Calculate geographic distribution
+      const countries = new Set<string>();
+      const cities = new Set<string>();
+      const companies = new Map<string, number>();
+      const skills = new Map<string, number>();
+      const jobTitles = new Map<string, number>();
+      const experienceLevels = new Map<string, number>();
+      const languages = new Map<string, number>();
+      
+      let profilesWithSocial = 0;
+      let profilesWithTelegram = 0;
+      let profilesWithDiscord = 0;
+      let profilesOver70Percent = 0;
+
+      applications.forEach(app => {
+        const profile = app.user?.profile;
+        
+        if (profile) {
+          // Geographic data
+          if (profile.location) {
+            const locationParts = profile.location.split(',');
+            if (locationParts.length >= 2) {
+              const country = locationParts[locationParts.length - 1]?.trim() ?? '';
+              countries.add(country);
+            }
+            cities.add(profile.location);
+          }
+
+          // Company/affiliation data
+          const company = app.affiliation ?? profile.company;
+          if (company) {
+            companies.set(company, (companies.get(company) ?? 0) + 1);
+          }
+
+          // Skills distribution
+          profile.skills?.forEach(skill => {
+            skills.set(skill, (skills.get(skill) ?? 0) + 1);
+          });
+
+          // Job titles
+          if (profile.jobTitle) {
+            jobTitles.set(profile.jobTitle, (jobTitles.get(profile.jobTitle) ?? 0) + 1);
+          }
+
+          // Experience levels
+          if (profile.yearsOfExperience !== null && profile.yearsOfExperience !== undefined) {
+            let expLevel = "0-2 years";
+            if (profile.yearsOfExperience >= 3 && profile.yearsOfExperience <= 5) expLevel = "3-5 years";
+            else if (profile.yearsOfExperience >= 6 && profile.yearsOfExperience <= 10) expLevel = "6-10 years";
+            else if (profile.yearsOfExperience > 10) expLevel = "10+ years";
+            
+            experienceLevels.set(expLevel, (experienceLevels.get(expLevel) ?? 0) + 1);
+          }
+
+          // Languages
+          profile.languages?.forEach(lang => {
+            languages.set(lang, (languages.get(lang) ?? 0) + 1);
+          });
+
+          // Social media presence
+          if (profile.githubUrl ?? profile.linkedinUrl ?? profile.twitterUrl) {
+            profilesWithSocial++;
+          }
+
+          // Contact methods
+          if (profile.telegramHandle) profilesWithTelegram++;
+          if (profile.discordHandle) profilesWithDiscord++;
+
+          // Profile completion calculation
+          const completionPercentage = calculateProfileCompletion(profile);
+          if (completionPercentage >= 70) {
+            profilesOver70Percent++;
+          }
+        }
+      });
+
+      // Convert maps to sorted arrays for top items
+      const topCountries = Array.from(countries);
+      const topCities = Array.from(cities).slice(0, 10);
+      const topCompanies = Array.from(companies.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([name, count]) => ({ name, count }));
+      const topSkills = Array.from(skills.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15)
+        .map(([name, count]) => ({ name, count }));
+      const topJobTitles = Array.from(jobTitles.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([name, count]) => ({ name, count }));
+      const experienceDistribution = Array.from(experienceLevels.entries())
+        .map(([level, count]) => ({ level, count }));
+      const languageDistribution = Array.from(languages.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([name, count]) => ({ name, count }));
+
+      return {
+        totalApplicants,
+        uniqueCountries: countries.size,
+        uniqueCities: cities.size,
+        topCountries,
+        topCities,
+        topCompanies,
+        topSkills,
+        topJobTitles,
+        experienceDistribution,
+        languageDistribution,
+        socialMediaStats: {
+          withSocialMedia: profilesWithSocial,
+          withTelegram: profilesWithTelegram,
+          withDiscord: profilesWithDiscord,
+        },
+        profileCompletion: {
+          over70Percent: profilesOver70Percent,
+          percentage: totalApplicants > 0 ? Math.round((profilesOver70Percent / totalApplicants) * 100) : 0
+        }
+      };
     }),
 }); 
