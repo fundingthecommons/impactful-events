@@ -1604,7 +1604,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
     });
   };
 
-  // Export Listening All - export all responses with smart filtering
+  // Export Listening All - export all responses with smart filtering 
   const exportListeningAll = () => {
     if (!applications || applications.length === 0) {
       notifications.show({
