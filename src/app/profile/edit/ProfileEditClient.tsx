@@ -25,6 +25,9 @@ import {
   Badge,
   Checkbox,
   Divider,
+  FileInput,
+  Avatar,
+  Progress,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconCheck, IconX, IconArrowLeft, IconDownload, IconEye } from "@tabler/icons-react";
@@ -32,6 +35,7 @@ import { api } from "~/trpc/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ProjectManager } from "~/app/_components/ProjectManager";
+import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 
 const schema = z.object({
   bio: z.string().max(1000).optional(),
@@ -52,6 +56,7 @@ const schema = z.object({
   yearsOfExperience: z.number().min(0).max(50).optional(),
   telegramHandle: z.string().max(100).optional(),
   discordHandle: z.string().max(100).optional(),
+  avatarUrl: z.string().url().optional().or(z.literal("")),
 });
 
 type ProfileFormData = z.infer<typeof schema>;
@@ -130,6 +135,8 @@ export function ProfileEditClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   // Check if user came from an event page
   const referrerEventId = searchParams.get('from-event');
@@ -182,6 +189,7 @@ export function ProfileEditClient() {
       yearsOfExperience: undefined,
       telegramHandle: "",
       discordHandle: "",
+      avatarUrl: "",
     },
   });
 
@@ -207,12 +215,70 @@ export function ProfileEditClient() {
         yearsOfExperience: currentProfile.yearsOfExperience ?? undefined,
         telegramHandle: currentProfile.telegramHandle ?? "",
         discordHandle: currentProfile.discordHandle ?? "",
+        avatarUrl: currentProfile.avatarUrl ?? "",
       });
       setHasInitialized(true);
     }
   // ESLint disabled: intentionally using only primitive dependencies to prevent infinite re-renders
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentProfile?.id, hasInitialized]); // Only primitive dependencies
+
+  const handleAvatarUpload = async (file: File | null) => {
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch('/api/upload/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error ?? 'Upload failed');
+      }
+
+      const result = await response.json();
+      
+      // Update form with new avatar URL
+      form.setFieldValue('avatarUrl', result.avatarUrl);
+      
+      notifications.show({
+        title: "Avatar Uploaded",
+        message: "Your profile picture has been uploaded successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+
+      // Trigger a profile refetch to update the UI
+      void refetchProfile();
+
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      notifications.show({
+        title: "Upload Failed",
+        message: error instanceof Error ? error.message : "Failed to upload avatar",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
 
   const handleSubmit = (values: ProfileFormData) => {
     // Clean up empty strings and convert to undefined
@@ -261,6 +327,41 @@ export function ProfileEditClient() {
 
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="xl">
+          {/* Profile Picture */}
+          <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Title order={2} size="h3" mb="md">
+              Profile Picture
+            </Title>
+            <Group gap="md" align="flex-start">
+              <Avatar 
+                src={form.values.avatarUrl || currentProfile?.user?.image} 
+                size="xl" 
+                radius="md"
+              >
+                {currentProfile?.user?.name?.[0]?.toUpperCase() ?? 'U'}
+              </Avatar>
+              <Stack style={{ flex: 1 }}>
+                <FileInput
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  placeholder="Choose image file"
+                  label="Upload new avatar"
+                  description="JPG, PNG, GIF, or WebP (max 5MB)"
+                  onChange={handleAvatarUpload}
+                  disabled={isUploading}
+                />
+                {isUploading && (
+                  <Box>
+                    <Text size="sm" mb="xs">Uploading...</Text>
+                    <Progress value={uploadProgress} size="sm" />
+                  </Box>
+                )}
+                <Text size="xs" c="dimmed">
+                  Current: {form.values.avatarUrl ? "Custom avatar" : currentProfile?.user?.image ? "OAuth provider image" : "No image set"}
+                </Text>
+              </Stack>
+            </Group>
+          </Card>
+
           {/* Basic Information */}
           <Card shadow="sm" padding="lg" radius="md" withBorder>
             <Title order={2} size="h3" mb="md">

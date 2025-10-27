@@ -24,6 +24,8 @@ const profileUpdateSchema = z.object({
   yearsOfExperience: z.number().min(0).max(50).optional(),
   telegramHandle: z.string().max(100).optional(),
   discordHandle: z.string().max(100).optional(),
+  // Profile image
+  avatarUrl: z.string().url().optional().or(z.literal("")),
   // Mentor-specific fields
   phoneNumber: z.string().max(50).optional(),
   mentorshipStyle: z.string().max(1000).optional(),

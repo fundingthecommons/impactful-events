@@ -52,6 +52,7 @@ import { notifications } from "@mantine/notifications";
 import { api } from "~/trpc/react";
 import Link from "next/link";
 import { AddProjectButton } from "~/app/_components/AddProjectButton";
+import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import type { UserProject } from "@prisma/client";
 
 const projectSchema = z.object({
@@ -585,10 +586,20 @@ function ParticipantsTab({ residentsData, session, eventId }: ParticipantsTabPro
                 <Card.Section p="lg" pb="xs">
                   <Group gap="sm">
                     <Avatar
-                      src={resident.user?.image}
+                      src={getAvatarUrl({
+                        customAvatarUrl: resident.profile?.avatarUrl,
+                        oauthImageUrl: resident.user?.image,
+                        name: resident.user?.name,
+                        email: resident.user?.email,
+                      })}
                       size="lg"
                       radius="md"
-                    />
+                    >
+                      {getAvatarInitials({
+                        name: resident.user?.name,
+                        email: resident.user?.email,
+                      })}
+                    </Avatar>
                     <div style={{ flex: 1 }}>
                       <Text fw={600} size="lg" lineClamp={1}>
                         {resident.user?.name ?? "Anonymous"}
@@ -820,10 +831,20 @@ function ProjectsTab({ residentProjects, eventId, onAddProject }: ProjectsTabPro
 
                   <Group gap="xs" mt="auto">
                     <Avatar
-                      src={project.profile.user?.image}
+                      src={getAvatarUrl({
+                        customAvatarUrl: project.profile.avatarUrl,
+                        oauthImageUrl: project.profile.user?.image,
+                        name: project.profile.user?.name,
+                        email: project.profile.user?.email,
+                      })}
                       size="xs"
                       radius="xl"
-                    />
+                    >
+                      {getAvatarInitials({
+                        name: project.profile.user?.name,
+                        email: project.profile.user?.email,
+                      })}
+                    </Avatar>
                     <Text size="xs" c="dimmed">
                       {project.profile.user?.name ?? "Anonymous"}
                     </Text>

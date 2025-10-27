@@ -20,15 +20,33 @@ import {
 import { signOut } from "next-auth/react";
 import Link from "next/link";
 import type { Session } from "next-auth";
+import { api } from "~/trpc/react";
+import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 
 interface UserDropdownMenuProps {
   session: Session;
 }
 
 export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
+  // Fetch user profile to get custom avatar
+  const { data: profile } = api.profile.getMyProfile.useQuery();
+
   const handleSignOut = () => {
     void signOut();
   };
+
+  // Determine avatar URL with priority logic
+  const avatarUrl = getAvatarUrl({
+    customAvatarUrl: profile?.avatarUrl,
+    oauthImageUrl: session.user.image,
+    name: session.user.name,
+    email: session.user.email,
+  });
+
+  const avatarInitials = getAvatarInitials({
+    name: session.user.name,
+    email: session.user.email,
+  });
 
   return (
     <Menu shadow="md" width={220} position="bottom-end">
@@ -39,7 +57,9 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
               <Text size="sm" fw={500}>
                 {session.user.name ?? session.user.email}
               </Text>
-              <Avatar src={session.user.image ?? ""} radius="xl" size={32} />
+              <Avatar src={avatarUrl} radius="xl" size={32}>
+                {avatarInitials}
+              </Avatar>
             </Group>
             {session.user.role && session.user.role !== "user" && (
               <Group gap={4}>

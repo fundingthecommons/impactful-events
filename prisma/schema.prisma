@@ -1147,6 +1147,9 @@ model UserProfile {
   languages             String[] // Spoken languages
   yearsOfExperience     Int?
   
+  // Profile image
+  avatarUrl             String?  // Custom uploaded avatar URL
+  
   // Additional contact methods
   telegramHandle        String?
   discordHandle         String?
