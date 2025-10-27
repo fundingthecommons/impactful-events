@@ -528,7 +528,9 @@ interface ParticipantsTabProps {
         id: string;
         name: string | null;
         image: string | null;
+        email?: string | null;
         profile?: {
+          avatarUrl?: string | null;
           jobTitle?: string | null;
           company?: string | null;
           location?: string | null;
@@ -602,7 +604,7 @@ function ParticipantsTab({ residentsData, session, eventId }: ParticipantsTabPro
                   <Group gap="sm">
                     <Avatar
                       src={getAvatarUrl({
-                        customAvatarUrl: resident.profile?.avatarUrl,
+                        customAvatarUrl: resident.user?.profile?.avatarUrl,
                         oauthImageUrl: resident.user?.image,
                         name: resident.user?.name,
                         email: resident.user?.email,
@@ -749,10 +751,12 @@ interface ProjectsTabProps {
     liveUrl: string | null;
     githubUrl: string | null;
     profile: {
+      avatarUrl?: string | null;
       user?: {
         id: string;
         name: string | null;
         image: string | null;
+        email?: string | null;
       } | null;
     };
   }> | undefined;
