@@ -203,34 +203,30 @@ export default function ResidentDashboard({
         </div>
 
         <Grid gutter="xl">
-          {/* Profile Completion Widget */}
-          <Grid.Col span={{ base: 12, md: 6 }}>
-            <Card shadow="sm" padding="lg" radius="md" withBorder h="100%">
-              <Group justify="space-between" mb="md">
-                <Group gap="xs">
-                  <IconUser size={20} />
-                  <Text fw={600}>Profile Completion</Text>
+          {/* Profile Section - Show completion widget only if profile is under 70% */}
+          {!profileCompletion?.meetsThreshold ? (
+            <Grid.Col span={{ base: 12, md: 6 }}>
+              <Card shadow="sm" padding="lg" radius="md" withBorder h="100%">
+                <Group justify="space-between" mb="md">
+                  <Group gap="xs">
+                    <IconUser size={20} />
+                    <Text fw={600}>Profile Completion</Text>
+                  </Group>
+                  <Badge
+                    color="orange"
+                    variant="light"
+                  >
+                    {profileCompletion?.percentage ?? 0}%
+                  </Badge>
                 </Group>
-                <Badge
-                  color={profileCompletion?.meetsThreshold ? "green" : "orange"}
-                  variant="light"
-                >
-                  {profileCompletion?.percentage ?? 0}%
-                </Badge>
-              </Group>
 
-              <Progress
-                value={profileCompletion?.percentage ?? 0}
-                color={profileCompletion?.meetsThreshold ? "green" : "orange"}
-                size="lg"
-                mb="md"
-              />
+                <Progress
+                  value={profileCompletion?.percentage ?? 0}
+                  color="orange"
+                  size="lg"
+                  mb="md"
+                />
 
-              {profileCompletion?.meetsThreshold ? (
-                <Alert icon={<IconCheck size={16} />} color="green" mb="md">
-                  Great! Your profile is complete and visible to other residents.
-                </Alert>
-              ) : (
                 <Alert icon={<IconAlertCircle size={16} />} color="red" mb="md">
                   <Text size="sm">
                     <strong>Other residents will not be able to find you</strong> until you complete your profile 
@@ -238,35 +234,54 @@ export default function ResidentDashboard({
                     in the participant directory.
                   </Text>
                 </Alert>
-              )}
 
-              {profileCompletion && profileCompletion.missingFields.length > 0 && (
-                <Stack gap="xs" mb="md">
-                  <Text size="sm" fw={500}>Missing fields:</Text>
-                  {profileCompletion.missingFields.slice(0, 3).map((field) => (
-                    <Text key={field} size="xs" c="dimmed">
-                      • {field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                    </Text>
-                  ))}
-                  {profileCompletion.missingFields.length > 3 && (
-                    <Text size="xs" c="dimmed">
-                      • And {profileCompletion.missingFields.length - 3} more...
-                    </Text>
-                  )}
+                {profileCompletion && profileCompletion.missingFields.length > 0 && (
+                  <Stack gap="xs" mb="md">
+                    <Text size="sm" fw={500}>Missing fields:</Text>
+                    {profileCompletion.missingFields.slice(0, 3).map((field) => (
+                      <Text key={field} size="xs" c="dimmed">
+                        • {field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                      </Text>
+                    ))}
+                    {profileCompletion.missingFields.length > 3 && (
+                      <Text size="xs" c="dimmed">
+                        • And {profileCompletion.missingFields.length - 3} more...
+                      </Text>
+                    )}
+                  </Stack>
+                )}
+
+                <Button
+                  component={Link}
+                  href={`/profile/edit?from-event=${eventId}`}
+                  leftSection={<IconEdit size={16} />}
+                  variant="filled"
+                  fullWidth
+                >
+                  Complete Profile
+                </Button>
+              </Card>
+            </Grid.Col>
+          ) : (
+            <Grid.Col span={{ base: 12, md: 6 }}>
+              <Card shadow="sm" padding="lg" radius="md" withBorder h="100%" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Stack align="center" gap="md">
+                  <Group gap="xs">
+                    <IconUser size={20} />
+                    <Text fw={600}>Profile</Text>
+                  </Group>
+                  <Button
+                    component={Link}
+                    href={`/profile/edit?from-event=${eventId}`}
+                    leftSection={<IconEdit size={16} />}
+                    variant="light"
+                  >
+                    Edit Profile
+                  </Button>
                 </Stack>
-              )}
-
-              <Button
-                component={Link}
-                href={`/profile/edit?from-event=${eventId}`}
-                leftSection={<IconEdit size={16} />}
-                variant={profileCompletion?.meetsThreshold ? "light" : "filled"}
-                fullWidth
-              >
-                {profileCompletion?.meetsThreshold ? "Edit Profile" : "Complete Profile"}
-              </Button>
-            </Card>
-          </Grid.Col>
+              </Card>
+            </Grid.Col>
+          )}
 
           {/* Your Projects Widget */}
           <Grid.Col span={{ base: 12, md: 6 }}>

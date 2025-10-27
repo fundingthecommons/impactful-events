@@ -1630,7 +1630,17 @@ export const applicationRouter = createTRPCRouter({
               name: true,
               image: true,
               profile: {
-                include: {
+                select: {
+                  id: true,
+                  bio: true,
+                  jobTitle: true,
+                  company: true,
+                  location: true,
+                  skills: true,
+                  githubUrl: true,
+                  linkedinUrl: true,
+                  website: true,
+                  avatarUrl: true,
                   projects: {
                     where: { featured: true },
                     take: 3,
@@ -1696,7 +1706,17 @@ export const applicationRouter = createTRPCRouter({
           user: {
             include: {
               profile: {
-                include: {
+                select: {
+                  id: true,
+                  bio: true,
+                  jobTitle: true,
+                  company: true,
+                  location: true,
+                  skills: true,
+                  githubUrl: true,
+                  linkedinUrl: true,
+                  website: true,
+                  avatarUrl: true,
                   projects: {
                     where: { featured: true },
                     orderBy: [

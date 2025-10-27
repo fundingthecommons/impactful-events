@@ -228,7 +228,7 @@ export default function DefaultUserDashboard() {
               <IconRocket size={28} />
             </ThemeIcon>
             <Title order={1} size="h1" fw={700}>
-              Welcome to Funding the Commons
+              Welcome home
             </Title>
           </Group>
           <Text size="lg" c="dimmed" maw={700} mx="auto">

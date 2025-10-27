@@ -35,6 +35,7 @@ import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
+import BlueskyConnectButton from "~/app/_components/BlueskyConnectButton";
 
 interface ProjectDetailClientProps {
   project: {
@@ -348,57 +349,71 @@ export default function ProjectDetailClient({
                   )}
 
                   {/* Author contact info */}
-                  {(project.author.profile?.githubUrl ?? project.author.profile?.linkedinUrl ?? project.author.profile?.twitterUrl ?? project.author.profile?.website) && (
+                  {(project.author.profile?.githubUrl ?? project.author.profile?.linkedinUrl ?? project.author.profile?.twitterUrl ?? project.author.profile?.website ?? isOwner) && (
                     <>
                       <Divider />
                       <Stack gap="md">
-                        <Title order={3}>Contact Author</Title>
-                        <Group gap="md">
-                          {project.author.profile?.githubUrl && (
-                            <Button 
-                              component="a"
-                              href={project.author.profile.githubUrl}
-                              target="_blank"
-                              variant="subtle"
-                              size="sm"
-                            >
-                              GitHub
-                            </Button>
-                          )}
-                          {project.author.profile?.linkedinUrl && (
-                            <Button 
-                              component="a"
-                              href={project.author.profile.linkedinUrl}
-                              target="_blank"
-                              variant="subtle"
-                              size="sm"
-                            >
-                              LinkedIn
-                            </Button>
-                          )}
-                          {project.author.profile?.twitterUrl && (
-                            <Button 
-                              component="a"
-                              href={project.author.profile.twitterUrl}
-                              target="_blank"
-                              variant="subtle"
-                              size="sm"
-                            >
-                              Twitter
-                            </Button>
-                          )}
-                          {project.author.profile?.website && (
-                            <Button 
-                              component="a"
-                              href={project.author.profile.website}
-                              target="_blank"
-                              variant="subtle"
-                              size="sm"
-                            >
-                              Website
-                            </Button>
-                          )}
-                        </Group>
+                        <Title order={3}>
+                          {isOwner ? "Share Your Project" : "Contact Author"}
+                        </Title>
+                        
+                        {/* Bluesky connect button - only for project owner */}
+                        {isOwner && (
+                          <BlueskyConnectButton 
+                            projectTitle={project.title}
+                            projectUrl={typeof window !== 'undefined' ? window.location.href : undefined}
+                          />
+                        )}
+                        
+                        {/* Author contact links */}
+                        {(project.author.profile?.githubUrl ?? project.author.profile?.linkedinUrl ?? project.author.profile?.twitterUrl ?? project.author.profile?.website) && (
+                          <Group gap="md">
+                            {project.author.profile?.githubUrl && (
+                              <Button 
+                                component="a"
+                                href={project.author.profile.githubUrl}
+                                target="_blank"
+                                variant="subtle"
+                                size="sm"
+                              >
+                                GitHub
+                              </Button>
+                            )}
+                            {project.author.profile?.linkedinUrl && (
+                              <Button 
+                                component="a"
+                                href={project.author.profile.linkedinUrl}
+                                target="_blank"
+                                variant="subtle"
+                                size="sm"
+                              >
+                                LinkedIn
+                              </Button>
+                            )}
+                            {project.author.profile?.twitterUrl && (
+                              <Button 
+                                component="a"
+                                href={project.author.profile.twitterUrl}
+                                target="_blank"
+                                variant="subtle"
+                                size="sm"
+                              >
+                                Twitter
+                              </Button>
+                            )}
+                            {project.author.profile?.website && (
+                              <Button 
+                                component="a"
+                                href={project.author.profile.website}
+                                target="_blank"
+                                variant="subtle"
+                                size="sm"
+                              >
+                                Website
+                              </Button>
+                            )}
+                          </Group>
+                        )}
                       </Stack>
                     </>
                   )}
