@@ -64,3 +64,5 @@ lessons/
 db-backups/
 # Sentry Config File
 .env.sentry-build-plugin
+/public/uploads/**
+!/public/uploads/.gitkeep

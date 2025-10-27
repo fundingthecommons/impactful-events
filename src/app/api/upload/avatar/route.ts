@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { auth } from '~/server/auth';
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     
     try {
       await mkdir(uploadsDir, { recursive: true });
-    } catch (error) {
+    } catch {
       // Directory might already exist, which is fine
     }
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const avatarUrl = `/uploads/avatars/${fileName}`;
 
     // Update user profile with new avatar URL
-    const userProfile = await db.userProfile.upsert({
+    await db.userProfile.upsert({
       where: { userId: session.user.id },
       update: { avatarUrl },
       create: {

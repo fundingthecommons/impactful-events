@@ -247,11 +247,11 @@ export function ProfileEditClient() {
       setUploadProgress(100);
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json() as { error?: string };
         throw new Error(error.error ?? 'Upload failed');
       }
 
-      const result = await response.json();
+      const result = await response.json() as { avatarUrl: string };
       
       // Update form with new avatar URL
       form.setFieldValue('avatarUrl', result.avatarUrl);
@@ -334,11 +334,19 @@ export function ProfileEditClient() {
             </Title>
             <Group gap="md" align="flex-start">
               <Avatar 
-                src={form.values.avatarUrl || currentProfile?.user?.image} 
+                src={getAvatarUrl({
+                  customAvatarUrl: form.values.avatarUrl,
+                  oauthImageUrl: currentProfile?.user?.image,
+                  name: currentProfile?.user?.name,
+                  email: currentProfile?.user?.email,
+                })}
                 size="xl" 
                 radius="md"
               >
-                {currentProfile?.user?.name?.[0]?.toUpperCase() ?? 'U'}
+                {getAvatarInitials({
+                  name: currentProfile?.user?.name,
+                  email: currentProfile?.user?.email,
+                })}
               </Avatar>
               <Stack style={{ flex: 1 }}>
                 <FileInput
