@@ -1051,6 +1051,92 @@ export const profileRouter = createTRPCRouter({
       };
     }),
 
+  // Get resident profiles with completeness data for admin
+  getResidentProfilesForAdmin: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Check admin access
+      if (ctx.session.user.role !== "admin" && ctx.session.user.role !== "staff") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Admin access required",
+        });
+      }
+
+      // Get all accepted applications for the event
+      const applications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+          responses: {
+            include: {
+              question: {
+                select: {
+                  questionKey: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          user: {
+            name: "asc",
+          },
+        },
+      });
+
+      // Get profile data for each user
+      const residentsWithProfiles = await Promise.all(
+        applications.map(async (app) => {
+          const profile = await ctx.db.userProfile.findUnique({
+            where: { userId: app.user.id },
+          });
+
+          // Calculate profile completeness using the same logic as getProfileCompletion
+          const fields = {
+            name: !!app.user.name,
+            image: !!app.user.image,
+            bio: !!profile?.bio,
+            jobTitle: !!profile?.jobTitle,
+            company: !!profile?.company,
+            location: !!profile?.location,
+            skills: !!profile?.skills && profile.skills.length > 0,
+            githubUrl: !!profile?.githubUrl,
+            linkedinUrl: !!profile?.linkedinUrl,
+            website: !!profile?.website,
+          };
+
+          const completedFields = Object.values(fields).filter(Boolean).length;
+          const totalFields = Object.keys(fields).length;
+          const percentage = Math.round((completedFields / totalFields) * 100);
+
+          return {
+            userId: app.user.id,
+            name: app.user.name,
+            image: app.user.image,
+            completeness: {
+              percentage,
+              completedFields,
+              totalFields,
+              meetsThreshold: percentage >= 70,
+            },
+            application: app,
+          };
+        })
+      );
+
+      return residentsWithProfiles;
+    }),
+
   // Admin endpoints for bulk profile sync
   adminGetSyncStats: protectedProcedure
     .query(async ({ ctx }) => {
