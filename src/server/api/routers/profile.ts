@@ -1099,6 +1099,13 @@ export const profileRouter = createTRPCRouter({
         applications.map(async (app) => {
           const profile = await ctx.db.userProfile.findUnique({
             where: { userId: app.user.id },
+            include: {
+              projects: {
+                select: {
+                  id: true,
+                },
+              },
+            },
           });
 
           // Calculate profile completeness using the same logic as getProfileCompletion
@@ -1129,6 +1136,7 @@ export const profileRouter = createTRPCRouter({
               totalFields,
               meetsThreshold: percentage >= 70,
             },
+            projectCount: profile?.projects.length ?? 0,
             application: app,
           };
         })

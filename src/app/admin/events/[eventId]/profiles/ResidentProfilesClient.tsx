@@ -162,6 +162,7 @@ export default function ResidentProfilesClient({
               <Table.Tr>
                 <Table.Th>Resident</Table.Th>
                 <Table.Th>Profile Completeness</Table.Th>
+                <Table.Th>Projects</Table.Th>
                 <Table.Th>Status</Table.Th>
                 <Table.Th>Contact</Table.Th>
               </Table.Tr>
@@ -169,7 +170,7 @@ export default function ResidentProfilesClient({
             <Table.Tbody>
               {filteredResidents?.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={4}>
+                  <Table.Td colSpan={5}>
                     <Text ta="center" c="dimmed" py="xl">
                       {searchQuery || filterByCompleteness
                         ? "No residents match your filters"
@@ -221,6 +222,22 @@ export default function ResidentProfilesClient({
                           {resident.completeness.totalFields} fields
                         </Text>
                       </Stack>
+                    </Table.Td>
+
+                    {/* Project Count */}
+                    <Table.Td>
+                      <Group gap="xs" align="center">
+                        <Badge
+                          color={resident.projectCount > 0 ? "blue" : "gray"}
+                          variant="light"
+                          size="lg"
+                        >
+                          {resident.projectCount}
+                        </Badge>
+                        <Text size="xs" c="dimmed">
+                          {resident.projectCount === 1 ? "project" : "projects"}
+                        </Text>
+                      </Group>
                     </Table.Td>
 
                     {/* Status Badge */}
