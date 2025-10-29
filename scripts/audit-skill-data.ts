@@ -18,7 +18,6 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { type SkillCategory } from '@prisma/client';
 
 const prisma = new PrismaClient();
 

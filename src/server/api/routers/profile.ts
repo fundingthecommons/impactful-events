@@ -1074,6 +1074,7 @@ export const profileRouter = createTRPCRouter({
             select: {
               id: true,
               name: true,
+              email: true,
               image: true,
             },
           },
@@ -1082,6 +1083,8 @@ export const profileRouter = createTRPCRouter({
               question: {
                 select: {
                   questionKey: true,
+                  questionEn: true,
+                  order: true,
                 },
               },
             },
@@ -1096,50 +1099,52 @@ export const profileRouter = createTRPCRouter({
 
       // Get profile data for each user
       const residentsWithProfiles = await Promise.all(
-        applications.map(async (app) => {
-          const profile = await ctx.db.userProfile.findUnique({
-            where: { userId: app.user.id },
-            include: {
-              projects: {
-                select: {
-                  id: true,
+        applications
+          .filter((app) => app.user !== null)
+          .map(async (app) => {
+            const profile = await ctx.db.userProfile.findUnique({
+              where: { userId: app.user!.id },
+              include: {
+                projects: {
+                  select: {
+                    id: true,
+                  },
                 },
               },
-            },
-          });
+            });
 
-          // Calculate profile completeness using the same logic as getProfileCompletion
-          const fields = {
-            name: !!app.user.name,
-            image: !!app.user.image,
-            bio: !!profile?.bio,
-            jobTitle: !!profile?.jobTitle,
-            company: !!profile?.company,
-            location: !!profile?.location,
-            skills: !!profile?.skills && profile.skills.length > 0,
-            githubUrl: !!profile?.githubUrl,
-            linkedinUrl: !!profile?.linkedinUrl,
-            website: !!profile?.website,
-          };
+            // Calculate profile completeness using the same logic as getProfileCompletion
+            const fields = {
+              name: !!app.user!.name,
+              image: !!app.user!.image,
+              bio: !!profile?.bio,
+              jobTitle: !!profile?.jobTitle,
+              company: !!profile?.company,
+              location: !!profile?.location,
+              skills: !!profile?.skills && profile.skills.length > 0,
+              githubUrl: !!profile?.githubUrl,
+              linkedinUrl: !!profile?.linkedinUrl,
+              website: !!profile?.website,
+            };
 
-          const completedFields = Object.values(fields).filter(Boolean).length;
-          const totalFields = Object.keys(fields).length;
-          const percentage = Math.round((completedFields / totalFields) * 100);
+            const completedFields = Object.values(fields).filter(Boolean).length;
+            const totalFields = Object.keys(fields).length;
+            const percentage = Math.round((completedFields / totalFields) * 100);
 
-          return {
-            userId: app.user.id,
-            name: app.user.name,
-            image: app.user.image,
-            completeness: {
-              percentage,
-              completedFields,
-              totalFields,
-              meetsThreshold: percentage >= 70,
-            },
-            projectCount: profile?.projects.length ?? 0,
-            application: app,
-          };
-        })
+            return {
+              userId: app.user!.id,
+              name: app.user!.name,
+              image: app.user!.image,
+              completeness: {
+                percentage,
+                completedFields,
+                totalFields,
+                meetsThreshold: percentage >= 70,
+              },
+              projectCount: profile?.projects.length ?? 0,
+              application: app,
+            };
+          })
       );
 
       return residentsWithProfiles;
