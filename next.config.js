@@ -10,7 +10,7 @@ const config = {};
 
 // Make sure adding Sentry options is the last code to run before exporting
 export default withSentryConfig(config, {
-  org: "funding-the-commons", 
+  org: "funding-the-commons",
   project: "ftc-platform-7k",
 
   // An auth token is required for uploading source maps.
@@ -19,8 +19,9 @@ export default withSentryConfig(config, {
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
 
-  // Upload a larger set of source maps for prettier stack traces (increases build time)
-  widenClientFileUpload: true,
+  // OPTIMIZED: Disable to prevent uploading hundreds of unnecessary files
+  // This was causing 27+ minute build times. Only upload essential source maps.
+  widenClientFileUpload: false,
 
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
   // This can increase your server load as well as your hosting bill.
