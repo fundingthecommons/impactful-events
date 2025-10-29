@@ -1147,7 +1147,12 @@ export const profileRouter = createTRPCRouter({
           })
       );
 
-      return residentsWithProfiles;
+      // Sort by profile completeness (descending - highest completion first)
+      const sortedResidents = residentsWithProfiles.sort(
+        (a, b) => b.completeness.percentage - a.completeness.percentage
+      );
+
+      return sortedResidents;
     }),
 
   // Admin endpoints for bulk profile sync
