@@ -318,7 +318,6 @@ async function migrateUserSkills(userRating: UserSkillRating, stats: MigrationSt
             where: { id: existingUserSkill.id },
             data: {
               experienceLevel: rating,
-              updatedAt: new Date()
             }
           });
         }
