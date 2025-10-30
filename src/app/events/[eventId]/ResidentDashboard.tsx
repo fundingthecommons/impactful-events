@@ -384,8 +384,19 @@ export default function ResidentDashboard({
                 <Stack gap="md">
                   {userProjects.slice(0, 2).map((project) => (
                     <Paper key={project.id} p="sm" withBorder>
-                      <Group justify="space-between" align="flex-start">
-                        <div style={{ flex: 1 }}>
+                      <Group justify="space-between" align="flex-start" gap="md">
+                        {project.imageUrl && (
+                          <Image
+                            src={project.imageUrl}
+                            alt={project.title}
+                            w={60}
+                            h={60}
+                            fit="cover"
+                            radius="md"
+                            style={{ flexShrink: 0 }}
+                          />
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <Group gap="xs" align="center">
                             <Text fw={500} size="sm" lineClamp={1} style={{ flex: 1 }}>
                               {project.title}
@@ -402,7 +413,7 @@ export default function ResidentDashboard({
                             </Text>
                           )}
                         </div>
-                        <Group gap="xs">
+                        <Group gap="xs" style={{ flexShrink: 0 }}>
                           <Tooltip label="Edit Project">
                             <ActionIcon
                               variant="light"
