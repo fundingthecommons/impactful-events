@@ -1722,7 +1722,7 @@ export const applicationRouter = createTRPCRouter({
                     orderBy: [
                       { featured: "desc" },
                       { order: "asc" },
-                      { createdAt: "desc" },
+                      { updatedAt: "desc" },
                     ],
                   },
                 },
