@@ -30,6 +30,7 @@ import {
   IconCalendarEvent,
   IconUser,
   IconMapPin,
+  IconTrash,
 } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
@@ -93,6 +94,8 @@ export default function ProjectDetailClient({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [updateToDelete, setUpdateToDelete] = useState<string | null>(null);
 
   const utils = api.useUtils();
 
@@ -111,6 +114,27 @@ export default function ProjectDetailClient({
       });
       setUpdateModalOpen(false);
       form.reset();
+      await utils.project.getProjectTimeline.invalidate({ projectId: project.id });
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  // Delete project update mutation
+  const deleteUpdate = api.project.deleteProjectUpdate.useMutation({
+    onSuccess: async () => {
+      notifications.show({
+        title: "Update deleted",
+        message: "Your project update has been removed from the timeline.",
+        color: "green",
+      });
+      setDeleteModalOpen(false);
+      setUpdateToDelete(null);
       await utils.project.getProjectTimeline.invalidate({ projectId: project.id });
     },
     onError: (error) => {
@@ -146,6 +170,17 @@ export default function ProjectDetailClient({
       demoUrls: values.demoUrls.filter(url => url.trim() !== ""),
       tags: values.tags.filter(tag => tag.trim() !== ""),
     });
+  };
+
+  const handleDeleteClick = (updateId: string) => {
+    setUpdateToDelete(updateId);
+    setDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (updateToDelete) {
+      await deleteUpdate.mutateAsync({ updateId: updateToDelete });
+    }
   };
 
   const formatDate = (date: Date) => {
@@ -443,12 +478,25 @@ export default function ProjectDetailClient({
                           key={update.id}
                           bullet={<IconCalendarEvent size={12} />}
                           title={
-                            <Group gap="xs">
-                              <Text fw={500}>{update.title}</Text>
-                              {update.weekNumber && (
-                                <Badge size="xs" variant="outline">
-                                  Week {update.weekNumber}
-                                </Badge>
+                            <Group gap="xs" justify="space-between">
+                              <Group gap="xs">
+                                <Text fw={500}>{update.title}</Text>
+                                {update.weekNumber && (
+                                  <Badge size="xs" variant="outline">
+                                    Week {update.weekNumber}
+                                  </Badge>
+                                )}
+                              </Group>
+                              {isOwner && (
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="red"
+                                  size="sm"
+                                  onClick={() => handleDeleteClick(update.id)}
+                                  title="Delete update"
+                                >
+                                  <IconTrash size={16} />
+                                </ActionIcon>
                               )}
                             </Group>
                           }
@@ -631,6 +679,32 @@ export default function ProjectDetailClient({
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        opened={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Delete Update"
+        size="sm"
+      >
+        <Stack gap="md">
+          <Text>
+            Are you sure you want to delete this update? This action cannot be undone.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setDeleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={handleConfirmDelete}
+              loading={deleteUpdate.isPending}
+            >
+              Delete
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
     </>
   );
