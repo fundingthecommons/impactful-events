@@ -27,6 +27,7 @@ import {
 import { api } from "~/trpc/react";
 import { type Session } from "next-auth";
 import { notifications } from "@mantine/notifications";
+import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 
 interface AsksAndOffersProps {
   eventId: string;
@@ -206,7 +207,22 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
       <Paper key={item.id} p="md" withBorder>
         <Group justify="space-between" align="flex-start" mb="xs">
           <Group gap="sm">
-            <Avatar src={item.user.image} size="sm" radius="xl" />
+            <Avatar
+              src={getAvatarUrl({
+                customAvatarUrl: item.user.profile?.avatarUrl,
+                oauthImageUrl: item.user.image,
+                name: item.user.name,
+                email: item.user.email,
+              })}
+              alt={item.user.name ?? "User"}
+              size="sm"
+              radius="xl"
+            >
+              {getAvatarInitials({
+                name: item.user.name,
+                email: item.user.email,
+              })}
+            </Avatar>
             <div>
               <Text fw={500} size="sm">
                 {item.user.name}

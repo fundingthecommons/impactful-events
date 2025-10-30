@@ -55,10 +55,12 @@ export const askOfferRouter = createTRPCRouter({
               id: true,
               name: true,
               image: true,
+              email: true,
               profile: {
                 select: {
                   jobTitle: true,
                   company: true,
+                  avatarUrl: true,
                 },
               },
             },
