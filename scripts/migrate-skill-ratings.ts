@@ -262,7 +262,7 @@ async function collectData(): Promise<UserSkillRating[]> {
         console.log(`⚠️  Empty skills array for user ${application.user?.name ?? application.userId}`);
         continue;
       }
-    } catch (error) {
+    } catch {
       console.log(`⚠️  Invalid skills JSON for user ${application.user?.name ?? application.userId}: ${skillsResponse.answer}`);
       continue;
     }
@@ -350,7 +350,7 @@ async function migrateUserSkills(userRating: UserSkillRating, stats: MigrationSt
       }
 
     } catch (error) {
-      console.log(`   ❌ Error processing skill "${skillName}": ${error}`);
+      console.log(`   ❌ Error processing skill "${skillName}": ${error instanceof Error ? error.message : String(error)}`);
       stats.errors++;
     }
   }
@@ -435,4 +435,4 @@ async function main() {
   }
 }
 
-main();
+void main();

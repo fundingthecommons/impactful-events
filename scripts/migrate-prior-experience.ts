@@ -226,7 +226,7 @@ async function migrateUserExperience(userExp: UserExperience, stats: MigrationSt
     stats.usersProcessed++;
 
   } catch (error) {
-    console.log(`   ❌ Error: ${error}`);
+    console.log(`   ❌ Error: ${error instanceof Error ? error.message : String(error)}`);
     stats.errors++;
   }
 }
@@ -314,4 +314,4 @@ async function main() {
   }
 }
 
-main();
+void main();
