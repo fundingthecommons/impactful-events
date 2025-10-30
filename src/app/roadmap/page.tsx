@@ -1,3 +1,4 @@
+"use client";
 import { Container, Title, Text, Timeline, Badge, Stack, Paper } from "@mantine/core";
 import {
   IconGitCommit,
