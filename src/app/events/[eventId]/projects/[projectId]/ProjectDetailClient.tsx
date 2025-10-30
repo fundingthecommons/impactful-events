@@ -21,6 +21,10 @@ import {
   ActionIcon,
   Image,
   Anchor,
+  FileButton,
+  Progress,
+  Box,
+  SimpleGrid,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -31,6 +35,8 @@ import {
   IconUser,
   IconMapPin,
   IconTrash,
+  IconCheck,
+  IconX,
 } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
@@ -96,6 +102,8 @@ export default function ProjectDetailClient({
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [updateToDelete, setUpdateToDelete] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const utils = api.useUtils();
 
@@ -170,6 +178,61 @@ export default function ProjectDetailClient({
       demoUrls: values.demoUrls.filter(url => url.trim() !== ""),
       tags: values.tags.filter(tag => tag.trim() !== ""),
     });
+  };
+
+  // Handler for project update image upload
+  const handleImageUpload = async (file: File | null) => {
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file); // Using same endpoint as avatar
+
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch('/api/upload/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const error = await response.json() as { error?: string };
+        throw new Error(error.error ?? 'Upload failed');
+      }
+
+      const result = await response.json() as { avatarUrl: string };
+
+      // Add the uploaded image URL to the form's imageUrls array
+      const currentUrls = form.values.imageUrls;
+      form.setFieldValue('imageUrls', [...currentUrls, result.avatarUrl]);
+
+      notifications.show({
+        title: 'Success',
+        message: 'Image uploaded successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
+
+    } catch (error) {
+      notifications.show({
+        title: 'Upload failed',
+        message: error instanceof Error ? error.message : 'Failed to upload image',
+        color: 'red',
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setIsUploadingImage(false);
+      setUploadProgress(0);
+    }
   };
 
   const handleDeleteClick = (updateId: string) => {
@@ -633,14 +696,90 @@ export default function ProjectDetailClient({
               {...form.getInputProps('weekNumber')}
             />
 
-            <TextInput
-              label="Image URLs (comma-separated)"
-              placeholder="https://example.com/screenshot1.png, https://example.com/demo.gif"
-              onChange={(event) => {
-                const urls = event.target.value.split(',').map(url => url.trim());
-                form.setFieldValue('imageUrls', urls);
-              }}
-            />
+            <Stack gap="xs">
+              <Text size="sm" fw={500}>
+                Update Images
+              </Text>
+              <Text size="xs" c="dimmed">
+                Upload screenshots or demo images (JPG, PNG, GIF, or WebP, max 5MB each)
+              </Text>
+
+              {form.values.imageUrls.length > 0 && (
+                <SimpleGrid cols={3} spacing="xs">
+                  {form.values.imageUrls.map((url, index) => (
+                    <Box key={index} pos="relative">
+                      <Image
+                        src={url}
+                        alt={`Update image ${index + 1}`}
+                        radius="md"
+                        h={120}
+                        fit="cover"
+                        style={{ border: '1px solid var(--mantine-color-gray-3)' }}
+                      />
+                      <ActionIcon
+                        color="red"
+                        size="sm"
+                        radius="xl"
+                        variant="filled"
+                        style={{
+                          position: 'absolute',
+                          top: 4,
+                          right: 4,
+                        }}
+                        onClick={() => {
+                          const newUrls = form.values.imageUrls.filter((_, i) => i !== index);
+                          form.setFieldValue('imageUrls', newUrls);
+                        }}
+                      >
+                        <IconX size={14} />
+                      </ActionIcon>
+                    </Box>
+                  ))}
+                </SimpleGrid>
+              )}
+
+              <Group>
+                <FileButton
+                  onChange={handleImageUpload}
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  disabled={isUploadingImage}
+                >
+                  {(props) => (
+                    <Button
+                      {...props}
+                      variant="light"
+                      size="sm"
+                      leftSection={<IconPlus size={16} />}
+                      loading={isUploadingImage}
+                    >
+                      Upload Image
+                    </Button>
+                  )}
+                </FileButton>
+              </Group>
+
+              {isUploadingImage && (
+                <Box>
+                  <Text size="sm" mb="xs">Uploading...</Text>
+                  <Progress value={uploadProgress} size="sm" />
+                </Box>
+              )}
+
+              <TextInput
+                placeholder="Or paste image URL and press Enter"
+                size="xs"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const url = event.currentTarget.value.trim();
+                    if (url) {
+                      form.setFieldValue('imageUrls', [...form.values.imageUrls, url]);
+                      event.currentTarget.value = '';
+                    }
+                  }
+                }}
+              />
+            </Stack>
 
             <TextInput
               label="GitHub URLs (comma-separated)"
