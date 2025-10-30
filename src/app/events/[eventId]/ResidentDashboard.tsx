@@ -221,14 +221,14 @@ export default function ResidentDashboard({
 
     try {
       const formData = new FormData();
-      formData.append('avatar', file); // Using same endpoint as avatar
+      formData.append('image', file);
 
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
 
-      const response = await fetch('/api/upload/avatar', {
+      const response = await fetch('/api/upload/project-image', {
         method: 'POST',
         body: formData,
       });
@@ -241,10 +241,10 @@ export default function ResidentDashboard({
         throw new Error(error.error ?? 'Upload failed');
       }
 
-      const result = await response.json() as { avatarUrl: string };
+      const result = await response.json() as { imageUrl: string };
 
       // Update form with new image URL
-      form.setFieldValue('imageUrl', result.avatarUrl);
+      form.setFieldValue('imageUrl', result.imageUrl);
 
       notifications.show({
         title: 'Success',
