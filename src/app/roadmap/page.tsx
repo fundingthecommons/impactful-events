@@ -1,3 +1,4 @@
+"use client";
 import { Container, Title, Text, Timeline, Badge, Stack, Paper } from "@mantine/core";
 import {
   IconGitCommit,
@@ -5,7 +6,6 @@ import {
   IconSparkles,
   IconTools,
 } from "@tabler/icons-react";
-import { execSync } from "child_process";
 
 interface Commit {
   hash: string;
@@ -29,36 +29,34 @@ function parseCommitMessage(message: string): { type: Commit["type"]; descriptio
   return { type: "other", description: message };
 }
 
-// Fetch commits from git (server-side)
-function getRecentCommits(days = 7): Commit[] {
-  try {
-    const gitCommand = `git log --since="${days} days ago" --pretty=format:"%h|%ai|%s" --no-merges`;
-    const output = execSync(gitCommand, { encoding: 'utf-8' });
+// Static commits data (update manually or via CI/CD)
+// To auto-update: run `git log --since="7 days ago" --pretty=format:"%h|%ai|%s" --no-merges`
+// and update this array with the output
+const staticCommits = [
+  "f84da25|2025-10-30 04:03:29 +0000|feat: add floating GitHub corner widget with issue reporting",
+  "b1118eb|2025-10-30 03:54:52 +0000|feat: make roadmap page auto-update from git commits",
+  "a4e5028|2025-10-30 03:49:32 +0000|fix: add 'use client' directive to roadmap page for Timeline component",
+  "77599db|2025-10-30 03:44:38 +0000|fix: migrate image uploads from filesystem to Vercel Blob storage for serverless compatibility",
+  "d0bfaf1|2025-10-30 02:35:41 +0000|feat: add roadmap page displaying recent development activity",
+  "e8d843a|2025-10-30 02:29:31 +0000|feat: display project images on cards in Your Projects widget",
+  "b37b7ff|2025-10-30 02:26:52 +0000|fix: separate project image uploads from avatar uploads",
+  "ad69004|2025-10-30 02:17:27 +0000|fix: remove URL validation from server-side project imageUrl schema",
+];
 
-    if (!output.trim()) {
-      return [];
-    }
+function getRecentCommits(): Commit[] {
+  return staticCommits.map(line => {
+    const [hash, datetime, message] = line.split('|');
+    const [date, time] = datetime?.split(' ') ?? ['', ''];
+    const parsed = parseCommitMessage(message ?? '');
 
-    return output
-      .trim()
-      .split('\n')
-      .map(line => {
-        const [hash, datetime, message] = line.split('|');
-        const [date, time] = datetime?.split(' ') ?? ['', ''];
-        const parsed = parseCommitMessage(message ?? '');
-
-        return {
-          hash: hash ?? '',
-          date: date ?? '',
-          time: time ?? '',
-          message: message ?? '',
-          type: parsed.type,
-        };
-      });
-  } catch (error) {
-    console.error('Failed to fetch git commits:', error);
-    return [];
-  }
+    return {
+      hash: hash ?? '',
+      date: date ?? '',
+      time: time ?? '',
+      message: message ?? '',
+      type: parsed.type,
+    };
+  });
 }
 
 // Get icon based on commit type
@@ -104,8 +102,8 @@ function getCommitLabel(type: Commit["type"]) {
 }
 
 export default function RoadmapPage() {
-  // Fetch recent commits dynamically from git
-  const recentCommits = getRecentCommits(7); // Last 7 days
+  // Get recent commits from static data
+  const recentCommits = getRecentCommits();
   return (
     <Container size="md" py="xl">
       <Stack gap="xl">
