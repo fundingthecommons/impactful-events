@@ -66,7 +66,7 @@ const projectSchema = z.object({
   description: z.string().max(500).optional(),
   githubUrl: z.string().url("Invalid GitHub URL").optional().or(z.literal("")),
   liveUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
-  imageUrl: z.string().url("Invalid image URL").optional().or(z.literal("")),
+  imageUrl: z.string().optional().or(z.literal("")),
   technologies: z.array(z.string().max(30)).max(20),
   featured: z.boolean().optional().default(false),
 });
