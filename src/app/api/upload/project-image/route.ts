@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     const blob = await put(fileName, file, {
       access: 'public',
       contentType: file.type,
+      token: process.env.PLATFORM_READ_WRITE_TOKEN,
     });
 
     // NOTE: We do NOT update the user profile here - this is just for project images
