@@ -11,6 +11,7 @@ import { TRPCReactProvider } from "~/trpc/react";
 import HeaderBar from "./admin/events/HeaderBar";
 import { ThemeProvider } from "./_components/ThemeProvider";
 import { ThemeToggle } from "./_components/ThemeToggle";
+import { GitHubCorner } from "./_components/GitHubCorner";
 import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default function RootLayout({
               {children}
             </TRPCReactProvider>
             <ThemeToggle />
+            <GitHubCorner />
           </SessionProvider>
         </ThemeProvider>
       </body>
