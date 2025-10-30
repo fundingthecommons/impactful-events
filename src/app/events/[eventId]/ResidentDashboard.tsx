@@ -262,10 +262,8 @@ export default function ResidentDashboard({
                 </Button>
               </Card>
             </Grid.Col>
-          ) : (
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder h="100%" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Stack align="center" gap="md">
+          ) : null}
+          {/* <Stack align="center" gap="md">
                   <Group gap="xs">
                     <IconUser size={20} />
                     <Text fw={600}>Profile</Text>
@@ -278,10 +276,7 @@ export default function ResidentDashboard({
                   >
                     Edit Profile
                   </Button>
-                </Stack>
-              </Card>
-            </Grid.Col>
-          )}
+                </Stack> */}
 
           {/* Your Projects Widget */}
           <Grid.Col span={{ base: 12, md: 6 }}>

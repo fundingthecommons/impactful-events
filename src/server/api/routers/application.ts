@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { type Prisma } from "@prisma/client";
 
 import {
   createTRPCRouter,
@@ -1779,7 +1780,28 @@ export const applicationRouter = createTRPCRouter({
                   linkedinUrl: true,
                   twitterUrl: true,
                   website: true,
+                  priorExperience: true,
+                  availableForHiring: true,
+                  availableForMentoring: true,
+                  availableForOfficeHours: true,
                 }
+              },
+              userSkills: {
+                select: {
+                  id: true,
+                  experienceLevel: true,
+                  skill: {
+                    select: {
+                      id: true,
+                      name: true,
+                      category: true,
+                    }
+                  }
+                },
+                orderBy: {
+                  experienceLevel: "desc",
+                },
+                take: 10,
               }
             }
           }
@@ -1790,6 +1812,152 @@ export const applicationRouter = createTRPCRouter({
       });
 
       return participants;
+    }),
+
+  // Search event participants with filters
+  searchEventParticipants: publicProcedure
+    .input(z.object({
+      eventId: z.string(),
+      search: z.string().optional(),
+      skillCategories: z.array(z.string()).optional(),
+      availableForHiring: z.boolean().optional(),
+      availableForMentoring: z.boolean().optional(),
+      availableForOfficeHours: z.boolean().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const {
+        eventId,
+        search,
+        skillCategories,
+        availableForHiring,
+        availableForMentoring,
+        availableForOfficeHours,
+      } = input;
+
+      // Build dynamic where conditions
+      const andConditions: Prisma.ApplicationWhereInput[] = [
+        { eventId },
+        { status: "ACCEPTED" },
+        { applicationType: "RESIDENT" },
+      ];
+
+      // Text search across name, skills, profile fields, and prior experience
+      if (search) {
+        andConditions.push({
+          OR: [
+            { user: { name: { contains: search, mode: "insensitive" } } },
+            { user: {
+              profile: {
+                OR: [
+                  { bio: { contains: search, mode: "insensitive" } },
+                  { jobTitle: { contains: search, mode: "insensitive" } },
+                  { company: { contains: search, mode: "insensitive" } },
+                  { priorExperience: { contains: search, mode: "insensitive" } },
+                ]
+              }
+            } },
+            { user: {
+              userSkills: {
+                some: {
+                  skill: { name: { contains: search, mode: "insensitive" } }
+                }
+              }
+            } },
+          ]
+        });
+      }
+
+      // Skill category filter
+      if (skillCategories && skillCategories.length > 0) {
+        andConditions.push({
+          user: {
+            userSkills: {
+              some: {
+                skill: {
+                  category: { in: skillCategories }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Availability filters
+      if (availableForHiring !== undefined) {
+        andConditions.push({
+          user: { profile: { availableForHiring } }
+        });
+      }
+      if (availableForMentoring !== undefined) {
+        andConditions.push({
+          user: { profile: { availableForMentoring } }
+        });
+      }
+      if (availableForOfficeHours !== undefined) {
+        andConditions.push({
+          user: { profile: { availableForOfficeHours } }
+        });
+      }
+
+      const participants = await ctx.db.application.findMany({
+        where: {
+          AND: andConditions,
+        },
+        select: {
+          id: true,
+          submittedAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              profile: {
+                select: {
+                  bio: true,
+                  jobTitle: true,
+                  company: true,
+                  location: true,
+                  skills: true,
+                  interests: true,
+                  githubUrl: true,
+                  linkedinUrl: true,
+                  twitterUrl: true,
+                  website: true,
+                  priorExperience: true,
+                  availableForHiring: true,
+                  availableForMentoring: true,
+                  availableForOfficeHours: true,
+                }
+              },
+              userSkills: {
+                select: {
+                  id: true,
+                  experienceLevel: true,
+                  skill: {
+                    select: {
+                      id: true,
+                      name: true,
+                      category: true,
+                    }
+                  }
+                },
+                orderBy: {
+                  experienceLevel: "desc",
+                },
+                take: 10,
+              }
+            }
+          }
+        },
+        orderBy: {
+          submittedAt: "asc",
+        }
+      });
+
+      return {
+        participants,
+        totalCount: participants.length,
+      };
     }),
 
   // Admin: Get single application by ID with full details

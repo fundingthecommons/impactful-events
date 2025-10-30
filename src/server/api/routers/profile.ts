@@ -302,16 +302,27 @@ export const profileRouter = createTRPCRouter({
       const profileWhere: Prisma.UserProfileWhereInput = {};
       const userWhere: Prisma.UserWhereInput = {};
 
-      // Text search
+      // Text search across multiple fields
       if (search) {
         userWhere.OR = [
           { name: { contains: search, mode: "insensitive" } },
+          // Search in UserSkills (normalized skills)
+          {
+            userSkills: {
+              some: {
+                skill: {
+                  name: { contains: search, mode: "insensitive" }
+                }
+              }
+            }
+          },
         ];
         profileWhere.OR = [
           { bio: { contains: search, mode: "insensitive" } },
           { jobTitle: { contains: search, mode: "insensitive" } },
           { company: { contains: search, mode: "insensitive" } },
-          { skills: { hasSome: [search] } },
+          { skills: { hasSome: [search] } }, // Legacy skills
+          { priorExperience: { contains: search, mode: "insensitive" } }, // New field
         ];
       }
 
@@ -348,6 +359,15 @@ export const profileRouter = createTRPCRouter({
                 orderBy: { order: "asc" },
               },
             },
+          },
+          userSkills: {
+            include: {
+              skill: true,
+            },
+            orderBy: {
+              experienceLevel: "desc",
+            },
+            take: 10, // Top 10 skills per user
           },
         },
         orderBy: { name: "asc" },
