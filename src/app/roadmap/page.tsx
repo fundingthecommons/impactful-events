@@ -1,4 +1,3 @@
-"use client";
 import { Container, Title, Text, Timeline, Badge, Stack, Paper } from "@mantine/core";
 import {
   IconGitCommit,
@@ -6,6 +5,7 @@ import {
   IconSparkles,
   IconTools,
 } from "@tabler/icons-react";
+import { execSync } from "child_process";
 
 interface Commit {
   hash: string;
@@ -27,6 +27,38 @@ function parseCommitMessage(message: string): { type: Commit["type"]; descriptio
   }
 
   return { type: "other", description: message };
+}
+
+// Fetch commits from git (server-side)
+function getRecentCommits(days = 7): Commit[] {
+  try {
+    const gitCommand = `git log --since="${days} days ago" --pretty=format:"%h|%ai|%s" --no-merges`;
+    const output = execSync(gitCommand, { encoding: 'utf-8' });
+
+    if (!output.trim()) {
+      return [];
+    }
+
+    return output
+      .trim()
+      .split('\n')
+      .map(line => {
+        const [hash, datetime, message] = line.split('|');
+        const [date, time] = datetime?.split(' ') ?? ['', ''];
+        const parsed = parseCommitMessage(message ?? '');
+
+        return {
+          hash: hash ?? '',
+          date: date ?? '',
+          time: time ?? '',
+          message: message ?? '',
+          type: parsed.type,
+        };
+      });
+  } catch (error) {
+    console.error('Failed to fetch git commits:', error);
+    return [];
+  }
 }
 
 // Get icon based on commit type
@@ -71,137 +103,9 @@ function getCommitLabel(type: Commit["type"]) {
   }
 }
 
-// Recent commits from the last 24 hours (this would come from git in production)
-const recentCommits: Commit[] = [
-  {
-    hash: "e8d843a",
-    date: "2025-10-30",
-    time: "02:29:31",
-    message: "feat: display project images on cards in Your Projects widget",
-    type: "feat",
-  },
-  {
-    hash: "b37b7ff",
-    date: "2025-10-30",
-    time: "02:26:52",
-    message: "fix: separate project image uploads from avatar uploads",
-    type: "fix",
-  },
-  {
-    hash: "ad69004",
-    date: "2025-10-30",
-    time: "02:17:27",
-    message: "fix: remove URL validation from server-side project imageUrl schema",
-    type: "fix",
-  },
-  {
-    hash: "0127370",
-    date: "2025-10-30",
-    time: "02:14:59",
-    message: "fix: allow relative paths for project image URLs in validation schema",
-    type: "fix",
-  },
-  {
-    hash: "546a1ef",
-    date: "2025-10-30",
-    time: "02:12:21",
-    message: "feat: add image upload functionality to project update modal",
-    type: "feat",
-  },
-  {
-    hash: "cac5c0c",
-    date: "2025-10-30",
-    time: "02:05:01",
-    message: "feat: add project editing and image upload functionality to resident dashboard",
-    type: "feat",
-  },
-  {
-    hash: "094ea21",
-    date: "2025-10-30",
-    time: "01:45:54",
-    message: "fix: remove manual updatedAt field from Prisma update operation",
-    type: "fix",
-  },
-  {
-    hash: "0266138",
-    date: "2025-10-30",
-    time: "01:38:12",
-    message: "fix: resolve ESLint violations in migration scripts for floating promises and template expressions",
-    type: "fix",
-  },
-  {
-    hash: "3415322",
-    date: "2025-10-30",
-    time: "01:34:04",
-    message: "fix: include scripts directory in TypeScript project configuration for linting",
-    type: "fix",
-  },
-  {
-    hash: "343b4c9",
-    date: "2025-10-30",
-    time: "01:29:35",
-    message: "feat: enhance avatar display in Asks and Offers components with custom and initial fallback",
-    type: "feat",
-  },
-  {
-    hash: "589baca",
-    date: "2025-10-30",
-    time: "01:26:19",
-    message: "feat: add Asks and Offers functionality for event participants, including creation, deletion, and management of asks/offers",
-    type: "feat",
-  },
-  {
-    hash: "ce95dbc",
-    date: "2025-10-30",
-    time: "00:19:20",
-    message: "feat: implement advanced talent search functionality for event participants, enhancing search capabilities across profiles and skills",
-    type: "feat",
-  },
-  {
-    hash: "f53e91b",
-    date: "2025-10-30",
-    time: "00:03:53",
-    message: "feat: Add migration scripts and update UserProfile schema for prior experience and skill ratings",
-    type: "feat",
-  },
-  {
-    hash: "854ea4a",
-    date: "2025-10-29",
-    time: "22:41:52",
-    message: "feat: add delete functionality for project updates with confirmation modal",
-    type: "feat",
-  },
-  {
-    hash: "805512c",
-    date: "2025-10-29",
-    time: "22:30:54",
-    message: "fix: change sorting order to prioritize updatedAt over createdAt in application router",
-    type: "fix",
-  },
-  {
-    hash: "66cc3d5",
-    date: "2025-10-29",
-    time: "20:59:06",
-    message: "fix: optimize Sentry configuration to reduce build times by limiting source map uploads",
-    type: "fix",
-  },
-  {
-    hash: "2f7f35d",
-    date: "2025-10-29",
-    time: "20:58:56",
-    message: "feat: sort residents by profile completeness in getResidentProfilesForAdmin query",
-    type: "feat",
-  },
-  {
-    hash: "93a162d",
-    date: "2025-10-29",
-    time: "16:59:58",
-    message: "fix: add missing question fields to resident profiles query",
-    type: "fix",
-  },
-];
-
 export default function RoadmapPage() {
+  // Fetch recent commits dynamically from git
+  const recentCommits = getRecentCommits(7); // Last 7 days
   return (
     <Container size="md" py="xl">
       <Stack gap="xl">
@@ -210,7 +114,7 @@ export default function RoadmapPage() {
             Development Roadmap
           </Title>
           <Text c="dimmed">
-            Recent features and fixes shipped in the last 24 hours
+            Recent features and fixes shipped in the last 7 days
           </Text>
         </div>
 
