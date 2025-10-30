@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob';
 import { auth } from '~/server/auth';
 
 // Maximum file size: 5MB
@@ -39,35 +38,21 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
     // Create unique filename with user ID and timestamp
     const fileExtension = file.name.split('.').pop() ?? 'jpg';
-    const fileName = `${session.user.id}-${Date.now()}.${fileExtension}`;
+    const fileName = `projects/${session.user.id}-${Date.now()}.${fileExtension}`;
 
-    // Create uploads directory for project images
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'projects');
-
-    try {
-      await mkdir(uploadsDir, { recursive: true });
-    } catch {
-      // Directory might already exist, which is fine
-    }
-
-    // Write file to uploads directory
-    const filePath = join(uploadsDir, fileName);
-    await writeFile(filePath, buffer);
-
-    // Create public URL for the uploaded file
-    const imageUrl = `/uploads/projects/${fileName}`;
+    // Upload to Vercel Blob
+    const blob = await put(fileName, file, {
+      access: 'public',
+      contentType: file.type,
+    });
 
     // NOTE: We do NOT update the user profile here - this is just for project images
 
     return NextResponse.json({
       success: true,
-      imageUrl,
+      imageUrl: blob.url,
       message: 'Project image uploaded successfully'
     });
 

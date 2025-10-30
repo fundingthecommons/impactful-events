@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob';
 import { auth } from '~/server/auth';
 import { db } from '~/server/db';
 
@@ -28,62 +27,48 @@ export async function POST(request: NextRequest) {
 
     // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ 
-        error: 'Invalid file type. Please upload a JPEG, PNG, GIF, or WebP image.' 
+      return NextResponse.json({
+        error: 'Invalid file type. Please upload a JPEG, PNG, GIF, or WebP image.'
       }, { status: 400 });
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ 
-        error: 'File too large. Maximum size is 5MB.' 
+      return NextResponse.json({
+        error: 'File too large. Maximum size is 5MB.'
       }, { status: 400 });
     }
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
     // Create unique filename with user ID and timestamp
     const fileExtension = file.name.split('.').pop() ?? 'jpg';
-    const fileName = `${session.user.id}-${Date.now()}.${fileExtension}`;
-    
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', 'avatars');
-    
-    try {
-      await mkdir(uploadsDir, { recursive: true });
-    } catch {
-      // Directory might already exist, which is fine
-    }
+    const fileName = `avatars/${session.user.id}-${Date.now()}.${fileExtension}`;
 
-    // Write file to uploads directory
-    const filePath = join(uploadsDir, fileName);
-    await writeFile(filePath, buffer);
-
-    // Create public URL for the uploaded file
-    const avatarUrl = `/uploads/avatars/${fileName}`;
+    // Upload to Vercel Blob
+    const blob = await put(fileName, file, {
+      access: 'public',
+      contentType: file.type,
+    });
 
     // Update user profile with new avatar URL
     await db.userProfile.upsert({
       where: { userId: session.user.id },
-      update: { avatarUrl },
+      update: { avatarUrl: blob.url },
       create: {
         userId: session.user.id,
-        avatarUrl,
+        avatarUrl: blob.url,
       },
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      avatarUrl,
-      message: 'Avatar uploaded successfully' 
+    return NextResponse.json({
+      success: true,
+      avatarUrl: blob.url,
+      message: 'Avatar uploaded successfully'
     });
 
   } catch (error) {
     console.error('Avatar upload error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to upload avatar. Please try again.' 
+    return NextResponse.json({
+      error: 'Failed to upload avatar. Please try again.'
     }, { status: 500 });
   }
 }
