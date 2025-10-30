@@ -19,6 +19,13 @@ export default withSentryConfig(config, {
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
 
+  // CRITICAL FIX: Disable source map uploads to prevent 20+ minute build times
+  // Sentry error tracking still works, just without detailed source maps
+  // Re-enable sourcemaps only when needed for specific debugging
+  sourcemaps: {
+    disable: true,
+  },
+
   // OPTIMIZED: Disable to prevent uploading hundreds of unnecessary files
   // This was causing 27+ minute build times. Only upload essential source maps.
   widenClientFileUpload: false,
