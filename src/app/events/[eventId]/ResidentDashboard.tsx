@@ -47,6 +47,7 @@ import {
   IconWorld,
   IconStar,
   IconX,
+  IconHandStop,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { api } from "~/trpc/react";
@@ -54,6 +55,8 @@ import Link from "next/link";
 import { AddProjectButton } from "~/app/_components/AddProjectButton";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import type { UserProject } from "@prisma/client";
+import { AsksAndOffers } from "./AsksAndOffers";
+import { AsksOffersTab } from "./AsksOffersTab";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -377,6 +380,11 @@ export default function ResidentDashboard({
             </Card>
           </Grid.Col>
 
+          {/* Asks and Offers Widget */}
+          <Grid.Col span={{ base: 12, md: 6 }}>
+            <AsksAndOffers eventId={eventId} session={session} />
+          </Grid.Col>
+
           {/* Participants and Projects Tabs */}
           <Grid.Col span={12}>
             <Tabs defaultValue="participants" variant="outline">
@@ -387,10 +395,13 @@ export default function ResidentDashboard({
                 <Tabs.Tab value="projects" leftSection={<IconBulb size={20} />}>
                   Projects
                 </Tabs.Tab>
+                <Tabs.Tab value="asks-offers" leftSection={<IconHandStop size={20} />}>
+                  Asks & Offers
+                </Tabs.Tab>
               </Tabs.List>
 
               <Tabs.Panel value="participants" pt="lg">
-                <ParticipantsTab 
+                <ParticipantsTab
                   residentsData={residentsData}
                   eventId={eventId}
                   session={session}
@@ -398,10 +409,17 @@ export default function ResidentDashboard({
               </Tabs.Panel>
 
               <Tabs.Panel value="projects" pt="lg">
-                <ProjectsTab 
+                <ProjectsTab
                   residentProjects={residentProjects}
                   eventId={eventId}
                   onAddProject={handleAddProject}
+                />
+              </Tabs.Panel>
+
+              <Tabs.Panel value="asks-offers" pt="lg">
+                <AsksOffersTab
+                  eventId={eventId}
+                  session={session}
                 />
               </Tabs.Panel>
             </Tabs>

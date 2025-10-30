@@ -122,6 +122,9 @@ model User {
   
   // Project update relations
   projectUpdates       ProjectUpdate[]      @relation("ProjectUpdates")
+
+  // Asks and Offers relations
+  asksOffers           AskOffer[]           @relation("UserAsksOffers")
 }
 
 model VerificationToken {
@@ -171,6 +174,7 @@ model Event {
   communications Communication[]  // Communications related to this event
   emails      Email[]  // Legacy: Emails related to this event (for backward compatibility)
   invitations Invitation[]  // Invitations for this event
+  asksOffers  AskOffer[]  @relation("EventAsksOffers")  // Asks and Offers for this event
 }
 
 model Hackathon {
@@ -1231,17 +1235,46 @@ model ProjectUpdate {
   @@index([createdAt])
 }
 
+// Asks and Offers for event participants
+enum AskOfferType {
+  ASK    // Looking for help/resources
+  OFFER  // Offering help/resources
+}
+
+model AskOffer {
+  id            String        @id @default(cuid())
+  userId        String        // User who created the ask/offer
+  eventId       String        // Event this ask/offer is for
+  type          AskOfferType  // ASK or OFFER
+  title         String        // Short title (e.g., "Looking for Solidity mentor")
+  description   String        @db.Text // Detailed description
+  tags          String[]      // Tags for categorization (e.g., ["mentorship", "technical"])
+  isActive      Boolean       @default(true) // Can be marked as fulfilled/closed
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  user          User          @relation("UserAsksOffers", fields: [userId], references: [id], onDelete: Cascade)
+  event         Event         @relation("EventAsksOffers", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([type])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
 model ProfileSync {
   id            String   @id @default(cuid())
   userId        String
   applicationId String
   syncedFields  String[] // Which fields were copied (e.g., ["skills", "bio", "location"])
   syncedAt      DateTime @default(now())
-  
+
   // Relations
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   application  Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, applicationId]) // Prevent duplicate syncs per application
   @@index([userId])
   @@index([applicationId])
