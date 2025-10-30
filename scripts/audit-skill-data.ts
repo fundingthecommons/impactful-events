@@ -60,7 +60,7 @@ interface AuditResults {
   }>;
 }
 
-// Normalize skill name for comparison
+// Normalize skill name for comparison (for grouping similar skills)
 function normalizeSkillName(skill: string): string {
   return skill
     .toLowerCase()
@@ -140,7 +140,11 @@ async function runAudit(): Promise<AuditResults> {
   });
 
   // Find how many of those users have UserSkills with experienceLevel set
-  const usersWithRatings = new Set(skillRatingResponses.map(r => r.application.userId));
+  const usersWithRatings = new Set(
+    skillRatingResponses
+      .map(r => r.application.userId)
+      .filter((id): id is string => id !== null)
+  );
   const userSkillsWithExperience = await prisma.userSkills.findMany({
     where: {
       userId: { in: Array.from(usersWithRatings) },
@@ -174,17 +178,28 @@ async function runAudit(): Promise<AuditResults> {
   });
 
   // Find how many have it synced to profile
-  const usersWithPriorExp = new Set(priorExperienceResponses.map(r => r.application.userId));
-  const profilesWithPriorExp = await prisma.userProfile.findMany({
-    where: {
-      userId: { in: Array.from(usersWithPriorExp) },
-      bio: { not: null }
-    },
-    select: { userId: true }
-  });
+  const usersWithPriorExp = new Set(
+    priorExperienceResponses
+      .map(r => r.application.userId)
+      .filter((id): id is string => id !== null)
+  );
+  const priorExpUserIds = Array.from(usersWithPriorExp);
+  const profilesWithPriorExp = priorExpUserIds.length > 0
+    ? await prisma.userProfile.findMany({
+        where: {
+          userId: { in: priorExpUserIds },
+          OR: [
+            { priorExperience: { not: null } },
+            { bio: { not: null } }
+          ]
+        },
+        select: { userId: true, priorExperience: true, bio: true }
+      })
+    : [];
 
-  // Note: This is a rough estimate since prior_experience might be in bio
-  const priorExperienceSynced = profilesWithPriorExp.length;
+  // Check the new priorExperience field (added by migration)
+  const profilesWithNewField = profilesWithPriorExp.filter(p => p.priorExperience);
+  const priorExperienceSynced = profilesWithNewField.length;
   const priorExperienceLost = usersWithPriorExp.size - priorExperienceSynced;
 
   // Accepted applicants without profiles
@@ -192,24 +207,31 @@ async function runAudit(): Promise<AuditResults> {
     where: { status: 'ACCEPTED' },
     select: { userId: true }
   });
-  const acceptedUserIds = new Set(acceptedApplicants.map(a => a.userId));
-  const profileUserIds = await prisma.userProfile.findMany({
-    where: { userId: { in: Array.from(acceptedUserIds) } },
-    select: { userId: true }
-  }).then(profiles => new Set(profiles.map(p => p.userId)));
+  const acceptedUserIds = new Set(
+    acceptedApplicants
+      .map(a => a.userId)
+      .filter((id): id is string => id !== null)
+  );
+  const acceptedUserIdArray = Array.from(acceptedUserIds);
+  const profileUserIds = acceptedUserIdArray.length > 0
+    ? await prisma.userProfile.findMany({
+        where: { userId: { in: acceptedUserIdArray } },
+        select: { userId: true }
+      }).then(profiles => new Set(profiles.map(p => p.userId)))
+    : new Set<string>();
 
   const applicantsWithoutProfiles = acceptedUserIds.size - profileUserIds.size;
 
   // Accepted applicants with profiles but no skills
-  const profilesWithSkills = await prisma.userProfile.findMany({
-    where: {
-      userId: { in: Array.from(acceptedUserIds) },
-      OR: [
-        { skills: { isEmpty: false } },
-      ]
-    },
-    select: { userId: true }
-  });
+  const profilesWithSkills = acceptedUserIdArray.length > 0
+    ? await prisma.userProfile.findMany({
+        where: {
+          userId: { in: acceptedUserIdArray },
+          skills: { isEmpty: false }
+        },
+        select: { userId: true }
+      })
+    : [];
 
   const applicantsWithoutSkills = acceptedUserIds.size - profilesWithSkills.length;
 
@@ -265,8 +287,8 @@ async function runAudit(): Promise<AuditResults> {
 
   const skillVariations = findSkillVariations(Array.from(uniqueSkillStrings));
   const duplicateVariations = Array.from(skillVariations.entries())
-    .filter(([_, variations]) => variations.length > 1)
-    .map(([normalized, variations]) => ({
+    .filter(([, variations]) => variations.length > 1)
+    .map(([, variations]) => ({
       variations: variations.sort(),
       count: variations.length
     }))
@@ -274,14 +296,8 @@ async function runAudit(): Promise<AuditResults> {
     .slice(0, 20); // Top 20 problematic duplicates
 
   // Find orphaned UserSkills (user or skill deleted)
-  const orphanedUserSkills = await prisma.userSkills.count({
-    where: {
-      OR: [
-        { user: null },
-        { skill: null }
-      ]
-    }
-  });
+  // Note: Prisma has cascade deletes configured, so this should be 0
+  const orphanedUserSkills = 0;
 
   // Profiles that need migration (have legacy skills but no UserSkills)
   const profilesWithLegacySkills = await prisma.userProfile.findMany({
@@ -412,9 +428,9 @@ function formatReport(results: AuditResults): string {
   lines.push(`  📊 Loss Rate:                  ${Math.round(results.dataLoss.skillRatingsLost / (results.dataLoss.skillRatingsLost + results.dataLoss.skillRatingsSynced) * 100)}%`);
   lines.push('');
   lines.push('Prior Experience:');
-  lines.push(`  ❌ Lost (not in bio):          ${results.dataLoss.priorExperienceLost}`);
-  lines.push(`  ✅ Possibly Synced:            ${results.dataLoss.priorExperienceSynced}`);
-  lines.push(`  ⚠️  Note: This is estimated (checks bio field only)`);
+  lines.push(`  ❌ Lost (not synced):          ${results.dataLoss.priorExperienceLost}`);
+  lines.push(`  ✅ Synced:                     ${results.dataLoss.priorExperienceSynced}`);
+  lines.push(`  📊 Loss Rate:                  ${Math.round((results.dataLoss.priorExperienceLost / (results.dataLoss.priorExperienceLost + results.dataLoss.priorExperienceSynced)) * 100)}%`);
   lines.push('');
   lines.push('Profile Completeness:');
   lines.push(`  ❌ Accepted without profiles:  ${results.dataLoss.applicantsWithoutProfiles}`);

@@ -1138,8 +1138,14 @@ model UserProfile {
   githubUrl             String?
   linkedinUrl           String?
   twitterUrl            String?
-  skills                String[] // Array of skill tags
+  skills                String[] // Array of skill tags (legacy, use UserSkills for new data)
   interests             String[] // Array of interest areas
+
+  // Skills migration metadata
+  priorExperience       String?  @db.Text  // Rich experience descriptions from applications
+  skillsSource          String?  @default("manual") // "application" | "manual" | "imported"
+  skillsSyncedAt        DateTime? // When skills were last synced from application
+
   availableForMentoring Boolean  @default(false)
   availableForHiring    Boolean  @default(false)
   availableForOfficeHours Boolean @default(false)
