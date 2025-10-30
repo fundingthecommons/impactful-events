@@ -28,6 +28,9 @@ import {
   Textarea,
   TagsInput,
   Switch,
+  FileButton,
+  Image,
+  Box,
 } from "@mantine/core";
 import {
   IconUser,
@@ -86,6 +89,8 @@ export default function ResidentDashboard({
   const { data: session } = useSession();
   const [modalOpened, setModalOpened] = useState(false);
   const [editingProject, setEditingProject] = useState<UserProject | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Get profile completion data
   const { data: profileCompletion } = api.profile.getProfileCompletion.useQuery();
@@ -190,6 +195,75 @@ export default function ResidentDashboard({
     setEditingProject(null);
     form.reset();
     setModalOpened(true);
+  };
+
+  // Handler for opening edit project modal
+  const handleEditProject = (project: UserProject) => {
+    setEditingProject(project);
+    form.setValues({
+      title: project.title,
+      description: project.description ?? "",
+      githubUrl: project.githubUrl ?? "",
+      liveUrl: project.liveUrl ?? "",
+      imageUrl: project.imageUrl ?? "",
+      technologies: project.technologies,
+      featured: project.featured,
+    });
+    setModalOpened(true);
+  };
+
+  // Handler for project image upload
+  const handleImageUpload = async (file: File | null) => {
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file); // Using same endpoint as avatar
+
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch('/api/upload/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const error = await response.json() as { error?: string };
+        throw new Error(error.error ?? 'Upload failed');
+      }
+
+      const result = await response.json() as { avatarUrl: string };
+
+      // Update form with new image URL
+      form.setFieldValue('imageUrl', result.avatarUrl);
+
+      notifications.show({
+        title: 'Success',
+        message: 'Project image uploaded successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
+
+    } catch (error) {
+      notifications.show({
+        title: 'Upload failed',
+        message: error instanceof Error ? error.message : 'Failed to upload image',
+        color: 'red',
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setIsUploadingImage(false);
+      setUploadProgress(0);
+    }
   };
 
   return (
@@ -329,6 +403,15 @@ export default function ResidentDashboard({
                           )}
                         </div>
                         <Group gap="xs">
+                          <Tooltip label="Edit Project">
+                            <ActionIcon
+                              variant="light"
+                              size="sm"
+                              onClick={() => handleEditProject(project)}
+                            >
+                              <IconEdit size={14} />
+                            </ActionIcon>
+                          </Tooltip>
                           {project.liveUrl && (
                             <Tooltip label="View Live Demo">
                               <ActionIcon
@@ -467,12 +550,69 @@ export default function ResidentDashboard({
               />
             </Group>
 
-            <TextInput
-              label="Image URL"
-              placeholder="https://example.com/screenshot.png"
-              description="Optional screenshot or logo for your project"
-              {...form.getInputProps("imageUrl")}
-            />
+            <Stack gap="xs">
+              <Text size="sm" fw={500}>
+                Project Image
+              </Text>
+              <Text size="xs" c="dimmed">
+                Upload a screenshot or logo for your project (JPG, PNG, GIF, or WebP, max 5MB)
+              </Text>
+
+              {form.values.imageUrl && (
+                <Box>
+                  <Image
+                    src={form.values.imageUrl}
+                    alt="Project preview"
+                    radius="md"
+                    h={200}
+                    fit="contain"
+                    style={{ border: '1px solid var(--mantine-color-gray-3)' }}
+                  />
+                </Box>
+              )}
+
+              <Group>
+                <FileButton
+                  onChange={handleImageUpload}
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  disabled={isUploadingImage}
+                >
+                  {(props) => (
+                    <Button
+                      {...props}
+                      variant="light"
+                      size="sm"
+                      loading={isUploadingImage}
+                    >
+                      {form.values.imageUrl ? 'Change Image' : 'Upload Image'}
+                    </Button>
+                  )}
+                </FileButton>
+                {form.values.imageUrl && (
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    color="red"
+                    onClick={() => form.setFieldValue('imageUrl', '')}
+                  >
+                    Remove Image
+                  </Button>
+                )}
+              </Group>
+
+              {isUploadingImage && (
+                <Box>
+                  <Text size="sm" mb="xs">Uploading...</Text>
+                  <Progress value={uploadProgress} size="sm" />
+                </Box>
+              )}
+
+              <TextInput
+                placeholder="Or paste image URL"
+                {...form.getInputProps("imageUrl")}
+                size="xs"
+              />
+            </Stack>
 
             <TagsInput
               label="Technologies"
