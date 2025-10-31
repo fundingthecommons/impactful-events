@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Container,
   Title,
@@ -112,6 +112,22 @@ export default function ProjectDetailClient({
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const utils = api.useUtils();
+
+  // Handle URL hash navigation on mount
+  useEffect(() => {
+    const hash = window.location.hash.slice(1); // Remove the '#'
+    if (hash && (hash === "overview" || hash === "timeline")) {
+      setActiveTab(hash);
+    }
+  }, []);
+
+  // Update URL hash when tab changes
+  const handleTabChange = (value: string | null) => {
+    if (value) {
+      setActiveTab(value);
+      window.history.replaceState(null, "", `#${value}`);
+    }
+  };
 
   // Get fresh timeline data
   const { data: timeline = initialTimeline } = api.project.getProjectTimeline.useQuery({
@@ -415,7 +431,7 @@ export default function ProjectDetailClient({
           </Card>
 
           {/* Main Content Tabs */}
-          <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? 'overview')}>
+          <Tabs value={activeTab} onChange={handleTabChange}>
             <Tabs.List>
               <Tabs.Tab value="overview">Overview</Tabs.Tab>
               <Tabs.Tab value="timeline">
