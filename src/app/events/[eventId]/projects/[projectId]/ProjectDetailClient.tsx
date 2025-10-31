@@ -46,6 +46,7 @@ import BlueskyConnectButton from "~/app/_components/BlueskyConnectButton";
 import { MentionTextarea } from "~/app/_components/MentionTextarea";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import { LikeButton } from "~/app/_components/LikeButton";
+import { GitCommitTimeline } from "~/app/_components/GitCommitTimeline";
 
 interface ProjectDetailClientProps {
   project: {
@@ -449,6 +450,7 @@ export default function ProjectDetailClient({
                   </Badge>
                 )}
               </Tabs.Tab>
+              <Tabs.Tab value="devtimeline">Dev Timeline</Tabs.Tab>
             </Tabs.List>
 
             <Tabs.Panel value="overview" mt="md">
@@ -756,6 +758,18 @@ export default function ProjectDetailClient({
                       )}
                     </Stack>
                   )}
+                </Stack>
+              </Paper>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="devtimeline" mt="md">
+              <Paper p="xl" radius="md" withBorder>
+                <Stack gap="lg">
+                  <Title order={2}>Development Timeline</Title>
+                  <Text c="dimmed" size="sm">
+                    Recent platform commits from the last 7 days
+                  </Text>
+                  <GitCommitTimeline />
                 </Stack>
               </Paper>
             </Tabs.Panel>
