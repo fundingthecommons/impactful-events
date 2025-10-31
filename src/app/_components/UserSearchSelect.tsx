@@ -76,7 +76,7 @@ export function UserSearchSelect({
       case "Enter":
         e.preventDefault();
         if (filteredResults[selectedIndex]) {
-          handleSelect(filteredResults[selectedIndex]!);
+          handleSelect(filteredResults[selectedIndex]);
         }
         break;
       case "Escape":

@@ -718,4 +718,78 @@ export const projectRouter = createTRPCRouter({
           : false,
       };
     }),
+
+  // Public: Get all project updates for an event
+  getAllEventUpdates: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Get accepted participants for this event
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+          applicationType: "RESIDENT",
+        },
+        select: {
+          user: {
+            select: {
+              id: true,
+              profile: {
+                select: {
+                  projects: {
+                    select: {
+                      id: true,
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Get all project IDs from accepted residents
+      const projectIds = acceptedApplications
+        .filter(app => app.user?.profile?.projects?.length)
+        .flatMap(app =>
+          app.user!.profile!.projects.map(project => project.id)
+        );
+
+      if (projectIds.length === 0) {
+        return [];
+      }
+
+      // Get all updates for these projects
+      const updates = await ctx.db.projectUpdate.findMany({
+        where: {
+          projectId: {
+            in: projectIds
+          }
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            }
+          },
+          project: {
+            select: {
+              id: true,
+              title: true,
+              imageUrl: true,
+            }
+          },
+          likes: {
+            select: {
+              userId: true,
+            }
+          }
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return updates;
+    }),
 });

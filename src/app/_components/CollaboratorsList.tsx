@@ -28,7 +28,7 @@ interface CollaboratorsListProps {
 
 export function CollaboratorsList({
   collaborators,
-  ownerId,
+  ownerId: _ownerId,
   currentUserId,
   isOwner,
   onRemove,
