@@ -407,7 +407,7 @@ export default function ProjectDetailClient({
             <Tabs.List>
               <Tabs.Tab value="overview">Overview</Tabs.Tab>
               <Tabs.Tab value="timeline">
-                Timeline
+                Timeline Updates
                 {timeline.length > 0 && (
                   <Badge size="sm" variant="light" ml="xs">
                     {timeline.length}

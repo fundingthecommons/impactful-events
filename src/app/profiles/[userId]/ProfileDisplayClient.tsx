@@ -18,8 +18,9 @@ import {
   Loader,
   Center,
   Alert,
-  SimpleGrid,
   Paper,
+  Tooltip,
+  Image,
 } from "@mantine/core";
 import {
   IconMapPin,
@@ -36,6 +37,7 @@ import {
   IconLanguage,
   IconCalendar,
   IconArrowLeft,
+  IconStar,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
@@ -236,55 +238,66 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
           {profile?.projects && profile.projects.length > 0 && (
             <Card shadow="sm" padding="lg" radius="md" withBorder>
               <Title order={3} mb="md">Featured Projects</Title>
-              <SimpleGrid cols={{ base: 1, sm: 1 }} spacing="md">
+              <Stack gap="md">
                 {profile.projects.map((project) => (
-                  <Paper key={project.id} p="md" withBorder radius="md">
-                    <Group justify="space-between" align="flex-start" mb="sm">
-                      <Title order={4}>{project.title}</Title>
-                      <Group gap="xs">
-                        {project.githubUrl && (
-                          <ActionIcon
-                            component="a"
-                            href={project.githubUrl}
-                            target="_blank"
-                            variant="light"
-                            size="sm"
-                          >
-                            <IconBrandGithub size={16} />
-                          </ActionIcon>
+                  <Paper key={project.id} p="sm" withBorder>
+                    <Group justify="space-between" align="flex-start" gap="md">
+                      {project.imageUrl && (
+                        <Image
+                          src={project.imageUrl}
+                          alt={project.title}
+                          w={60}
+                          h={60}
+                          fit="cover"
+                          radius="md"
+                          style={{ flexShrink: 0 }}
+                        />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Group gap="xs" align="center">
+                          <Text fw={500} size="sm" lineClamp={1} style={{ flex: 1 }}>
+                            {project.title}
+                          </Text>
+                          {project.featured && (
+                            <Tooltip label="Featured project">
+                              <IconStar size={14} style={{ color: 'var(--mantine-color-yellow-6)' }} />
+                            </Tooltip>
+                          )}
+                        </Group>
+                        {project.description && (
+                          <Text size="xs" c="dimmed" lineClamp={2}>
+                            {project.description}
+                          </Text>
                         )}
+                      </div>
+                      <Group gap="xs" style={{ flexShrink: 0 }}>
                         {project.liveUrl && (
-                          <ActionIcon
-                            component="a"
-                            href={project.liveUrl}
-                            target="_blank"
-                            variant="light"
-                            size="sm"
-                          >
-                            <IconExternalLink size={16} />
-                          </ActionIcon>
+                          <Tooltip label="View Live Demo">
+                            <ActionIcon
+                              variant="light"
+                              size="sm"
+                              onClick={() => window.open(project.liveUrl!, '_blank')}
+                            >
+                              <IconExternalLink size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                        {project.githubUrl && (
+                          <Tooltip label="View Source">
+                            <ActionIcon
+                              variant="light"
+                              size="sm"
+                              onClick={() => window.open(project.githubUrl!, '_blank')}
+                            >
+                              <IconBrandGithub size={14} />
+                            </ActionIcon>
+                          </Tooltip>
                         )}
                       </Group>
                     </Group>
-                    
-                    {project.description && (
-                      <Text size="sm" c="dimmed" mb="sm">
-                        {project.description}
-                      </Text>
-                    )}
-                    
-                    {project.technologies.length > 0 && (
-                      <Group gap={4}>
-                        {project.technologies.map((tech: string) => (
-                          <Badge key={tech} size="xs" variant="dot">
-                            {tech}
-                          </Badge>
-                        ))}
-                      </Group>
-                    )}
                   </Paper>
                 ))}
-              </SimpleGrid>
+              </Stack>
             </Card>
           )}
         </Grid.Col>

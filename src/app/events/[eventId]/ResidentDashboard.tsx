@@ -473,7 +473,7 @@ export default function ResidentDashboard({
                           )}
                         </div>
                         <Group gap="xs" style={{ flexShrink: 0 }}>
-                          <Tooltip label="View Project">
+                          <Tooltip label="Project and Updates">
                             <ActionIcon
                               component={Link}
                               href={`/events/${eventId}/projects/${project.id}`}
