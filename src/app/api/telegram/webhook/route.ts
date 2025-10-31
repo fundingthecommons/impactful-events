@@ -42,8 +42,9 @@ function parsePraiseCommand(text: string): {
   recipientUsername: string;
   message: string;
 } | null {
-  // Remove bot mention if present (e.g., "@platform_praise_bot !praise...")
-  const cleanText = text.replace(/@\w+\s+/i, "").trim();
+  // Remove bot mention if present at the start (e.g., "@platform_praise_bot !praise...")
+  // Only remove if it's before the !praise command
+  const cleanText = text.replace(/^@\w+\s+(!praise)/i, "$1").trim();
 
   // Match pattern: !Praise @username for message
   const praiseRegex = /^!praise\s+@(\w+)\s+for\s+(.+)$/i;
