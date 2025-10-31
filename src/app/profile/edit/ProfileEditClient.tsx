@@ -51,6 +51,7 @@ const schema = z.object({
   availableForMentoring: z.boolean().optional(),
   availableForHiring: z.boolean().optional(),
   availableForOfficeHours: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
   timezone: z.string().max(50).optional(),
   languages: z.array(z.string().max(50)).max(10).optional(),
   yearsOfExperience: z.number().min(0).max(50).optional(),
@@ -531,6 +532,20 @@ export function ProfileEditClient() {
                 label="Office Hours Available"
                 description="I offer regular office hours for community members"
                 {...form.getInputProps("availableForOfficeHours", { type: "checkbox" })}
+              />
+            </Stack>
+          </Card>
+
+          {/* Privacy */}
+          <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Title order={2} size="h3" mb="md">
+              Privacy
+            </Title>
+            <Stack gap="sm">
+              <Switch
+                label="Public Profile"
+                description="Allow non-logged-in users to view your profile. When disabled, only logged-in users can see your profile."
+                {...form.getInputProps("isPublic", { type: "checkbox" })}
               />
             </Stack>
           </Card>

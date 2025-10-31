@@ -89,6 +89,17 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
   const { user, ...profile } = profileData;
   const isOwnProfile = session?.user?.id === userId;
 
+  // Check privacy settings - if profile is private and user is not logged in (and not the owner)
+  if (profile?.isPublic === false && !session?.user && !isOwnProfile) {
+    return (
+      <Container size="md" py="xl">
+        <Alert color="blue" title="Private Profile">
+          This profile is private. Please log in to view it.
+        </Alert>
+      </Container>
+    );
+  }
+
   const getSocialLink = (url: string, type: 'github' | 'linkedin' | 'twitter' | 'website', label: string) => (
     <ActionIcon
       component="a"
