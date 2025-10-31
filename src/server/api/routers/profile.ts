@@ -424,16 +424,27 @@ export const profileRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, ...updateData } = input;
 
-      // Verify ownership
+      // Verify ownership OR collaborator with edit permission
       const project = await ctx.db.userProject.findUnique({
         where: { id },
-        include: { profile: true },
+        include: {
+          profile: true,
+          collaborators: {
+            where: {
+              userId: ctx.session.user.id,
+              canEdit: true,
+            },
+          },
+        },
       });
 
-      if (!project || project.profile.userId !== ctx.session.user.id) {
+      const isOwner = project?.profile.userId === ctx.session.user.id;
+      const isCollaborator = (project?.collaborators.length ?? 0) > 0;
+
+      if (!project || (!isOwner && !isCollaborator)) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "You can only update your own projects",
+          message: "You can only update projects you own or collaborate on",
         });
       }
 
@@ -463,6 +474,79 @@ export const profileRouter = createTRPCRouter({
 
       await ctx.db.userProject.delete({
         where: { id: input.id },
+      });
+
+      return { success: true };
+    }),
+
+  // Add collaborators to a project (owner only)
+  addProjectCollaborators: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+      userIds: z.array(z.string()).min(1, "At least one collaborator is required"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify user owns the project
+      const project = await ctx.db.userProject.findUnique({
+        where: { id: input.projectId },
+        include: { profile: true },
+      });
+
+      if (!project || project.profile.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only add collaborators to your own projects",
+        });
+      }
+
+      // Filter out owner from collaborators
+      const validUserIds = input.userIds.filter(id => id !== ctx.session.user.id);
+
+      if (validUserIds.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot add yourself as a collaborator",
+        });
+      }
+
+      // Create collaborator records
+      await ctx.db.projectCollaborator.createMany({
+        data: validUserIds.map(userId => ({
+          projectId: input.projectId,
+          userId,
+        })),
+        skipDuplicates: true, // Ignore if already exists
+      });
+
+      return { success: true, addedCount: validUserIds.length };
+    }),
+
+  // Remove a collaborator from a project (owner only)
+  removeProjectCollaborator: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+      userId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify user owns the project
+      const project = await ctx.db.userProject.findUnique({
+        where: { id: input.projectId },
+        include: { profile: true },
+      });
+
+      if (!project || project.profile.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only remove collaborators from your own projects",
+        });
+      }
+
+      // Delete the collaborator
+      await ctx.db.projectCollaborator.deleteMany({
+        where: {
+          projectId: input.projectId,
+          userId: input.userId,
+        },
       });
 
       return { success: true };

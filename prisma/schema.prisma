@@ -130,6 +130,9 @@ model User {
   // Praise relations
   praiseSent           Praise[]             @relation("PraiseSent")
   praiseReceived       Praise[]             @relation("PraiseReceived")
+
+  // Project collaboration relation
+  projectCollaborations ProjectCollaborator[] @relation("ProjectCollaborations")
 }
 
 model VerificationToken {
@@ -1213,9 +1216,27 @@ model UserProject {
   // Relations
   profile       UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   updates       ProjectUpdate[] // Project timeline updates
+  collaborators ProjectCollaborator[] // Users who can collaborate on this project
 
   @@index([profileId])
   @@index([featured])
+}
+
+model ProjectCollaborator {
+  id          String   @id @default(cuid())
+  projectId   String   // UserProject ID
+  userId      String   // Collaborator's User ID
+  role        String   @default("member") // "member" for now, can add "viewer" later
+  canEdit     Boolean  @default(true)
+  addedAt     DateTime @default(now())
+
+  // Relations
+  project     UserProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User        @relation("ProjectCollaborations", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId]) // Prevent duplicate collaborators
+  @@index([projectId])
+  @@index([userId])
 }
 
 model ProjectUpdate {
