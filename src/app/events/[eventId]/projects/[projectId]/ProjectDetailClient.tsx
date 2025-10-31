@@ -36,6 +36,7 @@ import {
   IconTrash,
   IconCheck,
   IconX,
+  IconEdit,
 } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
@@ -98,6 +99,7 @@ interface ProjectDetailClientProps {
 export default function ProjectDetailClient({
   project,
   timeline: initialTimeline,
+  eventId,
   isOwner,
   userId,
 }: ProjectDetailClientProps) {
@@ -334,6 +336,16 @@ export default function ProjectDetailClient({
 
               {/* Action buttons */}
               <Group gap="md">
+                {isOwner && (
+                  <Button
+                    onClick={() => router.push(`/events/${eventId}`)}
+                    leftSection={<IconEdit size={16} />}
+                    variant="light"
+                    color="blue"
+                  >
+                    Edit Project
+                  </Button>
+                )}
                 {project.githubUrl && (
                   <Button
                     component="a"
