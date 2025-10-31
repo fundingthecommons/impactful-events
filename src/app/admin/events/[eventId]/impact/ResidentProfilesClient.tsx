@@ -168,14 +168,13 @@ export default function ResidentProfilesClient({
                 <Table.Th>Profile Completeness</Table.Th>
                 <Table.Th>Projects</Table.Th>
                 <Table.Th>Timeline Updates</Table.Th>
-                <Table.Th>Status</Table.Th>
                 <Table.Th>Contact</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {filteredResidents?.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={6}>
+                  <Table.Td colSpan={5}>
                     <Text ta="center" c="dimmed" py="xl">
                       {searchQuery || filterByCompleteness
                         ? "No residents match your filters"
@@ -290,32 +289,71 @@ export default function ResidentProfilesClient({
                       )}
                     </Table.Td>
 
-                    {/* Timeline Updates Count */}
+                    {/* Timeline Updates Count with Popover */}
                     <Table.Td>
-                      <Group gap="xs" align="center">
-                        <Badge
-                          color={resident.projectUpdateCount > 0 ? "green" : "gray"}
-                          variant="light"
-                          size="lg"
-                        >
-                          {resident.projectUpdateCount}
-                        </Badge>
-                        <Text size="xs" c="dimmed">
-                          {resident.projectUpdateCount === 1 ? "update" : "updates"}
-                        </Text>
-                      </Group>
-                    </Table.Td>
-
-                    {/* Status Badge */}
-                    <Table.Td>
-                      {resident.completeness.meetsThreshold ? (
-                        <Badge color="green" variant="light">
-                          Complete
-                        </Badge>
+                      {resident.projectUpdateCount > 0 ? (
+                        <Popover width={350} position="bottom" withArrow shadow="md">
+                          <Popover.Target>
+                            <Group gap="xs" align="center" style={{ cursor: "pointer" }}>
+                              <Badge
+                                color="green"
+                                variant="light"
+                                size="lg"
+                              >
+                                {resident.projectUpdateCount}
+                              </Badge>
+                              <Text size="xs" c="dimmed">
+                                {resident.projectUpdateCount === 1 ? "update" : "updates"}
+                              </Text>
+                            </Group>
+                          </Popover.Target>
+                          <Popover.Dropdown>
+                            <Stack gap="xs">
+                              <Text size="sm" fw={600} mb="xs">
+                                Timeline Updates by Project
+                              </Text>
+                              <Divider />
+                              {resident.projects
+                                ?.filter((project) => project.updateCount > 0)
+                                .map((project) => (
+                                  <Button
+                                    key={project.id}
+                                    component={Link}
+                                    href={`/events/${event.id}/projects/${project.id}`}
+                                    variant="subtle"
+                                    fullWidth
+                                    leftSection={<IconExternalLink size={16} />}
+                                    style={{
+                                      justifyContent: "flex-start",
+                                      height: "auto",
+                                      padding: "8px 12px",
+                                    }}
+                                  >
+                                    <Stack gap={0} style={{ flex: 1, alignItems: "flex-start" }}>
+                                      <Text size="sm" fw={500}>
+                                        {project.title}
+                                      </Text>
+                                      <Text size="xs" c="dimmed">
+                                        {project.updateCount} update{project.updateCount !== 1 ? "s" : ""}
+                                      </Text>
+                                    </Stack>
+                                  </Button>
+                                ))}
+                              {resident.projects?.filter((p) => p.updateCount > 0).length === 0 && (
+                                <Text size="sm" c="dimmed" ta="center" py="md">
+                                  No updates yet
+                                </Text>
+                              )}
+                            </Stack>
+                          </Popover.Dropdown>
+                        </Popover>
                       ) : (
-                        <Badge color="orange" variant="light">
-                          Needs Update
-                        </Badge>
+                        <Group gap="xs" align="center">
+                          <Badge color="gray" variant="light" size="lg">
+                            0
+                          </Badge>
+                          <Text size="xs" c="dimmed">updates</Text>
+                        </Group>
                       )}
                     </Table.Td>
 
