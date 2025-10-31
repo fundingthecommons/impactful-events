@@ -343,7 +343,19 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
                               {update.title}
                             </Text>
                             <Group gap={4}>
-                              <Text size="xs" c="dimmed">
+                              <Text
+                                size="xs"
+                                c="blue"
+                                component={Link}
+                                href={`/events/funding-commons-residency-2025/projects/${update.project.id}`}
+                                style={{ textDecoration: 'none', cursor: 'pointer' }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.textDecoration = 'underline';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.textDecoration = 'none';
+                                }}
+                              >
                                 {update.project.title}
                               </Text>
                               {update.weekNumber && (
