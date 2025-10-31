@@ -36,14 +36,18 @@ interface TelegramUpdate {
 /**
  * Parse praise command from message text
  * Format: !Praise @username for message content
+ * Works with or without bot mention prefix
  */
 function parsePraiseCommand(text: string): {
   recipientUsername: string;
   message: string;
 } | null {
+  // Remove bot mention if present (e.g., "@platform_praise_bot !praise...")
+  const cleanText = text.replace(/@\w+\s+/i, "").trim();
+
   // Match pattern: !Praise @username for message
   const praiseRegex = /^!praise\s+@(\w+)\s+for\s+(.+)$/i;
-  const match = praiseRegex.exec(text);
+  const match = praiseRegex.exec(cleanText);
 
   if (!match) {
     return null;
@@ -53,6 +57,57 @@ function parsePraiseCommand(text: string): {
     recipientUsername: match[1]!.toLowerCase(),
     message: match[2]!.trim(),
   };
+}
+
+/**
+ * Check if message is from a group or channel (not a DM)
+ */
+function isGroupMessage(message: TelegramMessage): boolean {
+  return message.chat.type === "group" || message.chat.type === "supergroup";
+}
+
+/**
+ * React to a message with an emoji
+ */
+async function reactToMessage(
+  chatId: number,
+  messageId: number,
+  emoji: string,
+): Promise<void> {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!botToken) {
+    console.error("TELEGRAM_BOT_TOKEN not configured");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/setMessageReaction`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          message_id: messageId,
+          reaction: [{ type: "emoji", emoji: emoji }],
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const error = (await response.json()) as { description?: string };
+      throw new Error(
+        `Telegram API error: ${error.description ?? response.statusText}`,
+      );
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { operation: "telegram_bot_reaction" },
+      extra: { chatId, messageId, emoji },
+    });
+    console.error("Failed to react to Telegram message:", error);
+  }
 }
 
 /**
@@ -246,10 +301,15 @@ async function processPraiseCommand(
       level: "info",
     });
 
-    // Cross-post to channel anonymously (non-blocking)
+    // Determine if this is from a group (public) or DM (private)
+    const isPublic = isGroupMessage(message);
+    const senderName = isPublic ? sender.name ?? "Someone" : undefined;
+
+    // Cross-post to channel (with sender name if public, anonymous if DM)
     const channelResult = await crossPostPraiseToChannel(
       recipientUsername,
       praiseMessage,
+      senderName,
     );
 
     // Update praise record with channel message ID if successful
@@ -263,8 +323,17 @@ async function processPraiseCommand(
       });
     }
 
+    // React with thumbs up if in a group, reply if DM
+    if (isPublic) {
+      await reactToMessage(message.chat.id, message.message_id, "👍");
+    }
+
     const recipientDisplay = recipient?.name ?? `@${recipientUsername}`;
-    return `✅ Praise recorded! You praised ${recipientDisplay} for: "${praiseMessage}"`;
+
+    // Only send reply in DM, not in groups
+    return isPublic
+      ? "" // No text response in groups (just react)
+      : `✅ Praise recorded! You praised ${recipientDisplay} for: "${praiseMessage}"`;
   } catch (error) {
     Sentry.captureException(error, {
       tags: { operation: "create_praise" },
@@ -310,7 +379,10 @@ export async function POST(request: NextRequest) {
 
     if (praiseData) {
       const replyText = await processPraiseCommand(message, praiseData);
-      await sendTelegramReply(message.chat.id, replyText);
+      // Only send text reply if there is one (DMs get reply, groups just get reaction)
+      if (replyText) {
+        await sendTelegramReply(message.chat.id, replyText);
+      }
     }
 
     return NextResponse.json({ ok: true });

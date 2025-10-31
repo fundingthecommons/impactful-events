@@ -135,16 +135,60 @@ After deployment, all new praise will automatically be cross-posted to the chann
 🌟 Someone praised @alice for helping with the workshop today
 ```
 
-### 5. Test the Bot
+### 5. (Optional) Add Bot to Public Groups
 
-1. Find your bot on Telegram by searching for its username
+To enable praise in your community's public Telegram groups/channels:
+
+#### Step 5a: Add Bot to Group
+
+1. Go to your Telegram group or channel
+2. Click on group name → Add members
+3. Search for `@platform_praise_bot`
+4. Add the bot
+
+#### Step 5b: Configure Bot Permissions
+
+For the bot to work properly in groups:
+
+1. **If it's a group**: Bot automatically gets message access
+2. **If it's a supergroup/channel**:
+   - Make bot an admin (or enable "All Members Are Admins")
+   - Bot needs these permissions:
+     - ✅ Read Messages
+     - ✅ Send Messages (for reactions)
+     - ❌ Delete Messages (not needed)
+     - ❌ Restrict Members (not needed)
+
+#### Step 5c: Enable Group Privacy (if needed)
+
+If the bot can't see messages in your group:
+
+1. Message @BotFather in Telegram
+2. Send `/mybots`
+3. Select `@platform_praise_bot`
+4. Go to Bot Settings → Group Privacy
+5. Click "Turn off" to allow bot to see all messages (required for `!praise` detection)
+
+### 6. Test the Bot
+
+#### Test in DM:
+1. Find your bot on Telegram by searching for `@platform_praise_bot`
 2. Start a conversation with `/start`
 3. Send a praise command:
    ```
    !Praise @username for being awesome today
    ```
 4. The bot should respond confirming the praise was recorded
-5. If channel is configured, check your channel for the anonymous post
+5. If channel is configured, check your praise channel for the anonymous post
+
+#### Test in Group:
+1. Go to a group where you added the bot
+2. Send a praise command:
+   ```
+   !Praise @username for their amazing strudel skills
+   ```
+3. The bot should react with 👍 to your message
+4. Check your praise channel - it should show "YourName praised @username for..."
 
 ## Usage
 
@@ -155,10 +199,24 @@ The command format is:
 !Praise @username for [your message]
 ```
 
+**You can send praise in two ways:**
+
+#### 1. Direct Message (DM) to Bot
+- Send `!Praise @username for message` directly to @platform_praise_bot
+- Bot replies confirming praise was recorded
+- **Anonymous in channel**: Cross-posted as "Someone praised @user for..."
+- Private and discreet
+
+#### 2. Public Group/Channel Message
+- Send `!Praise @username for message` in any group where bot is added
+- Bot reacts with 👍 to acknowledge (no text reply to keep chat clean)
+- **Shows your name in channel**: Cross-posted as "YourName praised @user for..."
+- Public and visible to all group members
+
 **Examples:**
 - `!Praise @alice for the amazing talk today`
 - `!Praise @bob for helping me debug my code`
-- `!Praise @charlie for organizing the event`
+- `!Praise @charlie for organizing the event and strudel skills`
 
 **Notes:**
 - The `@username` should match either:
@@ -166,7 +224,9 @@ The command format is:
   - The recipient's name in the platform
   - The recipient's email prefix (username part before @)
 - Case insensitive
-- The bot will confirm when praise is successfully recorded
+- Works with or without mentioning the bot (@platform_praise_bot)
+- In DMs: Bot confirms with text message
+- In groups: Bot reacts with 👍 emoji
 
 ### Viewing Praise
 

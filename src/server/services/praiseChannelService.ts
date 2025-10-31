@@ -16,18 +16,24 @@ interface CrossPostResult {
  * Format praise message for channel posting
  * @param recipientName - The @username of the recipient
  * @param message - The praise message
+ * @param senderName - Optional sender name (for public group praise)
  * @returns Formatted message string
  */
 function formatPraiseForChannel(
   recipientName: string,
   message: string,
+  senderName?: string,
 ): string {
   // Ensure recipientName has @ prefix
   const formattedName = recipientName.startsWith("@")
     ? recipientName
     : `@${recipientName}`;
 
-  return `🌟 Someone praised ${formattedName} for ${message}`;
+  // If sender name provided (public group praise), show it
+  // Otherwise keep anonymous (DM praise)
+  const sender = senderName ?? "Someone";
+
+  return `🌟 ${sender} praised ${formattedName} for ${message}`;
 }
 
 /**
@@ -35,11 +41,13 @@ function formatPraiseForChannel(
  *
  * @param recipientName - Username of the person being praised
  * @param message - The praise message
+ * @param senderName - Optional sender name (for public group praise, omit for anonymous)
  * @returns Result object with success status and message ID
  */
 export async function crossPostPraiseToChannel(
   recipientName: string,
   message: string,
+  senderName?: string,
 ): Promise<CrossPostResult> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const channelId = process.env.TELEGRAM_PRAISE_CHANNEL_ID;
@@ -58,7 +66,11 @@ export async function crossPostPraiseToChannel(
   }
 
   try {
-    const formattedMessage = formatPraiseForChannel(recipientName, message);
+    const formattedMessage = formatPraiseForChannel(
+      recipientName,
+      message,
+      senderName,
+    );
     const topicId = process.env.TELEGRAM_PRAISE_TOPIC_ID;
 
     // Build request body
