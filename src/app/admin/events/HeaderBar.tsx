@@ -1,5 +1,6 @@
 import { Group, Paper } from "@mantine/core";
 import Image from "next/image";
+import Link from "next/link";
 import { auth } from "~/server/auth";
 import { UserDropdownMenu } from "~/app/_components/UserDropdownMenu";
 import AdminNavigation from "./AdminNavigation";
@@ -12,7 +13,9 @@ export default async function HeaderBar() {
       <Paper withBorder radius={0} p="md" style={{ paddingLeft: 32, paddingRight: 32, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)' }}>
         <Group justify="space-between" align="center">
           <Group align="center" gap={8}>
-            <Image src="/images/ftc-logo.avif" alt="FtC" width={100} height={100} />
+            <Link href="/" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <Image src="/images/ftc-logo.avif" alt="FtC" width={100} height={100} />
+            </Link>
           </Group>
           
           <Group gap={16}>
