@@ -375,8 +375,22 @@ export async function POST(request: NextRequest) {
     const message = update.message;
     const text = message.text ?? "";
 
+    // Log incoming message for debugging
+    console.log("[Webhook] Received message:", {
+      chatType: message.chat.type,
+      chatId: message.chat.id,
+      fromUser: message.from.username,
+      text: text.substring(0, 100), // First 100 chars only
+    });
+
     // Check if it's a praise command
     const praiseData = parsePraiseCommand(text);
+
+    if (!praiseData) {
+      console.log("[Webhook] Not a praise command, ignoring");
+    } else {
+      console.log("[Webhook] Parsed praise command:", praiseData);
+    }
 
     if (praiseData) {
       const replyText = await processPraiseCommand(message, praiseData);
