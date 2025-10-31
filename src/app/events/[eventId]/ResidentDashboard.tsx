@@ -60,6 +60,8 @@ import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import type { UserProject } from "@prisma/client";
 import { AsksAndOffers } from "./AsksAndOffers";
 import { AsksOffersTab } from "./AsksOffersTab";
+import { CollaboratorsList } from "~/app/_components/CollaboratorsList";
+import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -94,6 +96,54 @@ export default function ResidentDashboard({
   const [logoUploadProgress, setLogoUploadProgress] = useState(0);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [bannerUploadProgress, setBannerUploadProgress] = useState(0);
+
+  // Fetch collaborators when editing a project
+  const { data: projectCollaboratorsData, refetch: refetchCollaborators } =
+    api.profile.getProjectCollaborators.useQuery(
+      { projectId: editingProject?.id ?? "" },
+      { enabled: !!editingProject }
+    );
+
+  // Collaborator mutations
+  const addCollaborators = api.profile.addProjectCollaborators.useMutation({
+    onSuccess: (data) => {
+      notifications.show({
+        title: "Success",
+        message: `Added ${data.addedCount} collaborator${data.addedCount !== 1 ? 's' : ''}`,
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      void refetchCollaborators();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to add collaborators",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  const removeCollaborator = api.profile.removeProjectCollaborator.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Success",
+        message: "Collaborator removed",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      void refetchCollaborators();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to remove collaborator",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
 
   // Get profile completion data
   const { data: profileCompletion } = api.profile.getProfileCompletion.useQuery();
@@ -753,6 +803,50 @@ export default function ResidentDashboard({
               description="Technologies and tools used in this project"
               {...form.getInputProps("technologies")}
             />
+
+            {/* Collaborators Section - only show when editing existing project */}
+            {editingProject && projectCollaboratorsData && (
+              <Stack gap="xs">
+                <Text size="sm" fw={500}>
+                  Collaborators
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Add other platform users who can edit this project and post updates
+                </Text>
+
+                {/* List of current collaborators */}
+                <CollaboratorsList
+                  collaborators={projectCollaboratorsData.collaborators}
+                  ownerId={projectCollaboratorsData.ownerId}
+                  currentUserId={session?.user.id ?? ""}
+                  isOwner={session?.user.id === projectCollaboratorsData.ownerId}
+                  onRemove={(userId) =>
+                    removeCollaborator.mutate({
+                      projectId: editingProject.id,
+                      userId,
+                    })
+                  }
+                  loading={removeCollaborator.isPending}
+                />
+
+                {/* Search to add new collaborators - only show if current user is owner */}
+                {session?.user.id === userProfile?.userId && userProfile && (
+                  <UserSearchSelect
+                    onSelect={(user) =>
+                      addCollaborators.mutate({
+                        projectId: editingProject.id,
+                        userIds: [user.id],
+                      })
+                    }
+                    excludeUserIds={[
+                      userProfile.userId,
+                      ...projectCollaboratorsData.collaborators.map((c) => c.user.id),
+                    ]}
+                    placeholder="Search users to add as collaborators..."
+                  />
+                )}
+              </Stack>
+            )}
 
             <Switch
               label="Featured Project"
