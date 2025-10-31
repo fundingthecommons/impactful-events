@@ -25,6 +25,46 @@ const UpdateAskOfferSchema = z.object({
 });
 
 export const askOfferRouter = createTRPCRouter({
+  // Get a single ask/offer by ID
+  getById: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const askOffer = await ctx.db.askOffer.findUnique({
+        where: { id: input.id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              email: true,
+              profile: {
+                select: {
+                  jobTitle: true,
+                  company: true,
+                  avatarUrl: true,
+                  bio: true,
+                  githubUrl: true,
+                  linkedinUrl: true,
+                  twitterUrl: true,
+                  website: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!askOffer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Ask/Offer not found",
+        });
+      }
+
+      return askOffer;
+    }),
+
   // Get all asks and offers for an event
   getEventAsksOffers: publicProcedure
     .input(z.object({

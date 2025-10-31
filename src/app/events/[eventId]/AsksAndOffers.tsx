@@ -28,6 +28,7 @@ import { api } from "~/trpc/react";
 import { type Session } from "next-auth";
 import { notifications } from "@mantine/notifications";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
+import { useRouter } from "next/navigation";
 
 interface AsksAndOffersProps {
   eventId: string;
@@ -35,6 +36,7 @@ interface AsksAndOffersProps {
 }
 
 export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<string | null>("asks");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"ASK" | "OFFER">("ASK");
@@ -203,8 +205,33 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
   const renderAskOfferCard = (item: typeof asksData[0]) => {
     const isOwn = isOwnAskOffer(item.userId);
 
+    const handleCardClick = (e: React.MouseEvent) => {
+      // Don't navigate if clicking on action buttons
+      if ((e.target as HTMLElement).closest('button')) {
+        return;
+      }
+      router.push(`/events/${eventId}/asks-offers/${item.id}`);
+    };
+
     return (
-      <Paper key={item.id} p="md" withBorder>
+      <Paper
+        key={item.id}
+        p="md"
+        withBorder
+        style={{
+          cursor: 'pointer',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '';
+        }}
+        onClick={handleCardClick}
+      >
         <Group justify="space-between" align="flex-start" mb="xs">
           <Group gap="sm">
             <Avatar
@@ -242,7 +269,10 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
                   variant="subtle"
                   color="green"
                   size="sm"
-                  onClick={() => markFulfilledMutation.mutate({ id: item.id })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markFulfilledMutation.mutate({ id: item.id });
+                  }}
                   loading={markFulfilledMutation.isPending}
                 >
                   <IconCheck size={16} />
@@ -253,7 +283,10 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
                   variant="subtle"
                   color="red"
                   size="sm"
-                  onClick={() => deleteMutation.mutate({ id: item.id })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteMutation.mutate({ id: item.id });
+                  }}
                   loading={deleteMutation.isPending}
                 >
                   <IconTrash size={16} />
