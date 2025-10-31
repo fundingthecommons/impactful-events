@@ -122,6 +122,7 @@ model User {
   
   // Project update relations
   projectUpdates       ProjectUpdate[]      @relation("ProjectUpdates")
+  projectUpdateLikes   ProjectUpdateLike[]  @relation("ProjectUpdateLikes")
 
   // Asks and Offers relations
   asksOffers           AskOffer[]           @relation("UserAsksOffers")
@@ -1227,17 +1228,38 @@ model ProjectUpdate {
   githubUrls    String[]    // Links to relevant commits/PRs
   demoUrls      String[]    // Links to demos/prototypes
   tags          String[]    // Tags for categorization (e.g., "milestone", "challenge", "demo")
-  
+
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  
+
   // Relations
   project       UserProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   author        User        @relation("ProjectUpdates", fields: [userId], references: [id], onDelete: Cascade)
-  
+  likes         ProjectUpdateLike[] // Users who liked this update
+
   @@index([projectId])
   @@index([userId])
   @@index([weekNumber])
+  @@index([createdAt])
+}
+
+// Likes on project updates (local + optional Bluesky sync)
+model ProjectUpdateLike {
+  id              String        @id @default(cuid())
+  projectUpdateId String        // Which update was liked
+  userId          String        // Who liked it
+  blueskyUri      String?       // AT Proto URI if synced to Bluesky (future)
+
+  createdAt       DateTime      @default(now())
+
+  // Relations
+  projectUpdate   ProjectUpdate @relation(fields: [projectUpdateId], references: [id], onDelete: Cascade)
+  user            User          @relation("ProjectUpdateLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Ensure each user can only like an update once
+  @@unique([projectUpdateId, userId])
+  @@index([projectUpdateId])
+  @@index([userId])
   @@index([createdAt])
 }
 

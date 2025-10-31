@@ -44,6 +44,7 @@ import { notifications } from "@mantine/notifications";
 import BlueskyConnectButton from "~/app/_components/BlueskyConnectButton";
 import { MentionTextarea } from "~/app/_components/MentionTextarea";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
+import { LikeButton } from "~/app/_components/LikeButton";
 
 interface ProjectDetailClientProps {
   project: {
@@ -98,6 +99,7 @@ export default function ProjectDetailClient({
   project,
   timeline: initialTimeline,
   isOwner,
+  userId,
 }: ProjectDetailClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("overview");
@@ -689,6 +691,14 @@ export default function ProjectDetailClient({
                                 ))}
                               </Group>
                             )}
+
+                            {/* Like Button */}
+                            <LikeButton
+                              updateId={update.id}
+                              initialLikeCount={0}
+                              initialHasLiked={false}
+                              userId={userId}
+                            />
                           </Stack>
                         </Timeline.Item>
                       ))}

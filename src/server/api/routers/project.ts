@@ -552,4 +552,113 @@ export const projectRouter = createTRPCRouter({
 
       return { success: true };
     }),
+
+  // Protected: Like a project update
+  likeProjectUpdate: protectedProcedure
+    .input(z.object({
+      updateId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Check if update exists
+      const update = await ctx.db.projectUpdate.findUnique({
+        where: { id: input.updateId },
+      });
+
+      if (!update) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Update not found",
+        });
+      }
+
+      // Check if user already liked this update
+      const existingLike = await ctx.db.projectUpdateLike.findUnique({
+        where: {
+          projectUpdateId_userId: {
+            projectUpdateId: input.updateId,
+            userId,
+          },
+        },
+      });
+
+      if (existingLike) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You already liked this update",
+        });
+      }
+
+      // Create like
+      const like = await ctx.db.projectUpdateLike.create({
+        data: {
+          projectUpdateId: input.updateId,
+          userId,
+        },
+      });
+
+      return like;
+    }),
+
+  // Protected: Unlike a project update
+  unlikeProjectUpdate: protectedProcedure
+    .input(z.object({
+      updateId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Find and delete the like
+      const like = await ctx.db.projectUpdateLike.findUnique({
+        where: {
+          projectUpdateId_userId: {
+            projectUpdateId: input.updateId,
+            userId,
+          },
+        },
+      });
+
+      if (!like) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Like not found",
+        });
+      }
+
+      await ctx.db.projectUpdateLike.delete({
+        where: { id: like.id },
+      });
+
+      return { success: true };
+    }),
+
+  // Public: Get likes for a project update
+  getUpdateLikes: publicProcedure
+    .input(z.object({
+      updateId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const likes = await ctx.db.projectUpdateLike.findMany({
+        where: { projectUpdateId: input.updateId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return {
+        count: likes.length,
+        likes,
+        hasLiked: ctx.session?.user
+          ? likes.some((like) => like.userId === ctx.session!.user.id)
+          : false,
+      };
+    }),
 });
