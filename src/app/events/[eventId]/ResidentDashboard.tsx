@@ -441,7 +441,7 @@ export default function ResidentDashboard({
                 </Stack>
               ) : (
                 <Stack gap="md">
-                  {userProjects.slice(0, 2).map((project) => (
+                  {userProjects.map((project) => (
                     <Paper key={project.id} p="sm" withBorder>
                       <Group justify="space-between" align="flex-start" gap="md">
                         {project.imageUrl && (
@@ -473,6 +473,16 @@ export default function ResidentDashboard({
                           )}
                         </div>
                         <Group gap="xs" style={{ flexShrink: 0 }}>
+                          <Tooltip label="View Project">
+                            <ActionIcon
+                              component={Link}
+                              href={`/events/${eventId}/projects/${project.id}`}
+                              variant="light"
+                              size="sm"
+                            >
+                              <IconExternalLink size={14} />
+                            </ActionIcon>
+                          </Tooltip>
                           <Tooltip label="Edit Project">
                             <ActionIcon
                               variant="light"
@@ -508,26 +518,14 @@ export default function ResidentDashboard({
                       </Group>
                     </Paper>
                   ))}
-                  
-                  <Group justify="space-between">
-                    <AddProjectButton 
-                      onClick={handleAddProject}
-                      size="xs"
-                      iconSize={14}
-                    >
-                      Add Project
-                    </AddProjectButton>
-                    {userProjects.length > 2 && (
-                      <Button
-                        component={Link}
-                        href={`/profiles/${session?.user?.id}`}
-                        variant="subtle"
-                        size="xs"
-                      >
-                        View All ({userProjects.length})
-                      </Button>
-                    )}
-                  </Group>
+
+                  <AddProjectButton
+                    onClick={handleAddProject}
+                    size="xs"
+                    iconSize={14}
+                  >
+                    Add Project
+                  </AddProjectButton>
                 </Stack>
               )}
             </Card>
