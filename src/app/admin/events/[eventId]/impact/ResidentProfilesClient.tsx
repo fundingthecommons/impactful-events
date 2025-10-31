@@ -16,10 +16,13 @@ import {
   Stack,
   TextInput,
   Select,
+  Tooltip,
+  Anchor,
 } from "@mantine/core";
 import { IconAlertCircle, IconSearch } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
+import Link from "next/link";
 
 interface ResidentProfilesClientProps {
   event: {
@@ -163,6 +166,7 @@ export default function ResidentProfilesClient({
                 <Table.Th>Resident</Table.Th>
                 <Table.Th>Profile Completeness</Table.Th>
                 <Table.Th>Projects</Table.Th>
+                <Table.Th>Timeline Updates</Table.Th>
                 <Table.Th>Status</Table.Th>
                 <Table.Th>Contact</Table.Th>
               </Table.Tr>
@@ -170,7 +174,7 @@ export default function ResidentProfilesClient({
             <Table.Tbody>
               {filteredResidents?.length === 0 ? (
                 <Table.Tr>
-                  <Table.Td colSpan={5}>
+                  <Table.Td colSpan={6}>
                     <Text ta="center" c="dimmed" py="xl">
                       {searchQuery || filterByCompleteness
                         ? "No residents match your filters"
@@ -224,18 +228,64 @@ export default function ResidentProfilesClient({
                       </Stack>
                     </Table.Td>
 
-                    {/* Project Count */}
+                    {/* Project Count with Tooltip */}
+                    <Table.Td>
+                      {resident.projectCount > 0 ? (
+                        <Tooltip
+                          label={
+                            <Stack gap="xs">
+                              {resident.projects?.map((project) => (
+                                <Anchor
+                                  key={project.id}
+                                  component={Link}
+                                  href={`/events/${event.id}/projects/${project.id}`}
+                                  size="sm"
+                                  c="white"
+                                  style={{ display: "block" }}
+                                >
+                                  {project.title} ({project.updateCount} update{project.updateCount !== 1 ? "s" : ""})
+                                </Anchor>
+                              ))}
+                            </Stack>
+                          }
+                          multiline
+                          w={300}
+                        >
+                          <Group gap="xs" align="center" style={{ cursor: "pointer" }}>
+                            <Badge
+                              color="blue"
+                              variant="light"
+                              size="lg"
+                            >
+                              {resident.projectCount}
+                            </Badge>
+                            <Text size="xs" c="dimmed">
+                              {resident.projectCount === 1 ? "project" : "projects"}
+                            </Text>
+                          </Group>
+                        </Tooltip>
+                      ) : (
+                        <Group gap="xs" align="center">
+                          <Badge color="gray" variant="light" size="lg">
+                            0
+                          </Badge>
+                          <Text size="xs" c="dimmed">projects</Text>
+                        </Group>
+                      )}
+                    </Table.Td>
+
+                    {/* Timeline Updates Count */}
                     <Table.Td>
                       <Group gap="xs" align="center">
                         <Badge
-                          color={resident.projectCount > 0 ? "blue" : "gray"}
+                          color={resident.projectUpdateCount > 0 ? "green" : "gray"}
                           variant="light"
                           size="lg"
                         >
-                          {resident.projectCount}
+                          {resident.projectUpdateCount}
                         </Badge>
                         <Text size="xs" c="dimmed">
-                          {resident.projectCount === 1 ? "project" : "projects"}
+                          {resident.projectUpdateCount === 1 ? "update" : "updates"}
                         </Text>
                       </Group>
                     </Table.Td>

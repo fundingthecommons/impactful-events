@@ -1129,6 +1129,12 @@ export const profileRouter = createTRPCRouter({
                 projects: {
                   select: {
                     id: true,
+                    title: true,
+                    updates: {
+                      select: {
+                        id: true,
+                      },
+                    },
                   },
                 },
               },
@@ -1152,6 +1158,12 @@ export const profileRouter = createTRPCRouter({
             const totalFields = Object.keys(fields).length;
             const percentage = Math.round((completedFields / totalFields) * 100);
 
+            // Calculate total update count across all projects
+            const totalUpdates = profile?.projects.reduce(
+              (sum, project) => sum + project.updates.length,
+              0
+            ) ?? 0;
+
             return {
               userId: app.user!.id,
               name: app.user!.name,
@@ -1163,6 +1175,12 @@ export const profileRouter = createTRPCRouter({
                 meetsThreshold: percentage >= 70,
               },
               projectCount: profile?.projects.length ?? 0,
+              projectUpdateCount: totalUpdates,
+              projects: profile?.projects.map(p => ({
+                id: p.id,
+                title: p.title,
+                updateCount: p.updates.length,
+              })) ?? [],
               application: app,
             };
           })
