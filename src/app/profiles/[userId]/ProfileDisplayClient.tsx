@@ -21,6 +21,7 @@ import {
   Paper,
   Tooltip,
   Image,
+  SimpleGrid,
 } from "@mantine/core";
 import {
   IconMapPin,
@@ -43,6 +44,7 @@ import { api } from "~/trpc/react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 
 interface ProfileDisplayClientProps {
   userId: string;
@@ -52,6 +54,19 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const { data: profileData, isLoading, error } = api.profile.getProfile.useQuery({ userId });
+  const { data: projectUpdates = [] } = api.project.getUserProjectUpdates.useQuery({ userId });
+
+  const getRelativeTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return `${Math.floor(diffDays / 30)} months ago`;
+  };
 
   if (isLoading) {
     return (
@@ -295,6 +310,107 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
                         )}
                       </Group>
                     </Group>
+                  </Paper>
+                ))}
+              </Stack>
+            </Card>
+          )}
+
+          {/* Project Updates Feed */}
+          {projectUpdates.length > 0 && (
+            <Card shadow="sm" padding="lg" radius="md" withBorder>
+              <Title order={3} mb="md">Project Updates</Title>
+              <Stack gap="md">
+                {projectUpdates.map((update) => (
+                  <Paper key={update.id} p="md" withBorder>
+                    <Stack gap="sm">
+                      {/* Update Header */}
+                      <Group justify="space-between" align="flex-start">
+                        <Group gap="xs" align="center">
+                          {update.project.imageUrl && (
+                            <Image
+                              src={update.project.imageUrl}
+                              alt={update.project.title}
+                              w={32}
+                              h={32}
+                              fit="cover"
+                              radius="sm"
+                              style={{ flexShrink: 0 }}
+                            />
+                          )}
+                          <div>
+                            <Text fw={500} size="sm" lineClamp={1}>
+                              {update.title}
+                            </Text>
+                            <Group gap={4}>
+                              <Text size="xs" c="dimmed">
+                                {update.project.title}
+                              </Text>
+                              {update.weekNumber && (
+                                <>
+                                  <Text size="xs" c="dimmed">•</Text>
+                                  <Badge size="xs" variant="light">
+                                    Week {update.weekNumber}
+                                  </Badge>
+                                </>
+                              )}
+                            </Group>
+                          </div>
+                        </Group>
+                        <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+                          {getRelativeTime(update.createdAt)}
+                        </Text>
+                      </Group>
+
+                      {/* Update Content */}
+                      <Box>
+                        <MarkdownRenderer content={update.content} />
+                      </Box>
+
+                      {/* Update Images */}
+                      {update.imageUrls.length > 0 && (
+                        <SimpleGrid
+                          cols={{ base: 1, sm: update.imageUrls.length === 1 ? 1 : 2 }}
+                          spacing="xs"
+                        >
+                          {update.imageUrls.slice(0, 4).map((url, idx) => (
+                            <Image
+                              key={idx}
+                              src={url}
+                              alt={`Update image ${idx + 1}`}
+                              radius="sm"
+                              style={{
+                                width: "100%",
+                                height: update.imageUrls.length === 1 ? "auto" : "150px",
+                                objectFit: "cover",
+                                maxHeight: update.imageUrls.length === 1 ? "300px" : "150px"
+                              }}
+                            />
+                          ))}
+                        </SimpleGrid>
+                      )}
+
+                      {/* Update Tags */}
+                      {update.tags.length > 0 && (
+                        <Group gap="xs">
+                          {update.tags.map((tag, idx) => (
+                            <Badge key={idx} size="xs" variant="dot">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </Group>
+                      )}
+
+                      {/* Like Count */}
+                      {update.likes.length > 0 && (
+                        <Group gap={4}>
+                          <IconHeart size={14} style={{ color: 'var(--mantine-color-red-6)' }} />
+                          <Text size="xs" c="dimmed">
+                            {update.likes.length} {update.likes.length === 1 ? 'like' : 'likes'}
+                          </Text>
+                        </Group>
+                      )}
+                    </Stack>
                   </Paper>
                 ))}
               </Stack>

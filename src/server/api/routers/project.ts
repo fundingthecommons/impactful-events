@@ -395,6 +395,63 @@ export const projectRouter = createTRPCRouter({
       return updates;
     }),
 
+  // Get all project updates for a user's projects
+  getUserProjectUpdates: publicProcedure
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // First, get all projects by this user
+      const userProjects = await ctx.db.userProject.findMany({
+        where: {
+          profile: {
+            userId: input.userId
+          }
+        },
+        select: {
+          id: true,
+          title: true,
+          imageUrl: true,
+        }
+      });
+
+      if (userProjects.length === 0) {
+        return [];
+      }
+
+      // Get all updates for these projects
+      const updates = await ctx.db.projectUpdate.findMany({
+        where: {
+          projectId: {
+            in: userProjects.map(p => p.id)
+          }
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            }
+          },
+          project: {
+            select: {
+              id: true,
+              title: true,
+              imageUrl: true,
+            }
+          },
+          likes: {
+            select: {
+              userId: true,
+            }
+          }
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50, // Limit to most recent 50 updates
+      });
+
+      return updates;
+    }),
+
   // Protected: Create project update (only project owner)
   createProjectUpdate: protectedProcedure
     .input(z.object({
