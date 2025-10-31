@@ -74,17 +74,36 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
           ),
           
           // Links
-          a: ({ href, children }) => (
-            <Anchor
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-            >
-              {children}
-              <IconExternalLink size={14} />
-            </Anchor>
-          ),
+          a: ({ href, children }) => {
+            // Check if this is a mention link
+            if (href?.startsWith('mention:')) {
+              const userId = href.replace('mention:', '');
+              return (
+                <Anchor
+                  href={`/profile/${userId}`}
+                  style={{
+                    fontWeight: 500,
+                    color: 'var(--mantine-color-blue-6)',
+                  }}
+                >
+                  {children}
+                </Anchor>
+              );
+            }
+
+            // Regular external link
+            return (
+              <Anchor
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                {children}
+                <IconExternalLink size={14} />
+              </Anchor>
+            );
+          },
           
           // Code blocks
           pre: ({ children }) => (

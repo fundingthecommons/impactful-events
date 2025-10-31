@@ -15,7 +15,6 @@ import {
   Tabs,
   Timeline,
   Modal,
-  Textarea,
   TextInput,
   NumberInput,
   ActionIcon,
@@ -43,6 +42,8 @@ import { api } from "~/trpc/react";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import BlueskyConnectButton from "~/app/_components/BlueskyConnectButton";
+import { MentionTextarea } from "~/app/_components/MentionTextarea";
+import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 
 interface ProjectDetailClientProps {
   project: {
@@ -587,9 +588,9 @@ export default function ProjectDetailClient({
                               </Text>
                             </Group>
                             
-                            <Text style={{ whiteSpace: 'pre-wrap' }}>
-                              {update.content}
-                            </Text>
+                            <Box>
+                              <MarkdownRenderer content={update.content} />
+                            </Box>
 
                             {/* Images */}
                             {update.imageUrls.length > 0 && (
@@ -731,12 +732,14 @@ export default function ProjectDetailClient({
               {...form.getInputProps('title')}
             />
 
-            <Textarea
+            <MentionTextarea
               label="Description"
-              placeholder="Describe what you've accomplished, challenges faced, next steps..."
+              placeholder="Describe what you've accomplished, challenges faced, next steps... (Use @ to mention users)"
               minRows={4}
               required
-              {...form.getInputProps('content')}
+              value={form.values.content}
+              onChange={(value) => form.setFieldValue('content', value)}
+              error={typeof form.errors.content === 'string' ? form.errors.content : undefined}
             />
 
             <NumberInput

@@ -197,4 +197,35 @@ export const userRouter = createTRPCRouter({
 
       return user;
     }),
+
+  searchUsers: protectedProcedure
+    .input(
+      z.object({
+        query: z.string().min(1),
+        limit: z.number().min(1).max(20).default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      // Search users by name or email
+      const users = await ctx.db.user.findMany({
+        where: {
+          OR: [
+            { name: { contains: input.query, mode: "insensitive" } },
+            { email: { contains: input.query, mode: "insensitive" } },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+        take: input.limit,
+        orderBy: {
+          name: "asc",
+        },
+      });
+
+      return users;
+    }),
 });
