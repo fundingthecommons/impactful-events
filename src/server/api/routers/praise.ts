@@ -239,6 +239,53 @@ export const praiseRouter = createTRPCRouter({
   }),
 
   /**
+   * Get all praise transactions (all praise sent and received in the system)
+   * For admin/viewing all transactions
+   */
+  getAllTransactions: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50).optional(),
+      }).optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const limit = input?.limit ?? 50;
+
+      const transactions = await ctx.db.praise.findMany({
+        include: {
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+            },
+          },
+          recipient: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+            },
+          },
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: limit,
+      });
+
+      return transactions;
+    }),
+
+  /**
    * Toggle praise visibility (make public/private)
    */
   toggleVisibility: protectedProcedure

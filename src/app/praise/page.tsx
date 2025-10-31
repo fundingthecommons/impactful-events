@@ -12,6 +12,7 @@ export default function PraisePage() {
   const { data: sentPraise, isLoading: loadingSent } = api.praise.getMySentPraise.useQuery();
   const { data: stats } = api.praise.getMyStats.useQuery();
   const { data: leaderboard, isLoading: loadingLeaderboard } = api.praise.getLeaderboard.useQuery({ limit: 10 });
+  const { data: transactions, isLoading: loadingTransactions } = api.praise.getAllTransactions.useQuery({ limit: 50 });
 
   return (
     <Container size="lg" py="xl">
@@ -36,6 +37,7 @@ export default function PraisePage() {
           <Tabs.Tab value="received">Received</Tabs.Tab>
           <Tabs.Tab value="sent">Sent</Tabs.Tab>
           <Tabs.Tab value="leaderboard">Leaderboard</Tabs.Tab>
+          <Tabs.Tab value="transactions">Transactions</Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="received" pt="md">
@@ -156,6 +158,53 @@ export default function PraisePage() {
             <Paper p="xl" withBorder>
               <Text c="dimmed" ta="center">
                 No praise leaderboard yet. Start sending praise! 🏆
+              </Text>
+            </Paper>
+          )}
+        </Tabs.Panel>
+
+        <Tabs.Panel value="transactions" pt="md">
+          {loadingTransactions ? (
+            <Text>Loading...</Text>
+          ) : transactions && transactions.length > 0 ? (
+            <Stack gap="md">
+              {transactions.map((transaction) => (
+                <Card key={transaction.id} withBorder>
+                  <Group justify="apart" mb="xs">
+                    <Group>
+                      <Avatar
+                        src={transaction.sender.image}
+                        alt={transaction.sender.name ?? "Unknown"}
+                        radius="xl"
+                      />
+                      <Text fw={500}>{transaction.sender.name ?? "Unknown"}</Text>
+                      <Text c="dimmed">→</Text>
+                      <Avatar
+                        src={transaction.recipient?.image}
+                        alt={transaction.recipient?.name ?? transaction.recipientName}
+                        radius="xl"
+                      />
+                      <Text fw={500}>
+                        {transaction.recipient?.name ?? `@${transaction.recipientName}`}
+                      </Text>
+                    </Group>
+                    {transaction.event && (
+                      <Badge color="blue" variant="light">
+                        {transaction.event.name}
+                      </Badge>
+                    )}
+                  </Group>
+                  <Text>{transaction.message}</Text>
+                  <Text size="sm" c="dimmed" mt="xs">
+                    {formatDistanceToNow(new Date(transaction.createdAt), { addSuffix: true })}
+                  </Text>
+                </Card>
+              ))}
+            </Stack>
+          ) : (
+            <Paper p="xl" withBorder>
+              <Text c="dimmed" ta="center">
+                No praise transactions yet. Start spreading appreciation! 💝
               </Text>
             </Paper>
           )}
