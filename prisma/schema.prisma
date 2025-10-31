@@ -1159,6 +1159,7 @@ model UserProfile {
   availableForMentoring Boolean  @default(false)
   availableForHiring    Boolean  @default(false)
   availableForOfficeHours Boolean @default(false)
+  isPublic              Boolean  @default(true) // If false, profile is hidden from non-logged-in users
   timezone              String?
   languages             String[] // Spoken languages
   yearsOfExperience     Int?
@@ -1546,6 +1547,10 @@ model Praise {
   // Context
   eventId       String?  // Optional: link to specific event
   telegramMsgId String?  // Original Telegram message ID
+
+  // Channel cross-posting
+  channelMessageId String?  // Message ID if cross-posted to Telegram channel
+  crossPostedAt    DateTime? // When it was cross-posted to channel
 
   // Metadata
   createdAt     DateTime @default(now())

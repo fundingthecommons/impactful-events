@@ -39,12 +39,18 @@ TELEGRAM_BOT_TOKEN="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
 
 # Optional: Webhook security token (recommended for production)
 TELEGRAM_WEBHOOK_SECRET="your-random-secret-token"
+
+# Optional: Channel ID for automatic praise cross-posting
+TELEGRAM_PRAISE_CHANNEL_ID="@your_praise_channel"
+# OR use numeric ID: TELEGRAM_PRAISE_CHANNEL_ID="-1001234567890"
 ```
 
 To generate a secure webhook secret:
 ```bash
 openssl rand -hex 32
 ```
+
+**Note**: If `TELEGRAM_PRAISE_CHANNEL_ID` is not set, praise will still be saved to the database but won't be cross-posted to a channel.
 
 ### 3. Set Up Webhook (After Deployment)
 
@@ -71,7 +77,57 @@ https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=https://<YOUR_DOMAIN
 curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 ```
 
-### 4. Test the Bot
+### 4. (Optional) Set Up Channel Cross-Posting
+
+If you want praise to be automatically posted to a Telegram channel anonymously:
+
+#### Step 4a: Create or Use Existing Channel
+
+1. Create a new Telegram channel or use an existing one
+2. Make it either public or private
+3. Note the channel username (e.g., `@praise_channel`) or ID
+
+#### Step 4b: Add Bot as Admin
+
+1. Go to your channel
+2. Click on channel name → Administrators
+3. Click "Add Administrator"
+4. Search for your bot by username
+5. Grant **only** "Post Messages" permission
+6. Save
+
+#### Step 4c: Get Channel ID (if using numeric ID)
+
+If your channel is private or you prefer using numeric ID:
+
+```bash
+# Send a test message to the channel via the bot
+curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/sendMessage" \
+  -H "Content-Type: application/json" \
+  -d '{"chat_id": "@your_channel_username", "text": "Test"}'
+
+# Get channel updates to see the numeric ID
+curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates"
+```
+
+The channel ID will look like: `-1001234567890`
+
+#### Step 4d: Configure Channel in Environment
+
+Add to your `.env` file and deploy:
+
+```bash
+TELEGRAM_PRAISE_CHANNEL_ID="@your_praise_channel"
+# OR
+TELEGRAM_PRAISE_CHANNEL_ID="-1001234567890"
+```
+
+After deployment, all new praise will automatically be cross-posted to the channel anonymously in the format:
+```
+🌟 Someone praised @alice for helping with the workshop today
+```
+
+### 5. Test the Bot
 
 1. Find your bot on Telegram by searching for its username
 2. Start a conversation with `/start`
@@ -80,6 +136,7 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
    !Praise @username for being awesome today
    ```
 4. The bot should respond confirming the praise was recorded
+5. If channel is configured, check your channel for the anonymous post
 
 ## Usage
 
@@ -190,6 +247,22 @@ const leaderboard = await api.praise.getLeaderboard.query({
 - Verify your domain is HTTPS (Telegram requires SSL)
 - Check webhook secret matches in both Telegram and your `.env`
 - Review Telegram webhook delivery logs in Telegram API
+
+### Channel Cross-Posting Issues
+- **Bot not posting to channel**:
+  - Verify bot is admin in the channel
+  - Check `TELEGRAM_PRAISE_CHANNEL_ID` is set correctly
+  - Test bot can post manually: `curl -X POST "https://api.telegram.org/bot<TOKEN>/sendMessage" -d '{"chat_id":"@channel","text":"test"}'`
+- **"Chat not found" error**:
+  - For private channels, use numeric ID instead of @username
+  - Make sure channel ID includes the `-` prefix (e.g., `-1001234567890`)
+- **Praise saves but doesn't post to channel**:
+  - Check Vercel logs for errors
+  - Check Sentry for error reports
+  - Verify `TELEGRAM_PRAISE_CHANNEL_ID` is set in Vercel environment variables
+- **Bot posts but user gets error**:
+  - This is expected behavior - praise saves even if channel post fails
+  - Check logs to diagnose channel posting issue
 
 ## Security Considerations
 

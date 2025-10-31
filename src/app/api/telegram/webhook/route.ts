@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "~/server/db";
 import * as Sentry from "@sentry/nextjs";
+import { crossPostPraiseToChannel } from "~/server/services/praiseChannelService";
 
 /**
  * Telegram Bot Webhook Handler
@@ -244,6 +245,23 @@ async function processPraiseCommand(
       },
       level: "info",
     });
+
+    // Cross-post to channel anonymously (non-blocking)
+    const channelResult = await crossPostPraiseToChannel(
+      recipientUsername,
+      praiseMessage,
+    );
+
+    // Update praise record with channel message ID if successful
+    if (channelResult.success && channelResult.messageId) {
+      await db.praise.update({
+        where: { id: praise.id },
+        data: {
+          channelMessageId: channelResult.messageId,
+          crossPostedAt: new Date(),
+        },
+      });
+    }
 
     const recipientDisplay = recipient?.name ?? `@${recipientUsername}`;
     return `✅ Praise recorded! You praised ${recipientDisplay} for: "${praiseMessage}"`;
