@@ -16,10 +16,11 @@ import {
   Stack,
   TextInput,
   Select,
-  Tooltip,
-  Anchor,
+  Popover,
+  Button,
+  Divider,
 } from "@mantine/core";
-import { IconAlertCircle, IconSearch } from "@tabler/icons-react";
+import { IconAlertCircle, IconSearch, IconExternalLink } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
 import Link from "next/link";
@@ -228,42 +229,57 @@ export default function ResidentProfilesClient({
                       </Stack>
                     </Table.Td>
 
-                    {/* Project Count with Tooltip */}
+                    {/* Project Count with Popover */}
                     <Table.Td>
                       {resident.projectCount > 0 ? (
-                        <Tooltip
-                          label={
+                        <Popover width={350} position="bottom" withArrow shadow="md">
+                          <Popover.Target>
+                            <Group gap="xs" align="center" style={{ cursor: "pointer" }}>
+                              <Badge
+                                color="blue"
+                                variant="light"
+                                size="lg"
+                              >
+                                {resident.projectCount}
+                              </Badge>
+                              <Text size="xs" c="dimmed">
+                                {resident.projectCount === 1 ? "project" : "projects"}
+                              </Text>
+                            </Group>
+                          </Popover.Target>
+                          <Popover.Dropdown>
                             <Stack gap="xs">
+                              <Text size="sm" fw={600} mb="xs">
+                                {resident.name}&apos;s Projects
+                              </Text>
+                              <Divider />
                               {resident.projects?.map((project) => (
-                                <Anchor
+                                <Button
                                   key={project.id}
                                   component={Link}
                                   href={`/events/${event.id}/projects/${project.id}`}
-                                  size="sm"
-                                  c="white"
-                                  style={{ display: "block" }}
+                                  variant="subtle"
+                                  fullWidth
+                                  leftSection={<IconExternalLink size={16} />}
+                                  style={{
+                                    justifyContent: "flex-start",
+                                    height: "auto",
+                                    padding: "8px 12px",
+                                  }}
                                 >
-                                  {project.title} ({project.updateCount} update{project.updateCount !== 1 ? "s" : ""})
-                                </Anchor>
+                                  <Stack gap={0} style={{ flex: 1, alignItems: "flex-start" }}>
+                                    <Text size="sm" fw={500}>
+                                      {project.title}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                      {project.updateCount} update{project.updateCount !== 1 ? "s" : ""}
+                                    </Text>
+                                  </Stack>
+                                </Button>
                               ))}
                             </Stack>
-                          }
-                          multiline
-                          w={300}
-                        >
-                          <Group gap="xs" align="center" style={{ cursor: "pointer" }}>
-                            <Badge
-                              color="blue"
-                              variant="light"
-                              size="lg"
-                            >
-                              {resident.projectCount}
-                            </Badge>
-                            <Text size="xs" c="dimmed">
-                              {resident.projectCount === 1 ? "project" : "projects"}
-                            </Text>
-                          </Group>
-                        </Tooltip>
+                          </Popover.Dropdown>
+                        </Popover>
                       ) : (
                         <Group gap="xs" align="center">
                           <Badge color="gray" variant="light" size="lg">
