@@ -59,17 +59,31 @@ export async function crossPostPraiseToChannel(
 
   try {
     const formattedMessage = formatPraiseForChannel(recipientName, message);
+    const topicId = process.env.TELEGRAM_PRAISE_TOPIC_ID;
+
+    // Build request body
+    const requestBody: {
+      chat_id: string;
+      text: string;
+      parse_mode: string;
+      message_thread_id?: number;
+    } = {
+      chat_id: channelId,
+      text: formattedMessage,
+      parse_mode: "Markdown",
+    };
+
+    // Add topic ID if configured (for channels with topics/forums)
+    if (topicId) {
+      requestBody.message_thread_id = parseInt(topicId, 10);
+    }
 
     const response = await fetch(
       `https://api.telegram.org/bot${botToken}/sendMessage`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: channelId,
-          text: formattedMessage,
-          parse_mode: "Markdown",
-        }),
+        body: JSON.stringify(requestBody),
       },
     );
 

@@ -120,7 +120,15 @@ Add to your `.env` file and deploy:
 TELEGRAM_PRAISE_CHANNEL_ID="@your_praise_channel"
 # OR
 TELEGRAM_PRAISE_CHANNEL_ID="-1001234567890"
+
+# Optional: For channels with topics/forums, specify the topic ID
+TELEGRAM_PRAISE_TOPIC_ID="71"
 ```
+
+**Getting the Topic ID**:
+- If your channel has topics enabled (also called "Forums" or "Topics" in supergroups)
+- The topic ID is in the message URL: `https://t.me/c/3079571094/71` → Topic ID is `71`
+- Without this, praise posts to the "General" topic
 
 After deployment, all new praise will automatically be cross-posted to the channel anonymously in the format:
 ```
