@@ -3,6 +3,7 @@ import Image from "next/image";
 import { auth } from "~/server/auth";
 import { UserDropdownMenu } from "~/app/_components/UserDropdownMenu";
 import AdminNavigation from "./AdminNavigation";
+import UserNavigation from "~/app/_components/UserNavigation";
 
 export default async function HeaderBar() {
     const session = await auth();
@@ -20,10 +21,14 @@ export default async function HeaderBar() {
         </Group>
       </Paper>
       
-      {/* Admin Navigation - Only show for admin/staff users */}
-      {session?.user && (session.user.role === "admin" || session.user.role === "staff") && (
+      {/* Navigation - Show appropriate menu based on user role */}
+      {session?.user && (
         <Paper withBorder radius={0} px="lg" style={{ borderTop: 0, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)' }}>
-          <AdminNavigation />
+          {(session.user.role === "admin" || session.user.role === "staff") ? (
+            <AdminNavigation />
+          ) : (
+            <UserNavigation />
+          )}
         </Paper>
       )}
     </div>

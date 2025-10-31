@@ -201,10 +201,10 @@ export default function EventPage({ params }: EventPageProps) {
     );
   }
   
-  // Show resident dashboard for accepted users and admins
-  if (isAcceptedForThisEvent || isAdmin) {
+  // Show resident dashboard for accepted users, admins, and mentors
+  if (isAcceptedForThisEvent || isAdmin || isMentor) {
     return (
-      <ResidentDashboard 
+      <ResidentDashboard
         eventId={eventId}
         eventName={event.name}
         userApplication={userApplication ?? null}
