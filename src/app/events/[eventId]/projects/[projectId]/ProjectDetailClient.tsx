@@ -110,6 +110,8 @@ export default function ProjectDetailClient({
   const [updateToDelete, setUpdateToDelete] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const utils = api.useUtils();
 
@@ -266,6 +268,11 @@ export default function ProjectDetailClient({
     if (updateToDelete) {
       await deleteUpdate.mutateAsync({ updateId: updateToDelete });
     }
+  };
+
+  const handleImageClick = (imageUrl: string) => {
+    setSelectedImage(imageUrl);
+    setImageModalOpen(true);
   };
 
   const formatDate = (date: Date) => {
@@ -636,6 +643,7 @@ export default function ProjectDetailClient({
                                       transition: 'transform 0.2s ease',
                                       ':hover': { transform: 'scale(1.02)' }
                                     }}
+                                    onClick={() => handleImageClick(update.imageUrls[0]!)}
                                   >
                                     <Image
                                       src={update.imageUrls[0]}
@@ -664,6 +672,7 @@ export default function ProjectDetailClient({
                                           transition: 'transform 0.2s ease',
                                           aspectRatio: '16/9'
                                         }}
+                                        onClick={() => handleImageClick(url)}
                                         onMouseEnter={(e) => {
                                           e.currentTarget.style.transform = 'scale(1.05)';
                                         }}
@@ -936,6 +945,32 @@ export default function ProjectDetailClient({
             </Button>
           </Group>
         </Stack>
+      </Modal>
+
+      {/* Image Modal */}
+      <Modal
+        opened={imageModalOpen}
+        onClose={() => {
+          setImageModalOpen(false);
+          setSelectedImage(null);
+        }}
+        size="xl"
+        padding={0}
+        withCloseButton={true}
+        centered
+      >
+        {selectedImage && (
+          <Image
+            src={selectedImage}
+            alt="Full size image"
+            style={{
+              width: "100%",
+              height: "auto",
+              maxHeight: "90vh",
+              objectFit: "contain"
+            }}
+          />
+        )}
       </Modal>
     </>
   );
