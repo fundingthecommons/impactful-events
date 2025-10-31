@@ -125,6 +125,10 @@ model User {
 
   // Asks and Offers relations
   asksOffers           AskOffer[]           @relation("UserAsksOffers")
+
+  // Praise relations
+  praiseSent           Praise[]             @relation("PraiseSent")
+  praiseReceived       Praise[]             @relation("PraiseReceived")
 }
 
 model VerificationToken {
@@ -175,6 +179,7 @@ model Event {
   emails      Email[]  // Legacy: Emails related to this event (for backward compatibility)
   invitations Invitation[]  // Invitations for this event
   asksOffers  AskOffer[]  @relation("EventAsksOffers")  // Asks and Offers for this event
+  praises     Praise[]    @relation("EventPraises")  // Praise messages for this event
 }
 
 model Hackathon {
@@ -1194,18 +1199,19 @@ model UserProject {
   description   String?     @db.Text
   githubUrl     String?
   liveUrl       String?
-  imageUrl      String?     // Project screenshot/logo
+  imageUrl      String?     // Project logo (small icon/thumbnail)
+  bannerUrl     String?     // Project banner (large header image)
   technologies  String[]    // Tech stack used
   featured      Boolean     @default(false)
   order         Int         @default(0)
-  
+
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  
+
   // Relations
   profile       UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   updates       ProjectUpdate[] // Project timeline updates
-  
+
   @@index([profileId])
   @@index([featured])
 }
@@ -1488,13 +1494,48 @@ model AnalyticsRateLimit {
   windowStart   DateTime @default(now()) // Start of current rate limit window
   lastRequest   DateTime @default(now()) // Last request timestamp
   isBlocked     Boolean  @default(false) // Whether user is currently blocked
-  
+
   // Relations
   user          User     @relation("AnalyticsRateLimits", fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, endpoint]) // One rate limit record per user per endpoint
   @@index([userId])
   @@index([endpoint])
   @@index([windowStart])
   @@index([isBlocked])
+}
+
+// Praise System Models
+model Praise {
+  id            String   @id @default(cuid())
+
+  // Sender (who sent the praise)
+  senderId      String   // User who sent the praise
+  senderTelegramId BigInt? // Telegram ID for verification
+
+  // Recipient (who received the praise)
+  recipientId   String?  // User being praised (nullable if we can't match)
+  recipientName String   // @username from the message
+
+  // Praise content
+  message       String   @db.Text // The praise message
+  category      String?  // Optional: auto-tag (e.g., "talk", "help", "mentorship")
+
+  // Context
+  eventId       String?  // Optional: link to specific event
+  telegramMsgId String?  // Original Telegram message ID
+
+  // Metadata
+  createdAt     DateTime @default(now())
+  isPublic      Boolean  @default(false) // Can be shared publicly
+
+  // Relations
+  sender        User     @relation("PraiseSent", fields: [senderId], references: [id])
+  recipient     User?    @relation("PraiseReceived", fields: [recipientId], references: [id])
+  event         Event?   @relation("EventPraises", fields: [eventId], references: [id])
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([eventId])
+  @@index([createdAt])
 }

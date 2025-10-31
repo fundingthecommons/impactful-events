@@ -66,7 +66,8 @@ const projectSchema = z.object({
   description: z.string().max(500).optional(),
   githubUrl: z.string().url("Invalid GitHub URL").optional().or(z.literal("")),
   liveUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
-  imageUrl: z.string().optional().or(z.literal("")),
+  imageUrl: z.string().optional().or(z.literal("")), // Logo
+  bannerUrl: z.string().optional().or(z.literal("")), // Banner
   technologies: z.array(z.string().max(30)).max(20),
   featured: z.boolean().optional().default(false),
 });
@@ -89,8 +90,10 @@ export default function ResidentDashboard({
   const { data: session } = useSession();
   const [modalOpened, setModalOpened] = useState(false);
   const [editingProject, setEditingProject] = useState<UserProject | null>(null);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoUploadProgress, setLogoUploadProgress] = useState(0);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [bannerUploadProgress, setBannerUploadProgress] = useState(0);
 
   // Get profile completion data
   const { data: profileCompletion } = api.profile.getProfileCompletion.useQuery();
@@ -165,6 +168,7 @@ export default function ResidentDashboard({
       githubUrl: "",
       liveUrl: "",
       imageUrl: "",
+      bannerUrl: "",
       technologies: [],
       featured: false,
     },
@@ -206,18 +210,19 @@ export default function ResidentDashboard({
       githubUrl: project.githubUrl ?? "",
       liveUrl: project.liveUrl ?? "",
       imageUrl: project.imageUrl ?? "",
+      bannerUrl: project.bannerUrl ?? "",
       technologies: project.technologies,
       featured: project.featured,
     });
     setModalOpened(true);
   };
 
-  // Handler for project image upload
-  const handleImageUpload = async (file: File | null) => {
+  // Handler for project logo upload
+  const handleLogoUpload = async (file: File | null) => {
     if (!file) return;
 
-    setIsUploadingImage(true);
-    setUploadProgress(0);
+    setIsUploadingLogo(true);
+    setLogoUploadProgress(0);
 
     try {
       const formData = new FormData();
@@ -225,7 +230,7 @@ export default function ResidentDashboard({
 
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
+        setLogoUploadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
 
       const response = await fetch('/api/upload/project-image', {
@@ -234,7 +239,7 @@ export default function ResidentDashboard({
       });
 
       clearInterval(progressInterval);
-      setUploadProgress(100);
+      setLogoUploadProgress(100);
 
       if (!response.ok) {
         const error = await response.json() as { error?: string };
@@ -243,12 +248,12 @@ export default function ResidentDashboard({
 
       const result = await response.json() as { imageUrl: string };
 
-      // Update form with new image URL
+      // Update form with new logo URL
       form.setFieldValue('imageUrl', result.imageUrl);
 
       notifications.show({
         title: 'Success',
-        message: 'Project image uploaded successfully',
+        message: 'Project logo uploaded successfully',
         color: 'green',
         icon: <IconCheck size={16} />,
       });
@@ -256,13 +261,67 @@ export default function ResidentDashboard({
     } catch (error) {
       notifications.show({
         title: 'Upload failed',
-        message: error instanceof Error ? error.message : 'Failed to upload image',
+        message: error instanceof Error ? error.message : 'Failed to upload logo',
         color: 'red',
         icon: <IconX size={16} />,
       });
     } finally {
-      setIsUploadingImage(false);
-      setUploadProgress(0);
+      setIsUploadingLogo(false);
+      setLogoUploadProgress(0);
+    }
+  };
+
+  // Handler for project banner upload
+  const handleBannerUpload = async (file: File | null) => {
+    if (!file) return;
+
+    setIsUploadingBanner(true);
+    setBannerUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setBannerUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch('/api/upload/project-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setBannerUploadProgress(100);
+
+      if (!response.ok) {
+        const error = await response.json() as { error?: string };
+        throw new Error(error.error ?? 'Upload failed');
+      }
+
+      const result = await response.json() as { imageUrl: string };
+
+      // Update form with new banner URL
+      form.setFieldValue('bannerUrl', result.imageUrl);
+
+      notifications.show({
+        title: 'Success',
+        message: 'Project banner uploaded successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
+
+    } catch (error) {
+      notifications.show({
+        title: 'Upload failed',
+        message: error instanceof Error ? error.message : 'Failed to upload banner',
+        color: 'red',
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setIsUploadingBanner(false);
+      setBannerUploadProgress(0);
     }
   };
 
@@ -563,19 +622,20 @@ export default function ResidentDashboard({
 
             <Stack gap="xs">
               <Text size="sm" fw={500}>
-                Project Image
+                Project Logo
               </Text>
               <Text size="xs" c="dimmed">
-                Upload a screenshot or logo for your project (JPG, PNG, GIF, or WebP, max 5MB)
+                Upload a small logo or icon for your project (JPG, PNG, GIF, or WebP, max 5MB)
               </Text>
 
               {form.values.imageUrl && (
                 <Box>
                   <Image
                     src={form.values.imageUrl}
-                    alt="Project preview"
+                    alt="Project logo preview"
                     radius="md"
-                    h={200}
+                    h={100}
+                    w={100}
                     fit="contain"
                     style={{ border: '1px solid var(--mantine-color-gray-3)' }}
                   />
@@ -584,18 +644,18 @@ export default function ResidentDashboard({
 
               <Group>
                 <FileButton
-                  onChange={handleImageUpload}
+                  onChange={handleLogoUpload}
                   accept="image/png,image/jpeg,image/gif,image/webp"
-                  disabled={isUploadingImage}
+                  disabled={isUploadingLogo}
                 >
                   {(props) => (
                     <Button
                       {...props}
                       variant="light"
                       size="sm"
-                      loading={isUploadingImage}
+                      loading={isUploadingLogo}
                     >
-                      {form.values.imageUrl ? 'Change Image' : 'Upload Image'}
+                      {form.values.imageUrl ? 'Change Logo' : 'Upload Logo'}
                     </Button>
                   )}
                 </FileButton>
@@ -606,21 +666,85 @@ export default function ResidentDashboard({
                     color="red"
                     onClick={() => form.setFieldValue('imageUrl', '')}
                   >
-                    Remove Image
+                    Remove Logo
                   </Button>
                 )}
               </Group>
 
-              {isUploadingImage && (
+              {isUploadingLogo && (
                 <Box>
-                  <Text size="sm" mb="xs">Uploading...</Text>
-                  <Progress value={uploadProgress} size="sm" />
+                  <Text size="sm" mb="xs">Uploading logo...</Text>
+                  <Progress value={logoUploadProgress} size="sm" />
                 </Box>
               )}
 
               <TextInput
-                placeholder="Or paste image URL"
+                placeholder="Or paste logo URL"
                 {...form.getInputProps("imageUrl")}
+                size="xs"
+              />
+            </Stack>
+
+            <Stack gap="xs">
+              <Text size="sm" fw={500}>
+                Project Banner
+              </Text>
+              <Text size="xs" c="dimmed">
+                Upload a large banner image for your project page (JPG, PNG, GIF, or WebP, max 5MB)
+              </Text>
+
+              {form.values.bannerUrl && (
+                <Box>
+                  <Image
+                    src={form.values.bannerUrl}
+                    alt="Project banner preview"
+                    radius="md"
+                    h={150}
+                    fit="cover"
+                    style={{ border: '1px solid var(--mantine-color-gray-3)' }}
+                  />
+                </Box>
+              )}
+
+              <Group>
+                <FileButton
+                  onChange={handleBannerUpload}
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  disabled={isUploadingBanner}
+                >
+                  {(props) => (
+                    <Button
+                      {...props}
+                      variant="light"
+                      size="sm"
+                      loading={isUploadingBanner}
+                    >
+                      {form.values.bannerUrl ? 'Change Banner' : 'Upload Banner'}
+                    </Button>
+                  )}
+                </FileButton>
+                {form.values.bannerUrl && (
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    color="red"
+                    onClick={() => form.setFieldValue('bannerUrl', '')}
+                  >
+                    Remove Banner
+                  </Button>
+                )}
+              </Group>
+
+              {isUploadingBanner && (
+                <Box>
+                  <Text size="sm" mb="xs">Uploading banner...</Text>
+                  <Progress value={bannerUploadProgress} size="sm" />
+                </Box>
+              )}
+
+              <TextInput
+                placeholder="Or paste banner URL"
+                {...form.getInputProps("bannerUrl")}
                 size="xs"
               />
             </Stack>

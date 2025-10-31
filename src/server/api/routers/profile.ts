@@ -42,7 +42,8 @@ const projectCreateSchema = z.object({
   description: z.string().max(500).optional(),
   githubUrl: z.string().url().optional(),
   liveUrl: z.string().url().optional(),
-  imageUrl: z.string().optional(),
+  imageUrl: z.string().optional(), // Project logo
+  bannerUrl: z.string().optional(), // Project banner
   technologies: z.array(z.string().max(30)).max(20),
   featured: z.boolean().optional().default(false),
 });
