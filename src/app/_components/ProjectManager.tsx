@@ -21,6 +21,7 @@ import {
   SimpleGrid,
   Paper,
   Title,
+  Divider,
 } from "@mantine/core";
 import {
   IconEdit,
@@ -32,8 +33,11 @@ import {
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { api } from "~/trpc/react";
+import { useSession } from "next-auth/react";
 import type { UserProject } from "@prisma/client";
 import { AddProjectButton } from "./AddProjectButton";
+import { UserSearchSelect } from "./UserSearchSelect";
+import { CollaboratorsList } from "./CollaboratorsList";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -55,6 +59,54 @@ interface ProjectManagerProps {
 export function ProjectManager({ projects, onProjectsChange }: ProjectManagerProps) {
   const [opened, setOpened] = useState(false);
   const [editingProject, setEditingProject] = useState<UserProject | null>(null);
+  const { data: session } = useSession();
+
+  // Fetch collaborators for the editing project
+  const { data: collaboratorsData, refetch: refetchCollaborators } =
+    api.profile.getProjectCollaborators.useQuery(
+      { projectId: editingProject?.id ?? "" },
+      { enabled: !!editingProject?.id }
+    );
+
+  const addCollaborators = api.profile.addProjectCollaborators.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Success",
+        message: "Collaborator added successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      void refetchCollaborators();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to add collaborator",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  const removeCollaborator = api.profile.removeProjectCollaborator.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Success",
+        message: "Collaborator removed successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      void refetchCollaborators();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to remove collaborator",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
 
   const createProject = api.profile.createProject.useMutation({
     onSuccess: () => {
@@ -178,6 +230,26 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
     form.reset();
     setOpened(true);
   };
+
+  const handleAddCollaborator = (user: { id: string; name: string | null; email: string | null; image: string | null }) => {
+    if (!editingProject) return;
+    addCollaborators.mutate({
+      projectId: editingProject.id,
+      userIds: [user.id],
+    });
+  };
+
+  const handleRemoveCollaborator = (userId: string) => {
+    if (!editingProject) return;
+    removeCollaborator.mutate({
+      projectId: editingProject.id,
+      userId,
+    });
+  };
+
+  const isOwner = collaboratorsData?.ownerId === session?.user?.id;
+  const collaborators = collaboratorsData?.collaborators ?? [];
+  const collaboratorUserIds = collaborators.map((c) => c.userId);
 
   return (
     <>
@@ -338,6 +410,46 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
               description="Show this project prominently on your profile"
               {...form.getInputProps("featured", { type: "checkbox" })}
             />
+
+            {/* Collaborators Section - Only show in edit mode */}
+            {editingProject && (
+              <>
+                <Divider my="md" />
+
+                <Stack gap="md">
+                  <div>
+                    <Text fw={500} mb="xs">
+                      Collaborators
+                    </Text>
+                    <Text size="sm" c="dimmed" mb="md">
+                      {isOwner
+                        ? "Add team members who can edit this project"
+                        : "Team members working on this project"}
+                    </Text>
+                  </div>
+
+                  <CollaboratorsList
+                    collaborators={collaborators}
+                    ownerId={collaboratorsData?.ownerId ?? ""}
+                    currentUserId={session?.user?.id ?? ""}
+                    isOwner={isOwner}
+                    onRemove={isOwner ? handleRemoveCollaborator : undefined}
+                    loading={removeCollaborator.isPending}
+                  />
+
+                  {isOwner && (
+                    <UserSearchSelect
+                      onSelect={handleAddCollaborator}
+                      excludeUserIds={[
+                        collaboratorsData?.ownerId ?? "",
+                        ...collaboratorUserIds,
+                      ]}
+                      placeholder="Search users to add as collaborators..."
+                    />
+                  )}
+                </Stack>
+              </>
+            )}
 
             <Group justify="flex-end" mt="md">
               <Button

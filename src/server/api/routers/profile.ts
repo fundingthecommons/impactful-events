@@ -552,6 +552,58 @@ export const profileRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Get project collaborators
+  getProjectCollaborators: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const project = await ctx.db.userProject.findUnique({
+        where: { id: input.projectId },
+        include: {
+          profile: true,
+          collaborators: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
+            },
+            orderBy: { addedAt: "desc" },
+          },
+        },
+      });
+
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      // Check if user is owner or collaborator
+      const isOwner = project.profile.userId === ctx.session.user.id;
+      const isCollaborator = project.collaborators.some(
+        (c) => c.userId === ctx.session.user.id,
+      );
+
+      if (!isOwner && !isCollaborator) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only view collaborators for projects you own or collaborate on",
+        });
+      }
+
+      return {
+        ownerId: project.profile.userId,
+        collaborators: project.collaborators,
+      };
+    }),
+
   // Reorder projects
   reorderProjects: protectedProcedure
     .input(z.object({
