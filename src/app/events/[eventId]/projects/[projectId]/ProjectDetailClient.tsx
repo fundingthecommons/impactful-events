@@ -593,17 +593,67 @@ export default function ProjectDetailClient({
 
                             {/* Images */}
                             {update.imageUrls.length > 0 && (
-                              <Group gap="xs">
-                                {update.imageUrls.map((url, imgIndex) => (
-                                  <div key={imgIndex} style={{ width: 100, height: 100, borderRadius: 4, overflow: 'hidden' }}>
-                                    <Image 
-                                      src={url} 
-                                      alt={`Update image ${imgIndex + 1}`}
-                                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              <Box mt="md">
+                                {update.imageUrls.length === 1 ? (
+                                  // Single image - display large
+                                  <Paper
+                                    radius="md"
+                                    withBorder
+                                    style={{
+                                      overflow: 'hidden',
+                                      cursor: 'pointer',
+                                      transition: 'transform 0.2s ease',
+                                      ':hover': { transform: 'scale(1.02)' }
+                                    }}
+                                  >
+                                    <Image
+                                      src={update.imageUrls[0]}
+                                      alt="Update image"
+                                      style={{
+                                        width: "100%",
+                                        maxHeight: "400px",
+                                        objectFit: "cover"
+                                      }}
                                     />
-                                  </div>
-                                ))}
-                              </Group>
+                                  </Paper>
+                                ) : (
+                                  // Multiple images - display grid
+                                  <SimpleGrid
+                                    cols={{ base: 1, sm: 2, md: update.imageUrls.length >= 3 ? 3 : 2 }}
+                                    spacing="md"
+                                  >
+                                    {update.imageUrls.map((url, imgIndex) => (
+                                      <Paper
+                                        key={imgIndex}
+                                        radius="md"
+                                        withBorder
+                                        style={{
+                                          overflow: 'hidden',
+                                          cursor: 'pointer',
+                                          transition: 'transform 0.2s ease',
+                                          aspectRatio: '16/9'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                          e.currentTarget.style.transform = 'scale(1.05)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                          e.currentTarget.style.transform = 'scale(1)';
+                                        }}
+                                      >
+                                        <Image
+                                          src={url}
+                                          alt={`Update image ${imgIndex + 1}`}
+                                          style={{
+                                            width: "100%",
+                                            height: "100%",
+                                            objectFit: "cover"
+                                          }}
+                                        />
+                                      </Paper>
+                                    ))}
+                                  </SimpleGrid>
+                                )}
+                              </Box>
                             )}
 
                             {/* Links */}
