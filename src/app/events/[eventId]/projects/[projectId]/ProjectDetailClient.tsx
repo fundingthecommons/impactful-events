@@ -52,6 +52,7 @@ interface ProjectDetailClientProps {
     githubUrl: string | null;
     liveUrl: string | null;
     imageUrl: string | null;
+    bannerUrl: string | null;
     technologies: string[];
     featured: boolean;
     createdAt: Date;
@@ -288,10 +289,10 @@ export default function ProjectDetailClient({
           {/* Project Header */}
           <Card shadow="lg" padding="xl" radius="md" withBorder>
             <Stack gap="lg">
-              {project.imageUrl && (
+              {project.bannerUrl && (
                 <div style={{ width: '100%', height: 300, borderRadius: 8, overflow: 'hidden' }}>
-                  <Image 
-                    src={project.imageUrl} 
+                  <Image
+                    src={project.bannerUrl}
                     alt={project.title}
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />

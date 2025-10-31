@@ -352,6 +352,7 @@ export const projectRouter = createTRPCRouter({
         githubUrl: project.githubUrl,
         liveUrl: project.liveUrl,
         imageUrl: project.imageUrl,
+        bannerUrl: project.bannerUrl,
         technologies: project.technologies,
         featured: project.featured,
         createdAt: project.createdAt,
