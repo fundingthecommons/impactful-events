@@ -95,11 +95,11 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
           cursor: 'pointer',
           transition: 'transform 0.1s ease, box-shadow 0.1s ease'
         }}
-        onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
+        onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
           e.currentTarget.style.transform = 'translateY(-2px)';
           e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
         }}
-        onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
+        onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
           e.currentTarget.style.transform = 'translateY(0)';
           e.currentTarget.style.boxShadow = '';
         }}

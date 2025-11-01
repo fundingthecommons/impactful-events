@@ -85,3 +85,24 @@ This log is referenced by CLAUDE.md to help Claude Code generate type-safe TypeS
 **Type Pattern**: Use value imports for functions, type imports for type annotations - `import bigInt from "big-integer"` vs `import { type BigInteger } from "big-integer"`
 
 ---
+
+## 2025-01-11 - TS2322 Type Mismatch in Event Handlers - [Project: ftc-platform]
+
+**Error**: Type '(e: React.MouseEvent<HTMLDivElement>) => void' is not assignable to type 'MouseEventHandler<HTMLAnchorElement>'. Types of parameters 'e' and 'event' are incompatible. Type 'MouseEvent<HTMLAnchorElement, MouseEvent>' is not assignable to type 'MouseEvent<HTMLDivElement, MouseEvent>'.
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/app/events/[eventId]/AsksOffersTab.tsx
+**Line**: 98, 102
+**Code Context**: 
+```typescript
+<Paper
+  component={Link}
+  href={`/events/${eventId}/asks-offers/${item.id}`}
+  onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => { ... }}
+  onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => { ... }}
+>
+```
+**Fix Applied**: Changed event handler types from `React.MouseEvent<HTMLDivElement>` to `React.MouseEvent<HTMLAnchorElement>` to match the rendered element type
+**Type Pattern**: When using Mantine's `component` prop to change the rendered element (e.g., `component={Link}`), event handler types must match the actual rendered element type. If `component={Link}`, use `HTMLAnchorElement` not `HTMLDivElement`.
+**Prevention**: Always verify the rendered element type when using the `component` prop on Mantine components. The event handler types must match the actual DOM element that will be rendered, not the original component type.
+
+---
