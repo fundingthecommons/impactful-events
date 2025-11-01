@@ -2,10 +2,10 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { api } from "~/trpc/react";
-import { 
-  Table, Stack, Title, Text, Badge, Avatar, Group, Paper, Container, 
+import {
+  Table, Stack, Title, Text, Badge, Avatar, Group, Paper, Container,
   Drawer, ActionIcon, Divider, Anchor, CopyButton, Tooltip, Tabs,
-  MultiSelect, Textarea, Button, Alert, Select, Loader, TextInput
+  MultiSelect, Textarea, Button, Alert, Select, Loader, TextInput, Checkbox
 } from "@mantine/core";
 import { 
   IconEye, IconBrandTwitter, IconBrandGithub, IconBrandLinkedin, 
@@ -49,6 +49,7 @@ export default function ContactsPage() {
   const [isSending, setIsSending] = useState(false);
   const [selectedSmartList, setSelectedSmartList] = useState<string | null>(null);
   const [messagingMode, setMessagingMode] = useState<'manual' | 'smartlist'>('manual');
+  const [addSalutation, setAddSalutation] = useState(false);
   
   // Contact filtering state
   const [selectedContactFilter, setSelectedContactFilter] = useState<string | null>(null);
@@ -133,10 +134,10 @@ export default function ContactsPage() {
 
   const handleSendMessage = useCallback(async () => {
     if (!messageText.trim()) return;
-    
+
     if (messagingMode === 'manual' && !selectedRecipients.length) return;
     if (messagingMode === 'smartlist' && !selectedSmartList) return;
-    
+
     setIsSending(true);
     try {
       let result;
@@ -144,25 +145,28 @@ export default function ContactsPage() {
         result = await sendBulkMessageToList.mutateAsync({
           listId: selectedSmartList!,
           message: messageText.trim(),
+          addSalutation,
         });
       } else {
         result = await sendBulkMessage.mutateAsync({
           contactIds: selectedRecipients.map(c => c.id),
           message: messageText.trim(),
+          addSalutation,
         });
       }
-      
+
       // Reset form on success
       setSelectedRecipients([]);
       setSelectedSmartList(null);
       setMessageText("");
+      setAddSalutation(false);
       console.log(`Messages sent: ${result.successCount} successful, ${result.failureCount} failed`);
     } catch (error) {
       console.error("Failed to send messages:", error);
     } finally {
       setIsSending(false);
     }
-  }, [messageText, messagingMode, selectedRecipients, selectedSmartList, sendBulkMessageToList, sendBulkMessage]);
+  }, [messageText, messagingMode, selectedRecipients, selectedSmartList, sendBulkMessageToList, sendBulkMessage, addSalutation]);
 
   const removeRecipient = useCallback((contactId: string) => {
     setSelectedRecipients(prev => prev.filter(c => c.id !== contactId));
@@ -679,6 +683,12 @@ export default function ContactsPage() {
                             minRows={4}
                             maxRows={8}
                             autosize
+                          />
+                          <Checkbox
+                            label="Add salutation"
+                            description='Prepend "Hey [firstName], " to each message'
+                            checked={addSalutation}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddSalutation(e.currentTarget.checked)}
                           />
                           <Group justify="space-between">
                             <Text size="xs" c="dimmed">

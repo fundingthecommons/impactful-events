@@ -469,6 +469,7 @@ export const telegramAuthRouter = createTRPCRouter({
     .input(z.object({
       contactIds: z.array(z.string()).min(1).max(50), // Limit to 50 recipients
       message: z.string().min(1).max(4096), // Telegram message limit
+      addSalutation: z.boolean().optional().default(false), // Prepend "Hey [firstName], "
     }))
     .mutation(async ({ ctx, input }) => {
       // Check user has active Telegram authentication
@@ -556,11 +557,16 @@ export const telegramAuthRouter = createTRPCRouter({
 
             if (result.users && result.users.length > 0) {
               const user = result.users[0];
-              
+
+              // Prepare message with optional salutation
+              const messageText = input.addSalutation
+                ? `Hey ${contact.firstName}, ${input.message}`
+                : input.message;
+
               // Send message
               const sentMessage = await client.invoke(new Api.messages.SendMessage({
                 peer: user,
-                message: input.message,
+                message: messageText,
                 randomId: bigInt(Math.floor(Math.random() * 1000000000)),
               }));
 
@@ -876,6 +882,7 @@ export const telegramAuthRouter = createTRPCRouter({
     .input(z.object({
       listId: z.string(),
       message: z.string().min(1).max(4096),
+      addSalutation: z.boolean().optional().default(false), // Prepend "Hey [firstName], "
     }))
     .mutation(async ({ ctx, input }) => {
       // Reuse the getSmartListContacts logic to get applicants
@@ -1030,11 +1037,16 @@ export const telegramAuthRouter = createTRPCRouter({
 
             if (result.users && result.users.length > 0) {
               const user = result.users[0];
-              
+
+              // Prepare message with optional salutation
+              const messageText = input.addSalutation
+                ? `Hey ${contact.firstName}, ${input.message}`
+                : input.message;
+
               // Send message
               const sentMessage = await client.invoke(new Api.messages.SendMessage({
                 peer: user,
-                message: input.message,
+                message: messageText,
                 randomId: bigInt(Math.floor(Math.random() * 1000000000)),
               }));
 
