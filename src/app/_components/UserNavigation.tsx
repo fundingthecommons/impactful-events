@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
 import { api } from "~/trpc/react";
+import { useSession } from "next-auth/react";
 
 // Proper type for Tab component with Link
 type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
@@ -14,9 +15,12 @@ type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
 
 export default function UserNavigation() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   // Fetch user's projects
-  const { data: userProjects = [] } = api.project.getMyProjects.useQuery();
+  const { data: userProjects = [] } = api.project.getMyProjects.useQuery(undefined, {
+    enabled: !!session?.user,
+  });
 
   // Determine active tab based on current path
   const getActiveTab = () => {

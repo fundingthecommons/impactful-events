@@ -7,21 +7,73 @@ export const projectRouter = createTRPCRouter({
     .query(async ({ ctx }) => {
       const userId = ctx.session.user.id;
 
-      const projects = await ctx.db.project.findMany({
+      // Get user's accepted applications to find their eventId
+      const acceptedApplications = await ctx.db.application.findMany({
         where: {
-          createdById: userId,
+          userId,
+          status: "ACCEPTED",
+        },
+        select: {
+          eventId: true,
+        },
+        take: 1, // Assume user is only in one active event for now
+      });
+
+      // Default to funding-commons-residency-2025 if no accepted application
+      const eventId = acceptedApplications[0]?.eventId ?? "funding-commons-residency-2025";
+
+      // Get user's profile
+      const profile = await ctx.db.userProfile.findUnique({
+        where: { userId },
+        select: { id: true },
+      });
+
+      if (!profile) {
+        return [];
+      }
+
+      // Get user's own projects
+      const ownProjects = await ctx.db.userProject.findMany({
+        where: {
+          profileId: profile.id,
         },
         select: {
           id: true,
           title: true,
-          eventId: true,
         },
         orderBy: {
           createdAt: "desc",
         },
       });
 
-      return projects;
+      // Get projects where user is a collaborator
+      const collaboratorProjects = await ctx.db.userProject.findMany({
+        where: {
+          collaborators: {
+            some: {
+              userId,
+            },
+          },
+        },
+        select: {
+          id: true,
+          title: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      // Merge and deduplicate, add eventId to each
+      const allProjects = [...ownProjects, ...collaboratorProjects];
+      const uniqueProjects = Array.from(
+        new Map(allProjects.map(p => [p.id, p])).values()
+      ).map(p => ({
+        ...p,
+        eventId,
+      }));
+
+      return uniqueProjects;
     }),
 
   getUserProjects: protectedProcedure
