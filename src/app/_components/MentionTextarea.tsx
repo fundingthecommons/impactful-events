@@ -3,9 +3,12 @@
 import { useState, useRef, useCallback, type KeyboardEvent, type ChangeEvent } from "react";
 import { Textarea, Loader, Paper, Avatar, Text, Group, Stack } from "@mantine/core";
 import { api } from "~/trpc/react";
+import { getDisplayName, getInitials } from "~/utils/userDisplay";
 
 interface MentionUser {
   id: string;
+  firstName?: string | null;
+  surname?: string | null;
   name: string | null;
   email: string | null;
   image: string | null;
@@ -83,7 +86,7 @@ export function MentionTextarea({
       const textAfter = value.substring(cursorPos);
 
       // Create mention markdown: [@Name](mention:userId)
-      const mentionText = `[@${user.name ?? user.email}](mention:${user.id})`;
+      const mentionText = `[@${getDisplayName(user)}](mention:${user.id})`;
       const newValue = textBefore + mentionText + " " + textAfter;
       const newCursorPos = textBefore.length + mentionText.length + 1;
 
@@ -178,11 +181,11 @@ export function MentionTextarea({
                 >
                   <Group gap="sm">
                     <Avatar src={user.image} size="sm" radius="xl">
-                      {user.name?.[0]?.toUpperCase() ?? user.email?.[0]?.toUpperCase()}
+                      {getInitials(user) || user.email?.[0]?.toUpperCase()}
                     </Avatar>
                     <div>
                       <Text size="sm" fw={500}>
-                        {user.name ?? "Unknown User"}
+                        {getDisplayName(user, "Unknown User")}
                       </Text>
                       {user.email && (
                         <Text size="xs" c="dimmed">

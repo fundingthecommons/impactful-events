@@ -1,23 +1,24 @@
 "use client";
 
-import { 
-  Container, 
-  Title, 
-  SimpleGrid, 
-  Card, 
-  Text, 
-  Badge, 
-  Group, 
-  Stack, 
+import { useState } from "react";
+import {
+  Container,
+  Title,
+  SimpleGrid,
+  Card,
+  Text,
+  Badge,
+  Group,
+  Stack,
   Button,
   ThemeIcon,
   Box,
   Paper,
   Loader
 } from "@mantine/core";
-import { 
-  IconUsers, 
-  IconBuilding, 
+import {
+  IconUsers,
+  IconBuilding,
   IconCalendarEvent,
   IconClipboardList,
   IconUserCheck
@@ -26,6 +27,7 @@ import Link from "next/link";
 import { api } from "~/trpc/react";
 import { getEventIcon, getEventGradient } from "~/utils/eventContent";
 import { type EventType } from "~/types/event";
+import { CreateEventModal } from "./CreateEventModal";
 
 // Helper function to get Mantine gradient format from event type
 function getMantineGradient(eventType: string) {
@@ -194,6 +196,8 @@ type EventWithCounts = {
 };
 
 export default function EventsClient() {
+  const [createModalOpened, setCreateModalOpened] = useState(false);
+
   // Fetch real events from database
   const { data: events, isLoading } = api.event.getEvents.useQuery();
 
@@ -271,22 +275,23 @@ export default function EventsClient() {
 
         {/* Additional Actions */}
         <Group justify="center" mt="xl">
-          <Button 
-            variant="light" 
+          <Button
+            variant="light"
             size="lg"
             leftSection={<IconCalendarEvent size={18} />}
+            onClick={() => setCreateModalOpened(true)}
           >
             Create New Event
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="lg"
             leftSection={<IconUsers size={18} />}
           >
             Manage Participants
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="lg"
             leftSection={<IconBuilding size={18} />}
           >
@@ -294,6 +299,11 @@ export default function EventsClient() {
           </Button>
         </Group>
       </Stack>
+
+      <CreateEventModal
+        opened={createModalOpened}
+        onClose={() => setCreateModalOpened(false)}
+      />
     </Container>
   );
 }

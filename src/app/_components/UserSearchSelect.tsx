@@ -4,9 +4,12 @@ import { useState, useRef, useEffect } from "react";
 import { TextInput, Paper, Group, Avatar, Text, Stack, Loader } from "@mantine/core";
 import { api } from "~/trpc/react";
 import { IconSearch } from "@tabler/icons-react";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface User {
   id: string;
+  firstName?: string | null;
+  surname?: string | null;
   name: string | null;
   email: string | null;
   image: string | null;
@@ -146,10 +149,10 @@ export function UserSearchSelect({
                   onMouseEnter={() => setSelectedIndex(index)}
                 >
                   <Group gap="sm">
-                    <Avatar src={user.image} alt={user.name ?? "User"} size="sm" />
+                    <Avatar src={user.image} alt={getDisplayName(user, "User")} size="sm" />
                     <div style={{ flex: 1 }}>
                       <Text size="sm" fw={500}>
-                        {user.name ?? "Unknown"}
+                        {getDisplayName(user, "Unknown")}
                       </Text>
                       <Text size="xs" c="dimmed">
                         {user.email}

@@ -154,6 +154,8 @@ export const roleRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
             },
@@ -234,6 +236,8 @@ export const roleRouter = createTRPCRouter({
         },
         select: {
           id: true,
+          firstName: true,
+          surname: true,
           name: true,
           email: true,
           role: true,
@@ -337,6 +341,8 @@ export const roleRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
             },
@@ -401,6 +407,8 @@ export const roleRouter = createTRPCRouter({
         data: { role: input.newRole },
         select: {
           id: true,
+          firstName: true,
+          surname: true,
           name: true,
           email: true,
           role: true,

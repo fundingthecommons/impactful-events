@@ -31,6 +31,7 @@ import {
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
+import { getDisplayName, getInitials } from "~/utils/userDisplay";
 
 interface ApplicationDetailsDrawerProps {
   applicationId: string | null;
@@ -154,7 +155,7 @@ export default function ApplicationDetailsDrawer({
                 </Avatar>
                 <div>
                   <Title order={3} mb="xs">
-                    {application.user?.name ?? "Unknown"}
+                    {getDisplayName(application.user, "Unknown")}
                   </Title>
                   <Group gap="xs" mb="xs">
                     <IconMail size={16} />
@@ -436,9 +437,9 @@ export default function ApplicationDetailsDrawer({
                           <Table.Td>
                             <Group gap="sm">
                               <Avatar src={assignment.reviewer.image} size="sm">
-                                {assignment.reviewer.name?.[0]}
+                                {getInitials(assignment.reviewer)}
                               </Avatar>
-                              <Text size="sm">{assignment.reviewer.name}</Text>
+                              <Text size="sm">{getDisplayName(assignment.reviewer)}</Text>
                             </Group>
                           </Table.Td>
                           <Table.Td>

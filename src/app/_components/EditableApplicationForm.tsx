@@ -25,6 +25,7 @@ import {
 import { api } from "~/trpc/react";
 import AdminFieldsEditor from "./AdminFieldsEditor";
 import ProjectManagementSection from "./ProjectManagementSection";
+import { getDisplayName } from "~/utils/userDisplay";
 
 type Question = {
   id: string;
@@ -46,6 +47,8 @@ type ApplicationWithUser = {
   affiliation: string | null;
   user: {
     id: string;
+    firstName?: string | null;
+    surname?: string | null;
     name: string | null;
     email: string | null;
     adminNotes: string | null;
@@ -85,7 +88,7 @@ export default function EditableApplicationForm({
 
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
   const [originalValues, setOriginalValues] = useState<Record<string, unknown>>({});
-  const [userName, setUserName] = useState(application.user?.name ?? "");
+  const [userName, setUserName] = useState(getDisplayName(application.user, ""));
   const [affiliation, setAffiliation] = useState(application.affiliation ?? "");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -570,7 +573,7 @@ export default function EditableApplicationForm({
             onBlur={saveUserName}
             size="md"
             rightSection={
-              userName !== (application.user?.name ?? "") ? (
+              userName !== getDisplayName(application.user, "") ? (
                 <IconDeviceFloppy size={18} color="orange" />
               ) : (
                 <IconCheck size={18} color="green" />

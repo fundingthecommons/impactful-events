@@ -33,7 +33,8 @@ interface SignInFormData {
 }
 
 interface SignUpFormData {
-  name: string;
+  firstName: string;
+  surname: string;
   email: string;
   password: string;
   confirmPassword: string;
@@ -92,14 +93,16 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
 
   const signUpForm = useForm<SignUpFormData>({
     initialValues: {
-      name: "",
+      firstName: "",
+      surname: "",
       email: "",
       password: "",
       confirmPassword: "",
       agreeToTerms: false,
     },
     validate: {
-      name: (value) => (value.length < 2 ? "Name must have at least 2 letters" : null),
+      firstName: (value) => (value.length < 1 ? "First name is required" : null),
+      surname: () => null, // Optional field
       email: (value) => (/^\S+@\S+$/.test(value) ? null : "Invalid email"),
       password: (value) => {
         if (value.length < 8) return "Password must be at least 8 characters";
@@ -160,7 +163,8 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
 
     try {
       const user = await createUserMutation.mutateAsync({
-        name: values.name,
+        firstName: values.firstName,
+        surname: values.surname,
         email: values.email,
         password: values.password,
       });
@@ -307,12 +311,19 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
           <Tabs.Panel value="signup" mt="sm">
             <form onSubmit={signUpForm.onSubmit(handleSignUp)}>
               <Stack gap="sm">
-                <TextInput
-                  label="Full Name"
-                  placeholder="John Doe"
-                  required
-                  {...signUpForm.getInputProps("name")}
-                />
+                <Group grow>
+                  <TextInput
+                    label="First Name"
+                    placeholder="John"
+                    required
+                    {...signUpForm.getInputProps("firstName")}
+                  />
+                  <TextInput
+                    label="Surname"
+                    placeholder="Doe"
+                    {...signUpForm.getInputProps("surname")}
+                  />
+                </Group>
                 <TextInput
                   label="Email"
                   placeholder="your@email.com"

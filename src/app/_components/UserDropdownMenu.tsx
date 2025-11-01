@@ -22,6 +22,7 @@ import Link from "next/link";
 import type { Session } from "next-auth";
 import { api } from "~/trpc/react";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface UserDropdownMenuProps {
   session: Session;
@@ -39,11 +40,15 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
   const avatarUrl = getAvatarUrl({
     customAvatarUrl: profile?.avatarUrl,
     oauthImageUrl: session.user.image,
+    firstName: session.user.firstName,
+    surname: session.user.surname,
     name: session.user.name,
     email: session.user.email,
   });
 
   const avatarInitials = getAvatarInitials({
+    firstName: session.user.firstName,
+    surname: session.user.surname,
     name: session.user.name,
     email: session.user.email,
   });
@@ -55,7 +60,7 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
           <Stack gap={0} align="flex-end">
             <Group gap="xs">
               <Text size="sm" fw={500}>
-                {session.user.name ?? session.user.email}
+                {getDisplayName(session.user)}
               </Text>
               <Avatar src={avatarUrl} radius="xl" size={32}>
                 {avatarInitials}

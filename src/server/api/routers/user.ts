@@ -7,7 +7,8 @@ export const userRouter = createTRPCRouter({
   create: publicProcedure
     .input(
       z.object({
-        name: z.string().min(2, "Name must be at least 2 characters"),
+        firstName: z.string().min(1, "First name is required"),
+        surname: z.string().optional(),
         email: z.string().email("Invalid email address"),
         password: z.string().min(8, "Password must be at least 8 characters"),
       }),
@@ -31,12 +32,16 @@ export const userRouter = createTRPCRouter({
       // Create the user
       const user = await ctx.db.user.create({
         data: {
-          name: input.name,
+          firstName: input.firstName,
+          surname: input.surname ?? "",
+          name: `${input.firstName} ${input.surname ?? ""}`.trim(), // Maintain legacy field during transition
           email: input.email,
           password: hashedPassword,
         },
         select: {
           id: true,
+          firstName: true,
+          surname: true,
           name: true,
           email: true,
         },
@@ -58,12 +63,14 @@ export const userRouter = createTRPCRouter({
       const users = await ctx.db.user.findMany({
         select: {
           id: true,
+          firstName: true,
+          surname: true,
           name: true,
           email: true,
           role: true,
         },
         orderBy: {
-          name: "asc",
+          firstName: "asc",
         },
       });
 
@@ -86,13 +93,15 @@ export const userRouter = createTRPCRouter({
         },
         select: {
           id: true,
+          firstName: true,
+          surname: true,
           name: true,
           email: true,
           role: true,
           isAIReviewer: true,
         },
         orderBy: {
-          name: "asc",
+          firstName: "asc",
         },
       });
 
@@ -206,23 +215,26 @@ export const userRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Search users by name or email
+      // Search users by firstName, surname, or email
       const users = await ctx.db.user.findMany({
         where: {
           OR: [
-            { name: { contains: input.query, mode: "insensitive" } },
+            { firstName: { contains: input.query, mode: "insensitive" } },
+            { surname: { contains: input.query, mode: "insensitive" } },
             { email: { contains: input.query, mode: "insensitive" } },
           ],
         },
         select: {
           id: true,
+          firstName: true,
+          surname: true,
           name: true,
           email: true,
           image: true,
         },
         take: input.limit,
         orderBy: {
-          name: "asc",
+          firstName: "asc",
         },
       });
 

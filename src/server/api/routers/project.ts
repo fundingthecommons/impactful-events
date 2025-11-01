@@ -113,6 +113,8 @@ export const projectRouter = createTRPCRouter({
           createdBy: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
             },
@@ -204,6 +206,8 @@ export const projectRouter = createTRPCRouter({
           createdBy: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
             },
@@ -283,6 +287,8 @@ export const projectRouter = createTRPCRouter({
           createdBy: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
             },
@@ -494,6 +500,8 @@ export const projectRouter = createTRPCRouter({
           author: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
             }
@@ -538,6 +546,8 @@ export const projectRouter = createTRPCRouter({
           author: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
             }
@@ -619,6 +629,8 @@ export const projectRouter = createTRPCRouter({
           author: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
             }
@@ -678,6 +690,8 @@ export const projectRouter = createTRPCRouter({
           author: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
             }
@@ -812,6 +826,8 @@ export const projectRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
             },
@@ -880,6 +896,8 @@ export const projectRouter = createTRPCRouter({
           author: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
             }

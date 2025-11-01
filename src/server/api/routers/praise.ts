@@ -21,6 +21,8 @@ export const praiseRouter = createTRPCRouter({
         recipient: {
           select: {
             id: true,
+            firstName: true,
+            surname: true,
             name: true,
             email: true,
             image: true,
@@ -53,6 +55,8 @@ export const praiseRouter = createTRPCRouter({
         sender: {
           select: {
             id: true,
+            firstName: true,
+            surname: true,
             name: true,
             email: true,
             image: true,
@@ -115,6 +119,8 @@ export const praiseRouter = createTRPCRouter({
         },
         select: {
           id: true,
+          firstName: true,
+          surname: true,
           name: true,
           email: true,
           image: true,
@@ -219,6 +225,8 @@ export const praiseRouter = createTRPCRouter({
           sender: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
             },
@@ -350,6 +358,8 @@ export const praiseRouter = createTRPCRouter({
           sender: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
             },

@@ -908,4 +908,258 @@ export const eventRouter = createTRPCRouter({
         }
       };
     }),
-}); 
+
+  // Create new event with optional questions and roles
+  createEvent: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1, "Event name is required"),
+        type: z.string().min(1, "Event type is required"),
+        startDate: z.date(),
+        endDate: z.date(),
+        isOnline: z.boolean().default(true),
+        location: z.string().optional(),
+        description: z.string().optional(),
+
+        // Optional: create questions in same transaction
+        questions: z
+          .array(
+            z.object({
+              questionKey: z.string(),
+              questionEn: z.string(),
+              questionEs: z.string().optional(),
+              questionType: z.enum([
+                "TEXT",
+                "TEXTAREA",
+                "EMAIL",
+                "PHONE",
+                "URL",
+                "SELECT",
+                "MULTISELECT",
+                "CHECKBOX",
+                "NUMBER",
+              ]),
+              required: z.boolean().default(true),
+              order: z.number(),
+              options: z.array(z.string()).optional(),
+            }),
+          )
+          .optional(),
+
+        // Optional: assign initial roles
+        roles: z
+          .array(
+            z.object({
+              roleId: z.string(),
+              userId: z.string(),
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { questions, roles, ...eventData } = input;
+
+      // Validate dates
+      if (eventData.endDate <= eventData.startDate) {
+        throw new Error("End date must be after start date");
+      }
+
+      // Create event with related data in a transaction
+      const event = await ctx.db.event.create({
+        data: {
+          ...eventData,
+          createdById: ctx.session.user.id,
+
+          // Create application questions if provided
+          ...(questions && questions.length > 0
+            ? {
+                applicationQuestions: {
+                  create: questions.map((q) => ({
+                    questionKey: q.questionKey,
+                    questionEn: q.questionEn,
+                    questionEs: q.questionEs ?? q.questionEn, // Default to English if Spanish not provided
+                    questionType: q.questionType,
+                    required: q.required,
+                    order: q.order,
+                    options: q.options ?? [],
+                  })),
+                },
+              }
+            : {}),
+
+          // Create user roles if provided
+          ...(roles && roles.length > 0
+            ? {
+                userRoles: {
+                  create: roles.map((r) => ({
+                    userId: r.userId,
+                    roleId: r.roleId,
+                  })),
+                },
+              }
+            : {}),
+        },
+        include: {
+          applicationQuestions: {
+            orderBy: { order: "asc" },
+          },
+          userRoles: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+              role: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      return event;
+    }),
+
+  // Update existing event
+  updateEvent: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).optional(),
+        type: z.string().optional(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+        isOnline: z.boolean().optional(),
+        location: z.string().optional(),
+        description: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...updateData } = input;
+
+      // Verify user is the creator or has organizer role
+      const event = await ctx.db.event.findUnique({
+        where: { id },
+        include: {
+          userRoles: {
+            where: {
+              userId: ctx.session.user.id,
+            },
+            include: {
+              role: true,
+            },
+          },
+        },
+      });
+
+      if (!event) {
+        throw new Error("Event not found");
+      }
+
+      const isCreator = event.createdById === ctx.session.user.id;
+      const hasOrganizerRole = event.userRoles.some(
+        (ur) => ur.role.name === "ORGANIZER" || ur.role.name === "ADMIN",
+      );
+
+      if (!isCreator && !hasOrganizerRole) {
+        throw new Error("You don't have permission to update this event");
+      }
+
+      // Validate dates if both are being updated
+      if (updateData.startDate && updateData.endDate) {
+        if (updateData.endDate <= updateData.startDate) {
+          throw new Error("End date must be after start date");
+        }
+      }
+
+      const updatedEvent = await ctx.db.event.update({
+        where: { id },
+        data: updateData,
+        include: {
+          applicationQuestions: {
+            orderBy: { order: "asc" },
+          },
+          userRoles: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+              role: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      return updatedEvent;
+    }),
+
+  // Delete event (with safety checks)
+  deleteEvent: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify user is the creator or admin
+      const event = await ctx.db.event.findUnique({
+        where: { id: input.id },
+        include: {
+          applications: {
+            select: { id: true },
+          },
+          userRoles: {
+            where: {
+              userId: ctx.session.user.id,
+            },
+            include: {
+              role: true,
+            },
+          },
+        },
+      });
+
+      if (!event) {
+        throw new Error("Event not found");
+      }
+
+      const isCreator = event.createdById === ctx.session.user.id;
+      const hasAdminRole = event.userRoles.some(
+        (ur) => ur.role.name === "ADMIN",
+      );
+
+      if (!isCreator && !hasAdminRole) {
+        throw new Error("You don't have permission to delete this event");
+      }
+
+      // Check if event has applications
+      if (event.applications.length > 0) {
+        throw new Error(
+          "Cannot delete event with existing applications. Please archive or cancel the event instead.",
+        );
+      }
+
+      // Delete event (cascade will handle related records)
+      await ctx.db.event.delete({
+        where: { id: input.id },
+      });
+
+      return { success: true };
+    }),
+});

@@ -2,9 +2,12 @@
 
 import { Group, Avatar, Text, Badge, ActionIcon, Stack, Paper } from "@mantine/core";
 import { IconX } from "@tabler/icons-react";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface User {
   id: string;
+  firstName?: string | null;
+  surname?: string | null;
   name: string | null;
   email: string | null;
   image: string | null;
@@ -56,13 +59,13 @@ export function CollaboratorsList({
               <Group gap="sm">
                 <Avatar
                   src={user.image}
-                  alt={user.name ?? "User"}
+                  alt={getDisplayName(user, "User")}
                   size="sm"
                 />
                 <div>
                   <Group gap="xs">
                     <Text size="sm" fw={500}>
-                      {user.name ?? "Unknown"}
+                      {getDisplayName(user, "Unknown")}
                       {isCurrentUser && (
                         <Text span c="dimmed" fw={400}>
                           {" "}

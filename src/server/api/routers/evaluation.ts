@@ -172,7 +172,7 @@ export const evaluationRouter = createTRPCRouter({
                   include: { question: true },
                   orderBy: { question: { order: 'asc' } }
                 },
-                user: { select: { id: true, name: true, email: true, adminNotes: true, adminWorkExperience: true, adminLabels: true } },
+                user: { select: { id: true, firstName: true, surname: true, name: true, email: true, adminNotes: true, adminWorkExperience: true, adminLabels: true } },
                 event: { select: { name: true } },
               }
             });
@@ -326,11 +326,11 @@ export const evaluationRouter = createTRPCRouter({
             stage,
           },
           include: {
-            reviewer: { select: { id: true, name: true, email: true, isAIReviewer: true } },
+            reviewer: { select: { id: true, firstName: true, surname: true, name: true, email: true, isAIReviewer: true } },
             application: { 
               select: { 
                 id: true,
-                user: { select: { name: true, email: true } },
+                user: { select: { firstName: true, surname: true, name: true, email: true } },
                 event: { select: { name: true } }
               }
             },
@@ -372,7 +372,7 @@ export const evaluationRouter = createTRPCRouter({
                     include: { question: true },
                     orderBy: { question: { order: 'asc' } }
                   },
-                  user: { select: { id: true, name: true, email: true, adminNotes: true, adminWorkExperience: true, adminLabels: true } },
+                  user: { select: { id: true, firstName: true, surname: true, name: true, email: true, adminNotes: true, adminWorkExperience: true, adminLabels: true } },
                   event: { select: { name: true } },
                 }
               });
@@ -565,7 +565,7 @@ export const evaluationRouter = createTRPCRouter({
                 include: { question: true },
                 orderBy: { question: { order: 'asc' } }
               },
-              user: { select: { id: true, name: true, email: true, adminNotes: true, adminWorkExperience: true, adminLabels: true } },
+              user: { select: { id: true, firstName: true, surname: true, name: true, email: true, adminNotes: true, adminWorkExperience: true, adminLabels: true } },
               event: { select: { name: true } },
             }
           }
@@ -695,7 +695,7 @@ export const evaluationRouter = createTRPCRouter({
           event: { select: { name: true } },
           evaluations: {
             include: {
-              reviewer: { select: { name: true, email: true } },
+              reviewer: { select: { firstName: true, surname: true, name: true, email: true } },
               scores: {
                 include: { criteria: true }
               }
@@ -883,7 +883,7 @@ export const evaluationRouter = createTRPCRouter({
         where: { reviewerId },
         include: {
           reviewer: { select: { name: true, email: true } },
-          assignedByUser: { select: { name: true, email: true } },
+          assignedByUser: { select: { firstName: true, surname: true, name: true, email: true } },
         },
         orderBy: { category: 'asc' },
       });
@@ -925,7 +925,7 @@ export const evaluationRouter = createTRPCRouter({
         },
         include: {
           reviewer: { select: { name: true, email: true } },
-          assignedByUser: { select: { name: true, email: true } },
+          assignedByUser: { select: { firstName: true, surname: true, name: true, email: true } },
         },
       });
     }),
@@ -971,8 +971,8 @@ export const evaluationRouter = createTRPCRouter({
               updatedAt: new Date(),
             },
             include: {
-              reviewer: { select: { name: true, email: true } },
-              assignedByUser: { select: { name: true, email: true } },
+              reviewer: { select: { firstName: true, surname: true, name: true, email: true } },
+              assignedByUser: { select: { firstName: true, surname: true, name: true, email: true } },
             },
           });
           results.push(result);
@@ -1126,11 +1126,11 @@ export const evaluationRouter = createTRPCRouter({
             notes: notes ?? 'Self-assigned from review queue',
           },
           include: {
-            reviewer: { select: { id: true, name: true, email: true } },
+            reviewer: { select: { id: true, firstName: true, surname: true, name: true, email: true } },
             application: { 
               select: { 
                 id: true,
-                user: { select: { name: true, email: true } },
+                user: { select: { firstName: true, surname: true, name: true, email: true } },
                 event: { select: { name: true } }
               }
             },
@@ -1150,7 +1150,7 @@ export const evaluationRouter = createTRPCRouter({
             application: {
               select: {
                 id: true,
-                user: { select: { name: true, email: true } },
+                user: { select: { firstName: true, surname: true, name: true, email: true } },
                 event: { select: { name: true } }
               }
             }
@@ -1181,7 +1181,7 @@ export const evaluationRouter = createTRPCRouter({
           role: true,
           reviewerCompetencies: {
             include: {
-              assignedByUser: { select: { name: true, email: true } },
+              assignedByUser: { select: { firstName: true, surname: true, name: true, email: true } },
             },
             orderBy: { category: 'asc' },
           },
@@ -1237,6 +1237,8 @@ export const evaluationRouter = createTRPCRouter({
                 reviewer: {
                   select: {
                     id: true,
+                    firstName: true,
+                    surname: true,
                     name: true,
                     email: true,
                     image: true,

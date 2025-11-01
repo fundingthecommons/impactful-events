@@ -613,6 +613,8 @@ export const applicationRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
               adminNotes: true,
@@ -632,6 +634,8 @@ export const applicationRouter = createTRPCRouter({
               reviewer: {
                 select: {
                   id: true,
+                  firstName: true,
+                  surname: true,
                   name: true,
                   email: true,
                   image: true,
@@ -671,6 +675,8 @@ export const applicationRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
               adminNotes: true,
@@ -690,6 +696,8 @@ export const applicationRouter = createTRPCRouter({
               reviewer: {
                 select: {
                   id: true,
+                  firstName: true,
+                  surname: true,
                   name: true,
                   email: true,
                   image: true,
@@ -715,6 +723,8 @@ export const applicationRouter = createTRPCRouter({
               reviewer: {
                 select: {
                   id: true,
+                  firstName: true,
+                  surname: true,
                   name: true,
                   email: true,
                   image: true,
@@ -762,6 +772,8 @@ export const applicationRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
               adminNotes: true,
@@ -980,6 +992,8 @@ export const applicationRouter = createTRPCRouter({
               user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
               adminNotes: true,
@@ -1210,6 +1224,8 @@ export const applicationRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
               adminNotes: true,
@@ -1245,6 +1261,8 @@ export const applicationRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
               adminNotes: true,
@@ -1628,6 +1646,8 @@ export const applicationRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
               profile: {
@@ -1766,6 +1786,8 @@ export const applicationRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
               profile: {
@@ -1909,6 +1931,8 @@ export const applicationRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               image: true,
               profile: {
@@ -1972,6 +1996,8 @@ export const applicationRouter = createTRPCRouter({
           user: {
             select: {
               id: true,
+              firstName: true,
+              surname: true,
               name: true,
               email: true,
               adminNotes: true,
@@ -2006,6 +2032,8 @@ export const applicationRouter = createTRPCRouter({
               reviewer: {
                 select: {
                   id: true,
+                  firstName: true,
+                  surname: true,
                   name: true,
                   email: true,
                   image: true,

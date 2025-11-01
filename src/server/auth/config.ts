@@ -64,13 +64,15 @@ export const authConfig = {
           select: {
             id: true,
             email: true,
+            firstName: true,
+            surname: true,
             name: true,
             password: true,
             role: true,
           },
         });
 
-        console.log("[AUTH] User found:", user ? { id: user.id, email: user.email, name: user.name, hasPassword: !!user.password } : "No user found");
+        console.log("[AUTH] User found:", user ? { id: user.id, email: user.email, firstName: user.firstName, surname: user.surname, hasPassword: !!user.password } : "No user found");
 
         if (!user?.password) {
           console.log("[AUTH] User not found or no password set");
@@ -89,10 +91,10 @@ export const authConfig = {
         const userForAuth = {
           id: user.id,
           email: user.email,
-          name: user.name,
+          name: (`${user.firstName ?? ''} ${user.surname ?? ''}`.trim() || user.name) ?? null,
           role: user.role ?? undefined,
         };
-        
+
         console.log("[AUTH] Authentication successful, returning user:", userForAuth);
         return userForAuth;
       },
@@ -142,7 +144,39 @@ export const authConfig = {
     },
   },
   callbacks: {
-    async signIn({ user: _user, account: _account, profile: _profile }) {
+    async signIn({ user, account, profile }) {
+      // Update firstName/surname from OAuth provider profile if available
+      if (account?.provider === "google" && profile && user.id) {
+        const googleProfile = profile as { given_name?: string; family_name?: string };
+        if (googleProfile.given_name ?? googleProfile.family_name) {
+          await db.user.update({
+            where: { id: user.id },
+            data: {
+              firstName: googleProfile.given_name ?? user.name?.split(' ')[0] ?? null,
+              surname: googleProfile.family_name ?? user.name?.split(' ').slice(1).join(' ') ?? null,
+              name: user.name, // Keep name field for compatibility
+            },
+          }).catch(() => {
+            // Ignore errors if user doesn't exist yet (will be created by adapter)
+          });
+        }
+      } else if (account?.provider === "discord" && user.name && user.id) {
+        // Parse Discord username into firstName/surname
+        const nameParts = user.name.split(' ');
+        const firstName = nameParts[0] ?? user.name;
+        const surname = nameParts.slice(1).join(' ') || '';
+        await db.user.update({
+          where: { id: user.id },
+          data: {
+            firstName,
+            surname,
+            name: user.name, // Keep name field for compatibility
+          },
+        }).catch(() => {
+          // Ignore errors if user doesn't exist yet (will be created by adapter)
+        });
+      }
+
       // Always allow sign in - NextAuth will handle account linking with the adapter
       return true;
     },

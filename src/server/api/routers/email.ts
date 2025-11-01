@@ -718,6 +718,8 @@ export const emailRouter = createTRPCRouter({
                 user: {
                   select: {
                     id: true,
+                    firstName: true,
+                    surname: true,
                     name: true,
                     email: true,
                   },

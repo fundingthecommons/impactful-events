@@ -66,6 +66,7 @@ import ApplicationCompletionProgress from "~/app/_components/ApplicationCompleti
 import CurationSpecDashboard from "~/app/_components/CurationSpecDashboard";
 import SponsoredApplicationModal from "~/app/_components/SponsoredApplicationModal";
 import { type ExtendedDemographicStats, type ApplicationForDemographics, calculateExtendedDemographicStats, isLatamCountry } from "~/utils/demographics";
+import { getDisplayName } from "~/utils/userDisplay";
 
 type Event = {
   id: string;
@@ -98,6 +99,8 @@ type ApplicationWithUser = {
   waitlistOrder: number | null;
   user: {
     id: string;
+    firstName?: string | null;
+    surname?: string | null;
     name: string | null;
     email: string | null;
     adminNotes: string | null;
@@ -142,6 +145,8 @@ type ApplicationWithUser = {
     assignedAt: Date;
     reviewer: {
       id: string;
+      firstName?: string | null;
+      surname?: string | null;
       name: string | null;
       email: string | null;
       image: string | null;
@@ -447,8 +452,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       if (consensusSortField === 'score') {
         comparison = a.averageScore - b.averageScore;
       } else if (consensusSortField === 'name') {
-        const nameA = a.user?.name ?? a.email;
-        const nameB = b.user?.name ?? b.email;
+        const nameA = getDisplayName(a.user, a.email);
+        const nameB = getDisplayName(b.user, b.email);
         comparison = nameA.localeCompare(nameB);
       }
       
@@ -575,9 +580,9 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const filteredApplications = useMemo(() => {
     return applications?.filter(app => {
     // Search filter
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       app.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.user?.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      getDisplayName(app.user)?.toLowerCase().includes(searchQuery.toLowerCase());
     
     // Hide rejected and cancelled filter (only applies when on "all" tab)
     const shouldHideRejected = hideRejected && activeTab === "all" && (app.status === "REJECTED" || app.status === "CANCELLED");
@@ -1018,7 +1023,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       const responses = app.responses ?? [];
       
       // Get common application responses
-      const fullName = getResponseValue(responses, "full_name") ?? app.user?.name ?? "";
+      const fullName = getResponseValue(responses, "full_name") ?? getDisplayName(app.user, "");
       const nationality = getResponseValue(responses, "nationality") || getResponseValue(responses, "country");
       const gender = getResponseValue(responses, "gender");
       const age = getResponseValue(responses, "age");
@@ -1128,7 +1133,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       return {
         applicationId: app.id,
         email: app.email,
-        name: escapeCsvValue(app.user?.name ?? getResponseValue(responses, "full_name")),
+        name: escapeCsvValue(getDisplayName(app.user, "") || getResponseValue(responses, "full_name")),
         status: app.status,
         nationality: escapeCsvValue(nationality),
         gender: escapeCsvValue(gender),
@@ -1165,7 +1170,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       return {
         applicationId: app.id,
         email: app.email,
-        name: escapeCsvValue(app.user?.name ?? getResponseValue(responses, "full_name")),
+        name: escapeCsvValue(getDisplayName(app.user, "") || getResponseValue(responses, "full_name")),
         status: app.status,
         affiliation: escapeCsvValue(app.affiliation),
         company: escapeCsvValue(profile?.company),
@@ -1218,7 +1223,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       return {
         applicationId: app.id,
         email: app.email,
-        name: escapeCsvValue(app.user?.name ?? getResponseValue(responses, "full_name")),
+        name: escapeCsvValue(getDisplayName(app.user, "") || getResponseValue(responses, "full_name")),
         status: app.status,
         affiliation: escapeCsvValue(app.affiliation),
         yearsOfExperience: profile?.yearsOfExperience?.toString() ?? "",
@@ -1459,7 +1464,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         language: app.language ?? "en",
         
         // User basic info
-        userName: escapeCsvValue(user?.name),
+        userName: escapeCsvValue(getDisplayName(user, "")),
         userEmail: escapeCsvValue(user?.email),
         
         // Admin fields
@@ -2534,7 +2539,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                   withArrow
                                 >
                                   <Text fw={500} style={{ cursor: 'help' }}>
-                                    {application.user?.name ?? "No name provided"}
+                                    {getDisplayName(application.user, "No name provided")}
                                   </Text>
                                 </Tooltip>
                                 <Text size="sm" c="dimmed">
@@ -3202,7 +3207,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 withArrow
                               >
                                 <Text fw={500} style={{ cursor: 'help' }}>
-                                  {application.user?.name ?? "No name provided"}
+                                  {getDisplayName(application.user, "No name provided")}
                                 </Text>
                               </Tooltip>
                               <Text size="sm" c="dimmed">
@@ -3399,7 +3404,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                   <Group justify="space-between" align="flex-start">
                     <Box>
                       <Text size="xl" fw={600} mb="xs">
-                        {viewingApplication.user?.name ?? "No name provided"}
+                        {getDisplayName(viewingApplication.user, "No name provided")}
                       </Text>
                       <Anchor href={`mailto:${viewingApplication.email}`} size="md" c="blue">
                         {viewingApplication.email}
@@ -3808,7 +3813,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                 <Group justify="space-between" align="flex-start">
                   <Box>
                     <Text size="xl" fw={600} mb="xs">
-                      {editingApplication.user?.name ?? "No name provided"}
+                      {getDisplayName(editingApplication.user, "No name provided")}
                     </Text>
                     <Anchor href={`mailto:${editingApplication.email}`} size="md" c="blue">
                       {editingApplication.email}

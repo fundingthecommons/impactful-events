@@ -617,6 +617,8 @@ export const communicationRouter = createTRPCRouter({
                 user: {
                   select: {
                     id: true,
+                    firstName: true,
+                    surname: true,
                     name: true,
                     email: true,
                   },
