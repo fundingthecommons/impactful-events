@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { type Session } from "next-auth";
 import { useForm } from "@mantine/form";
@@ -96,6 +96,32 @@ export default function ResidentDashboard({
   const [logoUploadProgress, setLogoUploadProgress] = useState(0);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [bannerUploadProgress, setBannerUploadProgress] = useState(0);
+  const [activeTab, setActiveTab] = useState<string>("participants");
+
+  // Handle URL hash navigation for tabs
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1); // Remove the # symbol
+      if (hash === "asks-offers" || hash === "participants" || hash === "projects") {
+        setActiveTab(hash);
+      }
+    };
+
+    // Set initial tab from hash
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  // Update URL hash when tab changes
+  const handleTabChange = (value: string | null) => {
+    if (value) {
+      setActiveTab(value);
+      window.location.hash = value;
+    }
+  };
 
   // Fetch collaborators when editing a project
   const { data: projectCollaboratorsData, refetch: refetchCollaborators } =
@@ -549,7 +575,7 @@ export default function ResidentDashboard({
 
           {/* Participants and Projects Tabs */}
           <Grid.Col span={12}>
-            <Tabs defaultValue="participants" variant="outline">
+            <Tabs value={activeTab} onChange={handleTabChange} variant="outline">
               <Tabs.List grow>
                 <Tabs.Tab value="participants" leftSection={<IconUsers size={20} />}>
                   Participants
