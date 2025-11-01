@@ -96,7 +96,45 @@ export const profileRouter = createTRPCRouter({
         },
       });
 
-      return profile;
+      if (!profile) {
+        return profile;
+      }
+
+      // Also get projects where user is a collaborator
+      const collaboratorProjects = await ctx.db.userProject.findMany({
+        where: {
+          collaborators: {
+            some: {
+              userId: ctx.session.user.id,
+            },
+          },
+        },
+        orderBy: [
+          { featured: "desc" },
+          { order: "asc" },
+          { createdAt: "desc" },
+        ],
+      });
+
+      // Merge owned projects and collaborator projects
+      const allProjects = [...profile.projects, ...collaboratorProjects];
+
+      // Remove duplicates and sort
+      const uniqueProjects = Array.from(
+        new Map(allProjects.map(p => [p.id, p])).values()
+      ).sort((a, b) => {
+        // Sort by featured first
+        if (a.featured !== b.featured) return a.featured ? -1 : 1;
+        // Then by order
+        if (a.order !== b.order) return a.order - b.order;
+        // Finally by creation date
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+
+      return {
+        ...profile,
+        projects: uniqueProjects,
+      };
     }),
 
   // Get any user's profile by ID (public)

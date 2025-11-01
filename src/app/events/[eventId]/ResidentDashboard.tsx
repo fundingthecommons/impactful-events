@@ -251,22 +251,6 @@ export default function ResidentDashboard({
     setModalOpened(true);
   };
 
-  // Handler for opening edit project modal
-  const handleEditProject = (project: UserProject) => {
-    setEditingProject(project);
-    form.setValues({
-      title: project.title,
-      description: project.description ?? "",
-      githubUrl: project.githubUrl ?? "",
-      liveUrl: project.liveUrl ?? "",
-      imageUrl: project.imageUrl ?? "",
-      bannerUrl: project.bannerUrl ?? "",
-      technologies: project.technologies,
-      featured: project.featured,
-    });
-    setModalOpened(true);
-  };
-
   // Handler for project logo upload
   const handleLogoUpload = async (file: File | null) => {
     if (!file) return;
@@ -492,7 +476,27 @@ export default function ResidentDashboard({
               ) : (
                 <Stack gap="md">
                   {userProjects.map((project) => (
-                    <Paper key={project.id} p="sm" withBorder>
+                    <Paper
+                      key={project.id}
+                      p="sm"
+                      withBorder
+                      component={Link}
+                      href={`/events/${eventId}/projects/${project.id}`}
+                      style={{
+                        textDecoration: 'none',
+                        color: 'inherit',
+                        cursor: 'pointer',
+                        transition: 'transform 0.1s ease, box-shadow 0.1s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '';
+                      }}
+                    >
                       <Group justify="space-between" align="flex-start" gap="md">
                         {project.imageUrl && (
                           <Image
@@ -522,49 +526,6 @@ export default function ResidentDashboard({
                             </Text>
                           )}
                         </div>
-                        <Group gap="xs" style={{ flexShrink: 0 }}>
-                          <Tooltip label="Project and Updates">
-                            <ActionIcon
-                              component={Link}
-                              href={`/events/${eventId}/projects/${project.id}`}
-                              variant="light"
-                              size="sm"
-                            >
-                              <IconExternalLink size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                          <Tooltip label="Edit Project">
-                            <ActionIcon
-                              variant="light"
-                              size="sm"
-                              onClick={() => handleEditProject(project)}
-                            >
-                              <IconEdit size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                          {project.liveUrl && (
-                            <Tooltip label="View Live Demo">
-                              <ActionIcon
-                                variant="light"
-                                size="sm"
-                                onClick={() => window.open(project.liveUrl!, '_blank')}
-                              >
-                                <IconExternalLink size={14} />
-                              </ActionIcon>
-                            </Tooltip>
-                          )}
-                          {project.githubUrl && (
-                            <Tooltip label="View Source">
-                              <ActionIcon
-                                variant="light"
-                                size="sm"
-                                onClick={() => window.open(project.githubUrl!, '_blank')}
-                              >
-                                <IconBrandGithub size={14} />
-                              </ActionIcon>
-                            </Tooltip>
-                          )}
-                        </Group>
                       </Group>
                     </Paper>
                   ))}

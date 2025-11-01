@@ -24,6 +24,9 @@ import {
   Progress,
   Box,
   SimpleGrid,
+  Textarea,
+  TagsInput,
+  Switch,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -41,12 +44,30 @@ import {
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { useForm } from "@mantine/form";
+import { zodResolver } from "mantine-form-zod-resolver";
+import { z } from "zod";
 import { notifications } from "@mantine/notifications";
+import { useSession } from "next-auth/react";
 import BlueskyConnectButton from "~/app/_components/BlueskyConnectButton";
 import { MentionTextarea } from "~/app/_components/MentionTextarea";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import { LikeButton } from "~/app/_components/LikeButton";
 import { GitCommitTimeline } from "~/app/_components/GitCommitTimeline";
+import { CollaboratorsList } from "~/app/_components/CollaboratorsList";
+import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
+
+const projectSchema = z.object({
+  title: z.string().min(1, "Title is required").max(100),
+  description: z.string().max(500).optional(),
+  githubUrl: z.string().url("Invalid GitHub URL").optional().or(z.literal("")),
+  liveUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+  imageUrl: z.string().optional().or(z.literal("")), // Logo
+  bannerUrl: z.string().optional().or(z.literal("")), // Banner
+  technologies: z.array(z.string().max(30)).max(20),
+  featured: z.boolean().optional().default(false),
+});
+
+type ProjectFormData = z.infer<typeof projectSchema>;
 
 interface ProjectDetailClientProps {
   project: {
@@ -100,11 +121,12 @@ interface ProjectDetailClientProps {
 export default function ProjectDetailClient({
   project,
   timeline: initialTimeline,
-  eventId,
+  eventId: _eventId,
   isOwner,
   userId,
 }: ProjectDetailClientProps) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -113,6 +135,13 @@ export default function ProjectDetailClient({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // Edit project modal state
+  const [editProjectModalOpen, setEditProjectModalOpen] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [logoUploadProgress, setLogoUploadProgress] = useState(0);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [bannerUploadProgress, setBannerUploadProgress] = useState(0);
 
   const utils = api.useUtils();
 
@@ -179,6 +208,80 @@ export default function ProjectDetailClient({
     },
   });
 
+  // Update project mutation
+  const updateProject = api.profile.updateProject.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Success",
+        message: "Project updated successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      setEditProjectModalOpen(false);
+      projectForm.reset();
+      router.refresh();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to update project",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  // Fetch collaborators for the project
+  const { data: projectCollaboratorsData, refetch: refetchCollaborators } =
+    api.profile.getProjectCollaborators.useQuery(
+      { projectId: project.id },
+      { enabled: editProjectModalOpen }
+    );
+
+  // Collaborator mutations
+  const addCollaborators = api.profile.addProjectCollaborators.useMutation({
+    onSuccess: (data) => {
+      notifications.show({
+        title: "Success",
+        message: `Added ${data.addedCount} collaborator${data.addedCount !== 1 ? 's' : ''}`,
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      void refetchCollaborators();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to add collaborators",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  const removeCollaborator = api.profile.removeProjectCollaborator.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Success",
+        message: "Collaborator removed",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      void refetchCollaborators();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to remove collaborator",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  // Get user profile for collaborator management
+  const { data: userProfile } = api.profile.getMyProfile.useQuery();
+
   // Form for creating updates
   const form = useForm({
     initialValues: {
@@ -203,6 +306,160 @@ export default function ProjectDetailClient({
       demoUrls: values.demoUrls.filter(url => url.trim() !== ""),
       tags: values.tags.filter(tag => tag.trim() !== ""),
     });
+  };
+
+  // Form for editing project
+  const projectForm = useForm<ProjectFormData>({
+    validate: zodResolver(projectSchema),
+    initialValues: {
+      title: project.title,
+      description: project.description ?? "",
+      githubUrl: project.githubUrl ?? "",
+      liveUrl: project.liveUrl ?? "",
+      imageUrl: project.imageUrl ?? "",
+      bannerUrl: project.bannerUrl ?? "",
+      technologies: project.technologies,
+      featured: project.featured,
+    },
+  });
+
+  // Handler for project form submission
+  const handleProjectSubmit = (values: ProjectFormData) => {
+    // Clean up empty strings
+    const cleanedValues = Object.fromEntries(
+      Object.entries(values).map(([key, value]) => [
+        key,
+        value === "" ? undefined : value,
+      ])
+    ) as ProjectFormData;
+
+    updateProject.mutate({
+      id: project.id,
+      ...cleanedValues,
+    });
+  };
+
+  // Handler for opening edit project modal
+  const handleOpenEditModal = () => {
+    projectForm.setValues({
+      title: project.title,
+      description: project.description ?? "",
+      githubUrl: project.githubUrl ?? "",
+      liveUrl: project.liveUrl ?? "",
+      imageUrl: project.imageUrl ?? "",
+      bannerUrl: project.bannerUrl ?? "",
+      technologies: project.technologies,
+      featured: project.featured,
+    });
+    setEditProjectModalOpen(true);
+  };
+
+  // Handler for project logo upload
+  const handleLogoUpload = async (file: File | null) => {
+    if (!file) return;
+
+    setIsUploadingLogo(true);
+    setLogoUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setLogoUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch('/api/upload/project-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setLogoUploadProgress(100);
+
+      if (!response.ok) {
+        const error = await response.json() as { error?: string };
+        throw new Error(error.error ?? 'Upload failed');
+      }
+
+      const result = await response.json() as { imageUrl: string };
+
+      // Update form with new logo URL
+      projectForm.setFieldValue('imageUrl', result.imageUrl);
+
+      notifications.show({
+        title: 'Success',
+        message: 'Project logo uploaded successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
+
+    } catch (error) {
+      notifications.show({
+        title: 'Upload failed',
+        message: error instanceof Error ? error.message : 'Failed to upload logo',
+        color: 'red',
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setIsUploadingLogo(false);
+      setLogoUploadProgress(0);
+    }
+  };
+
+  // Handler for project banner upload
+  const handleBannerUpload = async (file: File | null) => {
+    if (!file) return;
+
+    setIsUploadingBanner(true);
+    setBannerUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setBannerUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch('/api/upload/project-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setBannerUploadProgress(100);
+
+      if (!response.ok) {
+        const error = await response.json() as { error?: string };
+        throw new Error(error.error ?? 'Upload failed');
+      }
+
+      const result = await response.json() as { imageUrl: string };
+
+      // Update form with new banner URL
+      projectForm.setFieldValue('bannerUrl', result.imageUrl);
+
+      notifications.show({
+        title: 'Success',
+        message: 'Project banner uploaded successfully',
+        color: 'green',
+        icon: <IconCheck size={16} />,
+      });
+
+    } catch (error) {
+      notifications.show({
+        title: 'Upload failed',
+        message: error instanceof Error ? error.message : 'Failed to upload banner',
+        color: 'red',
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setIsUploadingBanner(false);
+      setBannerUploadProgress(0);
+    }
   };
 
   // Handler for project update image upload
@@ -362,7 +619,7 @@ export default function ProjectDetailClient({
               <Group gap="md">
                 {isOwner && (
                   <Button
-                    onClick={() => router.push(`/events/${eventId}`)}
+                    onClick={handleOpenEditModal}
                     leftSection={<IconEdit size={16} />}
                     variant="light"
                     color="blue"
@@ -985,6 +1242,253 @@ export default function ProjectDetailClient({
             }}
           />
         )}
+      </Modal>
+
+      {/* Edit Project Modal */}
+      <Modal
+        opened={editProjectModalOpen}
+        onClose={() => {
+          setEditProjectModalOpen(false);
+          projectForm.reset();
+        }}
+        title="Edit Project"
+        size="lg"
+      >
+        <form onSubmit={projectForm.onSubmit(handleProjectSubmit)}>
+          <Stack gap="md">
+            <TextInput
+              label="Project Title"
+              placeholder="My Awesome Project"
+              required
+              {...projectForm.getInputProps("title")}
+            />
+
+            <Textarea
+              label="Description"
+              placeholder="Brief description of your project"
+              minRows={3}
+              {...projectForm.getInputProps("description")}
+            />
+
+            <Group grow>
+              <TextInput
+                label="GitHub URL"
+                placeholder="https://github.com/user/repo"
+                {...projectForm.getInputProps("githubUrl")}
+              />
+              <TextInput
+                label="Live Demo URL"
+                placeholder="https://your-project.com"
+                {...projectForm.getInputProps("liveUrl")}
+              />
+            </Group>
+
+            <Stack gap="xs">
+              <Text size="sm" fw={500}>
+                Project Logo
+              </Text>
+              <Text size="xs" c="dimmed">
+                Upload a small logo or icon for your project (JPG, PNG, GIF, or WebP, max 5MB)
+              </Text>
+
+              {projectForm.values.imageUrl && (
+                <Box>
+                  <Image
+                    src={projectForm.values.imageUrl}
+                    alt="Project logo preview"
+                    radius="md"
+                    h={100}
+                    w={100}
+                    fit="contain"
+                    style={{ border: '1px solid var(--mantine-color-gray-3)' }}
+                  />
+                </Box>
+              )}
+
+              <Group>
+                <FileButton
+                  onChange={handleLogoUpload}
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  disabled={isUploadingLogo}
+                >
+                  {(props) => (
+                    <Button
+                      {...props}
+                      variant="light"
+                      size="sm"
+                      loading={isUploadingLogo}
+                    >
+                      {projectForm.values.imageUrl ? 'Change Logo' : 'Upload Logo'}
+                    </Button>
+                  )}
+                </FileButton>
+                {projectForm.values.imageUrl && (
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    color="red"
+                    onClick={() => projectForm.setFieldValue('imageUrl', '')}
+                  >
+                    Remove Logo
+                  </Button>
+                )}
+              </Group>
+
+              {isUploadingLogo && (
+                <Box>
+                  <Text size="sm" mb="xs">Uploading logo...</Text>
+                  <Progress value={logoUploadProgress} size="sm" />
+                </Box>
+              )}
+
+              <TextInput
+                placeholder="Or paste logo URL"
+                {...projectForm.getInputProps("imageUrl")}
+                size="xs"
+              />
+            </Stack>
+
+            <Stack gap="xs">
+              <Text size="sm" fw={500}>
+                Project Banner
+              </Text>
+              <Text size="xs" c="dimmed">
+                Upload a large banner image for your project page (JPG, PNG, GIF, or WebP, max 5MB)
+              </Text>
+
+              {projectForm.values.bannerUrl && (
+                <Box>
+                  <Image
+                    src={projectForm.values.bannerUrl}
+                    alt="Project banner preview"
+                    radius="md"
+                    h={150}
+                    fit="cover"
+                    style={{ border: '1px solid var(--mantine-color-gray-3)' }}
+                  />
+                </Box>
+              )}
+
+              <Group>
+                <FileButton
+                  onChange={handleBannerUpload}
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  disabled={isUploadingBanner}
+                >
+                  {(props) => (
+                    <Button
+                      {...props}
+                      variant="light"
+                      size="sm"
+                      loading={isUploadingBanner}
+                    >
+                      {projectForm.values.bannerUrl ? 'Change Banner' : 'Upload Banner'}
+                    </Button>
+                  )}
+                </FileButton>
+                {projectForm.values.bannerUrl && (
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    color="red"
+                    onClick={() => projectForm.setFieldValue('bannerUrl', '')}
+                  >
+                    Remove Banner
+                  </Button>
+                )}
+              </Group>
+
+              {isUploadingBanner && (
+                <Box>
+                  <Text size="sm" mb="xs">Uploading banner...</Text>
+                  <Progress value={bannerUploadProgress} size="sm" />
+                </Box>
+              )}
+
+              <TextInput
+                placeholder="Or paste banner URL"
+                {...projectForm.getInputProps("bannerUrl")}
+                size="xs"
+              />
+            </Stack>
+
+            <TagsInput
+              label="Technologies"
+              placeholder="React, TypeScript, Node.js, etc."
+              description="Technologies and tools used in this project"
+              {...projectForm.getInputProps("technologies")}
+            />
+
+            {/* Collaborators Section */}
+            {projectCollaboratorsData && (
+              <Stack gap="xs">
+                <Text size="sm" fw={500}>
+                  Collaborators
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Add other platform users who can edit this project and post updates
+                </Text>
+
+                {/* List of current collaborators */}
+                <CollaboratorsList
+                  collaborators={projectCollaboratorsData.collaborators}
+                  ownerId={projectCollaboratorsData.ownerId}
+                  currentUserId={session?.user.id ?? ""}
+                  isOwner={session?.user.id === projectCollaboratorsData.ownerId}
+                  onRemove={(userId) =>
+                    removeCollaborator.mutate({
+                      projectId: project.id,
+                      userId,
+                    })
+                  }
+                  loading={removeCollaborator.isPending}
+                />
+
+                {/* Search to add new collaborators - only show if current user is owner */}
+                {session?.user.id === userProfile?.userId && userProfile && (
+                  <UserSearchSelect
+                    onSelect={(user) =>
+                      addCollaborators.mutate({
+                        projectId: project.id,
+                        userIds: [user.id],
+                      })
+                    }
+                    excludeUserIds={[
+                      userProfile.userId,
+                      ...projectCollaboratorsData.collaborators.map((c) => c.user.id),
+                    ]}
+                    placeholder="Search users to add as collaborators..."
+                  />
+                )}
+              </Stack>
+            )}
+
+            <Switch
+              label="Featured Project"
+              description="Show this project prominently on your profile"
+              {...projectForm.getInputProps("featured", { type: "checkbox" })}
+            />
+
+            <Group justify="flex-end" mt="md">
+              <Button
+                variant="light"
+                onClick={() => {
+                  setEditProjectModalOpen(false);
+                  projectForm.reset();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                loading={updateProject.isPending}
+                leftSection={<IconCheck size={16} />}
+              >
+                Update Project
+              </Button>
+            </Group>
+          </Stack>
+        </form>
       </Modal>
     </>
   );

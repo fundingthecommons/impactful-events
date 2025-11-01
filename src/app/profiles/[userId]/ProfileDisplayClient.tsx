@@ -33,7 +33,6 @@ import {
   IconBrandTwitter,
   IconWorld,
   IconEdit,
-  IconExternalLink,
   IconCode,
   IconLanguage,
   IconCalendar,
@@ -55,6 +54,10 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
   const router = useRouter();
   const { data: profileData, isLoading, error } = api.profile.getProfile.useQuery({ userId });
   const { data: projectUpdates = [] } = api.project.getUserProjectUpdates.useQuery({ userId });
+
+  // Use default event for project links
+  // TODO: Could enhance this to look up user's actual event participation
+  const defaultEventId = "funding-commons-residency-2025";
 
   const getRelativeTime = (date: Date) => {
     const now = new Date();
@@ -262,11 +265,31 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
 
           {/* Projects */}
           {profile?.projects && profile.projects.length > 0 && (
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Card shadow="sm" padding="lg" radius="md" withBorder mb="lg">
               <Title order={3} mb="md">Featured Projects</Title>
               <Stack gap="md">
                 {profile.projects.map((project) => (
-                  <Paper key={project.id} p="sm" withBorder>
+                  <Paper
+                    key={project.id}
+                    p="sm"
+                    withBorder
+                    component={Link}
+                    href={`/events/${defaultEventId}/projects/${project.id}`}
+                    style={{
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      cursor: 'pointer',
+                      transition: 'transform 0.1s ease, box-shadow 0.1s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '';
+                    }}
+                  >
                     <Group justify="space-between" align="flex-start" gap="md">
                       {project.imageUrl && (
                         <Image
@@ -296,30 +319,6 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
                           </Text>
                         )}
                       </div>
-                      <Group gap="xs" style={{ flexShrink: 0 }}>
-                        {project.liveUrl && (
-                          <Tooltip label="View Live Demo">
-                            <ActionIcon
-                              variant="light"
-                              size="sm"
-                              onClick={() => window.open(project.liveUrl!, '_blank')}
-                            >
-                              <IconExternalLink size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                        )}
-                        {project.githubUrl && (
-                          <Tooltip label="View Source">
-                            <ActionIcon
-                              variant="light"
-                              size="sm"
-                              onClick={() => window.open(project.githubUrl!, '_blank')}
-                            >
-                              <IconBrandGithub size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                        )}
-                      </Group>
                     </Group>
                   </Paper>
                 ))}
