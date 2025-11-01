@@ -143,6 +143,11 @@ export default function ProjectDetailClient({
   const router = useRouter();
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<string>("overview");
+
+  // Check if current user can edit the project (owner or collaborator with edit permissions)
+  const canEdit = isOwner || project.collaborators.some(
+    collab => collab.userId === userId && collab.canEdit
+  );
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [updateToDelete, setUpdateToDelete] = useState<string | null>(null);
@@ -629,7 +634,7 @@ export default function ProjectDetailClient({
 
               {/* Action buttons */}
               <Group gap="md">
-                {isOwner && (
+                {canEdit && (
                   <Button
                     onClick={handleOpenEditModal}
                     leftSection={<IconEdit size={16} />}
@@ -910,7 +915,7 @@ export default function ProjectDetailClient({
                 <Stack gap="lg">
                   <Group justify="space-between">
                     <Title order={2}>Project Timeline</Title>
-                    {isOwner && (
+                    {canEdit && (
                       <Button
                         leftSection={<IconPlus size={16} />}
                         onClick={() => setUpdateModalOpen(true)}
@@ -1090,9 +1095,9 @@ export default function ProjectDetailClient({
                   ) : (
                     <Stack align="center" py="xl">
                       <Text c="dimmed" ta="center">
-                        No updates yet. {isOwner ? "Add the first update to start documenting your progress!" : "Check back later for project updates."}
+                        No updates yet. {canEdit ? "Add the first update to start documenting your progress!" : "Check back later for project updates."}
                       </Text>
-                      {isOwner && (
+                      {canEdit && (
                         <Button
                           variant="light"
                           leftSection={<IconPlus size={16} />}
