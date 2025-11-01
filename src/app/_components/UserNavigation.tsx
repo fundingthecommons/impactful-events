@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs } from "@mantine/core";
-import { IconMapPin } from "@tabler/icons-react";
+import { IconMapPin, IconHeart } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -16,6 +16,7 @@ export default function UserNavigation() {
 
   // Determine active tab based on current path
   const getActiveTab = () => {
+    if (pathname.startsWith("/praise")) return "praise";
     if (pathname.startsWith("/events/funding-commons-residency-2025")) return "residency";
     return null;
   };
@@ -33,6 +34,15 @@ export default function UserNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Residency
+        </TabsTab>
+        <TabsTab
+          value="praise"
+          leftSection={<IconHeart size={16} />}
+          component={Link}
+          href="https://platform.fundingthecommons.io/praise"
+          style={{ textDecoration: 'none' }}
+        >
+          Praise
         </TabsTab>
       </Tabs.List>
     </Tabs>
