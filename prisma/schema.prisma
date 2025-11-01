@@ -57,7 +57,9 @@ model Session {
 
 model User {
   id            String    @id @default(cuid())
-  name          String?
+  name          String?   // Legacy field - kept for migration period
+  firstName     String?
+  surname       String?
   email         String?   @unique
   emailVerified DateTime?
   image         String?
