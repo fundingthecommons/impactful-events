@@ -326,6 +326,28 @@ export const projectRouter = createTRPCRouter({
                 }
               }
             }
+          },
+          collaborators: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                  profile: {
+                    select: {
+                      jobTitle: true,
+                      company: true,
+                      location: true,
+                      bio: true,
+                    }
+                  }
+                }
+              }
+            },
+            orderBy: {
+              addedAt: "asc"
+            }
           }
         }
       });
@@ -370,7 +392,22 @@ export const projectRouter = createTRPCRouter({
             twitterUrl: project.profile.twitterUrl,
             website: project.profile.website,
           }
-        }
+        },
+        collaborators: project.collaborators.map(collab => ({
+          id: collab.id,
+          userId: collab.user.id,
+          name: collab.user.name,
+          image: collab.user.image,
+          role: collab.role,
+          canEdit: collab.canEdit,
+          addedAt: collab.addedAt,
+          profile: collab.user.profile ? {
+            jobTitle: collab.user.profile.jobTitle,
+            company: collab.user.profile.company,
+            location: collab.user.profile.location,
+            bio: collab.user.profile.bio,
+          } : null
+        }))
       };
     }),
 

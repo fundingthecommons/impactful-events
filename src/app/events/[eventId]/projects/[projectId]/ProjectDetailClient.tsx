@@ -96,6 +96,21 @@ interface ProjectDetailClientProps {
         website: string | null;
       } | null;
     };
+    collaborators: Array<{
+      id: string;
+      userId: string;
+      name: string | null;
+      image: string | null;
+      role: string;
+      canEdit: boolean;
+      addedAt: Date;
+      profile: {
+        jobTitle: string | null;
+        company: string | null;
+        location: string | null;
+        bio: string | null;
+      } | null;
+    }>;
   };
   timeline: Array<{
     id: string;
@@ -691,6 +706,73 @@ export default function ProjectDetailClient({
               </Stack>
             </Group>
           </Card>
+
+          {/* Collaborators Section */}
+          {project.collaborators.length > 0 && (
+            <Card padding="lg" radius="md" withBorder>
+              <Stack gap="md">
+                <Title order={3}>Team Members</Title>
+                <Text size="sm" c="dimmed">
+                  {project.collaborators.length} {project.collaborators.length === 1 ? 'collaborator' : 'collaborators'} working on this project
+                </Text>
+                <Stack gap="md">
+                  {project.collaborators.map((collaborator) => (
+                    <Anchor
+                      key={collaborator.id}
+                      href={`/profiles/${collaborator.userId}`}
+                      style={{ textDecoration: 'none', color: 'inherit' }}
+                    >
+                      <Group gap="md" style={{ cursor: 'pointer' }}>
+                        {collaborator.image ? (
+                          <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden' }}>
+                            <Image
+                              src={collaborator.image}
+                              alt={collaborator.name ?? "Collaborator"}
+                              width={48}
+                              height={48}
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          </div>
+                        ) : (
+                          <div style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: '50%',
+                            backgroundColor: '#e9ecef',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <IconUser size={24} />
+                          </div>
+                        )}
+                        <Stack gap={4} style={{ flex: 1 }}>
+                          <Text fw={500}>{collaborator.name ?? 'Anonymous'}</Text>
+                          {collaborator.profile?.jobTitle && (
+                            <Text size="sm" c="dimmed">
+                              {collaborator.profile.jobTitle}
+                              {collaborator.profile.company && ` at ${collaborator.profile.company}`}
+                            </Text>
+                          )}
+                          {collaborator.profile?.location && (
+                            <Group gap={4}>
+                              <IconMapPin size={12} />
+                              <Text size="xs" c="dimmed">
+                                {collaborator.profile.location}
+                              </Text>
+                            </Group>
+                          )}
+                        </Stack>
+                        <Badge size="sm" variant="light">
+                          {collaborator.role}
+                        </Badge>
+                      </Group>
+                    </Anchor>
+                  ))}
+                </Stack>
+              </Stack>
+            </Card>
+          )}
 
           {/* Main Content Tabs */}
           <Tabs value={activeTab} onChange={handleTabChange}>
