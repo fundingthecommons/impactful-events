@@ -26,28 +26,32 @@ export function LikeButton({
 
   const utils = api.useUtils();
 
-  // Fetch likes data based on type
-  const { data: likesData } = likeType === "projectUpdate"
-    ? api.project.getUpdateLikes.useQuery(
-        { updateId },
-        {
-          initialData: {
-            count: initialLikeCount,
-            likes: [],
-            hasLiked: initialHasLiked,
-          },
-        }
-      )
-    : api.askOffer.getAskOfferLikes.useQuery(
-        { askOfferId: updateId },
-        {
-          initialData: {
-            count: initialLikeCount,
-            likes: [],
-            hasLiked: initialHasLiked,
-          },
-        }
-      );
+  // Fetch likes data based on type - call both queries but enable only one
+  const projectLikesQuery = api.project.getUpdateLikes.useQuery(
+    { updateId },
+    {
+      enabled: likeType === "projectUpdate",
+      initialData: {
+        count: initialLikeCount,
+        likes: [],
+        hasLiked: initialHasLiked,
+      },
+    }
+  );
+
+  const askOfferLikesQuery = api.askOffer.getAskOfferLikes.useQuery(
+    { askOfferId: updateId },
+    {
+      enabled: likeType === "askOffer",
+      initialData: {
+        count: initialLikeCount,
+        likes: [],
+        hasLiked: initialHasLiked,
+      },
+    }
+  );
+
+  const likesData = likeType === "projectUpdate" ? projectLikesQuery.data : askOfferLikesQuery.data;
 
   // Like mutation based on type
   const projectLikeMutation = api.project.likeProjectUpdate.useMutation({
@@ -129,9 +133,6 @@ export function LikeButton({
     },
   });
 
-  const likeMutation = likeType === "projectUpdate" ? projectLikeMutation : askOfferLikeMutation;
-  const unlikeMutation = likeType === "projectUpdate" ? projectUnlikeMutation : askOfferUnlikeMutation;
-
   const handleLike = () => {
     if (!userId) {
       notifications.show({
@@ -142,14 +143,26 @@ export function LikeButton({
       return;
     }
 
-    if (optimisticLiked) {
-      unlikeMutation.mutate({ updateId });
+    if (likeType === "projectUpdate") {
+      if (optimisticLiked) {
+        projectUnlikeMutation.mutate({ updateId });
+      } else {
+        projectLikeMutation.mutate({ updateId });
+      }
     } else {
-      likeMutation.mutate({ updateId });
+      if (optimisticLiked) {
+        askOfferUnlikeMutation.mutate({ askOfferId: updateId });
+      } else {
+        askOfferLikeMutation.mutate({ askOfferId: updateId });
+      }
     }
   };
 
-  const isLoading = likeMutation.isPending || unlikeMutation.isPending;
+  const isLoading =
+    projectLikeMutation.isPending ||
+    projectUnlikeMutation.isPending ||
+    askOfferLikeMutation.isPending ||
+    askOfferUnlikeMutation.isPending;
   const displayCount = likesData?.count ?? optimisticCount;
   const displayLiked = likesData?.hasLiked ?? optimisticLiked;
 
