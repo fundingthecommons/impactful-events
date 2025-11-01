@@ -11,6 +11,7 @@ interface LikeButtonProps {
   initialLikeCount: number;
   initialHasLiked: boolean;
   userId?: string;
+  likeType?: "projectUpdate" | "askOffer";
 }
 
 export function LikeButton({
@@ -18,27 +19,39 @@ export function LikeButton({
   initialLikeCount,
   initialHasLiked,
   userId,
+  likeType = "projectUpdate",
 }: LikeButtonProps) {
   const [optimisticLiked, setOptimisticLiked] = useState(initialHasLiked);
   const [optimisticCount, setOptimisticCount] = useState(initialLikeCount);
 
   const utils = api.useUtils();
 
-  // Fetch likes data
-  const { data: likesData } = api.project.getUpdateLikes.useQuery(
-    { updateId },
-    {
-      initialData: {
-        count: initialLikeCount,
-        likes: [],
-        hasLiked: initialHasLiked,
-      },
-    }
-  );
+  // Fetch likes data based on type
+  const { data: likesData } = likeType === "projectUpdate"
+    ? api.project.getUpdateLikes.useQuery(
+        { updateId },
+        {
+          initialData: {
+            count: initialLikeCount,
+            likes: [],
+            hasLiked: initialHasLiked,
+          },
+        }
+      )
+    : api.askOffer.getAskOfferLikes.useQuery(
+        { askOfferId: updateId },
+        {
+          initialData: {
+            count: initialLikeCount,
+            likes: [],
+            hasLiked: initialHasLiked,
+          },
+        }
+      );
 
-  const likeMutation = api.project.likeProjectUpdate.useMutation({
+  // Like mutation based on type
+  const projectLikeMutation = api.project.likeProjectUpdate.useMutation({
     onMutate: async () => {
-      // Optimistic update
       setOptimisticLiked(true);
       setOptimisticCount((prev) => prev + 1);
     },
@@ -46,10 +59,8 @@ export function LikeButton({
       await utils.project.getUpdateLikes.invalidate({ updateId });
     },
     onError: (error) => {
-      // Revert optimistic update
       setOptimisticLiked(false);
       setOptimisticCount((prev) => prev - 1);
-
       notifications.show({
         title: "Error",
         message: error.message,
@@ -58,20 +69,18 @@ export function LikeButton({
     },
   });
 
-  const unlikeMutation = api.project.unlikeProjectUpdate.useMutation({
+  const askOfferLikeMutation = api.askOffer.likeAskOffer.useMutation({
     onMutate: async () => {
-      // Optimistic update
-      setOptimisticLiked(false);
-      setOptimisticCount((prev) => prev - 1);
-    },
-    onSuccess: async () => {
-      await utils.project.getUpdateLikes.invalidate({ updateId });
-    },
-    onError: (error) => {
-      // Revert optimistic update
       setOptimisticLiked(true);
       setOptimisticCount((prev) => prev + 1);
-
+    },
+    onSuccess: async () => {
+      await utils.askOffer.getAskOfferLikes.invalidate({ askOfferId: updateId });
+      await utils.askOffer.getEventAsksOffers.invalidate();
+    },
+    onError: (error) => {
+      setOptimisticLiked(false);
+      setOptimisticCount((prev) => prev - 1);
       notifications.show({
         title: "Error",
         message: error.message,
@@ -79,6 +88,49 @@ export function LikeButton({
       });
     },
   });
+
+  // Unlike mutation based on type
+  const projectUnlikeMutation = api.project.unlikeProjectUpdate.useMutation({
+    onMutate: async () => {
+      setOptimisticLiked(false);
+      setOptimisticCount((prev) => prev - 1);
+    },
+    onSuccess: async () => {
+      await utils.project.getUpdateLikes.invalidate({ updateId });
+    },
+    onError: (error) => {
+      setOptimisticLiked(true);
+      setOptimisticCount((prev) => prev + 1);
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  const askOfferUnlikeMutation = api.askOffer.unlikeAskOffer.useMutation({
+    onMutate: async () => {
+      setOptimisticLiked(false);
+      setOptimisticCount((prev) => prev - 1);
+    },
+    onSuccess: async () => {
+      await utils.askOffer.getAskOfferLikes.invalidate({ askOfferId: updateId });
+      await utils.askOffer.getEventAsksOffers.invalidate();
+    },
+    onError: (error) => {
+      setOptimisticLiked(true);
+      setOptimisticCount((prev) => prev + 1);
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  const likeMutation = likeType === "projectUpdate" ? projectLikeMutation : askOfferLikeMutation;
+  const unlikeMutation = likeType === "projectUpdate" ? projectUnlikeMutation : askOfferUnlikeMutation;
 
   const handleLike = () => {
     if (!userId) {

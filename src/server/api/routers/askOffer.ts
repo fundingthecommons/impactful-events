@@ -105,6 +105,11 @@ export const askOfferRouter = createTRPCRouter({
               },
             },
           },
+          likes: {
+            select: {
+              userId: true,
+            },
+          },
         },
         orderBy: {
           createdAt: "desc",
@@ -268,5 +273,80 @@ export const askOfferRouter = createTRPCRouter({
       });
 
       return updated;
+    }),
+
+  // Like an ask/offer
+  likeAskOffer: protectedProcedure
+    .input(z.object({ askOfferId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Check if ask/offer exists
+      const askOffer = await ctx.db.askOffer.findUnique({
+        where: { id: input.askOfferId },
+      });
+
+      if (!askOffer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Ask/Offer not found",
+        });
+      }
+
+      // Create or ignore if already exists (unique constraint)
+      const like = await ctx.db.askOfferLike.upsert({
+        where: {
+          askOfferId_userId: {
+            askOfferId: input.askOfferId,
+            userId: ctx.session.user.id,
+          },
+        },
+        create: {
+          askOfferId: input.askOfferId,
+          userId: ctx.session.user.id,
+        },
+        update: {}, // No update needed if already exists
+      });
+
+      return like;
+    }),
+
+  // Unlike an ask/offer
+  unlikeAskOffer: protectedProcedure
+    .input(z.object({ askOfferId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.askOfferLike.deleteMany({
+        where: {
+          askOfferId: input.askOfferId,
+          userId: ctx.session.user.id,
+        },
+      });
+
+      return { success: true };
+    }),
+
+  // Get likes for an ask/offer
+  getAskOfferLikes: publicProcedure
+    .input(z.object({ askOfferId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const likes = await ctx.db.askOfferLike.findMany({
+        where: { askOfferId: input.askOfferId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return {
+        count: likes.length,
+        likes,
+        hasLiked: ctx.session?.user
+          ? likes.some((like) => like.userId === ctx.session!.user.id)
+          : false,
+      };
     }),
 });

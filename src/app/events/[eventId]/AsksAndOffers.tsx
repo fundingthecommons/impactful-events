@@ -29,6 +29,7 @@ import { type Session } from "next-auth";
 import { notifications } from "@mantine/notifications";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { useRouter } from "next/navigation";
+import { LikeButton } from "~/app/_components/LikeButton";
 
 interface AsksAndOffersProps {
   eventId: string;
@@ -314,6 +315,18 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
               Your {item.type.toLowerCase()}
             </Badge>
           )}
+        </Group>
+
+        <Group justify="flex-end" mt="sm">
+          <div onClick={(e) => e.stopPropagation()}>
+            <LikeButton
+              updateId={item.id}
+              initialLikeCount={item.likes.length}
+              initialHasLiked={session?.user ? item.likes.some(like => like.userId === session.user.id) : false}
+              userId={session?.user?.id}
+              likeType="askOffer"
+            />
+          </div>
         </Group>
       </Paper>
     );

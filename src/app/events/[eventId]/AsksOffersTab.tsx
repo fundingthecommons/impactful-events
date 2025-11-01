@@ -23,6 +23,7 @@ import { api } from "~/trpc/react";
 import { type Session } from "next-auth";
 import { notifications } from "@mantine/notifications";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
+import { LikeButton } from "~/app/_components/LikeButton";
 
 interface AsksOffersTabProps {
   eventId: string;
@@ -166,6 +167,16 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
             ))}
           </Group>
         )}
+
+        <Group justify="flex-end" mt="sm">
+          <LikeButton
+            updateId={item.id}
+            initialLikeCount={item.likes.length}
+            initialHasLiked={session?.user ? item.likes.some(like => like.userId === session.user.id) : false}
+            userId={session?.user?.id}
+            likeType="askOffer"
+          />
+        </Group>
       </Paper>
     );
   };
