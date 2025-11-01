@@ -717,6 +717,12 @@ export const telegramAuthRouter = createTRPCRouter({
         description: 'Applications still being evaluated',
         category: 'applications',
       },
+      {
+        id: 'admins',
+        name: 'Admins',
+        description: 'Platform administrators and staff members',
+        category: 'users',
+      },
     ];
 
     // Get counts for each list - query applications directly (same as admin page)
@@ -780,6 +786,14 @@ export const telegramAuthRouter = createTRPCRouter({
           AND ar.answer IS NOT NULL
           AND ar.answer != ''
       ` as unknown as [{ count: number }],
+      // Admins with Telegram
+      ctx.db.$queryRaw`
+        SELECT COUNT(DISTINCT u.id)::integer as count
+        FROM "User" u
+        LEFT JOIN "UserProfile" up ON u.id = up."userId"
+        WHERE u.role = 'admin'
+          AND (up."telegramHandle" IS NOT NULL AND up."telegramHandle" != '')
+      ` as unknown as [{ count: number }],
     ]);
 
     return smartLists.map((list, index) => ({
@@ -794,6 +808,35 @@ export const telegramAuthRouter = createTRPCRouter({
       listId: z.string(),
     }))
     .query(async ({ ctx, input }) => {
+      // Handle admins list separately
+      if (input.listId === 'admins') {
+        const admins = await ctx.db.user.findMany({
+          where: {
+            role: 'admin',
+          },
+          include: {
+            profile: {
+              select: {
+                telegramHandle: true,
+              },
+            },
+          },
+        });
+
+        return admins
+          .filter(admin => admin.profile?.telegramHandle)
+          .map(admin => {
+            const nameParts = admin.name?.split(' ') ?? [];
+            return {
+              id: admin.id,
+              firstName: nameParts[0] ?? admin.email?.split('@')[0] ?? 'Admin',
+              lastName: nameParts.slice(1).join(' ') || '',
+              email: admin.email ?? undefined,
+              telegram: admin.profile?.telegramHandle ?? undefined,
+            };
+          });
+      }
+
       // Query applications directly (same as admin page) instead of requiring Contact records
       const eventId = 'funding-commons-residency-2025';
 
@@ -885,87 +928,124 @@ export const telegramAuthRouter = createTRPCRouter({
       addSalutation: z.boolean().optional().default(false), // Prepend "Hey [firstName], "
     }))
     .mutation(async ({ ctx, input }) => {
-      // Reuse the getSmartListContacts logic to get applicants
-      const eventId = 'funding-commons-residency-2025';
+      let fullContacts: Array<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        email?: string;
+        telegram?: string;
+      }>;
 
-      // Determine status filter based on list ID (same as getSmartListContacts)
-      let statusFilter: string[] = [];
-      switch (input.listId) {
-        case 'all-residency-applicants':
-          statusFilter = ['SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED'];
-          break;
-        case 'accepted-applicants':
-          statusFilter = ['ACCEPTED'];
-          break;
-        case 'rejected-applicants':
-          statusFilter = ['REJECTED'];
-          break;
-        case 'waitlisted-applicants':
-          statusFilter = ['WAITLISTED'];
-          break;
-        case 'under-review-applicants':
-          statusFilter = ['SUBMITTED'];
-          break;
-        default:
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Invalid smart list ID",
-          });
-      }
-
-      // Get applications matching the filter (same query logic as getSmartListContacts)
-      const applications = await ctx.db.application.findMany({
-        where: {
-          eventId,
-          status: { in: statusFilter as Array<"SUBMITTED" | "ACCEPTED" | "REJECTED" | "WAITLISTED"> },
-        },
-        include: {
-          responses: {
-            include: {
-              question: true,
+      // Handle admins list separately
+      if (input.listId === 'admins') {
+        const admins = await ctx.db.user.findMany({
+          where: {
+            role: 'admin',
+          },
+          include: {
+            profile: {
+              select: {
+                telegramHandle: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      // Extract contact info from each application
-      const questionMapping = {
-        'cmeh86ipf000guo436knsqluc': 'full_name',
-        'cmeh86ive000suo43k2edx15q': 'telegram',
-      } as const;
+        fullContacts = admins
+          .filter(admin => admin.profile?.telegramHandle)
+          .map(admin => {
+            const nameParts = admin.name?.split(' ') ?? [];
+            return {
+              id: admin.id,
+              firstName: nameParts[0] ?? admin.email?.split('@')[0] ?? 'Admin',
+              lastName: nameParts.slice(1).join(' ') || '',
+              email: admin.email ?? undefined,
+              telegram: admin.profile?.telegramHandle ?? undefined,
+            };
+          });
+      } else {
+        // Reuse the getSmartListContacts logic to get applicants
+        const eventId = 'funding-commons-residency-2025';
 
-      const fullContacts = applications.map(app => {
-        let firstName = '';
-        let lastName = '';
-        let telegram: string | undefined;
-
-        // Extract data from responses
-        for (const response of app.responses) {
-          const fieldType = questionMapping[response.questionId as keyof typeof questionMapping];
-          if (!fieldType || !response.answer?.trim()) continue;
-
-          if (fieldType === 'full_name') {
-            const nameParts = response.answer.trim().split(/\s+/);
-            firstName = nameParts[0] ?? '';
-            lastName = nameParts.slice(1).join(' ') || '';
-          } else if (fieldType === 'telegram') {
-            let tg = response.answer.trim();
-            tg = tg.replace(/^@/, ''); // Remove leading @
-            tg = tg.replace(/^https?:\/\/(www\.)?t\.me\//, ''); // Remove Telegram URL
-            if (tg && !tg.includes('/') && !tg.includes(' ')) {
-              telegram = tg;
-            }
-          }
+        // Determine status filter based on list ID (same as getSmartListContacts)
+        let statusFilter: string[] = [];
+        switch (input.listId) {
+          case 'all-residency-applicants':
+            statusFilter = ['SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED'];
+            break;
+          case 'accepted-applicants':
+            statusFilter = ['ACCEPTED'];
+            break;
+          case 'rejected-applicants':
+            statusFilter = ['REJECTED'];
+            break;
+          case 'waitlisted-applicants':
+            statusFilter = ['WAITLISTED'];
+            break;
+          case 'under-review-applicants':
+            statusFilter = ['SUBMITTED'];
+            break;
+          default:
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Invalid smart list ID",
+            });
         }
 
-        return {
-          id: app.id,
-          firstName: firstName || 'Unknown',
-          lastName: lastName || 'User',
-          email: app.email,
-          telegram: telegram ?? undefined,
-        };
-      }).filter(c => c.telegram); // Only contacts with telegram
+        // Get applications matching the filter (same query logic as getSmartListContacts)
+        const applications = await ctx.db.application.findMany({
+          where: {
+            eventId,
+            status: { in: statusFilter as Array<"SUBMITTED" | "ACCEPTED" | "REJECTED" | "WAITLISTED"> },
+          },
+          include: {
+            responses: {
+              include: {
+                question: true,
+              },
+            },
+          },
+        });
+
+        // Extract contact info from each application
+        const questionMapping = {
+          'cmeh86ipf000guo436knsqluc': 'full_name',
+          'cmeh86ive000suo43k2edx15q': 'telegram',
+        } as const;
+
+        fullContacts = applications.map(app => {
+          let firstName = '';
+          let lastName = '';
+          let telegram: string | undefined;
+
+          // Extract data from responses
+          for (const response of app.responses) {
+            const fieldType = questionMapping[response.questionId as keyof typeof questionMapping];
+            if (!fieldType || !response.answer?.trim()) continue;
+
+            if (fieldType === 'full_name') {
+              const nameParts = response.answer.trim().split(/\s+/);
+              firstName = nameParts[0] ?? '';
+              lastName = nameParts.slice(1).join(' ') || '';
+            } else if (fieldType === 'telegram') {
+              let tg = response.answer.trim();
+              tg = tg.replace(/^@/, ''); // Remove leading @
+              tg = tg.replace(/^https?:\/\/(www\.)?t\.me\//, ''); // Remove Telegram URL
+              if (tg && !tg.includes('/') && !tg.includes(' ')) {
+                telegram = tg;
+              }
+            }
+          }
+
+          return {
+            id: app.id,
+            firstName: firstName || 'Unknown',
+            lastName: lastName || 'User',
+            email: app.email,
+            telegram: telegram ?? undefined,
+          };
+        }).filter(c => c.telegram); // Only contacts with telegram
+      }
 
       if (fullContacts.length === 0) {
         throw new TRPCError({
