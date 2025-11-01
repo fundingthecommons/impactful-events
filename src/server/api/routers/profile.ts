@@ -171,14 +171,14 @@ export const profileRouter = createTRPCRouter({
             image: true,
           },
         });
-        
+
         if (!user) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "User not found",
           });
         }
-        
+
         return {
           user,
           id: null,
@@ -206,6 +206,20 @@ export const profileRouter = createTRPCRouter({
           updatedAt: new Date(),
           userId: input.userId
         };      }
+
+      // Check privacy settings - block access if profile is private and viewer is not the owner
+      const isOwner = ctx.session?.user?.id === input.userId;
+
+      // Cast to access isPublic field (TypeScript inference issue with include)
+      const profileWithPrivacy = profile as typeof profile & { isPublic: boolean };
+      const isPublic = profileWithPrivacy.isPublic ?? true; // Default to public if not set
+
+      if (isPublic === false && !isOwner) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "This profile is private",
+        });
+      }
 
       return profile;
     }),

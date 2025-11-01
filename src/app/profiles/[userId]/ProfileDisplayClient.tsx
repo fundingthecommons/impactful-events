@@ -92,12 +92,15 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
   const { user, ...profile } = profileData;
   const isOwnProfile = session?.user?.id === userId;
 
-  // Check privacy settings - if profile is private and user is not logged in (and not the owner)
-  if (profile?.isPublic === false && !session?.user && !isOwnProfile) {
+  // Note: Privacy check is now enforced server-side in the getProfile query
+  // This client-side check is kept for better UX (shows friendly message instead of error)
+  // However, the server will return a FORBIDDEN error if accessed directly via API
+  const isPublic = profile?.isPublic ?? true;
+  if (isPublic === false && !isOwnProfile) {
     return (
       <Container size="md" py="xl">
         <Alert color="blue" title="Private Profile">
-          This profile is private. Please log in to view it.
+          This profile is private and can only be viewed by the owner.
         </Alert>
       </Container>
     );
