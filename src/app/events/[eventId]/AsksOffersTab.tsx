@@ -24,6 +24,7 @@ import { type Session } from "next-auth";
 import { notifications } from "@mantine/notifications";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { LikeButton } from "~/app/_components/LikeButton";
+import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import Link from "next/link";
 
 interface AsksOffersTabProps {
@@ -183,9 +184,7 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
         <Text fw={600} mb="xs">
           {item.title}
         </Text>
-        <Text size="sm" c="dimmed" style={{ whiteSpace: "pre-wrap" }}>
-          {item.description}
-        </Text>
+        <MarkdownRenderer content={item.description} />
 
         {item.tags.length > 0 && (
           <Group gap="xs" mt="sm">

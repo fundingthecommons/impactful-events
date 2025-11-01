@@ -11,7 +11,6 @@ import {
   Button,
   Modal,
   TextInput,
-  Textarea,
   Paper,
   ActionIcon,
   Tooltip,
@@ -30,6 +29,8 @@ import { notifications } from "@mantine/notifications";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { useRouter } from "next/navigation";
 import { LikeButton } from "~/app/_components/LikeButton";
+import { MentionTextarea } from "~/app/_components/MentionTextarea";
+import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 
 interface AsksAndOffersProps {
   eventId: string;
@@ -300,9 +301,7 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
         <Text fw={600} mb="xs">
           {item.title}
         </Text>
-        <Text size="sm" c="dimmed" style={{ whiteSpace: "pre-wrap" }}>
-          {item.description}
-        </Text>
+        <MarkdownRenderer content={item.description} />
 
         <Group gap="xs" mt="sm">
           {item.tags.map((tag, idx) => (
@@ -457,19 +456,17 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
             required
             withAsterisk
           />
-          <Textarea
+          <MentionTextarea
             label="Description"
-            placeholder="Provide more details..."
+            placeholder="Provide more details... (Use @ to mention users, supports Markdown)"
             value={description}
-            onChange={(e) => {
-              setDescription(e.currentTarget.value);
+            onChange={(value) => {
+              setDescription(value);
               if (descriptionError) setDescriptionError("");
             }}
             error={descriptionError}
-            description="Minimum 10 characters - explain what you're looking for or offering"
             minRows={4}
             required
-            withAsterisk
           />
           <Group justify="flex-end">
             <Button variant="subtle" onClick={() => setIsModalOpen(false)}>

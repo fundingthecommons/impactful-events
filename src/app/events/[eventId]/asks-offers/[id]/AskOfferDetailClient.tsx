@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Container,
@@ -14,6 +15,10 @@ import {
   Divider,
   Card,
   Tooltip,
+  Modal,
+  TextInput,
+  Textarea,
+  TagsInput,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -26,10 +31,25 @@ import {
   IconBrandGithub,
   IconWorld,
   IconBriefcase,
+  IconEdit,
+  IconX,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
+import { useForm } from "@mantine/form";
+import { zodResolver } from "mantine-form-zod-resolver";
+import { z } from "zod";
+import { MentionTextarea } from "~/app/_components/MentionTextarea";
+import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
+
+const editSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters").max(100),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  tags: z.array(z.string()).default([]),
+});
+
+type EditFormData = z.infer<typeof editSchema>;
 
 interface AskOfferDetailClientProps {
   askOffer: {
@@ -70,6 +90,45 @@ export default function AskOfferDetailClient({
 }: AskOfferDetailClientProps) {
   const router = useRouter();
   const utils = api.useUtils();
+  const [editModalOpen, setEditModalOpen] = useState(false);
+
+  const form = useForm<EditFormData>({
+    validate: zodResolver(editSchema),
+    initialValues: {
+      title: askOffer.title,
+      description: askOffer.description,
+      tags: askOffer.tags,
+    },
+  });
+
+  const updateMutation = api.askOffer.update.useMutation({
+    onSuccess: async () => {
+      notifications.show({
+        title: "Success",
+        message: "Updated successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      setEditModalOpen(false);
+      await utils.askOffer.getById.invalidate({ id: askOffer.id });
+      router.refresh();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  const handleEdit = (data: EditFormData) => {
+    updateMutation.mutate({
+      id: askOffer.id,
+      ...data,
+    });
+  };
 
   const deleteMutation = api.askOffer.delete.useMutation({
     onSuccess: () => {
@@ -162,6 +221,15 @@ export default function AskOfferDetailClient({
               </Group>
               {isOwner && askOffer.isActive && (
                 <Group gap="xs">
+                  <Button
+                    variant="light"
+                    color="blue"
+                    size="sm"
+                    leftSection={<IconEdit size={16} />}
+                    onClick={() => setEditModalOpen(true)}
+                  >
+                    Edit
+                  </Button>
                   <Tooltip label="Mark as fulfilled">
                     <Button
                       variant="light"
@@ -200,9 +268,7 @@ export default function AskOfferDetailClient({
             </div>
 
             {/* Description */}
-            <Text style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-              {askOffer.description}
-            </Text>
+            <MarkdownRenderer content={askOffer.description} />
 
             {/* Tags */}
             {askOffer.tags.length > 0 && (
@@ -333,6 +399,51 @@ export default function AskOfferDetailClient({
           </Stack>
         </Card>
       </Stack>
+
+      {/* Edit Modal */}
+      <Modal
+        opened={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title={`Edit ${askOffer.type === "ASK" ? "Ask" : "Offer"}`}
+        size="lg"
+      >
+        <form onSubmit={form.onSubmit(handleEdit)}>
+          <Stack gap="md">
+            <TextInput
+              label="Title"
+              placeholder="Brief title..."
+              {...form.getInputProps('title')}
+              required
+            />
+
+            <MentionTextarea
+              label="Description"
+              placeholder="Provide details... (Use @ to mention users, supports Markdown)"
+              minRows={4}
+              value={form.values.description}
+              onChange={(value) => form.setFieldValue('description', value)}
+              error={typeof form.errors.description === 'string' ? form.errors.description : undefined}
+              required
+            />
+
+            <TagsInput
+              label="Tags"
+              placeholder="Add tags..."
+              value={form.values.tags}
+              onChange={(tags) => form.setFieldValue('tags', tags)}
+            />
+
+            <Group justify="flex-end">
+              <Button variant="subtle" onClick={() => setEditModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={updateMutation.isPending}>
+                Save Changes
+              </Button>
+            </Group>
+          </Stack>
+        </form>
+      </Modal>
     </Container>
   );
 }
