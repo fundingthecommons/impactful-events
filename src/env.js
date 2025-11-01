@@ -32,6 +32,9 @@ export const env = createEnv({
     SENTRY_DSN: z.string().optional(),
     SENTRY_AUTH_TOKEN: z.string().optional(),
     TELEGRAM_BOT_TOKEN: z.string().optional(),
+    TELEGRAM_CHANNEL_ID: z.string().optional(),
+    TELEGRAM_PRAISE_TOPIC_ID: z.string().optional(),
+    TELEGRAM_ASKOFFER_TOPIC_ID: z.string().optional(),
   },
 
   /**
@@ -68,6 +71,9 @@ export const env = createEnv({
     SENTRY_DSN: process.env.SENTRY_DSN,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+    TELEGRAM_CHANNEL_ID: process.env.TELEGRAM_CHANNEL_ID,
+    TELEGRAM_PRAISE_TOPIC_ID: process.env.TELEGRAM_PRAISE_TOPIC_ID,
+    TELEGRAM_ASKOFFER_TOPIC_ID: process.env.TELEGRAM_ASKOFFER_TOPIC_ID,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   },
   /**

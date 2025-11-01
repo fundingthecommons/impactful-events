@@ -50,12 +50,12 @@ export async function crossPostPraiseToChannel(
   senderName?: string,
 ): Promise<CrossPostResult> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  const channelId = process.env.TELEGRAM_PRAISE_CHANNEL_ID;
+  const channelId = process.env.TELEGRAM_CHANNEL_ID;
 
   // Check if channel posting is configured
   if (!channelId) {
     console.log(
-      "TELEGRAM_PRAISE_CHANNEL_ID not configured, skipping channel post",
+      "TELEGRAM_CHANNEL_ID not configured, skipping channel post",
     );
     return { success: false, error: "Channel not configured" };
   }

@@ -158,6 +158,7 @@ export default function ProjectDetailClient({
 
   // Edit project modal state
   const [editProjectModalOpen, setEditProjectModalOpen] = useState(false);
+  const [deleteProjectModalOpen, setDeleteProjectModalOpen] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoUploadProgress, setLogoUploadProgress] = useState(0);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
@@ -224,6 +225,29 @@ export default function ProjectDetailClient({
         title: "Error",
         message: error.message,
         color: "red",
+      });
+    },
+  });
+
+  // Delete project mutation
+  const deleteProject = api.profile.deleteProject.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Project deleted",
+        message: "Your project has been permanently deleted.",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      setDeleteProjectModalOpen(false);
+      // Navigate back to the event page
+      router.push(`/events/${_eventId}`);
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to delete project",
+        color: "red",
+        icon: <IconX size={16} />,
       });
     },
   });
@@ -548,6 +572,14 @@ export default function ProjectDetailClient({
     }
   };
 
+  const handleDeleteProject = () => {
+    setDeleteProjectModalOpen(true);
+  };
+
+  const handleConfirmDeleteProject = async () => {
+    await deleteProject.mutateAsync({ id: project.id });
+  };
+
   const handleImageClick = (imageUrl: string) => {
     setSelectedImage(imageUrl);
     setImageModalOpen(true);
@@ -642,6 +674,16 @@ export default function ProjectDetailClient({
                     color="blue"
                   >
                     Edit Project
+                  </Button>
+                )}
+                {isOwner && (
+                  <Button
+                    onClick={handleDeleteProject}
+                    leftSection={<IconTrash size={16} />}
+                    variant="light"
+                    color="red"
+                  >
+                    Delete Project
                   </Button>
                 )}
                 {project.githubUrl && (
@@ -1306,6 +1348,34 @@ export default function ProjectDetailClient({
               loading={deleteUpdate.isPending}
             >
               Delete
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Delete Project Confirmation Modal */}
+      <Modal
+        opened={deleteProjectModalOpen}
+        onClose={() => setDeleteProjectModalOpen(false)}
+        title="Delete Project"
+        size="sm"
+      >
+        <Stack gap="md">
+          <Text>
+            Are you sure you want to permanently delete <Text component="span" fw={600}>{project.title}</Text>?
+            This will delete the project and all its updates, collaborators, and data. This action cannot be undone.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setDeleteProjectModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={handleConfirmDeleteProject}
+              loading={deleteProject.isPending}
+              leftSection={<IconTrash size={16} />}
+            >
+              Delete Project
             </Button>
           </Group>
         </Stack>

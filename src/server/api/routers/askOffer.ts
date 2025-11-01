@@ -11,14 +11,39 @@ import { env } from "~/env";
 // Helper function to send message to Telegram channel
 async function sendTelegramNotification(message: string) {
   const botToken = env.TELEGRAM_BOT_TOKEN;
-  const chatId = "-1003079571094"; // The channel ID from https://t.me/c/3079571094/877
+  const chatId = env.TELEGRAM_CHANNEL_ID;
+  const topicId = env.TELEGRAM_ASKOFFER_TOPIC_ID;
 
   if (!botToken) {
     console.warn("TELEGRAM_BOT_TOKEN not configured, skipping notification");
     return;
   }
 
+  if (!chatId) {
+    console.warn("TELEGRAM_CHANNEL_ID not configured, skipping notification");
+    return;
+  }
+
   try {
+    // Build request body
+    const requestBody: {
+      chat_id: string;
+      text: string;
+      parse_mode: string;
+      disable_web_page_preview: boolean;
+      message_thread_id?: string;
+    } = {
+      chat_id: chatId,
+      text: message,
+      parse_mode: "Markdown",
+      disable_web_page_preview: false,
+    };
+
+    // Only include topic ID if configured
+    if (topicId) {
+      requestBody.message_thread_id = topicId;
+    }
+
     const response = await fetch(
       `https://api.telegram.org/bot${botToken}/sendMessage`,
       {
@@ -26,12 +51,7 @@ async function sendTelegramNotification(message: string) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: "Markdown",
-          disable_web_page_preview: false,
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 
