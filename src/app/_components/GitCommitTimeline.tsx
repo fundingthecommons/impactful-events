@@ -103,15 +103,28 @@ function getCommitLabel(type: Commit["type"]) {
   }
 }
 
-export function GitCommitTimeline() {
+interface GitCommitTimelineProps {
+  githubUrl?: string | null;
+}
+
+export function GitCommitTimeline({ githubUrl }: GitCommitTimelineProps) {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchCommits() {
+      if (!githubUrl) {
+        setError("No GitHub repository URL provided");
+        setLoading(false);
+        return;
+      }
+
       try {
-        const response = await fetch("/api/roadmap/commits");
+        const url = new URL("/api/roadmap/commits", window.location.origin);
+        url.searchParams.set("repo", githubUrl);
+
+        const response = await fetch(url.toString());
         const data = await response.json() as CommitResponse;
 
         if (data.success) {
@@ -127,7 +140,7 @@ export function GitCommitTimeline() {
     }
 
     void fetchCommits();
-  }, []);
+  }, [githubUrl]);
 
   if (loading) {
     return (
@@ -140,8 +153,10 @@ export function GitCommitTimeline() {
   if (error) {
     return (
       <Alert icon={<IconAlertCircle size={16} />} title="Git History Unavailable" color="blue">
-        {error === "Git history is not available in this environment"
-          ? "Development timeline is only available in local development environments."
+        {error === "No GitHub repository URL provided"
+          ? "Add a GitHub repository URL to this project to see the development timeline."
+          : error === "Repository not found or not accessible"
+          ? "The GitHub repository is not accessible. Please check the repository URL and ensure it's public."
           : "Unable to load development timeline at this time."}
       </Alert>
     );

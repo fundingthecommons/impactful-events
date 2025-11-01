@@ -560,16 +560,13 @@ export default function ProjectDetailClient({
         <Stack gap="xl">
           {/* Back Navigation */}
           <Group>
-            <ActionIcon
+            <Button
               variant="subtle"
-              size="lg"
-              onClick={() => router.back()}
+              leftSection={<IconArrowLeft size={20} />}
+              onClick={() => router.push(`/events/${_eventId}`)}
             >
-              <IconArrowLeft size={20} />
-            </ActionIcon>
-            <Text size="sm" c="dimmed">
-              Back to projects
-            </Text>
+              Residency home
+            </Button>
           </Group>
 
           {/* Project Header */}
@@ -1024,9 +1021,9 @@ export default function ProjectDetailClient({
                 <Stack gap="lg">
                   <Title order={2}>Development Timeline</Title>
                   <Text c="dimmed" size="sm">
-                    Recent platform commits from the last 7 days
+                    Recent commits from the last 7 days
                   </Text>
-                  <GitCommitTimeline />
+                  <GitCommitTimeline githubUrl={project.githubUrl} />
                 </Stack>
               </Paper>
             </Tabs.Panel>
