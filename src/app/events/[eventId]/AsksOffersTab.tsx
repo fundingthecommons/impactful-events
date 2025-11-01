@@ -24,6 +24,7 @@ import { type Session } from "next-auth";
 import { notifications } from "@mantine/notifications";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { LikeButton } from "~/app/_components/LikeButton";
+import Link from "next/link";
 
 interface AsksOffersTabProps {
   eventId: string;
@@ -82,7 +83,27 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
     const isOwn = isOwnAskOffer(item.userId);
 
     return (
-      <Paper key={item.id} p="md" withBorder>
+      <Paper
+        key={item.id}
+        p="md"
+        withBorder
+        component={Link}
+        href={`/events/${eventId}/asks-offers/${item.id}`}
+        style={{
+          textDecoration: 'none',
+          color: 'inherit',
+          cursor: 'pointer',
+          transition: 'transform 0.1s ease, box-shadow 0.1s ease'
+        }}
+        onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        }}
+        onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = '';
+        }}
+      >
         <Group justify="space-between" align="flex-start" mb="xs">
           <Group gap="sm">
             <Avatar
@@ -129,7 +150,11 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
                     variant="subtle"
                     color="green"
                     size="sm"
-                    onClick={() => markFulfilledMutation.mutate({ id: item.id })}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      markFulfilledMutation.mutate({ id: item.id });
+                    }}
                     loading={markFulfilledMutation.isPending}
                   >
                     <IconCheck size={16} />
@@ -140,7 +165,11 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
                     variant="subtle"
                     color="red"
                     size="sm"
-                    onClick={() => deleteMutation.mutate({ id: item.id })}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      deleteMutation.mutate({ id: item.id });
+                    }}
                     loading={deleteMutation.isPending}
                   >
                     <IconTrash size={16} />
@@ -169,13 +198,15 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
         )}
 
         <Group justify="flex-end" mt="sm">
-          <LikeButton
-            updateId={item.id}
-            initialLikeCount={item.likes.length}
-            initialHasLiked={session?.user ? item.likes.some(like => like.userId === session.user.id) : false}
-            userId={session?.user?.id}
-            likeType="askOffer"
-          />
+          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+            <LikeButton
+              updateId={item.id}
+              initialLikeCount={item.likes.length}
+              initialHasLiked={session?.user ? item.likes.some(like => like.userId === session.user.id) : false}
+              userId={session?.user?.id}
+              likeType="askOffer"
+            />
+          </div>
         </Group>
       </Paper>
     );

@@ -17,16 +17,20 @@ import {
   Loader,
   Center,
   Modal,
+  Container,
+  Button,
 } from "@mantine/core";
 import {
   IconBrandGithub,
   IconExternalLink,
+  IconArrowLeft,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import { LikeButton } from "~/app/_components/LikeButton";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface UpdatesFeedClientProps {
   eventId: string;
@@ -34,6 +38,7 @@ interface UpdatesFeedClientProps {
 
 export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const { data: updates, isLoading } = api.project.getAllEventUpdates.useQuery({
@@ -58,27 +63,61 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
 
   if (isLoading) {
     return (
-      <Center py="xl">
-        <Loader size="lg" />
-      </Center>
+      <Container size="xl" py="xl">
+        <Center py="xl">
+          <Loader size="lg" />
+        </Center>
+      </Container>
     );
   }
 
   if (!updates || updates.length === 0) {
     return (
-      <Card withBorder radius="md" p="xl">
-        <Stack align="center" py="xl">
-          <Text c="dimmed" size="lg" ta="center">
-            No project updates yet. Check back later!
-          </Text>
+      <Container size="xl" py="xl">
+        <Stack gap="xl">
+          <Button
+            variant="subtle"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={() => router.back()}
+          >
+            Back
+          </Button>
+
+          <Title order={1}>Project Updates</Title>
+
+          <Card withBorder radius="md" p="xl">
+            <Stack align="center" py="xl">
+              <Text c="dimmed" size="lg" ta="center">
+                No project updates yet. Check back later!
+              </Text>
+            </Stack>
+          </Card>
         </Stack>
-      </Card>
+      </Container>
     );
   }
 
   return (
-    <>
-      <Stack gap="lg">
+    <Container size="xl" py="xl">
+      <Stack gap="xl">
+        {/* Header */}
+        <Stack gap="md">
+          <Button
+            variant="subtle"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={() => router.back()}
+          >
+            Back
+          </Button>
+
+          <Title order={1}>Project Updates</Title>
+          <Text c="dimmed" size="lg">
+            Latest updates from all projects in this event
+          </Text>
+        </Stack>
+
+        {/* Updates Feed */}
+        <Stack gap="lg">
         {updates.map((update) => (
           <Card key={update.id} withBorder radius="md" p="lg" shadow="sm">
             <Stack gap="md">
@@ -125,16 +164,6 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                   </Badge>
                 )}
               </Group>
-
-              {/* Update title */}
-              <Title order={3} size="h4">
-                {update.title}
-              </Title>
-
-              {/* Update content */}
-              <Box>
-                <MarkdownRenderer content={update.content} />
-              </Box>
 
               {/* Images */}
               {update.imageUrls.length > 0 && (
@@ -208,6 +237,16 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                 </Box>
               )}
 
+              {/* Update title */}
+              <Title order={3} size="h4">
+                {update.title}
+              </Title>
+
+              {/* Update content */}
+              <Box>
+                <MarkdownRenderer content={update.content} />
+              </Box>
+
               {/* Links */}
               {(update.githubUrls.length > 0 || update.demoUrls.length > 0) && (
                 <Group gap="xs">
@@ -253,6 +292,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
             </Stack>
           </Card>
         ))}
+        </Stack>
       </Stack>
 
       {/* Image preview modal */}
@@ -272,6 +312,6 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
           />
         )}
       </Modal>
-    </>
+    </Container>
   );
 }
