@@ -665,114 +665,123 @@ export default function ProjectDetailClient({
             </Stack>
           </Card>
 
-          {/* Author Section */}
-          <Card shadow="sm" padding="lg" radius="md" withBorder>
-            <Group gap="md">
-              {project.author.image && (
-                <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden' }}>
-                  <Image 
-                    src={project.author.image} 
-                    alt={project.author.name ?? "Author"} 
-                    width={60} 
-                    height={60} 
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }} 
-                  />
-                </div>
-              )}
-              <Stack gap="xs" style={{ flex: 1 }}>
-                <Group gap="xs">
-                  <IconUser size={16} />
-                  <Text fw={500}>{project.author.name ?? 'Anonymous'}</Text>
-                </Group>
-                {project.author.profile?.jobTitle && (
-                  <Text size="sm" c="dimmed">
-                    {project.author.profile.jobTitle}
-                    {project.author.profile.company && ` at ${project.author.profile.company}`}
-                  </Text>
-                )}
-                {project.author.profile?.location && (
-                  <Group gap="xs">
-                    <IconMapPin size={14} />
-                    <Text size="sm" c="dimmed">
-                      {project.author.profile.location}
-                    </Text>
-                  </Group>
-                )}
-                {project.author.profile?.bio && (
-                  <Text size="sm" lineClamp={2}>
-                    {project.author.profile.bio}
-                  </Text>
-                )}
-              </Stack>
-            </Group>
-          </Card>
-
-          {/* Collaborators Section */}
-          {project.collaborators.length > 0 && (
-            <Card padding="lg" radius="md" withBorder>
+          {/* Team Members Section */}
+          <Card padding="lg" radius="md" withBorder>
+            <Stack gap="md">
+              <Title order={3}>Team Members</Title>
+              <Text size="sm" c="dimmed">
+                {1 + project.collaborators.length} {1 + project.collaborators.length === 1 ? 'member' : 'members'} working on this project
+              </Text>
               <Stack gap="md">
-                <Title order={3}>Team Members</Title>
-                <Text size="sm" c="dimmed">
-                  {project.collaborators.length} {project.collaborators.length === 1 ? 'collaborator' : 'collaborators'} working on this project
-                </Text>
-                <Stack gap="md">
-                  {project.collaborators.map((collaborator) => (
-                    <Anchor
-                      key={collaborator.id}
-                      href={`/profiles/${collaborator.userId}`}
-                      style={{ textDecoration: 'none', color: 'inherit' }}
-                    >
-                      <Group gap="md" style={{ cursor: 'pointer' }}>
-                        {collaborator.image ? (
-                          <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden' }}>
-                            <Image
-                              src={collaborator.image}
-                              alt={collaborator.name ?? "Collaborator"}
-                              width={48}
-                              height={48}
-                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            />
-                          </div>
-                        ) : (
-                          <div style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: '50%',
-                            backgroundColor: '#e9ecef',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <IconUser size={24} />
-                          </div>
+                {/* Project Owner */}
+                <Anchor
+                  href={`/profiles/${project.author.id}`}
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
+                  <Group gap="md" style={{ cursor: 'pointer' }}>
+                    {project.author.image ? (
+                      <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden' }}>
+                        <Image
+                          src={project.author.image}
+                          alt={project.author.name ?? "Owner"}
+                          width={48}
+                          height={48}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      </div>
+                    ) : (
+                      <div style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        backgroundColor: '#e9ecef',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <IconUser size={24} />
+                      </div>
+                    )}
+                    <Stack gap={4} style={{ flex: 1 }}>
+                      <Text fw={500}>{project.author.name ?? 'Anonymous'}</Text>
+                      {project.author.profile?.jobTitle && (
+                        <Text size="sm" c="dimmed">
+                          {project.author.profile.jobTitle}
+                          {project.author.profile.company && ` at ${project.author.profile.company}`}
+                        </Text>
+                      )}
+                      {project.author.profile?.location && (
+                        <Group gap={4}>
+                          <IconMapPin size={12} />
+                          <Text size="xs" c="dimmed">
+                            {project.author.profile.location}
+                          </Text>
+                        </Group>
+                      )}
+                    </Stack>
+                    <Badge size="sm" variant="filled" color="blue">
+                      Owner
+                    </Badge>
+                  </Group>
+                </Anchor>
+
+                {/* Collaborators */}
+                {project.collaborators.map((collaborator) => (
+                  <Anchor
+                    key={collaborator.id}
+                    href={`/profiles/${collaborator.userId}`}
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                  >
+                    <Group gap="md" style={{ cursor: 'pointer' }}>
+                      {collaborator.image ? (
+                        <div style={{ width: 48, height: 48, borderRadius: '50%', overflow: 'hidden' }}>
+                          <Image
+                            src={collaborator.image}
+                            alt={collaborator.name ?? "Collaborator"}
+                            width={48}
+                            height={48}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: '50%',
+                          backgroundColor: '#e9ecef',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <IconUser size={24} />
+                        </div>
+                      )}
+                      <Stack gap={4} style={{ flex: 1 }}>
+                        <Text fw={500}>{collaborator.name ?? 'Anonymous'}</Text>
+                        {collaborator.profile?.jobTitle && (
+                          <Text size="sm" c="dimmed">
+                            {collaborator.profile.jobTitle}
+                            {collaborator.profile.company && ` at ${collaborator.profile.company}`}
+                          </Text>
                         )}
-                        <Stack gap={4} style={{ flex: 1 }}>
-                          <Text fw={500}>{collaborator.name ?? 'Anonymous'}</Text>
-                          {collaborator.profile?.jobTitle && (
-                            <Text size="sm" c="dimmed">
-                              {collaborator.profile.jobTitle}
-                              {collaborator.profile.company && ` at ${collaborator.profile.company}`}
+                        {collaborator.profile?.location && (
+                          <Group gap={4}>
+                            <IconMapPin size={12} />
+                            <Text size="xs" c="dimmed">
+                              {collaborator.profile.location}
                             </Text>
-                          )}
-                          {collaborator.profile?.location && (
-                            <Group gap={4}>
-                              <IconMapPin size={12} />
-                              <Text size="xs" c="dimmed">
-                                {collaborator.profile.location}
-                              </Text>
-                            </Group>
-                          )}
-                        </Stack>
-                        <Badge size="sm" variant="light">
-                          {collaborator.role}
-                        </Badge>
-                      </Group>
-                    </Anchor>
-                  ))}
-                </Stack>
+                          </Group>
+                        )}
+                      </Stack>
+                      <Badge size="sm" variant="light">
+                        {collaborator.role}
+                      </Badge>
+                    </Group>
+                  </Anchor>
+                ))}
               </Stack>
-            </Card>
-          )}
+            </Stack>
+          </Card>
 
           {/* Main Content Tabs */}
           <Tabs value={activeTab} onChange={handleTabChange}>
