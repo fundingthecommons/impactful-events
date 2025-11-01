@@ -713,55 +713,66 @@ export const telegramAuthRouter = createTRPCRouter({
       },
     ];
 
-    // Get counts for each list
-    const eventId = 'funding-commons-residency-2025'; // Hardcoded for now, could be dynamic later
-    
-    // Use raw queries to join Application with Contact via email
+    // Get counts for each list - query applications directly (same as admin page)
+    const eventId = 'funding-commons-residency-2025';
+    const telegramQuestionId = 'cmeh86ive000suo43k2edx15q'; // Question ID for telegram field
+
+    // Count applications with telegram responses for each status
     const counts = await Promise.all([
       // All residency applicants (submitted) with Telegram
       ctx.db.$queryRaw`
         SELECT COUNT(DISTINCT a.id)::integer as count
         FROM "Application" a
-        INNER JOIN "Contact" c ON a.email = c.email
+        INNER JOIN "ApplicationResponse" ar ON a.id = ar."applicationId"
         WHERE a."eventId" = ${eventId}
           AND a.status IN ('SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED')
-          AND c.telegram IS NOT NULL
+          AND ar."questionId" = ${telegramQuestionId}
+          AND ar.answer IS NOT NULL
+          AND ar.answer != ''
       ` as unknown as [{ count: number }],
       // Accepted with Telegram
       ctx.db.$queryRaw`
         SELECT COUNT(DISTINCT a.id)::integer as count
         FROM "Application" a
-        INNER JOIN "Contact" c ON a.email = c.email
+        INNER JOIN "ApplicationResponse" ar ON a.id = ar."applicationId"
         WHERE a."eventId" = ${eventId}
           AND a.status = 'ACCEPTED'
-          AND c.telegram IS NOT NULL
+          AND ar."questionId" = ${telegramQuestionId}
+          AND ar.answer IS NOT NULL
+          AND ar.answer != ''
       ` as unknown as [{ count: number }],
       // Rejected with Telegram
       ctx.db.$queryRaw`
         SELECT COUNT(DISTINCT a.id)::integer as count
         FROM "Application" a
-        INNER JOIN "Contact" c ON a.email = c.email
+        INNER JOIN "ApplicationResponse" ar ON a.id = ar."applicationId"
         WHERE a."eventId" = ${eventId}
           AND a.status = 'REJECTED'
-          AND c.telegram IS NOT NULL
+          AND ar."questionId" = ${telegramQuestionId}
+          AND ar.answer IS NOT NULL
+          AND ar.answer != ''
       ` as unknown as [{ count: number }],
       // Waitlisted with Telegram
       ctx.db.$queryRaw`
         SELECT COUNT(DISTINCT a.id)::integer as count
         FROM "Application" a
-        INNER JOIN "Contact" c ON a.email = c.email
+        INNER JOIN "ApplicationResponse" ar ON a.id = ar."applicationId"
         WHERE a."eventId" = ${eventId}
           AND a.status = 'WAITLISTED'
-          AND c.telegram IS NOT NULL
+          AND ar."questionId" = ${telegramQuestionId}
+          AND ar.answer IS NOT NULL
+          AND ar.answer != ''
       ` as unknown as [{ count: number }],
       // Under review (submitted) with Telegram
       ctx.db.$queryRaw`
         SELECT COUNT(DISTINCT a.id)::integer as count
         FROM "Application" a
-        INNER JOIN "Contact" c ON a.email = c.email
+        INNER JOIN "ApplicationResponse" ar ON a.id = ar."applicationId"
         WHERE a."eventId" = ${eventId}
           AND a.status = 'SUBMITTED'
-          AND c.telegram IS NOT NULL
+          AND ar."questionId" = ${telegramQuestionId}
+          AND ar.answer IS NOT NULL
+          AND ar.answer != ''
       ` as unknown as [{ count: number }],
     ]);
 
@@ -777,39 +788,87 @@ export const telegramAuthRouter = createTRPCRouter({
       listId: z.string(),
     }))
     .query(async ({ ctx, input }) => {
-      // eventId is hardcoded in the SQL query below
-      
-      interface RawContact {
-        id: string;
-        firstName: string;
-        lastName: string;
-        email: string;
-        telegram: string;
+      // Query applications directly (same as admin page) instead of requiring Contact records
+      const eventId = 'funding-commons-residency-2025';
+
+      // Determine status filter based on list ID
+      let statusFilter: string[] = [];
+      switch (input.listId) {
+        case 'all-residency-applicants':
+          statusFilter = ['SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED'];
+          break;
+        case 'accepted-applicants':
+          statusFilter = ['ACCEPTED'];
+          break;
+        case 'rejected-applicants':
+          statusFilter = ['REJECTED'];
+          break;
+        case 'waitlisted-applicants':
+          statusFilter = ['WAITLISTED'];
+          break;
+        case 'under-review-applicants':
+          statusFilter = ['SUBMITTED'];
+          break;
+        default:
+          return [];
       }
 
-      const contacts = await ctx.db.$queryRaw<RawContact[]>`
-        SELECT DISTINCT c.id, c."firstName", c."lastName", c.email, c.telegram
-        FROM "Application" a
-        INNER JOIN "Contact" c ON a.email = c.email
-        WHERE a."eventId" = 'funding-commons-residency-2025'
-          AND c.telegram IS NOT NULL
-          AND CASE 
-            WHEN ${input.listId} = 'all-residency-applicants' THEN a.status IN ('SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED')
-            WHEN ${input.listId} = 'accepted-applicants' THEN a.status = 'ACCEPTED'
-            WHEN ${input.listId} = 'rejected-applicants' THEN a.status = 'REJECTED' 
-            WHEN ${input.listId} = 'waitlisted-applicants' THEN a.status = 'WAITLISTED'
-            WHEN ${input.listId} = 'under-review-applicants' THEN a.status = 'SUBMITTED'
-            ELSE FALSE
-          END
-      `;
+      // Get applications matching the filter (same query logic as admin page)
+      const applications = await ctx.db.application.findMany({
+        where: {
+          eventId,
+          status: { in: statusFilter as Array<"SUBMITTED" | "ACCEPTED" | "REJECTED" | "WAITLISTED"> },
+        },
+        include: {
+          responses: {
+            include: {
+              question: true,
+            },
+          },
+        },
+      });
 
-      return contacts.map(contact => ({
-        id: contact.id,
-        firstName: contact.firstName,
-        lastName: contact.lastName,
-        email: contact.email ?? undefined,
-        telegram: contact.telegram,
-      }));
+      // Extract contact info from each application (firstName, lastName, telegram from responses)
+      const questionMapping = {
+        'cmeh86ipf000guo436knsqluc': 'full_name',
+        'cmeh86ive000suo43k2edx15q': 'telegram',
+      } as const;
+
+      const contacts = applications.map(app => {
+        let firstName = '';
+        let lastName = '';
+        let telegram: string | undefined;
+
+        // Extract data from responses
+        for (const response of app.responses) {
+          const fieldType = questionMapping[response.questionId as keyof typeof questionMapping];
+          if (!fieldType || !response.answer?.trim()) continue;
+
+          if (fieldType === 'full_name') {
+            const nameParts = response.answer.trim().split(/\s+/);
+            firstName = nameParts[0] ?? '';
+            lastName = nameParts.slice(1).join(' ') || '';
+          } else if (fieldType === 'telegram') {
+            let tg = response.answer.trim();
+            tg = tg.replace(/^@/, ''); // Remove leading @
+            tg = tg.replace(/^https?:\/\/(www\.)?t\.me\//, ''); // Remove Telegram URL
+            if (tg && !tg.includes('/') && !tg.includes(' ')) {
+              telegram = tg;
+            }
+          }
+        }
+
+        return {
+          id: app.id,
+          firstName: firstName || 'Unknown',
+          lastName: lastName || 'User',
+          email: app.email,
+          telegram: telegram ?? undefined,
+        };
+      });
+
+      // Filter to only contacts with telegram (for messaging functionality)
+      return contacts.filter(c => c.telegram);
     }),
 
   // Send bulk message to a smart list
@@ -819,41 +878,95 @@ export const telegramAuthRouter = createTRPCRouter({
       message: z.string().min(1).max(4096),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Get contacts from the smart list using Application → Contact relationship
-      interface RawContact {
-        id: string;
-        firstName: string;
-        lastName: string;
-        email: string;
-        telegram: string;
+      // Reuse the getSmartListContacts logic to get applicants
+      const eventId = 'funding-commons-residency-2025';
+
+      // Determine status filter based on list ID (same as getSmartListContacts)
+      let statusFilter: string[] = [];
+      switch (input.listId) {
+        case 'all-residency-applicants':
+          statusFilter = ['SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED'];
+          break;
+        case 'accepted-applicants':
+          statusFilter = ['ACCEPTED'];
+          break;
+        case 'rejected-applicants':
+          statusFilter = ['REJECTED'];
+          break;
+        case 'waitlisted-applicants':
+          statusFilter = ['WAITLISTED'];
+          break;
+        case 'under-review-applicants':
+          statusFilter = ['SUBMITTED'];
+          break;
+        default:
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid smart list ID",
+          });
       }
 
-      const contacts = await ctx.db.$queryRaw<RawContact[]>`
-        SELECT DISTINCT c.id, c."firstName", c."lastName", c.email, c.telegram
-        FROM "Application" a
-        INNER JOIN "Contact" c ON a.email = c.email
-        WHERE a."eventId" = 'funding-commons-residency-2025'
-          AND c.telegram IS NOT NULL
-          AND CASE 
-            WHEN ${input.listId} = 'all-residency-applicants' THEN a.status IN ('SUBMITTED', 'ACCEPTED', 'REJECTED', 'WAITLISTED')
-            WHEN ${input.listId} = 'accepted-applicants' THEN a.status = 'ACCEPTED'
-            WHEN ${input.listId} = 'rejected-applicants' THEN a.status = 'REJECTED' 
-            WHEN ${input.listId} = 'waitlisted-applicants' THEN a.status = 'WAITLISTED'
-            WHEN ${input.listId} = 'under-review-applicants' THEN a.status = 'SUBMITTED'
-            ELSE FALSE
-          END
-      `;
+      // Get applications matching the filter (same query logic as getSmartListContacts)
+      const applications = await ctx.db.application.findMany({
+        where: {
+          eventId,
+          status: { in: statusFilter as Array<"SUBMITTED" | "ACCEPTED" | "REJECTED" | "WAITLISTED"> },
+        },
+        include: {
+          responses: {
+            include: {
+              question: true,
+            },
+          },
+        },
+      });
 
-      if (contacts.length === 0) {
+      // Extract contact info from each application
+      const questionMapping = {
+        'cmeh86ipf000guo436knsqluc': 'full_name',
+        'cmeh86ive000suo43k2edx15q': 'telegram',
+      } as const;
+
+      const fullContacts = applications.map(app => {
+        let firstName = '';
+        let lastName = '';
+        let telegram: string | undefined;
+
+        // Extract data from responses
+        for (const response of app.responses) {
+          const fieldType = questionMapping[response.questionId as keyof typeof questionMapping];
+          if (!fieldType || !response.answer?.trim()) continue;
+
+          if (fieldType === 'full_name') {
+            const nameParts = response.answer.trim().split(/\s+/);
+            firstName = nameParts[0] ?? '';
+            lastName = nameParts.slice(1).join(' ') || '';
+          } else if (fieldType === 'telegram') {
+            let tg = response.answer.trim();
+            tg = tg.replace(/^@/, ''); // Remove leading @
+            tg = tg.replace(/^https?:\/\/(www\.)?t\.me\//, ''); // Remove Telegram URL
+            if (tg && !tg.includes('/') && !tg.includes(' ')) {
+              telegram = tg;
+            }
+          }
+        }
+
+        return {
+          id: app.id,
+          firstName: firstName || 'Unknown',
+          lastName: lastName || 'User',
+          email: app.email,
+          telegram: telegram ?? undefined,
+        };
+      }).filter(c => c.telegram); // Only contacts with telegram
+
+      if (fullContacts.length === 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "No contacts found in this list with Telegram usernames",
         });
       }
 
-      // Reuse the existing sendBulkMessage logic by extracting it
-      // const contactIds = contacts.map(c => c.id); // Not needed
-      
       // Get user's Telegram auth
       const auth = await ctx.db.telegramAuth.findUnique({
         where: { userId: ctx.session.user.id },
@@ -865,15 +978,6 @@ export const telegramAuthRouter = createTRPCRouter({
           message: "No active Telegram authentication found. Please set up Telegram authentication first.",
         });
       }
-
-      // Transform raw query results to the expected format
-      const fullContacts = contacts.map(contact => ({
-        id: contact.id,
-        firstName: contact.firstName,
-        lastName: contact.lastName,
-        telegram: contact.telegram,
-        email: contact.email ?? undefined, // Keep email for application lookup
-      }));
 
       let successCount = 0;
       let failureCount = 0;

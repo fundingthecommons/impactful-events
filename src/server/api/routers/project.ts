@@ -3,6 +3,27 @@ import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/
 import { TRPCError } from "@trpc/server";
 
 export const projectRouter = createTRPCRouter({
+  getMyProjects: protectedProcedure
+    .query(async ({ ctx }) => {
+      const userId = ctx.session.user.id;
+
+      const projects = await ctx.db.project.findMany({
+        where: {
+          createdById: userId,
+        },
+        select: {
+          id: true,
+          title: true,
+          eventId: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      return projects;
+    }),
+
   getUserProjects: protectedProcedure
     .input(
       z.object({
