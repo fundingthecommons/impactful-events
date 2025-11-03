@@ -31,6 +31,7 @@ import { useRouter } from "next/navigation";
 import { LikeButton } from "~/app/_components/LikeButton";
 import { MentionTextarea } from "~/app/_components/MentionTextarea";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface AsksAndOffersProps {
   eventId: string;
@@ -49,22 +50,14 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
 
   const utils = api.useUtils();
 
-  // Fetch all asks and offers
-  const { data: asksData = [] } = api.askOffer.getEventAsksOffers.useQuery({
-    eventId,
-    type: "ASK",
-    onlyActive: true,
-  });
+  // Fetch user's asks and offers (filtered to only their own items)
+  const { data: asksData = [] } = api.askOffer.getUserAsksOffers.useQuery(
+    { eventId, type: "ASK", onlyActive: true },
+    { enabled: !!session }
+  );
 
-  const { data: offersData = [] } = api.askOffer.getEventAsksOffers.useQuery({
-    eventId,
-    type: "OFFER",
-    onlyActive: true,
-  });
-
-  // Fetch user's asks and offers (used for marking own items)
-  api.askOffer.getUserAsksOffers.useQuery(
-    { eventId },
+  const { data: offersData = [] } = api.askOffer.getUserAsksOffers.useQuery(
+    { eventId, type: "OFFER", onlyActive: true },
     { enabled: !!session }
   );
 
@@ -254,7 +247,7 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
             </Avatar>
             <div>
               <Text fw={500} size="sm">
-                {item.user.name}
+                {getDisplayName(item.user, "Unknown")}
               </Text>
               {item.user.profile?.jobTitle && (
                 <Text size="xs" c="dimmed">
@@ -337,7 +330,7 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
         <Group justify="space-between" mb="md">
           <Group gap="xs">
             <IconHandStop size={20} />
-            <Text fw={600}>Asks & Offers</Text>
+            <Text fw={600}>Your Asks & Offers</Text>
           </Group>
           <Badge variant="light">
             {asksData.length + offersData.length} total

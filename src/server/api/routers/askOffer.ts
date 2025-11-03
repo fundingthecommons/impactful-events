@@ -178,12 +178,50 @@ export const askOfferRouter = createTRPCRouter({
 
   // Get user's asks and offers for an event
   getUserAsksOffers: protectedProcedure
-    .input(z.object({ eventId: z.string() }))
+    .input(z.object({
+      eventId: z.string(),
+      type: z.enum(["ASK", "OFFER", "ALL"]).optional(),
+      onlyActive: z.boolean().optional(),
+    }))
     .query(async ({ ctx, input }) => {
+      const { eventId, type, onlyActive } = input;
+
+      const where: { eventId: string; userId: string; type?: "ASK" | "OFFER"; isActive?: boolean } = {
+        eventId,
+        userId: ctx.session.user.id,
+      };
+
+      if (type && type !== "ALL") {
+        where.type = type;
+      }
+
+      if (onlyActive) {
+        where.isActive = true;
+      }
+
       const asksOffers = await ctx.db.askOffer.findMany({
-        where: {
-          eventId: input.eventId,
-          userId: ctx.session.user.id,
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              email: true,
+              profile: {
+                select: {
+                  jobTitle: true,
+                  company: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+          likes: {
+            select: {
+              userId: true,
+            },
+          },
         },
         orderBy: {
           createdAt: "desc",
