@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { type Session } from "next-auth";
 import { useForm } from "@mantine/form";
 import { zodResolver } from "mantine-form-zod-resolver";
 import { z } from "zod";
@@ -19,9 +18,6 @@ import {
   Progress,
   Alert,
   Paper,
-  Avatar,
-  ActionIcon,
-  Tooltip,
   Modal,
   TextInput,
   Textarea,
@@ -30,35 +26,25 @@ import {
   FileButton,
   Image,
   Box,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconUser,
   IconAlertCircle,
-  IconExternalLink,
-  IconBrandGithub,
   IconCheck,
-  IconEdit,
-  IconMapPin,
-  IconBriefcase,
-  IconClock,
-  IconHeart,
-  IconBrandLinkedin,
-  IconBrandTwitter,
-  IconWorld,
   IconStar,
   IconX,
   IconBulb,
+  IconEdit,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { api } from "~/trpc/react";
 import Link from "next/link";
 import { AddProjectButton } from "~/app/_components/AddProjectButton";
-import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import type { UserProject } from "@prisma/client";
 import { AsksAndOffers } from "./AsksAndOffers";
 import { CollaboratorsList } from "~/app/_components/CollaboratorsList";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
-import { getDisplayName } from "~/utils/userDisplay";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
