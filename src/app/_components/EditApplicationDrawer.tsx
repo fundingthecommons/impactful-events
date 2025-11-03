@@ -9,11 +9,12 @@ import {
   Button,
   Text,
 } from "@mantine/core";
-import { 
-  IconX 
+import {
+  IconX
 } from "@tabler/icons-react";
 import AdminFieldsEditor from "./AdminFieldsEditor";
 import ProjectManagementSection from "./ProjectManagementSection";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface EditApplicationDrawerProps {
   opened: boolean;
@@ -51,7 +52,7 @@ export default function EditApplicationDrawer({
         <Group>
           <Title order={4}>Edit Person</Title>
           <Text size="sm" c="dimmed">
-            {user.name} ({user.email})
+            {getDisplayName(user)} ({user.email})
           </Text>
         </Group>
       }

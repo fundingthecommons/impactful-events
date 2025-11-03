@@ -31,6 +31,7 @@ import {
 import { api } from "~/trpc/react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface ProjectFilters {
   search: string;
@@ -246,7 +247,7 @@ export function ProjectsClient() {
                             />
                             <div style={{ flex: 1 }}>
                               <Text size="sm" fw={500}>
-                                {project.profile.user.name ?? "Anonymous"}
+                                {getDisplayName(project.profile.user, "Anonymous")}
                               </Text>
                             </div>
                             <Tooltip label="View Creator Profile">

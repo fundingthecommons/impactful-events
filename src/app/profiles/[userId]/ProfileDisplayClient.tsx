@@ -44,6 +44,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface ProfileDisplayClientProps {
   userId: string;
@@ -150,7 +151,7 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
                 <Group justify="space-between" align="flex-start" mb="md">
                   <div>
                     <Title order={1} mb="xs">
-                      {user.name ?? "Unnamed User"}
+                      {getDisplayName(user, "Unnamed User")}
                     </Title>
                     {profile?.jobTitle && (
                       <Text size="lg" c="dimmed" mb="xs">

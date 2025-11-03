@@ -17,6 +17,7 @@ import {
 import { IconAlertCircle, IconUser, IconClock } from '@tabler/icons-react';
 import { api } from '~/trpc/react';
 import { notifications } from '@mantine/notifications';
+import { getDisplayName } from '~/utils/userDisplay';
 
 interface ApplicationQueueProps {
   eventId?: string;
@@ -136,7 +137,7 @@ export function ApplicationQueue({ eventId }: ApplicationQueueProps) {
                       <Group gap="xs" align="center">
                         <IconUser size="1rem" />
                         <Text size="sm" c="dimmed">
-                          {app.user?.name ?? 'Anonymous'}
+                          {getDisplayName(app.user, 'Anonymous')}
                         </Text>
                       </Group>
                       

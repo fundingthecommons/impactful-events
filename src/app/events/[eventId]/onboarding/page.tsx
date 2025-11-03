@@ -3,6 +3,7 @@ import { db } from "~/server/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import ManagePageClient from "./ManagePageClient";
+import { getDisplayName } from "~/utils/userDisplay";
 
 export default async function FundingCommonsResidencyManagePage() {
   // Check authentication
@@ -123,9 +124,9 @@ export default async function FundingCommonsResidencyManagePage() {
         </div>
       </div>
 
-      <ManagePageClient 
+      <ManagePageClient
         applicationId={userApplication.id}
-        applicantName={session.user.name ?? "there"}
+        applicantName={getDisplayName(session.user, "there")}
       />
     </div>
   );

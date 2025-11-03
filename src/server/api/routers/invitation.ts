@@ -18,6 +18,14 @@ function checkAdminAccess(userRole?: string | null) {
   }
 }
 
+// Helper function to get full name from user session
+function getInviterName(user: { firstName?: string | null; surname?: string | null; name?: string | null; email?: string | null }): string {
+  if (user.firstName ?? user.surname) {
+    return `${user.firstName ?? ''} ${user.surname ?? ''}`.trim();
+  }
+  return user.name ?? user.email ?? "Event Admin";
+}
+
 // Schema definitions
 const CreateInvitationSchema = z.object({
   email: z.string().email(),
@@ -156,7 +164,7 @@ export const invitationRouter = createTRPCRouter({
             eventName: invitation.event!.name,
             eventDescription: invitation.event!.description ?? "Join us for this exciting event!",
             roleName: invitation.role!.name,
-            inviterName: ctx.session.user.name ?? "Event Admin",
+            inviterName: getInviterName(ctx.session.user),
             invitationToken: invitation.token,
             expiresAt: invitation.expiresAt,
             eventId: invitation.eventId ?? undefined,
@@ -168,7 +176,7 @@ export const invitationRouter = createTRPCRouter({
             eventName: "Platform Administration",
             eventDescription: `You've been invited to join as a ${invitation.globalRole} administrator for the entire platform.`,
             roleName: invitation.globalRole ?? "Administrator",
-            inviterName: ctx.session.user.name ?? "Platform Admin",
+            inviterName: getInviterName(ctx.session.user),
             invitationToken: invitation.token,
             expiresAt: invitation.expiresAt,
             isGlobalRole: true,
@@ -276,7 +284,7 @@ export const invitationRouter = createTRPCRouter({
               eventName: invitation.event?.name ?? "Event",
               eventDescription: invitation.event?.description ?? "Join us for this exciting event!",
               roleName: invitation.role?.name ?? "Participant",
-              inviterName: ctx.session.user.name ?? "Event Admin",
+              inviterName: getInviterName(ctx.session.user),
               invitationToken: invitation.token,
               expiresAt: invitation.expiresAt,
               eventId: invitation.eventId ?? undefined,
@@ -287,7 +295,7 @@ export const invitationRouter = createTRPCRouter({
               eventName: "Platform Administration",
               eventDescription: `You've been invited to join as a ${invitation.globalRole} administrator for the entire platform.`,
               roleName: invitation.globalRole ?? "Administrator",
-              inviterName: ctx.session.user.name ?? "Platform Admin",
+              inviterName: getInviterName(ctx.session.user),
               invitationToken: invitation.token,
               expiresAt: invitation.expiresAt,
               isGlobalRole: true,
@@ -593,7 +601,7 @@ export const invitationRouter = createTRPCRouter({
             eventName: updatedInvitation.event?.name ?? "Event",
             eventDescription: updatedInvitation.event?.description ?? "Join us for this exciting event!",
             roleName: updatedInvitation.role?.name ?? "Participant",
-            inviterName: ctx.session.user.name ?? "Event Admin",
+            inviterName: getInviterName(ctx.session.user),
             invitationToken: updatedInvitation.token,
             expiresAt: updatedInvitation.expiresAt,
             eventId: updatedInvitation.eventId ?? undefined,
@@ -604,7 +612,7 @@ export const invitationRouter = createTRPCRouter({
             eventName: "Platform Administration",
             eventDescription: `You've been invited to join as a ${updatedInvitation.globalRole} administrator for the entire platform.`,
             roleName: updatedInvitation.globalRole ?? "Administrator",
-            inviterName: ctx.session.user.name ?? "Platform Admin",
+            inviterName: getInviterName(ctx.session.user),
             invitationToken: updatedInvitation.token,
             expiresAt: updatedInvitation.expiresAt,
             isGlobalRole: true,

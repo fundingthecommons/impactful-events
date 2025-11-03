@@ -30,6 +30,7 @@ import { api } from "~/trpc/react";
 import DynamicApplicationForm from "~/app/_components/DynamicApplicationForm";
 import { getEventContent } from "~/utils/eventContent";
 import { type EventType } from "~/types/event";
+import { getDisplayName } from "~/utils/userDisplay";
 
 type Application = {
   id: string;
@@ -563,7 +564,7 @@ export default function EventDetailClient({
                             )}
                             <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
                               <Text fw={500} size="lg" truncate>
-                                {participant.user?.name ?? 'Anonymous Participant'}
+                                {getDisplayName(participant.user, 'Anonymous Participant')}
                               </Text>
                               {participant.user?.profile?.jobTitle && (
                                 <Text size="sm" c="dimmed" truncate>
@@ -706,12 +707,12 @@ export default function EventDetailClient({
                               <Group gap="xs" mb="sm">
                                 <div style={{ width: 24, height: 24, borderRadius: '50%', overflow: 'hidden' }}>
                                   {project.author.image ? (
-                                    <Image 
-                                      src={project.author.image} 
-                                      alt={project.author.name ?? "Author"} 
-                                      width={24} 
-                                      height={24} 
-                                      style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+                                    <Image
+                                      src={project.author.image}
+                                      alt={getDisplayName(project.author, "Author")}
+                                      width={24}
+                                      height={24}
+                                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
                                     />
                                   ) : (
                                     <div style={{ width: "100%", height: "100%", backgroundColor: "#e9ecef", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -720,7 +721,7 @@ export default function EventDetailClient({
                                   )}
                                 </div>
                                 <Text size="sm" c="dimmed">
-                                  by {project.author.name ?? 'Anonymous'}
+                                  by {getDisplayName(project.author, 'Anonymous')}
                                 </Text>
                               </Group>
                               {project.technologies && project.technologies.length > 0 && (

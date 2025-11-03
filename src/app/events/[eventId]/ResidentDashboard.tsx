@@ -62,6 +62,7 @@ import { AsksAndOffers } from "./AsksAndOffers";
 import { AsksOffersTab } from "./AsksOffersTab";
 import { CollaboratorsList } from "~/app/_components/CollaboratorsList";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
+import { getDisplayName } from "~/utils/userDisplay";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -986,7 +987,7 @@ function ParticipantsTab({ residentsData, session, eventId }: ParticipantsTabPro
                     </Avatar>
                     <div style={{ flex: 1 }}>
                       <Text fw={600} size="lg" lineClamp={1}>
-                        {resident.user?.name ?? "Anonymous"}
+                        {getDisplayName(resident.user, "Anonymous")}
                       </Text>
                       {resident.user?.profile?.jobTitle && (
                         <Text size="sm" c="dimmed" lineClamp={1}>
@@ -1232,7 +1233,7 @@ function ProjectsTab({ residentProjects, eventId, onAddProject }: ProjectsTabPro
                       })}
                     </Avatar>
                     <Text size="xs" c="dimmed">
-                      {project.profile.user?.name ?? "Anonymous"}
+                      {getDisplayName(project.profile.user, "Anonymous")}
                     </Text>
                   </Group>
                 </Stack>

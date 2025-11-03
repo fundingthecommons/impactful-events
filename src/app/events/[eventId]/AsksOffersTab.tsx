@@ -26,6 +26,7 @@ import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { LikeButton } from "~/app/_components/LikeButton";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import Link from "next/link";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface AsksOffersTabProps {
   eventId: string;
@@ -125,7 +126,7 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
             </Avatar>
             <div>
               <Text fw={500} size="sm">
-                {item.user.name}
+                {getDisplayName(item.user, "Unknown")}
               </Text>
               {item.user.profile?.jobTitle && (
                 <Text size="xs" c="dimmed">

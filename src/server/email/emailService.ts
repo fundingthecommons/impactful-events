@@ -30,6 +30,8 @@ interface ApplicationWithUserAndEvent {
   email: string;
   user?: {
     id: string;
+    firstName?: string | null;
+    surname?: string | null;
     name: string | null;
     email: string | null;
   } | null;
@@ -167,7 +169,10 @@ export class EmailService {
     let templateName: TemplateName;
     let templateData: TemplateProps;
 
-    const applicantName = application.user?.name ?? application.user?.email ?? 'Applicant';
+    const applicantName =
+      (application.user?.firstName ?? application.user?.surname)
+        ? `${application.user.firstName ?? ''} ${application.user.surname ?? ''}`.trim()
+        : application.user?.name ?? application.user?.email ?? 'Applicant';
     const applicantEmail = application.user?.email ?? application.email;
 
     switch (status) {

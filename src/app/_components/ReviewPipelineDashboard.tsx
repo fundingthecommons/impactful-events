@@ -42,6 +42,7 @@ import ConsensusModal from "./ConsensusModal";
 import CurationSpecDashboard from "./CurationSpecDashboard";
 import type { User } from "@prisma/client";
 import { type ProfessionalRole, type ApplicationForDemographics, calculateExtendedDemographicStats, normalizeProfessionalRole, isLatamCountry } from "~/utils/demographics";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface PipelineApplication {
   id: string;
@@ -143,7 +144,7 @@ function PipelineStage({
                     key={app.id}
                     onClick={() => onAssignReviewer(app.id)}
                   >
-                    {app.user?.name ?? 'Unknown'} ({app.user?.email})
+                    {getDisplayName(app.user, 'Unknown')} ({app.user?.email})
                   </Menu.Item>
                 ))
               ) : (
@@ -177,7 +178,7 @@ function PipelineStage({
                 <Group justify="space-between" align="flex-start">
                   <Box style={{ flex: 1, minWidth: 0 }}>
                     <Text fw={500} size="sm" truncate>
-                      {app.user?.name ?? 'Unknown'}
+                      {getDisplayName(app.user, 'Unknown')}
                     </Text>
                     <Text size="xs" c="dimmed" truncate>
                       {app.user?.email}
@@ -375,7 +376,7 @@ function AssignReviewerModal({ opened, onClose, applicationId, stage }: AssignRe
           onChange={(value) => setSelectedReviewer(value ?? "")}
           data={users?.map(user => ({
             value: user.id,
-            label: `${user.name} (${user.email})`,
+            label: `${getDisplayName(user)} (${user.email})`,
           })) ?? []}
           disabled={!!error}
         />

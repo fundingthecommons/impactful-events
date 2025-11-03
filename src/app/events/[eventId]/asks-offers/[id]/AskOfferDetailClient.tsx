@@ -17,7 +17,6 @@ import {
   Tooltip,
   Modal,
   TextInput,
-  Textarea,
   TagsInput,
 } from "@mantine/core";
 import {
@@ -42,6 +41,7 @@ import { zodResolver } from "mantine-form-zod-resolver";
 import { z } from "zod";
 import { MentionTextarea } from "~/app/_components/MentionTextarea";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
+import { getDisplayName } from "~/utils/userDisplay";
 
 const editSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(100),
@@ -308,7 +308,7 @@ export default function AskOfferDetailClient({
               </Avatar>
               <div style={{ flex: 1 }}>
                 <Text fw={600} size="lg">
-                  {askOffer.user.name ?? "Anonymous"}
+                  {getDisplayName(askOffer.user, "Anonymous")}
                 </Text>
                 {askOffer.user.profile?.jobTitle && (
                   <Group gap="xs" mt={4}>

@@ -26,6 +26,7 @@ import { api } from "~/trpc/react";
 import { format } from "date-fns";
 import { useDisclosure } from "@mantine/hooks";
 import type { RouterOutputs } from "~/trpc/react";
+import { getDisplayName } from "~/utils/userDisplay";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -125,9 +126,9 @@ export function CommunicationsClient() {
               <Text size="sm" fw={500}>
                 {getRecipientDisplay(communication)}
               </Text>
-              {communication.application?.user?.name && (
+              {getDisplayName(communication.application?.user) && (
                 <Text size="xs" c="dimmed">
-                  {communication.application.user.name}
+                  {getDisplayName(communication.application?.user)}
                 </Text>
               )}
             </Stack>

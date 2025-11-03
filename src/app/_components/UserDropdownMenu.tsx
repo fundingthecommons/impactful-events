@@ -40,15 +40,11 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
   const avatarUrl = getAvatarUrl({
     customAvatarUrl: profile?.avatarUrl,
     oauthImageUrl: session.user.image,
-    firstName: session.user.firstName,
-    surname: session.user.surname,
     name: session.user.name,
     email: session.user.email,
   });
 
   const avatarInitials = getAvatarInitials({
-    firstName: session.user.firstName,
-    surname: session.user.surname,
     name: session.user.name,
     email: session.user.email,
   });

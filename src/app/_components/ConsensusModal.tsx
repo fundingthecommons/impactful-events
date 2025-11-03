@@ -36,6 +36,7 @@ import {
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
+import { getDisplayName } from "~/utils/userDisplay";
 import {
   calculateEnhancedWeightedScores,
   getConsensusIndicator,
@@ -354,7 +355,7 @@ export default function ConsensusModal({
                 <Group justify="space-between" mb="md">
                   <Box>
                     <Text size="lg" fw={600}>
-                      {consensusData.user?.name ?? 'No name provided'}
+                      {getDisplayName(consensusData.user, 'No name provided')}
                     </Text>
                     <Text c="dimmed">
                       {consensusData.user?.email}

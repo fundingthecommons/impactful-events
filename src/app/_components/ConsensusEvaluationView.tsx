@@ -33,6 +33,7 @@ import {
   IconArrowLeft,
 } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
+import { getDisplayName } from "~/utils/userDisplay";
 import {
   calculateEnhancedWeightedScores,
   getConsensusIndicator,
@@ -435,7 +436,7 @@ export default function ConsensusEvaluationView({ evaluationData }: ConsensusEva
                 <Group justify="space-between" mb="md">
                   <Box>
                     <Text size="lg" fw={600}>
-                      {consensusData.user?.name ?? 'No name provided'}
+                      {getDisplayName(consensusData.user, 'No name provided')}
                     </Text>
                     <Text c="dimmed">
                       {consensusData.user?.email}

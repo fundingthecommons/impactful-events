@@ -33,6 +33,7 @@ import {
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface AssignRoleForm {
   userId: string;
@@ -278,7 +279,7 @@ export default function UsersClient() {
                       {user.name?.[0] ?? user.email?.[0]}
                     </Avatar>
                     <div>
-                      <Text size="sm" fw={500}>{user.name ?? "No name"}</Text>
+                      <Text size="sm" fw={500}>{getDisplayName(user, "No name")}</Text>
                       <Text size="xs" c="dimmed">{user.email}</Text>
                       {user.emailVerified && (
                         <Badge size="xs" color="green" variant="dot">Verified</Badge>
@@ -403,9 +404,9 @@ export default function UsersClient() {
             <Select
               label="User"
               placeholder="Select a user"
-              data={users?.map(user => ({ 
-                value: user.id, 
-                label: `${user.name ?? user.email} (${user.email})` 
+              data={users?.map(user => ({
+                value: user.id,
+                label: `${getDisplayName(user)} (${user.email})`
               })) ?? []}
               {...assignRoleForm.getInputProps("userId")}
               required
@@ -459,7 +460,7 @@ export default function UsersClient() {
                 {userDetails.name?.[0] ?? userDetails.email?.[0]}
               </Avatar>
               <div>
-                <Text fw={600} size="lg">{userDetails.name ?? "No name"}</Text>
+                <Text fw={600} size="lg">{getDisplayName(userDetails, "No name")}</Text>
                 <Text c="dimmed">{userDetails.email}</Text>
                 <Badge color={getGlobalRoleBadgeColor(userDetails.role ?? "user")} variant="light">
                   {(userDetails.role ?? "user").toUpperCase()}
