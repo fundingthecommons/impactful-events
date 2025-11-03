@@ -50,7 +50,6 @@ import {
   IconWorld,
   IconStar,
   IconX,
-  IconHandStop,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { api } from "~/trpc/react";

@@ -31,6 +31,15 @@ Each entry follows this structure:
 
 ---
 
+## 2025-01-11 - @typescript-eslint/no-unused-vars - [Project: ftc-platform]
+
+**Problem**: Imported 'IconHandStop' but never used after removing tab
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/app/events/[eventId]/ResidentDashboard.tsx:53
+**Code Context**: `import { ..., IconHandStop } from "@tabler/icons-react";` - Used in removed "Asks & Offers" tab
+**Fix Applied**: Removed `IconHandStop` from imports after removing the tab that used it
+**Prevention**: When removing components or tabs, always check and remove unused imports. Run ESLint before committing to catch unused imports.
+
 ---
 
 ## Usage
