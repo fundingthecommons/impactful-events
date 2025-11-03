@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, Menu } from "@mantine/core";
-import { IconMapPin, IconHeart, IconFolder, IconNews } from "@tabler/icons-react";
+import { IconMapPin, IconHeart, IconFolder, IconNews, IconHandStop } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -26,6 +26,7 @@ export default function UserNavigation() {
   const getActiveTab = () => {
     if (pathname.startsWith("/praise")) return "praise";
     if (pathname.startsWith("/events/funding-commons-residency-2025/updates")) return "updates";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/asks-offers")) return "asks-offers";
     if (pathname.startsWith("/events/funding-commons-residency-2025/projects")) return "projects";
     if (pathname.startsWith("/events/funding-commons-residency-2025")) return "residency";
     return null;
@@ -44,6 +45,16 @@ export default function UserNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Residency
+        </TabsTab>
+
+        <TabsTab
+          value="asks-offers"
+          leftSection={<IconHandStop size={16} />}
+          component={Link}
+          href="/events/funding-commons-residency-2025/asks-offers"
+          style={{ textDecoration: 'none' }}
+        >
+          Asks & Offers
         </TabsTab>
 
         {/* Projects Dropdown */}

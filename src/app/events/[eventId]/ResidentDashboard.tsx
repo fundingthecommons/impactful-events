@@ -59,7 +59,6 @@ import { AddProjectButton } from "~/app/_components/AddProjectButton";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import type { UserProject } from "@prisma/client";
 import { AsksAndOffers } from "./AsksAndOffers";
-import { AsksOffersTab } from "./AsksOffersTab";
 import { CollaboratorsList } from "~/app/_components/CollaboratorsList";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
 import { getDisplayName } from "~/utils/userDisplay";
@@ -103,7 +102,7 @@ export default function ResidentDashboard({
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1); // Remove the # symbol
-      if (hash === "asks-offers" || hash === "participants" || hash === "projects") {
+      if (hash === "participants" || hash === "projects") {
         setActiveTab(hash);
       }
     };
@@ -584,9 +583,6 @@ export default function ResidentDashboard({
                 <Tabs.Tab value="projects" leftSection={<IconBulb size={20} />}>
                   Projects
                 </Tabs.Tab>
-                <Tabs.Tab value="asks-offers" leftSection={<IconHandStop size={20} />}>
-                  Asks & Offers
-                </Tabs.Tab>
               </Tabs.List>
 
               <Tabs.Panel value="participants" pt="lg">
@@ -602,13 +598,6 @@ export default function ResidentDashboard({
                   residentProjects={residentProjects}
                   eventId={eventId}
                   onAddProject={handleAddProject}
-                />
-              </Tabs.Panel>
-
-              <Tabs.Panel value="asks-offers" pt="lg">
-                <AsksOffersTab
-                  eventId={eventId}
-                  session={session}
                 />
               </Tabs.Panel>
             </Tabs>
