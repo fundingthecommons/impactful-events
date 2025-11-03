@@ -42,6 +42,17 @@ Each entry follows this structure:
 
 ---
 
+## 2025-01-11 - @typescript-eslint/prefer-nullish-coalescing - [Project: ftc-platform]
+
+**Problem**: Used logical OR (||) instead of nullish coalescing (??) for default values
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: scripts/check-missing-telegram.ts:42,44
+**Code Context**: `name: nameResponse?.answer || 'Unknown'` and `telegramAnswer: telegramResponse?.answer || '(no answer)'`
+**Fix Applied**: Changed to use nullish coalescing: `name: nameResponse?.answer ?? 'Unknown'` and `telegramAnswer: telegramResponse?.answer ?? '(no answer)'`
+**Prevention**: Always use ?? for default values instead of ||. The ?? operator only falls back on null/undefined, while || also treats empty strings, 0, false as falsy. Use || only when you intentionally want to treat all falsy values the same.
+
+---
+
 ## Usage
 
 This log is referenced by CLAUDE.md to help Claude Code generate ESLint-compliant code on the first try by learning from actual mistakes made in this specific codebase.

@@ -39,9 +39,9 @@ async function checkMissingTelegram() {
     if (!hasTelegram) {
       missingTelegram.push({
         email: app.email,
-        name: nameResponse?.answer || 'Unknown',
+        name: nameResponse?.answer ?? 'Unknown',
         applicationId: app.id,
-        telegramAnswer: telegramResponse?.answer || '(no answer)',
+        telegramAnswer: telegramResponse?.answer ?? '(no answer)',
       });
     }
   }
