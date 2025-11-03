@@ -13,7 +13,6 @@ import {
   Badge,
   Avatar,
   ActionIcon,
-  Tooltip,
   Alert,
   Button,
   Loader,
