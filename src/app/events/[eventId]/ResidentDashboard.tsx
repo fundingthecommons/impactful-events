@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { type Session } from "next-auth";
 import { useForm } from "@mantine/form";
@@ -22,7 +22,6 @@ import {
   Avatar,
   ActionIcon,
   Tooltip,
-  Tabs,
   Modal,
   TextInput,
   Textarea,
@@ -34,8 +33,6 @@ import {
 } from "@mantine/core";
 import {
   IconUser,
-  IconUsers,
-  IconBulb,
   IconAlertCircle,
   IconExternalLink,
   IconBrandGithub,
@@ -50,6 +47,7 @@ import {
   IconWorld,
   IconStar,
   IconX,
+  IconBulb,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { api } from "~/trpc/react";
@@ -95,32 +93,6 @@ export default function ResidentDashboard({
   const [logoUploadProgress, setLogoUploadProgress] = useState(0);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [bannerUploadProgress, setBannerUploadProgress] = useState(0);
-  const [activeTab, setActiveTab] = useState<string>("participants");
-
-  // Handle URL hash navigation for tabs
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1); // Remove the # symbol
-      if (hash === "participants" || hash === "projects") {
-        setActiveTab(hash);
-      }
-    };
-
-    // Set initial tab from hash
-    handleHashChange();
-
-    // Listen for hash changes
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
-
-  // Update URL hash when tab changes
-  const handleTabChange = (value: string | null) => {
-    if (value) {
-      setActiveTab(value);
-      window.location.hash = value;
-    }
-  };
 
   // Fetch collaborators when editing a project
   const { data: projectCollaboratorsData, refetch: refetchCollaborators } =
@@ -570,36 +542,6 @@ export default function ResidentDashboard({
           {/* Asks and Offers Widget */}
           <Grid.Col span={{ base: 12, md: 6 }}>
             <AsksAndOffers eventId={eventId} session={session} />
-          </Grid.Col>
-
-          {/* Participants and Projects Tabs */}
-          <Grid.Col span={12}>
-            <Tabs value={activeTab} onChange={handleTabChange} variant="outline">
-              <Tabs.List grow>
-                <Tabs.Tab value="participants" leftSection={<IconUsers size={20} />}>
-                  Participants
-                </Tabs.Tab>
-                <Tabs.Tab value="projects" leftSection={<IconBulb size={20} />}>
-                  Projects
-                </Tabs.Tab>
-              </Tabs.List>
-
-              <Tabs.Panel value="participants" pt="lg">
-                <ParticipantsTab
-                  residentsData={residentsData}
-                  eventId={eventId}
-                  session={session}
-                />
-              </Tabs.Panel>
-
-              <Tabs.Panel value="projects" pt="lg">
-                <ProjectsTab
-                  residentProjects={residentProjects}
-                  eventId={eventId}
-                  onAddProject={handleAddProject}
-                />
-              </Tabs.Panel>
-            </Tabs>
           </Grid.Col>
         </Grid>
       </Stack>

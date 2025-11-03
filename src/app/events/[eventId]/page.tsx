@@ -122,19 +122,22 @@ export default function EventPage({ params }: EventPageProps) {
   );
 
   // Get user application (only for authenticated users)
-  const { data: userApplication } = api.application.getApplication.useQuery(
+  const { data: userApplication, isLoading: isApplicationLoading } = api.application.getApplication.useQuery(
     { eventId },
     { enabled: !!eventId && !!session?.user }
   );
 
   // Check if user is a mentor for this event (bypass latePass requirement)
-  const { data: isMentor } = api.event.checkMentorRole.useQuery(
+  const { data: isMentor, isLoading: isMentorLoading } = api.event.checkMentorRole.useQuery(
     { eventId },
     { enabled: !!session?.user && !!eventId }
   );
 
 
-  if (status === "loading" || eventLoading) {
+  // Show loading while authentication, event data, or access checks are in progress
+  const isLoadingAccess = status === "loading" || eventLoading || isCheckingAccess || isMentorLoading || isApplicationLoading;
+
+  if (isLoadingAccess) {
     return <div>Loading...</div>;
   }
 
@@ -153,12 +156,12 @@ export default function EventPage({ params }: EventPageProps) {
   // Check if user is accepted for this specific event
   const isAcceptedForThisEvent = userApplication?.status === "ACCEPTED";
   const isAdmin = session.user.role === "admin" || session.user.role === "staff";
-  
+
   // Determine if user can view this page
   const canViewPage = isAcceptedForThisEvent || isAdmin || hasLatePassAccess || isMentor;
-  
+
   // Check if applications are closed (no late pass, no admin/mentor privileges)
-  const applicationsAreClosed = !hasLatePassAccess && !isAdmin && !isMentor && !isCheckingAccess;
+  const applicationsAreClosed = !hasLatePassAccess && !isAdmin && !isMentor;
 
   console.log("🔍 Access Control Debug:", {
     isAcceptedForThisEvent,
@@ -167,10 +170,13 @@ export default function EventPage({ params }: EventPageProps) {
     isMentor,
     canViewPage,
     userApplication: userApplication?.status,
-    applicationsAreClosed
+    applicationsAreClosed,
+    isLoadingAccess,
+    isMentorLoading,
+    isApplicationLoading
   });
-  
-  // Deny access if user doesn't meet requirements
+
+  // Deny access if user doesn't meet requirements (only after all checks complete)
   if (!canViewPage) {
     return (
       <Container size="md" py="xl">

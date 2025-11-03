@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, Menu } from "@mantine/core";
-import { IconMapPin, IconHeart, IconFolder, IconNews, IconHandStop } from "@tabler/icons-react";
+import { IconMapPin, IconHeart, IconFolder, IconNews, IconHandStop, IconUsers, IconBulb } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -27,7 +27,8 @@ export default function UserNavigation() {
     if (pathname.startsWith("/praise")) return "praise";
     if (pathname.startsWith("/events/funding-commons-residency-2025/updates")) return "updates";
     if (pathname.startsWith("/events/funding-commons-residency-2025/asks-offers")) return "asks-offers";
-    if (pathname.startsWith("/events/funding-commons-residency-2025/projects")) return "projects";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/participants")) return "participants";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/projects")) return "event-projects";
     if (pathname.startsWith("/events/funding-commons-residency-2025")) return "residency";
     return null;
   };
@@ -57,15 +58,35 @@ export default function UserNavigation() {
           Asks & Offers
         </TabsTab>
 
-        {/* Projects Dropdown */}
+        <TabsTab
+          value="participants"
+          leftSection={<IconUsers size={16} />}
+          component={Link}
+          href="/events/funding-commons-residency-2025/participants"
+          style={{ textDecoration: 'none' }}
+        >
+          Participants
+        </TabsTab>
+
+        <TabsTab
+          value="event-projects"
+          leftSection={<IconBulb size={16} />}
+          component={Link}
+          href="/events/funding-commons-residency-2025/projects"
+          style={{ textDecoration: 'none' }}
+        >
+          Projects
+        </TabsTab>
+
+        {/* My Projects Dropdown */}
         <Menu trigger="hover" openDelay={100} closeDelay={400}>
           <Menu.Target>
             <TabsTab
-              value="projects"
+              value="my-projects"
               leftSection={<IconFolder size={16} />}
               style={{ cursor: 'pointer' }}
             >
-              Projects
+              My Projects
             </TabsTab>
           </Menu.Target>
           <Menu.Dropdown>
