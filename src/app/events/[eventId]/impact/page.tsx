@@ -167,23 +167,10 @@ export default function ImpactPage({ params }: ImpactPageProps) {
     <Container size="xl" py="xl">
       <Title order={1} mb="xl">Event Impact</Title>
 
-      {/* Stats Overview */}
-      {stats && (
-        <Group mb="xl" grow>
-          <Paper p="md" withBorder>
-            <Text size="sm" c="dimmed">Praise Received</Text>
-            <Text size="xl" fw={700}>{stats.receivedCount}</Text>
-          </Paper>
-          <Paper p="md" withBorder>
-            <Text size="sm" c="dimmed">Praise Sent</Text>
-            <Text size="xl" fw={700}>{stats.sentCount}</Text>
-          </Paper>
-        </Group>
-      )}
-
       <Tabs value={activeTab} onChange={setActiveTab}>
         <Tabs.List>
           <Tabs.Tab value="metrics">Metrics</Tabs.Tab>
+          <Tabs.Tab value="your-impact">Your Impact</Tabs.Tab>
           <Tabs.Tab value="residents">Residents</Tabs.Tab>
           <Tabs.Tab value="leaderboard">Leaderboard</Tabs.Tab>
           <Tabs.Tab value="transactions">Transactions</Tabs.Tab>
@@ -211,6 +198,26 @@ export default function ImpactPage({ params }: ImpactPageProps) {
               <Text size="2xl" fw={700}>{totalLikes}</Text>
             </Paper>
           </Group>
+        </Tabs.Panel>
+
+        {/* Your Impact Tab */}
+        <Tabs.Panel value="your-impact" pt="md">
+          {stats ? (
+            <Group grow>
+              <Paper p="lg" withBorder>
+                <Text size="sm" c="dimmed" mb="xs">Praise Received</Text>
+                <Text size="2xl" fw={700}>{stats.receivedCount}</Text>
+              </Paper>
+              <Paper p="lg" withBorder>
+                <Text size="sm" c="dimmed" mb="xs">Praise Sent</Text>
+                <Text size="2xl" fw={700}>{stats.sentCount}</Text>
+              </Paper>
+            </Group>
+          ) : (
+            <Center>
+              <Loader />
+            </Center>
+          )}
         </Tabs.Panel>
 
         {/* Residents Tab */}
