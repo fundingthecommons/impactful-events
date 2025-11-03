@@ -354,57 +354,94 @@ export const profileRouter = createTRPCRouter({
         cursor,
       } = input;
 
-      const profileWhere: Prisma.UserProfileWhereInput = {};
-      const userWhere: Prisma.UserWhereInput = {};
+      // Build where conditions
+      const whereConditions: Prisma.UserWhereInput[] = [];
 
-      // Text search across multiple fields
+      // Text search across multiple fields (OR logic)
       if (search) {
-        userWhere.OR = [
-          { name: { contains: search, mode: "insensitive" } },
-          // Search in UserSkills (normalized skills)
-          {
-            userSkills: {
-              some: {
-                skill: {
-                  name: { contains: search, mode: "insensitive" }
+        whereConditions.push({
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            {
+              userSkills: {
+                some: {
+                  skill: {
+                    name: { contains: search, mode: "insensitive" }
+                  }
                 }
               }
-            }
-          },
-        ];
-        profileWhere.OR = [
-          { bio: { contains: search, mode: "insensitive" } },
-          { jobTitle: { contains: search, mode: "insensitive" } },
-          { company: { contains: search, mode: "insensitive" } },
-          { skills: { hasSome: [search] } }, // Legacy skills
-          { priorExperience: { contains: search, mode: "insensitive" } }, // New field
-        ];
+            },
+            {
+              profile: {
+                bio: { contains: search, mode: "insensitive" }
+              }
+            },
+            {
+              profile: {
+                jobTitle: { contains: search, mode: "insensitive" }
+              }
+            },
+            {
+              profile: {
+                company: { contains: search, mode: "insensitive" }
+              }
+            },
+            {
+              profile: {
+                priorExperience: { contains: search, mode: "insensitive" }
+              }
+            },
+          ]
+        });
       }
 
-      // Profile-specific filters
+      // Skills filter - use UserSkills relationship
       if (skills && skills.length > 0) {
-        profileWhere.skills = { hasSome: skills };
+        whereConditions.push({
+          userSkills: {
+            some: {
+              skill: {
+                name: { in: skills }
+              }
+            }
+          }
+        });
       }
+
+      // Location filter
       if (location) {
-        profileWhere.location = { contains: location, mode: "insensitive" };
+        whereConditions.push({
+          profile: {
+            location: { contains: location, mode: "insensitive" }
+          }
+        });
       }
+
+      // Availability filters
       if (availableForMentoring !== undefined) {
-        profileWhere.availableForMentoring = availableForMentoring;
+        whereConditions.push({
+          profile: {
+            availableForMentoring: availableForMentoring
+          }
+        });
       }
       if (availableForHiring !== undefined) {
-        profileWhere.availableForHiring = availableForHiring;
+        whereConditions.push({
+          profile: {
+            availableForHiring: availableForHiring
+          }
+        });
       }
       if (availableForOfficeHours !== undefined) {
-        profileWhere.availableForOfficeHours = availableForOfficeHours;
+        whereConditions.push({
+          profile: {
+            availableForOfficeHours: availableForOfficeHours
+          }
+        });
       }
 
       const users = await ctx.db.user.findMany({
-        where: {
-          ...userWhere,
-          ...(Object.keys(profileWhere).length > 0 ? {
-            profile: profileWhere
-          } : {}),
-        },
+        where: whereConditions.length > 0 ? { AND: whereConditions } : {},
         include: {
           profile: {
             include: {
@@ -830,6 +867,35 @@ export const profileRouter = createTRPCRouter({
         totalProfiles: stats._count.id,
         availabilityStats: availableStats,
       };
+    }),
+
+  // Get all skills available in the system
+  getAllSkills: publicProcedure
+    .query(async ({ ctx }) => {
+      const skills = await ctx.db.skills.findMany({
+        where: {
+          isActive: true,
+          popularity: {
+            gt: 0, // Only show skills that are actually being used
+          }
+        },
+        orderBy: {
+          popularity: 'desc'
+        },
+        select: {
+          id: true,
+          name: true,
+          category: true,
+          popularity: true,
+        }
+      });
+
+      return skills.map(skill => ({
+        value: skill.name,
+        label: skill.name,
+        category: skill.category,
+        popularity: skill.popularity,
+      }));
     }),
 
   // Check if mentor has completed their profile

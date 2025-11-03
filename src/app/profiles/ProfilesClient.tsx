@@ -78,17 +78,9 @@ export function ProfilesClient() {
   );
 
   const { data: stats } = api.profile.getProfileStats.useQuery();
+  const { data: allSkills = [] } = api.profile.getAllSkills.useQuery();
 
   const allMembers = data?.pages.flatMap((page) => page.members) ?? [];
-
-  // Get unique skills from all profiles for filter options
-  const allSkills = Array.from(
-    new Set(
-      allMembers
-        .filter((member) => member.profile?.skills)
-        .flatMap((member) => member.profile!.skills)
-    )
-  ).map((skill) => ({ value: skill, label: skill }));
 
   const handleFilterChange = (key: keyof ProfileFilters, value: string | string[] | boolean | undefined) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -280,16 +272,16 @@ export function ProfilesClient() {
                           </Text>
                         )}
 
-                        {member.profile?.skills && member.profile.skills.length > 0 && (
+                        {member.userSkills && member.userSkills.length > 0 && (
                           <Group gap={4} mb="xs">
-                            {member.profile.skills.slice(0, 3).map((skill) => (
-                              <Badge key={skill} size="xs" variant="light">
-                                {skill}
+                            {member.userSkills.slice(0, 3).map((userSkill) => (
+                              <Badge key={userSkill.id} size="xs" variant="light">
+                                {userSkill.skill.name}
                               </Badge>
                             ))}
-                            {member.profile.skills.length > 3 && (
+                            {member.userSkills.length > 3 && (
                               <Badge size="xs" variant="outline" color="gray">
-                                +{member.profile.skills.length - 3}
+                                +{member.userSkills.length - 3}
                               </Badge>
                             )}
                           </Group>
