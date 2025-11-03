@@ -1,12 +1,10 @@
 "use client";
 
-import { Tabs, Menu } from "@mantine/core";
-import { IconMapPin, IconHeart, IconFolder, IconNews, IconHandStop, IconUsers, IconBulb } from "@tabler/icons-react";
+import { Tabs } from "@mantine/core";
+import { IconMapPin, IconHeart, IconNews, IconHandStop, IconUsers, IconBulb } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
-import { api } from "~/trpc/react";
-import { useSession } from "next-auth/react";
 
 // Proper type for Tab component with Link
 type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
@@ -15,17 +13,11 @@ type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
 
 export default function UserNavigation() {
   const pathname = usePathname();
-  const { data: session } = useSession();
-
-  // Fetch user's projects
-  const { data: userProjects = [] } = api.project.getMyProjects.useQuery(undefined, {
-    enabled: !!session?.user,
-  });
 
   // Determine active tab based on current path
   const getActiveTab = () => {
-    if (pathname.startsWith("/praise")) return "praise";
-    if (pathname.startsWith("/events/funding-commons-residency-2025/updates")) return "updates";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/impact")) return "impact";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/timeline")) return "timeline";
     if (pathname.startsWith("/events/funding-commons-residency-2025/asks-offers")) return "asks-offers";
     if (pathname.startsWith("/events/funding-commons-residency-2025/participants")) return "participants";
     if (pathname.startsWith("/events/funding-commons-residency-2025/projects")) return "event-projects";
@@ -45,7 +37,7 @@ export default function UserNavigation() {
           href="https://platform.fundingthecommons.io/events/funding-commons-residency-2025"
           style={{ textDecoration: 'none' }}
         >
-          Residency
+          My Residency
         </TabsTab>
 
         <TabsTab
@@ -78,52 +70,24 @@ export default function UserNavigation() {
           Projects
         </TabsTab>
 
-        {/* My Projects Dropdown */}
-        <Menu trigger="hover" openDelay={100} closeDelay={400}>
-          <Menu.Target>
-            <TabsTab
-              value="my-projects"
-              leftSection={<IconFolder size={16} />}
-              style={{ cursor: 'pointer' }}
-            >
-              My Projects
-            </TabsTab>
-          </Menu.Target>
-          <Menu.Dropdown>
-            {userProjects.length > 0 ? (
-              userProjects.map((project) => (
-                <Menu.Item
-                  key={project.id}
-                  component={Link}
-                  href={`/events/${project.eventId}/projects/${project.id}`}
-                >
-                  {project.title}
-                </Menu.Item>
-              ))
-            ) : (
-              <Menu.Item disabled>No projects yet</Menu.Item>
-            )}
-          </Menu.Dropdown>
-        </Menu>
-
         <TabsTab
-          value="updates"
+          value="timeline"
           leftSection={<IconNews size={16} />}
           component={Link}
-          href="/events/funding-commons-residency-2025/updates"
+          href="/events/funding-commons-residency-2025/timeline"
           style={{ textDecoration: 'none' }}
         >
-          Updates
+          Timeline
         </TabsTab>
 
         <TabsTab
-          value="praise"
+          value="impact"
           leftSection={<IconHeart size={16} />}
           component={Link}
-          href="https://platform.fundingthecommons.io/praise"
+          href="/events/funding-commons-residency-2025/impact"
           style={{ textDecoration: 'none' }}
         >
-          Praise
+          Impact
         </TabsTab>
       </Tabs.List>
     </Tabs>
