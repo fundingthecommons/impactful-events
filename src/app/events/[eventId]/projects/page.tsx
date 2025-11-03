@@ -32,7 +32,7 @@ interface ProjectsPageProps {
 
 export default function ProjectsPage({ params }: ProjectsPageProps) {
   const [eventId, setEventId] = useState<string>("");
-  const { data: session, status } = useSession();
+  const { status } = useSession();
 
   // Await params in Next.js 15
   useEffect(() => {
