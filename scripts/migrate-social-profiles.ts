@@ -42,7 +42,7 @@ const EVENT_ID = args.includes('--event-id') ? args[args.indexOf('--event-id') +
  * - Missing https://
  */
 function cleanSocialUrl(value: string, platform: 'twitter' | 'github' | 'linkedin' | 'telegram'): string | null {
-  if (!value || !value.trim()) return null;
+  if (!value?.trim()) return null;
 
   let cleaned = value.trim();
 
@@ -53,7 +53,7 @@ function cleanSocialUrl(value: string, platform: 'twitter' | 'github' | 'linkedi
   // Extract the correct URL from duplicates
   if (platform === 'twitter') {
     // Fix: https://x.com/https://x.com/username → https://x.com/username
-    const twitterMatch = cleaned.match(/https?:\/\/(x\.com|twitter\.com)\/https?:\/\/(x\.com|twitter\.com)\/(.+)/);
+    const twitterMatch = /https?:\/\/(x\.com|twitter\.com)\/https?:\/\/(x\.com|twitter\.com)\/(.+)/.exec(cleaned);
     if (twitterMatch) {
       cleaned = `https://x.com/${twitterMatch[3]}`;
     }
@@ -62,7 +62,7 @@ function cleanSocialUrl(value: string, platform: 'twitter' | 'github' | 'linkedi
   } else if (platform === 'github') {
     // Fix: https://github.com/https://github.com/username → https://github.com/username
     // Fix: https://github.com/https://www.linkedin.com/... → reject (invalid)
-    const githubMatch = cleaned.match(/https?:\/\/github\.com\/https?:\/\/github\.com\/(.+)/);
+    const githubMatch = /https?:\/\/github\.com\/https?:\/\/github\.com\/(.+)/.exec(cleaned);
     if (githubMatch) {
       cleaned = `https://github.com/${githubMatch[1]}`;
     } else if (cleaned.includes('github.com/https://')) {
@@ -74,7 +74,7 @@ function cleanSocialUrl(value: string, platform: 'twitter' | 'github' | 'linkedi
   } else if (platform === 'linkedin') {
     // Fix: https://linkedin.com/in/https://linkedin.com/in/username → https://linkedin.com/in/username
     // Fix: https://linkedin.com/in/https://www.linkedin.com/in/username → https://linkedin.com/in/username
-    const linkedinMatch = cleaned.match(/https?:\/\/(www\.)?linkedin\.com\/in\/https?:\/\/(www\.)?linkedin\.com\/in\/(.+)/);
+    const linkedinMatch = /https?:\/\/(www\.)?linkedin\.com\/in\/https?:\/\/(www\.)?linkedin\.com\/in\/(.+)/.exec(cleaned);
     if (linkedinMatch) {
       cleaned = `https://linkedin.com/in/${linkedinMatch[3]}`;
     } else if (cleaned.includes('linkedin.com/in/https://')) {
@@ -91,7 +91,7 @@ function cleanSocialUrl(value: string, platform: 'twitter' | 'github' | 'linkedi
     if (/^\+?\d+/.test(cleaned)) return cleaned;
     // If it's a t.me link, extract the handle
     if (cleaned.includes('t.me/')) {
-      const match = cleaned.match(/t\.me\/([^\/\s]+)/);
+      const match = /t\.me\/([^\/\s]+)/.exec(cleaned);
       if (match?.[1]) return match[1];
     }
     // Remove @ if present

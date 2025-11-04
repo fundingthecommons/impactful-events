@@ -268,7 +268,7 @@ async function collectData(): Promise<UserSkillData[]> {
     // Parse skills array from answer
     let skills: string[];
     try {
-      const parsed = JSON.parse(response.answer);
+      const parsed: unknown = JSON.parse(response.answer);
       if (Array.isArray(parsed)) {
         skills = parsed.filter((s): s is string => typeof s === 'string' && s.trim().length > 0);
       } else {
