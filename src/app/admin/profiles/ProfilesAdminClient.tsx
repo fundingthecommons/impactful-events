@@ -17,13 +17,11 @@ import {
   TextInput,
   Select,
   Popover,
-  Button,
   Divider,
 } from "@mantine/core";
-import { IconAlertCircle, IconSearch, IconExternalLink } from "@tabler/icons-react";
+import { IconAlertCircle, IconSearch } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
-import Link from "next/link";
 
 interface ProfilesAdminClientProps {
   events: Array<{

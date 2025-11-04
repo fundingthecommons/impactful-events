@@ -53,6 +53,17 @@ Each entry follows this structure:
 
 ---
 
+## 2025-01-11 15:30 - @typescript-eslint/no-unused-vars - [Project: ftc-platform]
+
+**Problem**: Multiple unused imports (Button, IconExternalLink, Link) in profiles admin page
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/app/admin/profiles/ProfilesAdminClient.tsx:20,23,26
+**Code Context**: `import { ..., Button, ... } from "@mantine/core";`, `import { ..., IconExternalLink } from "@tabler/icons-react";`, `import Link from "next/link";`
+**Fix Applied**: Removed all three unused imports: `Button`, `IconExternalLink`, and `Link`
+**Prevention**: After refactoring components, always run `bun run check` to identify and remove unused imports. Unused imports bloat bundle size and fail Vercel builds.
+
+---
+
 ## Usage
 
 This log is referenced by CLAUDE.md to help Claude Code generate ESLint-compliant code on the first try by learning from actual mistakes made in this specific codebase.
