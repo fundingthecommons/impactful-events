@@ -25,44 +25,44 @@ import { api } from "~/trpc/react";
 import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
 import Link from "next/link";
 
-interface ResidentProfilesClientProps {
-  event: {
+interface ProfilesAdminClientProps {
+  events: Array<{
     id: string;
     name: string;
-    description: string | null;
     type: string;
     startDate: Date;
     endDate: Date | null;
-  };
+  }>;
 }
 
 const TELEGRAM_MESSAGE = `You are one of the few residents who hasn't yet updated their profile - please update it here and add the projects you're working on asap https://platform.fundingthecommons.io/profile/edit`;
 
-export default function ResidentProfilesClient({
-  event,
-}: ResidentProfilesClientProps) {
+export default function ProfilesAdminClient({
+  events,
+}: ProfilesAdminClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterByCompleteness, setFilterByCompleteness] = useState<
     string | null
   >(null);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
-  // Fetch resident profiles data
-  const { data: residents, isLoading, error } = api.profile.getResidentProfilesForAdmin.useQuery({
-    eventId: event.id,
+  // Fetch user profiles data with optional event filter
+  const { data: users, isLoading, error } = api.profile.getAllProfilesForAdmin.useQuery({
+    eventId: selectedEventId ?? undefined,
   });
 
-  // Filter residents based on search and completeness filter
-  const filteredResidents = residents?.filter((resident) => {
+  // Filter users based on search and completeness filter
+  const filteredUsers = users?.filter((user) => {
     // Search filter
     const matchesSearch =
       !searchQuery ||
-      resident.name?.toLowerCase().includes(searchQuery.toLowerCase());
+      user.name?.toLowerCase().includes(searchQuery.toLowerCase());
 
     // Completeness filter
     const matchesCompleteness =
       !filterByCompleteness ||
-      (filterByCompleteness === "complete" && resident.completeness.meetsThreshold) ||
-      (filterByCompleteness === "incomplete" && !resident.completeness.meetsThreshold);
+      (filterByCompleteness === "complete" && user.completeness.meetsThreshold) ||
+      (filterByCompleteness === "incomplete" && !user.completeness.meetsThreshold);
 
     return matchesSearch && matchesCompleteness;
   });
@@ -86,14 +86,18 @@ export default function ResidentProfilesClient({
           color="red"
           variant="filled"
         >
-          Failed to load resident profiles: {error.message}
+          Failed to load user profiles: {error.message}
         </Alert>
       </Container>
     );
   }
 
-  const incompleteCount = residents?.filter(r => !r.completeness.meetsThreshold).length ?? 0;
-  const completeCount = residents?.filter(r => r.completeness.meetsThreshold).length ?? 0;
+  const incompleteCount = users?.filter(u => !u.completeness.meetsThreshold).length ?? 0;
+  const completeCount = users?.filter(u => u.completeness.meetsThreshold).length ?? 0;
+
+  // Get selected event name
+  const selectedEvent = events.find(e => e.id === selectedEventId);
+  const eventFilterLabel = selectedEvent ? selectedEvent.name : "All Users";
 
   return (
     <Container size="xl" py="xl">
@@ -101,10 +105,10 @@ export default function ResidentProfilesClient({
         {/* Header */}
         <div>
           <Title order={1} mb="xs">
-            Resident Profiles
+            User Profiles
           </Title>
           <Text c="dimmed" size="lg">
-            {event.name}
+            View and manage user profile completion
           </Text>
         </div>
 
@@ -112,10 +116,13 @@ export default function ResidentProfilesClient({
         <Group gap="md">
           <Paper p="md" withBorder>
             <Text size="sm" c="dimmed">
-              Total Residents
+              Total Users
             </Text>
             <Text size="xl" fw={700}>
-              {residents?.length ?? 0}
+              {users?.length ?? 0}
+            </Text>
+            <Text size="xs" c="dimmed" mt={4}>
+              {eventFilterLabel}
             </Text>
           </Paper>
           <Paper p="md" withBorder>
@@ -138,6 +145,20 @@ export default function ResidentProfilesClient({
 
         {/* Filters */}
         <Group gap="md">
+          <Select
+            placeholder="Filter by event"
+            data={[
+              { value: "all", label: "All Users" },
+              ...events.map(event => ({
+                value: event.id,
+                label: event.name,
+              })),
+            ]}
+            value={selectedEventId ?? "all"}
+            onChange={(value) => setSelectedEventId(value === "all" ? null : value)}
+            clearable
+            style={{ minWidth: 250 }}
+          />
           <TextInput
             placeholder="Search by name..."
             leftSection={<IconSearch size={16} />}
@@ -148,7 +169,7 @@ export default function ResidentProfilesClient({
           <Select
             placeholder="Filter by completeness"
             data={[
-              { value: "all", label: "All Residents" },
+              { value: "all", label: "All Users" },
               { value: "complete", label: "Complete (≥70%)" },
               { value: "incomplete", label: "Incomplete (<70%)" },
             ]}
@@ -159,12 +180,12 @@ export default function ResidentProfilesClient({
           />
         </Group>
 
-        {/* Residents Table */}
+        {/* Users Table */}
         <Paper withBorder>
           <Table striped highlightOnHover>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Resident</Table.Th>
+                <Table.Th>User</Table.Th>
                 <Table.Th>Profile Completeness</Table.Th>
                 <Table.Th>Projects</Table.Th>
                 <Table.Th>Timeline Updates</Table.Th>
@@ -172,30 +193,30 @@ export default function ResidentProfilesClient({
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {filteredResidents?.length === 0 ? (
+              {filteredUsers?.length === 0 ? (
                 <Table.Tr>
                   <Table.Td colSpan={5}>
                     <Text ta="center" c="dimmed" py="xl">
-                      {searchQuery || filterByCompleteness
-                        ? "No residents match your filters"
-                        : "No accepted residents found for this event"}
+                      {searchQuery || filterByCompleteness || selectedEventId
+                        ? "No users match your filters"
+                        : "No users found"}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
               ) : (
-                filteredResidents?.map((resident) => (
-                  <Table.Tr key={resident.userId}>
-                    {/* Resident Info */}
+                filteredUsers?.map((user) => (
+                  <Table.Tr key={user.userId}>
+                    {/* User Info */}
                     <Table.Td>
                       <Group gap="sm">
                         <Avatar
-                          src={resident.image}
-                          alt={resident.name ?? "Resident"}
+                          src={user.image}
+                          alt={user.name ?? "User"}
                           radius="xl"
                           size="md"
                         />
                         <div>
-                          <Text fw={500}>{resident.name ?? "Unknown"}</Text>
+                          <Text fw={500}>{user.name ?? "Unknown"}</Text>
                         </div>
                       </Group>
                     </Table.Td>
@@ -205,11 +226,11 @@ export default function ResidentProfilesClient({
                       <Stack gap="xs">
                         <Group gap="xs" align="center">
                           <Progress
-                            value={resident.completeness.percentage}
+                            value={user.completeness.percentage}
                             color={
-                              resident.completeness.percentage >= 70
+                              user.completeness.percentage >= 70
                                 ? "green"
-                                : resident.completeness.percentage >= 40
+                                : user.completeness.percentage >= 40
                                   ? "orange"
                                   : "red"
                             }
@@ -218,19 +239,19 @@ export default function ResidentProfilesClient({
                             style={{ flex: 1, minWidth: 150 }}
                           />
                           <Text size="sm" fw={600} style={{ minWidth: 40 }}>
-                            {resident.completeness.percentage}%
+                            {user.completeness.percentage}%
                           </Text>
                         </Group>
                         <Text size="xs" c="dimmed">
-                          {resident.completeness.completedFields} of{" "}
-                          {resident.completeness.totalFields} fields
+                          {user.completeness.completedFields} of{" "}
+                          {user.completeness.totalFields} fields
                         </Text>
                       </Stack>
                     </Table.Td>
 
                     {/* Project Count with Popover */}
                     <Table.Td>
-                      {resident.projectCount > 0 ? (
+                      {user.projectCount > 0 ? (
                         <Popover width={350} position="bottom" withArrow shadow="md">
                           <Popover.Target>
                             <Group gap="xs" align="center" style={{ cursor: "pointer" }}>
@@ -239,42 +260,28 @@ export default function ResidentProfilesClient({
                                 variant="light"
                                 size="lg"
                               >
-                                {resident.projectCount}
+                                {user.projectCount}
                               </Badge>
                               <Text size="xs" c="dimmed">
-                                {resident.projectCount === 1 ? "project" : "projects"}
+                                {user.projectCount === 1 ? "project" : "projects"}
                               </Text>
                             </Group>
                           </Popover.Target>
                           <Popover.Dropdown>
                             <Stack gap="xs">
                               <Text size="sm" fw={600} mb="xs">
-                                {resident.name}&apos;s Projects
+                                {user.name}&apos;s Projects
                               </Text>
                               <Divider />
-                              {resident.projects?.map((project) => (
-                                <Button
-                                  key={project.id}
-                                  component={Link}
-                                  href={`/events/${event.id}/projects/${project.id}`}
-                                  variant="subtle"
-                                  fullWidth
-                                  leftSection={<IconExternalLink size={16} />}
-                                  style={{
-                                    justifyContent: "flex-start",
-                                    height: "auto",
-                                    padding: "8px 12px",
-                                  }}
-                                >
-                                  <Stack gap={0} style={{ flex: 1, alignItems: "flex-start" }}>
-                                    <Text size="sm" fw={500}>
-                                      {project.title}
-                                    </Text>
-                                    <Text size="xs" c="dimmed">
-                                      {project.updateCount} update{project.updateCount !== 1 ? "s" : ""}
-                                    </Text>
-                                  </Stack>
-                                </Button>
+                              {user.projects?.map((project) => (
+                                <div key={project.id}>
+                                  <Text size="sm" fw={500}>
+                                    {project.title}
+                                  </Text>
+                                  <Text size="xs" c="dimmed">
+                                    {project.updateCount} update{project.updateCount !== 1 ? "s" : ""}
+                                  </Text>
+                                </div>
                               ))}
                             </Stack>
                           </Popover.Dropdown>
@@ -291,7 +298,7 @@ export default function ResidentProfilesClient({
 
                     {/* Timeline Updates Count with Popover */}
                     <Table.Td>
-                      {resident.projectUpdateCount > 0 ? (
+                      {user.projectUpdateCount > 0 ? (
                         <Popover width={350} position="bottom" withArrow shadow="md">
                           <Popover.Target>
                             <Group gap="xs" align="center" style={{ cursor: "pointer" }}>
@@ -300,10 +307,10 @@ export default function ResidentProfilesClient({
                                 variant="light"
                                 size="lg"
                               >
-                                {resident.projectUpdateCount}
+                                {user.projectUpdateCount}
                               </Badge>
                               <Text size="xs" c="dimmed">
-                                {resident.projectUpdateCount === 1 ? "update" : "updates"}
+                                {user.projectUpdateCount === 1 ? "update" : "updates"}
                               </Text>
                             </Group>
                           </Popover.Target>
@@ -313,33 +320,19 @@ export default function ResidentProfilesClient({
                                 Timeline Updates by Project
                               </Text>
                               <Divider />
-                              {resident.projects
+                              {user.projects
                                 ?.filter((project) => project.updateCount > 0)
                                 .map((project) => (
-                                  <Button
-                                    key={project.id}
-                                    component={Link}
-                                    href={`/events/${event.id}/projects/${project.id}`}
-                                    variant="subtle"
-                                    fullWidth
-                                    leftSection={<IconExternalLink size={16} />}
-                                    style={{
-                                      justifyContent: "flex-start",
-                                      height: "auto",
-                                      padding: "8px 12px",
-                                    }}
-                                  >
-                                    <Stack gap={0} style={{ flex: 1, alignItems: "flex-start" }}>
-                                      <Text size="sm" fw={500}>
-                                        {project.title}
-                                      </Text>
-                                      <Text size="xs" c="dimmed">
-                                        {project.updateCount} update{project.updateCount !== 1 ? "s" : ""}
-                                      </Text>
-                                    </Stack>
-                                  </Button>
+                                  <div key={project.id}>
+                                    <Text size="sm" fw={500}>
+                                      {project.title}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                      {project.updateCount} update{project.updateCount !== 1 ? "s" : ""}
+                                    </Text>
+                                  </div>
                                 ))}
-                              {resident.projects?.filter((p) => p.updateCount > 0).length === 0 && (
+                              {user.projects?.filter((p) => p.updateCount > 0).length === 0 && (
                                 <Text size="sm" c="dimmed" ta="center" py="md">
                                   No updates yet
                                 </Text>
@@ -359,13 +352,19 @@ export default function ResidentProfilesClient({
 
                     {/* Telegram Contact */}
                     <Table.Td>
-                      <TelegramMessageButton
-                        application={resident.application}
-                        customMessage={TELEGRAM_MESSAGE}
-                        size={20}
-                        variant="filled"
-                        color="blue"
-                      />
+                      {user.application ? (
+                        <TelegramMessageButton
+                          application={user.application}
+                          customMessage={TELEGRAM_MESSAGE}
+                          size={20}
+                          variant="filled"
+                          color="blue"
+                        />
+                      ) : (
+                        <Text size="xs" c="dimmed">
+                          N/A
+                        </Text>
+                      )}
                     </Table.Td>
                   </Table.Tr>
                 ))

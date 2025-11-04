@@ -1450,6 +1450,150 @@ export const profileRouter = createTRPCRouter({
       return sortedResidents;
     }),
 
+  // Get all user profiles for admin with optional event filter
+  getAllProfilesForAdmin: protectedProcedure
+    .input(z.object({
+      eventId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Check admin access
+      if (ctx.session.user.role !== "admin" && ctx.session.user.role !== "staff") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Admin access required",
+        });
+      }
+
+      // Build the where clause for users based on event filter
+      const whereClause: Prisma.UserWhereInput = input.eventId
+        ? {
+            applications: {
+              some: {
+                eventId: input.eventId,
+                status: "ACCEPTED" as const,
+              },
+            },
+          }
+        : {};
+
+      // Get all users (or filtered by event)
+      const users = await ctx.db.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+        },
+        orderBy: {
+          name: "asc",
+        },
+      });
+
+      // Get profile data for each user
+      const usersWithProfiles = await Promise.all(
+        users.map(async (user) => {
+          const profile = await ctx.db.userProfile.findUnique({
+            where: { userId: user.id },
+            include: {
+              projects: {
+                select: {
+                  id: true,
+                  title: true,
+                  updates: {
+                    select: {
+                      id: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          // Get the accepted application for the filtered event (if eventId provided)
+          const application = input.eventId
+            ? await ctx.db.application.findFirst({
+                where: {
+                  userId: user.id,
+                  eventId: input.eventId,
+                  status: "ACCEPTED",
+                },
+                include: {
+                  user: {
+                    select: {
+                      name: true,
+                      email: true,
+                    },
+                  },
+                  responses: {
+                    include: {
+                      question: {
+                        select: {
+                          questionKey: true,
+                          questionEn: true,
+                          order: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              })
+            : null;
+
+          // Calculate profile completeness
+          const fields = {
+            name: !!user.name,
+            image: !!user.image,
+            bio: !!profile?.bio,
+            jobTitle: !!profile?.jobTitle,
+            company: !!profile?.company,
+            location: !!profile?.location,
+            skills: !!profile?.skills && profile.skills.length > 0,
+            githubUrl: !!profile?.githubUrl,
+            linkedinUrl: !!profile?.linkedinUrl,
+            website: !!profile?.website,
+          };
+
+          const completedFields = Object.values(fields).filter(Boolean).length;
+          const totalFields = Object.keys(fields).length;
+          const percentage = Math.round((completedFields / totalFields) * 100);
+
+          // Calculate total update count across all projects
+          const totalUpdates = profile?.projects.reduce(
+            (sum, project) => sum + project.updates.length,
+            0
+          ) ?? 0;
+
+          return {
+            userId: user.id,
+            name: user.name,
+            image: user.image,
+            completeness: {
+              percentage,
+              completedFields,
+              totalFields,
+              meetsThreshold: percentage >= 70,
+            },
+            projectCount: profile?.projects.length ?? 0,
+            projectUpdateCount: totalUpdates,
+            projects: profile?.projects.map(p => ({
+              id: p.id,
+              title: p.title,
+              updateCount: p.updates.length,
+            })) ?? [],
+            application,
+          };
+        })
+      );
+
+      // Sort by profile completeness (descending - highest completion first)
+      const sortedUsers = usersWithProfiles.sort(
+        (a, b) => b.completeness.percentage - a.completeness.percentage
+      );
+
+      return sortedUsers;
+    }),
+
   // Admin endpoints for bulk profile sync
   adminGetSyncStats: protectedProcedure
     .query(async ({ ctx }) => {

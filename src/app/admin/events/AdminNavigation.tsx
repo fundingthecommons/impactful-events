@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, Menu } from "@mantine/core";
-import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport, IconMapPin, IconMailOpened } from "@tabler/icons-react";
+import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport, IconMapPin, IconMailOpened, IconUserCircle } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -19,6 +19,7 @@ export default function AdminNavigation() {
     if (pathname === "/admin" || pathname === "/admin/") return "dashboard";
     if (pathname.startsWith("/admin/events/residency")) return "residency";
     if (pathname.startsWith("/admin/events") || pathname.startsWith("/admin/communications")) return "events";
+    if (pathname.startsWith("/admin/profiles")) return "profiles";
     if (pathname.startsWith("/admin/users")) return "users";
     if (pathname.startsWith("/admin/invitations")) return "invitations";
     if (pathname.startsWith("/contacts")) return "contacts";
@@ -78,6 +79,16 @@ export default function AdminNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Residency
+        </TabsTab>
+
+        <TabsTab
+          value="profiles"
+          leftSection={<IconUserCircle size={16} />}
+          component={Link}
+          href="/admin/profiles"
+          style={{ textDecoration: 'none' }}
+        >
+          Profiles
         </TabsTab>
 
         <TabsTab
