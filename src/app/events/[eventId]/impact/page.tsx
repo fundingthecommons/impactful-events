@@ -21,6 +21,8 @@ import { formatDistanceToNow } from "date-fns";
 import { getDisplayName } from "~/utils/userDisplay";
 import { IconArrowUp, IconArrowDown } from "@tabler/icons-react";
 import Link from "next/link";
+import { PraiseQuantifyPanel } from "./components/PraiseQuantifyPanel";
+import { PraiseInstanceQuantifyPanel } from "./components/PraiseInstanceQuantifyPanel";
 
 interface ImpactPageProps {
   params: Promise<{ eventId: string }>;
@@ -201,6 +203,8 @@ export default function ImpactPage({ params }: ImpactPageProps) {
               <Tabs.Tab value="transactions">Transactions</Tabs.Tab>
               <Tabs.Tab value="received">Received</Tabs.Tab>
               <Tabs.Tab value="sent">Sent</Tabs.Tab>
+              <Tabs.Tab value="quantify">Quantify</Tabs.Tab>
+              <Tabs.Tab value="quantify-instances">By Instance</Tabs.Tab>
             </Tabs.List>
 
             {/* Stats Sub-tab */}
@@ -349,6 +353,16 @@ export default function ImpactPage({ params }: ImpactPageProps) {
                   </Text>
                 </Paper>
               )}
+            </Tabs.Panel>
+
+            {/* Quantify Sub-tab */}
+            <Tabs.Panel value="quantify" pt="md">
+              <PraiseQuantifyPanel />
+            </Tabs.Panel>
+
+            {/* Quantify By Instance Sub-tab */}
+            <Tabs.Panel value="quantify-instances" pt="md">
+              <PraiseInstanceQuantifyPanel />
             </Tabs.Panel>
           </Tabs>
         </Tabs.Panel>

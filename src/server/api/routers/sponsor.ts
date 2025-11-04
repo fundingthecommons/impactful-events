@@ -251,4 +251,33 @@ export const sponsorRouter = createTRPCRouter({
       impactScore,
     };
   }),
+
+  // Get sponsors for hyperboard visualization
+  getSponsorsForHyperboard: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const eventSponsors = await ctx.db.eventSponsor.findMany({
+        where: {
+          eventId: input.eventId,
+        },
+        include: {
+          sponsor: {
+            include: {
+              geckoCoin: true,
+            },
+          },
+        },
+      });
+
+      // Transform sponsors into hyperboard entry format
+      return eventSponsors.map((es) => ({
+        type: "sponsor",
+        id: es.sponsor.id,
+        avatar: es.sponsor.logoUrl,
+        displayName: es.sponsor.name,
+        // Use market cap as value, default to 1 if not available
+        value: es.sponsor.geckoCoin?.marketCap ?? 1,
+        isBlueprint: !es.qualified,
+      }));
+    }),
 }); 
