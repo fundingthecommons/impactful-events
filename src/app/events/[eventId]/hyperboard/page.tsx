@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import { auth } from "~/server/auth";
 import { HyperboardClient } from "./HyperboardClient";
 
+// Force dynamic rendering to avoid static generation for all events
+export const dynamic = 'force-dynamic';
+
 interface HyperboardPageProps {
   params: Promise<{
     eventId: string;
