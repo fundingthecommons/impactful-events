@@ -73,11 +73,6 @@ export const Hyperboard = (props: HyperboardProps) => {
     setLeaves(newLeaves);
   };
 
-  // Calculate aspect ratio for tile positioning
-  const effectiveWidth = (dimensions?.width && dimensions.width > 0) ? dimensions.width : props.height;
-  const effectiveHeight = (dimensions?.height && dimensions.height > 0) ? dimensions.height : props.height;
-  const ratio = effectiveWidth / effectiveHeight;
-
   return (
     <Flex
       style={{
