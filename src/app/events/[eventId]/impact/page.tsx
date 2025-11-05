@@ -162,7 +162,7 @@ export default function ImpactPage({ params }: ImpactPageProps) {
 
   return (
     <Container size="xl" py="xl">
-      <Title order={1} mb="xl">Event Impact</Title>
+      <Title order={1} mb="xl">Residency Impact</Title>
 
       <Tabs value={activeTab} onChange={setActiveTab}>
         <Tabs.List>
