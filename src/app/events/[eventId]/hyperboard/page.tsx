@@ -4,6 +4,7 @@ import { HyperboardClient } from "./HyperboardClient";
 
 // Force dynamic rendering to avoid static generation for all events
 export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
 
 interface HyperboardPageProps {
   params: Promise<{
@@ -11,13 +12,10 @@ interface HyperboardPageProps {
   }>;
 }
 
-export async function generateMetadata({ params }: HyperboardPageProps) {
-  const resolvedParams = await params;
-  return {
-    title: `Hyperboard - ${resolvedParams.eventId}`,
-    description: "Visualize event sponsors and their impact",
-  };
-}
+export const metadata = {
+  title: "Hyperboard",
+  description: "Visualize event sponsors and their impact",
+};
 
 export default async function HyperboardPage({ params }: HyperboardPageProps) {
   const resolvedParams = await params;
