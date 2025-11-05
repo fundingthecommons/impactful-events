@@ -96,6 +96,9 @@ interface ProjectDetailClientProps {
         website: string | null;
       } | null;
     };
+    likes: Array<{
+      userId: string;
+    }>;
     collaborators: Array<{
       id: string;
       userId: string;
@@ -663,6 +666,15 @@ export default function ProjectDetailClient({
                   ))}
                 </Group>
               )}
+
+              {/* Like Button */}
+              <LikeButton
+                updateId={project.id}
+                initialLikeCount={project.likes.length}
+                initialHasLiked={userId ? project.likes.some(like => like.userId === userId) : false}
+                userId={userId}
+                likeType="userProject"
+              />
 
               {/* Action buttons */}
               <Group gap="md">

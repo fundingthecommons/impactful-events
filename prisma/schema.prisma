@@ -125,6 +125,7 @@ model User {
   // Project update relations
   projectUpdates       ProjectUpdate[]      @relation("ProjectUpdates")
   projectUpdateLikes   ProjectUpdateLike[]  @relation("ProjectUpdateLikes")
+  userProjectLikes     UserProjectLike[]    @relation("UserProjectLikes")
   askOfferLikes        AskOfferLike[]       @relation("AskOfferLikes")
 
   // Asks and Offers relations
@@ -1220,6 +1221,7 @@ model UserProject {
   profile       UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
   updates       ProjectUpdate[] // Project timeline updates
   collaborators ProjectCollaborator[] // Users who can collaborate on this project
+  likes         UserProjectLike[] // Users who liked this project
 
   @@index([profileId])
   @@index([featured])
@@ -1284,6 +1286,25 @@ model ProjectUpdateLike {
   // Ensure each user can only like an update once
   @@unique([projectUpdateId, userId])
   @@index([projectUpdateId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Likes on user projects
+model UserProjectLike {
+  id        String      @id @default(cuid())
+  projectId String      // Which UserProject was liked
+  userId    String      // Who liked it
+
+  createdAt DateTime    @default(now())
+
+  // Relations
+  project   UserProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User        @relation("UserProjectLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Ensure each user can only like a project once
+  @@unique([projectId, userId])
+  @@index([projectId])
   @@index([userId])
   @@index([createdAt])
 }

@@ -11,7 +11,7 @@ interface LikeButtonProps {
   initialLikeCount: number;
   initialHasLiked: boolean;
   userId?: string;
-  likeType?: "projectUpdate" | "askOffer";
+  likeType?: "projectUpdate" | "askOffer" | "userProject";
 }
 
 export function LikeButton({
@@ -51,7 +51,23 @@ export function LikeButton({
     }
   );
 
-  const likesData = likeType === "projectUpdate" ? projectLikesQuery.data : askOfferLikesQuery.data;
+  const userProjectLikesQuery = api.project.getUserProjectLikes.useQuery(
+    { projectId: updateId },
+    {
+      enabled: likeType === "userProject",
+      initialData: {
+        count: initialLikeCount,
+        likes: [],
+        hasLiked: initialHasLiked,
+      },
+    }
+  );
+
+  const likesData =
+    likeType === "projectUpdate" ? projectLikesQuery.data :
+    likeType === "askOffer" ? askOfferLikesQuery.data :
+    likeType === "userProject" ? userProjectLikesQuery.data :
+    undefined;
 
   // Like mutation based on type
   const projectLikeMutation = api.project.likeProjectUpdate.useMutation({
@@ -133,11 +149,49 @@ export function LikeButton({
     },
   });
 
+  const userProjectLikeMutation = api.project.likeUserProject.useMutation({
+    onMutate: async () => {
+      setOptimisticLiked(true);
+      setOptimisticCount((prev) => prev + 1);
+    },
+    onSuccess: async () => {
+      await utils.project.getUserProjectLikes.invalidate({ projectId: updateId });
+    },
+    onError: (error) => {
+      setOptimisticLiked(false);
+      setOptimisticCount((prev) => prev - 1);
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  const userProjectUnlikeMutation = api.project.unlikeUserProject.useMutation({
+    onMutate: async () => {
+      setOptimisticLiked(false);
+      setOptimisticCount((prev) => Math.max(0, prev - 1));
+    },
+    onSuccess: async () => {
+      await utils.project.getUserProjectLikes.invalidate({ projectId: updateId });
+    },
+    onError: (error) => {
+      setOptimisticLiked(true);
+      setOptimisticCount((prev) => prev + 1);
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
   const handleLike = () => {
     if (!userId) {
       notifications.show({
         title: "Login Required",
-        message: "Please log in to like updates",
+        message: "Please log in to like projects",
         color: "blue",
       });
       return;
@@ -149,11 +203,17 @@ export function LikeButton({
       } else {
         projectLikeMutation.mutate({ updateId });
       }
-    } else {
+    } else if (likeType === "askOffer") {
       if (optimisticLiked) {
         askOfferUnlikeMutation.mutate({ askOfferId: updateId });
       } else {
         askOfferLikeMutation.mutate({ askOfferId: updateId });
+      }
+    } else if (likeType === "userProject") {
+      if (optimisticLiked) {
+        userProjectUnlikeMutation.mutate({ projectId: updateId });
+      } else {
+        userProjectLikeMutation.mutate({ projectId: updateId });
       }
     }
   };
@@ -162,7 +222,9 @@ export function LikeButton({
     projectLikeMutation.isPending ||
     projectUnlikeMutation.isPending ||
     askOfferLikeMutation.isPending ||
-    askOfferUnlikeMutation.isPending;
+    askOfferUnlikeMutation.isPending ||
+    userProjectLikeMutation.isPending ||
+    userProjectUnlikeMutation.isPending;
   const displayCount = likesData?.count ?? optimisticCount;
   const displayLiked = likesData?.hasLiked ?? optimisticLiked;
 

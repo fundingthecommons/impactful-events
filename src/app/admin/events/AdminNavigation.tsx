@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, Menu } from "@mantine/core";
-import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport, IconMapPin, IconMailOpened, IconUserCircle, IconHeart, IconNews, IconHandStop, IconBulb } from "@tabler/icons-react";
+import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport, IconMapPin, IconMailOpened, IconUserCircle, IconHeart, IconNews, IconBulb } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -151,7 +151,7 @@ export default function AdminNavigation() {
 
         <TabsTab
           value="asks-offers"
-          leftSection={<IconHandStop size={16} />}
+          leftSection={<IconHeart size={16} />}
           component={Link}
           href="/events/funding-commons-residency-2025/asks-offers"
           style={{ textDecoration: 'none' }}

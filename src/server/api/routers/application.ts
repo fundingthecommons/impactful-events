@@ -1751,6 +1751,11 @@ export const applicationRouter = createTRPCRouter({
                           likes: true,
                         },
                       },
+                      likes: {
+                        select: {
+                          userId: true,
+                        },
+                      },
                     },
                   },
                 },

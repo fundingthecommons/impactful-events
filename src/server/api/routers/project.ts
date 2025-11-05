@@ -427,6 +427,11 @@ export const projectRouter = createTRPCRouter({
             orderBy: {
               addedAt: "asc"
             }
+          },
+          likes: {
+            select: {
+              userId: true,
+            }
           }
         }
       });
@@ -486,7 +491,8 @@ export const projectRouter = createTRPCRouter({
             location: collab.user.profile.location,
             bio: collab.user.profile.bio,
           } : null
-        }))
+        })),
+        likes: project.likes
       };
     }),
 
@@ -919,5 +925,116 @@ export const projectRouter = createTRPCRouter({
       });
 
       return updates;
+    }),
+
+  // Protected: Like a UserProject
+  likeUserProject: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Check if project exists
+      const project = await ctx.db.userProject.findUnique({
+        where: { id: input.projectId },
+      });
+
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      // Check if user already liked this project
+      const existingLike = await ctx.db.userProjectLike.findUnique({
+        where: {
+          projectId_userId: {
+            projectId: input.projectId,
+            userId,
+          },
+        },
+      });
+
+      if (existingLike) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You already liked this project",
+        });
+      }
+
+      // Create like
+      const like = await ctx.db.userProjectLike.create({
+        data: {
+          projectId: input.projectId,
+          userId,
+        },
+      });
+
+      return like;
+    }),
+
+  // Protected: Unlike a UserProject
+  unlikeUserProject: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Find and delete the like
+      const like = await ctx.db.userProjectLike.findUnique({
+        where: {
+          projectId_userId: {
+            projectId: input.projectId,
+            userId,
+          },
+        },
+      });
+
+      if (!like) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Like not found",
+        });
+      }
+
+      await ctx.db.userProjectLike.delete({
+        where: { id: like.id },
+      });
+
+      return { success: true };
+    }),
+
+  // Public: Get likes for a UserProject
+  getUserProjectLikes: publicProcedure
+    .input(z.object({
+      projectId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const likes = await ctx.db.userProjectLike.findMany({
+        where: { projectId: input.projectId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              surname: true,
+              name: true,
+              image: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return {
+        count: likes.length,
+        likes,
+        hasLiked: ctx.session?.user
+          ? likes.some((like) => like.userId === ctx.session!.user.id)
+          : false,
+      };
     }),
 });

@@ -25,6 +25,7 @@ import { api } from "~/trpc/react";
 import Link from "next/link";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { getDisplayName } from "~/utils/userDisplay";
+import { LikeButton } from "~/app/_components/LikeButton";
 
 interface ProjectsPageProps {
   params: Promise<{ eventId: string }>;
@@ -32,7 +33,7 @@ interface ProjectsPageProps {
 
 export default function ProjectsPage({ params }: ProjectsPageProps) {
   const [eventId, setEventId] = useState<string>("");
-  const { status } = useSession();
+  const { data: session, status } = useSession();
 
   // Await params in Next.js 15
   useEffect(() => {
@@ -161,6 +162,16 @@ export default function ProjectsPage({ params }: ProjectsPageProps) {
                           )}
                         </Group>
                       )}
+
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <LikeButton
+                          updateId={project.id}
+                          initialLikeCount={project.likes.length}
+                          initialHasLiked={session?.user ? project.likes.some(like => like.userId === session.user.id) : false}
+                          userId={session?.user.id}
+                          likeType="userProject"
+                        />
+                      </div>
 
                       <Group gap="xs" mt="auto">
                         <Avatar
