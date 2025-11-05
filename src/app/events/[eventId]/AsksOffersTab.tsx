@@ -12,12 +12,14 @@ import {
   Avatar,
   Tabs,
   SimpleGrid,
+  Button,
 } from "@mantine/core";
 import {
   IconHandStop,
   IconGift,
   IconCheck,
   IconTrash,
+  IconPlus,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { type Session } from "next-auth";
@@ -27,6 +29,7 @@ import { LikeButton } from "~/app/_components/LikeButton";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import Link from "next/link";
 import { getDisplayName } from "~/utils/userDisplay";
+import { CreateAskOfferModal } from "./CreateAskOfferModal";
 
 interface AsksOffersTabProps {
   eventId: string;
@@ -35,6 +38,8 @@ interface AsksOffersTabProps {
 
 export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
   const [activeTab, setActiveTab] = useState<string | null>("all");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<"ASK" | "OFFER">("ASK");
 
   const utils = api.useUtils();
 
@@ -76,6 +81,19 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
 
   const isOwnAskOffer = (userId: string) => {
     return session?.user?.id === userId;
+  };
+
+  const handleOpenModal = (type: "ASK" | "OFFER") => {
+    if (!session) {
+      notifications.show({
+        title: "Not Logged In",
+        message: "Please log in to create asks and offers",
+        color: "red",
+      });
+      return;
+    }
+    setModalType(type);
+    setIsModalOpen(true);
   };
 
   const renderAskOfferCard = (
@@ -222,27 +240,53 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
   });
 
   return (
-    <Tabs value={activeTab} onChange={setActiveTab}>
-      <Tabs.List>
-        <Tabs.Tab value="all" leftSection={<IconHandStop size={16} />}>
-          All
-          <Badge ml="xs" size="sm" variant="light">
-            {allItems.length}
-          </Badge>
-        </Tabs.Tab>
-        <Tabs.Tab value="asks" leftSection={<IconHandStop size={16} />}>
-          Asks
-          <Badge ml="xs" size="sm" variant="light" color="orange">
-            {asksData.length}
-          </Badge>
-        </Tabs.Tab>
-        <Tabs.Tab value="offers" leftSection={<IconGift size={16} />}>
-          Offers
-          <Badge ml="xs" size="sm" variant="light" color="blue">
-            {offersData.length}
-          </Badge>
-        </Tabs.Tab>
-      </Tabs.List>
+    <>
+      <Tabs value={activeTab} onChange={setActiveTab}>
+        <Group justify="space-between" align="flex-start" mb="md">
+          <Tabs.List>
+            <Tabs.Tab value="all" leftSection={<IconHandStop size={16} />}>
+              All
+              <Badge ml="xs" size="sm" variant="light">
+                {allItems.length}
+              </Badge>
+            </Tabs.Tab>
+            <Tabs.Tab value="asks" leftSection={<IconHandStop size={16} />}>
+              Asks
+              <Badge ml="xs" size="sm" variant="light" color="orange">
+                {asksData.length}
+              </Badge>
+            </Tabs.Tab>
+            <Tabs.Tab value="offers" leftSection={<IconGift size={16} />}>
+              Offers
+              <Badge ml="xs" size="sm" variant="light" color="blue">
+                {offersData.length}
+              </Badge>
+            </Tabs.Tab>
+          </Tabs.List>
+
+          {session && (
+            <Group gap="sm">
+              <Button
+                leftSection={<IconPlus size={16} />}
+                onClick={() => handleOpenModal("ASK")}
+                size="sm"
+                variant="light"
+                color="orange"
+              >
+                Add Ask
+              </Button>
+              <Button
+                leftSection={<IconPlus size={16} />}
+                onClick={() => handleOpenModal("OFFER")}
+                size="sm"
+                variant="light"
+                color="blue"
+              >
+                Add Offer
+              </Button>
+            </Group>
+          )}
+        </Group>
 
       <Tabs.Panel value="all" pt="lg">
         {allItems.length === 0 ? (
@@ -251,8 +295,28 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
               No asks or offers yet
             </Text>
             <Text ta="center" size="sm" c="dimmed">
-              Participants can add asks and offers from their personal dashboard
+              Be the first to add an ask or offer to the community
             </Text>
+            {session && (
+              <Group gap="sm">
+                <Button
+                  leftSection={<IconPlus size={16} />}
+                  onClick={() => handleOpenModal("ASK")}
+                  size="sm"
+                  color="orange"
+                >
+                  Add Ask
+                </Button>
+                <Button
+                  leftSection={<IconPlus size={16} />}
+                  onClick={() => handleOpenModal("OFFER")}
+                  size="sm"
+                  color="blue"
+                >
+                  Add Offer
+                </Button>
+              </Group>
+            )}
           </Stack>
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
@@ -270,8 +334,18 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
               No asks yet
             </Text>
             <Text ta="center" size="sm" c="dimmed">
-              Participants can add what they&apos;re looking for help with
+              Be the first to share what you&apos;re looking for help with
             </Text>
+            {session && (
+              <Button
+                leftSection={<IconPlus size={16} />}
+                onClick={() => handleOpenModal("ASK")}
+                size="sm"
+                color="orange"
+              >
+                Add Ask
+              </Button>
+            )}
           </Stack>
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
@@ -287,8 +361,18 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
               No offers yet
             </Text>
             <Text ta="center" size="sm" c="dimmed">
-              Participants can offer what they can help others with
+              Be the first to share what you can help others with
             </Text>
+            {session && (
+              <Button
+                leftSection={<IconPlus size={16} />}
+                onClick={() => handleOpenModal("OFFER")}
+                size="sm"
+                color="blue"
+              >
+                Add Offer
+              </Button>
+            )}
           </Stack>
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
@@ -297,5 +381,13 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
         )}
       </Tabs.Panel>
     </Tabs>
+
+    <CreateAskOfferModal
+      eventId={eventId}
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+      initialType={modalType}
+    />
+    </>
   );
 }

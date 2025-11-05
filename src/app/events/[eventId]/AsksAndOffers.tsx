@@ -9,8 +9,6 @@ import {
   Text,
   Badge,
   Button,
-  Modal,
-  TextInput,
   Paper,
   ActionIcon,
   Tooltip,
@@ -29,9 +27,9 @@ import { notifications } from "@mantine/notifications";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { useRouter } from "next/navigation";
 import { LikeButton } from "~/app/_components/LikeButton";
-import { MentionTextarea } from "~/app/_components/MentionTextarea";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import { getDisplayName } from "~/utils/userDisplay";
+import { CreateAskOfferModal } from "./CreateAskOfferModal";
 
 interface AsksAndOffersProps {
   eventId: string;
@@ -43,10 +41,6 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
   const [activeTab, setActiveTab] = useState<string | null>("asks");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"ASK" | "OFFER">("ASK");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [titleError, setTitleError] = useState("");
-  const [descriptionError, setDescriptionError] = useState("");
 
   const utils = api.useUtils();
 
@@ -62,54 +56,6 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
   );
 
   // Mutations
-  const createMutation = api.askOffer.create.useMutation({
-    onSuccess: () => {
-      void utils.askOffer.getEventAsksOffers.invalidate();
-      void utils.askOffer.getUserAsksOffers.invalidate();
-      setIsModalOpen(false);
-      setTitle("");
-      setDescription("");
-      setTitleError("");
-      setDescriptionError("");
-      notifications.show({
-        title: "Success",
-        message: `${modalType === "ASK" ? "Ask" : "Offer"} created successfully`,
-        color: "green",
-      });
-    },
-    onError: (error) => {
-      // Parse Zod validation errors
-      try {
-        const zodErrors = JSON.parse(error.message) as Array<{
-          path: string[];
-          message: string;
-        }>;
-
-        // Set field-specific errors
-        zodErrors.forEach((err) => {
-          if (err.path[0] === "title") {
-            setTitleError(err.message);
-          } else if (err.path[0] === "description") {
-            setDescriptionError(err.message);
-          }
-        });
-
-        notifications.show({
-          title: "Validation Error",
-          message: "Please check the form fields for errors",
-          color: "red",
-        });
-      } catch {
-        // If not a Zod error, show the error message directly
-        notifications.show({
-          title: "Error",
-          message: error.message,
-          color: "red",
-        });
-      }
-    },
-  });
-
   const deleteMutation = api.askOffer.delete.useMutation({
     onSuccess: () => {
       void utils.askOffer.getEventAsksOffers.invalidate();
@@ -144,53 +90,7 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
       return;
     }
     setModalType(type);
-    setTitle("");
-    setDescription("");
-    setTitleError("");
-    setDescriptionError("");
     setIsModalOpen(true);
-  };
-
-  const handleCreate = () => {
-    // Clear previous errors
-    setTitleError("");
-    setDescriptionError("");
-
-    // Client-side validation
-    let hasError = false;
-
-    if (!title.trim()) {
-      setTitleError("Title is required");
-      hasError = true;
-    } else if (title.trim().length < 3) {
-      setTitleError("Title must be at least 3 characters");
-      hasError = true;
-    }
-
-    if (!description.trim()) {
-      setDescriptionError("Description is required");
-      hasError = true;
-    } else if (description.trim().length < 10) {
-      setDescriptionError("Description must be at least 10 characters");
-      hasError = true;
-    }
-
-    if (hasError) {
-      notifications.show({
-        title: "Validation Error",
-        message: "Please check the form fields for errors",
-        color: "red",
-      });
-      return;
-    }
-
-    createMutation.mutate({
-      eventId,
-      type: modalType,
-      title: title.trim(),
-      description: description.trim(),
-      tags: [],
-    });
   };
 
   const isOwnAskOffer = (userId: string) => {
@@ -425,56 +325,12 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
         </Tabs>
       </Card>
 
-      <Modal
-        opened={isModalOpen}
+      <CreateAskOfferModal
+        eventId={eventId}
+        isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={`Create ${modalType === "ASK" ? "Ask" : "Offer"}`}
-        size="lg"
-      >
-        <Stack gap="md">
-          <TextInput
-            label="Title"
-            placeholder={
-              modalType === "ASK"
-                ? "e.g., Looking for Solidity mentor"
-                : "e.g., Can help with frontend development"
-            }
-            value={title}
-            onChange={(e) => {
-              setTitle(e.currentTarget.value);
-              if (titleError) setTitleError("");
-            }}
-            error={titleError}
-            description="Minimum 3 characters"
-            required
-            withAsterisk
-          />
-          <MentionTextarea
-            label="Description"
-            placeholder="Provide more details... (Use @ to mention users, supports Markdown)"
-            value={description}
-            onChange={(value) => {
-              setDescription(value);
-              if (descriptionError) setDescriptionError("");
-            }}
-            error={descriptionError}
-            minRows={4}
-            required
-          />
-          <Group justify="flex-end">
-            <Button variant="subtle" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreate}
-              loading={createMutation.isPending}
-              leftSection={<IconPlus size={16} />}
-            >
-              Create {modalType === "ASK" ? "Ask" : "Offer"}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
+        initialType={modalType}
+      />
     </>
   );
 }
