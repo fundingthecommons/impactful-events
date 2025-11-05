@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, Menu } from "@mantine/core";
-import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport, IconMapPin, IconMailOpened, IconUserCircle } from "@tabler/icons-react";
+import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport, IconMapPin, IconMailOpened, IconUserCircle, IconHeart, IconNews, IconHandStop, IconBulb } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -24,6 +24,13 @@ export default function AdminNavigation() {
     if (pathname.startsWith("/admin/invitations")) return "invitations";
     if (pathname.startsWith("/contacts")) return "contacts";
     if (pathname.startsWith("/crypto-nomads-import")) return "import";
+    // User navigation tabs
+    if (pathname.startsWith("/events/funding-commons-residency-2025/impact")) return "impact";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/timeline")) return "timeline";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/asks-offers")) return "asks-offers";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/participants")) return "participants";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/projects")) return "event-projects";
+    if (pathname.startsWith("/events/funding-commons-residency-2025")) return "my-residency";
     return null;
   };
 
@@ -129,6 +136,67 @@ export default function AdminNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Import
+        </TabsTab>
+
+        {/* User Navigation Items */}
+        <TabsTab
+          value="my-residency"
+          leftSection={<IconMapPin size={16} />}
+          component={Link}
+          href="https://platform.fundingthecommons.io/events/funding-commons-residency-2025"
+          style={{ textDecoration: 'none' }}
+        >
+          My Residency
+        </TabsTab>
+
+        <TabsTab
+          value="asks-offers"
+          leftSection={<IconHandStop size={16} />}
+          component={Link}
+          href="/events/funding-commons-residency-2025/asks-offers"
+          style={{ textDecoration: 'none' }}
+        >
+          Asks & Offers
+        </TabsTab>
+
+        <TabsTab
+          value="participants"
+          leftSection={<IconUsers size={16} />}
+          component={Link}
+          href="/events/funding-commons-residency-2025/participants"
+          style={{ textDecoration: 'none' }}
+        >
+          Participants
+        </TabsTab>
+
+        <TabsTab
+          value="event-projects"
+          leftSection={<IconBulb size={16} />}
+          component={Link}
+          href="/events/funding-commons-residency-2025/projects"
+          style={{ textDecoration: 'none' }}
+        >
+          Projects
+        </TabsTab>
+
+        <TabsTab
+          value="timeline"
+          leftSection={<IconNews size={16} />}
+          component={Link}
+          href="/events/funding-commons-residency-2025/timeline"
+          style={{ textDecoration: 'none' }}
+        >
+          Timeline
+        </TabsTab>
+
+        <TabsTab
+          value="impact"
+          leftSection={<IconHeart size={16} />}
+          component={Link}
+          href="/events/funding-commons-residency-2025/impact"
+          style={{ textDecoration: 'none' }}
+        >
+          Impact
         </TabsTab>
       </Tabs.List>
     </Tabs>
