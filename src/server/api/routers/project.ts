@@ -919,6 +919,11 @@ export const projectRouter = createTRPCRouter({
             select: {
               userId: true,
             }
+          },
+          comments: {
+            select: {
+              id: true,
+            }
           }
         },
         orderBy: { createdAt: "desc" },
@@ -1036,5 +1041,205 @@ export const projectRouter = createTRPCRouter({
           ? likes.some((like) => like.userId === ctx.session!.user.id)
           : false,
       };
+    }),
+
+  // Public: Get a single project update by ID
+  getUpdateById: publicProcedure
+    .input(z.object({
+      updateId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const update = await ctx.db.projectUpdate.findUnique({
+        where: { id: input.updateId },
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              surname: true,
+              image: true,
+            },
+          },
+          project: {
+            select: {
+              id: true,
+              title: true,
+              imageUrl: true,
+            },
+          },
+          likes: {
+            select: {
+              userId: true,
+            },
+          },
+          comments: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  firstName: true,
+                  surname: true,
+                  image: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      });
+
+      if (!update) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Update not found",
+        });
+      }
+
+      return update;
+    }),
+
+  // Protected: Create a comment on a project update
+  createUpdateComment: protectedProcedure
+    .input(z.object({
+      updateId: z.string(),
+      content: z.string().min(1, "Comment cannot be empty").max(5000, "Comment is too long"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify update exists
+      const update = await ctx.db.projectUpdate.findUnique({
+        where: { id: input.updateId },
+      });
+
+      if (!update) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Update not found",
+        });
+      }
+
+      const comment = await ctx.db.projectUpdateComment.create({
+        data: {
+          projectUpdateId: input.updateId,
+          userId: ctx.session.user.id,
+          content: input.content,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              surname: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      return comment;
+    }),
+
+  // Protected: Update a comment
+  updateUpdateComment: protectedProcedure
+    .input(z.object({
+      commentId: z.string(),
+      content: z.string().min(1, "Comment cannot be empty").max(5000, "Comment is too long"),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const comment = await ctx.db.projectUpdateComment.findUnique({
+        where: { id: input.commentId },
+      });
+
+      if (!comment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Comment not found",
+        });
+      }
+
+      // Verify user owns this comment
+      if (comment.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only edit your own comments",
+        });
+      }
+
+      const updatedComment = await ctx.db.projectUpdateComment.update({
+        where: { id: input.commentId },
+        data: { content: input.content },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              surname: true,
+              image: true,
+            },
+          },
+        },
+      });
+
+      return updatedComment;
+    }),
+
+  // Protected: Delete a comment
+  deleteUpdateComment: protectedProcedure
+    .input(z.object({
+      commentId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const comment = await ctx.db.projectUpdateComment.findUnique({
+        where: { id: input.commentId },
+      });
+
+      if (!comment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Comment not found",
+        });
+      }
+
+      // Verify user owns this comment
+      if (comment.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only delete your own comments",
+        });
+      }
+
+      await ctx.db.projectUpdateComment.delete({
+        where: { id: input.commentId },
+      });
+
+      return { success: true };
+    }),
+
+  // Public: Get comments for a project update
+  getUpdateComments: publicProcedure
+    .input(z.object({
+      updateId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const comments = await ctx.db.projectUpdateComment.findMany({
+        where: { projectUpdateId: input.updateId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              surname: true,
+              image: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return comments;
     }),
 });

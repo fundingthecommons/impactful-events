@@ -24,6 +24,7 @@ import {
   IconBrandGithub,
   IconExternalLink,
   IconArrowLeft,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
@@ -119,7 +120,24 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
         {/* Updates Feed */}
         <Stack gap="lg">
         {updates.map((update) => (
-          <Card key={update.id} withBorder radius="md" p="lg" shadow="sm">
+          <Card
+            key={update.id}
+            withBorder
+            radius="md"
+            p="lg"
+            shadow="sm"
+            style={{
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+            }}
+            onClick={() => router.push(`/events/${eventId}/updates/${update.id}`)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--mantine-color-gray-0)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
             <Stack gap="md">
               {/* Header with project and author info */}
               <Group justify="space-between" wrap="nowrap">
@@ -269,7 +287,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                 </Group>
               )}
 
-              {/* Tags and Like Button */}
+              {/* Tags and Engagement Stats */}
               <Group justify="space-between" align="center">
                 {update.tags.length > 0 ? (
                   <Group gap="xs">
@@ -282,12 +300,26 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                 ) : (
                   <div />
                 )}
-                <LikeButton
-                  updateId={update.id}
-                  initialLikeCount={update.likes.length}
-                  initialHasLiked={session?.user ? update.likes.some(like => like.userId === session.user.id) : false}
-                  userId={session?.user.id}
-                />
+                <Group gap="md">
+                  {/* Comment Count */}
+                  {update.comments.length > 0 && (
+                    <Group gap={4}>
+                      <IconMessageCircle size={16} style={{ color: "var(--mantine-color-gray-6)" }} />
+                      <Text size="sm" c="dimmed" fw={500}>
+                        {update.comments.length}
+                      </Text>
+                    </Group>
+                  )}
+                  {/* Like Button - stop propagation */}
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <LikeButton
+                      updateId={update.id}
+                      initialLikeCount={update.likes.length}
+                      initialHasLiked={session?.user ? update.likes.some(like => like.userId === session.user.id) : false}
+                      userId={session?.user.id}
+                    />
+                  </div>
+                </Group>
               </Group>
             </Stack>
           </Card>

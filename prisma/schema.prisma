@@ -123,10 +123,11 @@ model User {
   passwordResetTokens  PasswordResetToken[] @relation("PasswordResetTokens")
   
   // Project update relations
-  projectUpdates       ProjectUpdate[]      @relation("ProjectUpdates")
-  projectUpdateLikes   ProjectUpdateLike[]  @relation("ProjectUpdateLikes")
-  userProjectLikes     UserProjectLike[]    @relation("UserProjectLikes")
-  askOfferLikes        AskOfferLike[]       @relation("AskOfferLikes")
+  projectUpdates       ProjectUpdate[]        @relation("ProjectUpdates")
+  projectUpdateLikes   ProjectUpdateLike[]    @relation("ProjectUpdateLikes")
+  projectUpdateComments ProjectUpdateComment[] @relation("ProjectUpdateComments")
+  userProjectLikes     UserProjectLike[]      @relation("UserProjectLikes")
+  askOfferLikes        AskOfferLike[]         @relation("AskOfferLikes")
 
   // Asks and Offers relations
   asksOffers           AskOffer[]           @relation("UserAsksOffers")
@@ -1263,6 +1264,7 @@ model ProjectUpdate {
   project       UserProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   author        User        @relation("ProjectUpdates", fields: [userId], references: [id], onDelete: Cascade)
   likes         ProjectUpdateLike[] // Users who liked this update
+  comments      ProjectUpdateComment[] // Comments on this update
 
   @@index([projectId])
   @@index([userId])
@@ -1305,6 +1307,25 @@ model UserProjectLike {
   // Ensure each user can only like a project once
   @@unique([projectId, userId])
   @@index([projectId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Comments on project updates
+model ProjectUpdateComment {
+  id              String        @id @default(cuid())
+  projectUpdateId String        // Which update was commented on
+  userId          String        // Who made the comment
+  content         String        @db.Text // Comment content (markdown supported)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  projectUpdate   ProjectUpdate @relation(fields: [projectUpdateId], references: [id], onDelete: Cascade)
+  user            User          @relation("ProjectUpdateComments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectUpdateId])
   @@index([userId])
   @@index([createdAt])
 }
