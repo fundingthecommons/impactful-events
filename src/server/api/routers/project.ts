@@ -778,13 +778,52 @@ export const projectRouter = createTRPCRouter({
         });
       }
 
-      // Create like
-      const like = await ctx.db.projectUpdateLike.create({
-        data: {
-          projectUpdateId: input.updateId,
-          userId,
-        },
+      // Get liker's current kudos for transfer calculation
+      const liker = await ctx.db.user.findUnique({
+        where: { id: userId },
+        select: { kudos: true },
       });
+
+      if (!liker) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      // Calculate kudos transfer (2% of liker's kudos)
+      const transferAmount = liker.kudos * 0.02;
+
+      // Check if user has sufficient kudos
+      if (liker.kudos < transferAmount) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Insufficient kudos to like this update",
+        });
+      }
+
+      // Perform kudos transfer in a transaction
+      const [like] = await ctx.db.$transaction([
+        // Create the like with transfer data
+        ctx.db.projectUpdateLike.create({
+          data: {
+            projectUpdateId: input.updateId,
+            userId,
+            kudosTransferred: transferAmount,
+            likerKudosAtTime: liker.kudos,
+          },
+        }),
+        // Deduct kudos from liker
+        ctx.db.user.update({
+          where: { id: userId },
+          data: { kudos: { decrement: transferAmount } },
+        }),
+        // Add kudos to update author
+        ctx.db.user.update({
+          where: { id: update.userId },
+          data: { kudos: { increment: transferAmount } },
+        }),
+      ]);
 
       return like;
     }),
@@ -941,9 +980,14 @@ export const projectRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      // Check if project exists
+      // Check if project exists and get project owner
       const project = await ctx.db.userProject.findUnique({
         where: { id: input.projectId },
+        include: {
+          profile: {
+            select: { userId: true },
+          },
+        },
       });
 
       if (!project) {
@@ -970,13 +1014,52 @@ export const projectRouter = createTRPCRouter({
         });
       }
 
-      // Create like
-      const like = await ctx.db.userProjectLike.create({
-        data: {
-          projectId: input.projectId,
-          userId,
-        },
+      // Get liker's current kudos for transfer calculation
+      const liker = await ctx.db.user.findUnique({
+        where: { id: userId },
+        select: { kudos: true },
       });
+
+      if (!liker) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      // Calculate kudos transfer (2% of liker's kudos)
+      const transferAmount = liker.kudos * 0.02;
+
+      // Check if user has sufficient kudos
+      if (liker.kudos < transferAmount) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Insufficient kudos to like this project",
+        });
+      }
+
+      // Perform kudos transfer in a transaction
+      const [like] = await ctx.db.$transaction([
+        // Create the like with transfer data
+        ctx.db.userProjectLike.create({
+          data: {
+            projectId: input.projectId,
+            userId,
+            kudosTransferred: transferAmount,
+            likerKudosAtTime: liker.kudos,
+          },
+        }),
+        // Deduct kudos from liker
+        ctx.db.user.update({
+          where: { id: userId },
+          data: { kudos: { decrement: transferAmount } },
+        }),
+        // Add kudos to project owner
+        ctx.db.user.update({
+          where: { id: project.profile.userId },
+          data: { kudos: { increment: transferAmount } },
+        }),
+      ]);
 
       return like;
     }),

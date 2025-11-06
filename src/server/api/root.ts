@@ -22,6 +22,8 @@ import { analyticsRouter } from "~/server/api/routers/analytics";
 import { passwordResetRouter } from "~/server/api/routers/passwordReset";
 import { askOfferRouter } from "~/server/api/routers/askOffer";
 import { praiseRouter } from "~/server/api/routers/praise";
+import { kudosRouter } from "~/server/api/routers/kudos";
+import { metricRouter } from "~/server/api/routers/metric";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -54,6 +56,8 @@ export const appRouter = createTRPCRouter({
   passwordReset: passwordResetRouter,
   askOffer: askOfferRouter,
   praise: praiseRouter,
+  kudos: kudosRouter,
+  metric: metricRouter,
 });
 
 // export type definition of API

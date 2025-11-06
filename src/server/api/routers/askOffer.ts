@@ -395,9 +395,12 @@ ${tags.length > 0 ? `🏷️ Tags: ${tags.join(", ")}` : ""}
   likeAskOffer: protectedProcedure
     .input(z.object({ askOfferId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
       // Check if ask/offer exists
       const askOffer = await ctx.db.askOffer.findUnique({
         where: { id: input.askOfferId },
+        select: { id: true, userId: true },
       });
 
       if (!askOffer) {
@@ -407,20 +410,67 @@ ${tags.length > 0 ? `🏷️ Tags: ${tags.join(", ")}` : ""}
         });
       }
 
-      // Create or ignore if already exists (unique constraint)
-      const like = await ctx.db.askOfferLike.upsert({
+      // Check if user already liked this ask/offer
+      const existingLike = await ctx.db.askOfferLike.findUnique({
         where: {
           askOfferId_userId: {
             askOfferId: input.askOfferId,
-            userId: ctx.session.user.id,
+            userId,
           },
         },
-        create: {
-          askOfferId: input.askOfferId,
-          userId: ctx.session.user.id,
-        },
-        update: {}, // No update needed if already exists
       });
+
+      if (existingLike) {
+        // Already liked - return existing like
+        return existingLike;
+      }
+
+      // Get liker's current kudos for transfer calculation
+      const liker = await ctx.db.user.findUnique({
+        where: { id: userId },
+        select: { kudos: true },
+      });
+
+      if (!liker) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      // Calculate kudos transfer (2% of liker's kudos)
+      const transferAmount = liker.kudos * 0.02;
+
+      // Check if user has sufficient kudos
+      if (liker.kudos < transferAmount) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Insufficient kudos to like this ask/offer",
+        });
+      }
+
+      // Perform kudos transfer in a transaction
+      const [like] = await ctx.db.$transaction([
+        // Create the like with transfer data
+        ctx.db.askOfferLike.create({
+          data: {
+            askOfferId: input.askOfferId,
+            userId,
+            kudosTransferred: transferAmount,
+            likerKudosAtTime: liker.kudos,
+          },
+        }),
+        // Deduct kudos from liker
+        ctx.db.user.update({
+          where: { id: userId },
+          data: { kudos: { decrement: transferAmount } },
+        }),
+        // Add kudos to ask/offer author
+        ctx.db.user.update({
+          where: { id: askOffer.userId },
+          data: { kudos: { increment: transferAmount } },
+        }),
+      ]);
 
       return like;
     }),

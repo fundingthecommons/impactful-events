@@ -32,8 +32,36 @@ const db = new PrismaClient();
  *   };
  */
 const USER_DAYS_OVERRIDE: Record<string, number> = {
-  // Add user overrides here using email addresses
-  // "user@example.com": numberOfDays,
+  "Ulises@e4e.app": 1,
+  "shaun.johnson@stellar.org": 4,
+  "kevin@allo.capital": 0,
+  "arma@torproject.org": 7,
+  "eliza@ef.com": 7,
+  "nanak@holonym.com": 13,
+  "emmilili.04@gmail.com": 12,
+  "Fernandiuxta@gmail.com": 13,
+  "joaquin@blessedux.com": 11,
+  "julio.cruz@eb-ms.net": 1,
+  "gonzalo.othacehe@openzeppelin.com": 13,
+  "kieranprasch@gmail.com": 10,
+  "camicarva119@gmail.com": 13,
+  "sara@relayfunder.com": 13,
+  "david@gainforest.net": 10,
+  "niluferokay@gmail.com": 11,
+  "charlotte@fundingthecommons.io": 13,
+  "sharfy@gainforest.net": 8,
+  "a.alejandro.alvarez.a@gmail.com": 13,
+  "amani@gtcx.africa": 4,
+  "stefi.says.hi@gmail.com": 13,
+  "adam@toucan.earth": 13,
+  "f@frsr.com": 13,
+  "rithikharajamohan@gmail.com": 11,
+  "code@bitbeckers.com": 11,
+  "sejal.rekhan@protocol.ai": 9,
+  "thwayf@gmail.com": 11,
+  "minjae@post.harvard.edu": 10,
+  "alisheryakupov@gmail.com": 12,
+  "jamespfarrell@gmail.com": 12
 };
 
 interface UserKudosData {

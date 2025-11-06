@@ -117,7 +117,7 @@ async function reactToMessage(
 async function findUserByTelegram(
   telegramId: number,
   username?: string,
-): Promise<{ id: string; name: string | null } | null> {
+): Promise<{ id: string; name: string | null; kudos: number } | null> {
   // Try to find by Contact with matching telegramId
   const contact = await db.contact.findFirst({
     where: {
@@ -144,7 +144,7 @@ async function findUserByTelegram(
     });
 
     if (user) {
-      return { id: user.id, name: user.name };
+      return { id: user.id, name: user.name, kudos: user.kudos };
     }
   }
 
@@ -164,7 +164,7 @@ async function findUserByTelegram(
     });
 
     if (user) {
-      return { id: user.id, name: user.name };
+      return { id: user.id, name: user.name, kudos: user.kudos };
     }
   }
 
@@ -176,7 +176,7 @@ async function findUserByTelegram(
  */
 async function findRecipientByUsername(
   username: string,
-): Promise<{ id: string; name: string | null } | null> {
+): Promise<{ id: string; name: string | null; kudos: number } | null> {
   // First try exact match on Contact telegram field
   const contact = await db.contact.findFirst({
     where: {
@@ -192,7 +192,7 @@ async function findRecipientByUsername(
       where: { email: contact.email },
     });
     if (user) {
-      return { id: user.id, name: user.name };
+      return { id: user.id, name: user.name, kudos: user.kudos };
     }
   }
 
@@ -207,7 +207,7 @@ async function findRecipientByUsername(
   });
 
   if (user) {
-    return { id: user.id, name: user.name };
+    return { id: user.id, name: user.name, kudos: user.kudos };
   }
 
   return null;
@@ -275,19 +275,50 @@ async function processPraiseCommand(
   // Find recipient
   const recipient = await findRecipientByUsername(recipientUsername);
 
-  // Create praise record
+  // Get sender's current kudos for transfer calculation
+  const senderKudos = sender.kudos ?? 130; // Default to base kudos if not set
+
+  // Calculate kudos transfer (5% of sender's kudos)
+  const transferAmount = senderKudos * 0.05;
+
+  // Check if sender has sufficient kudos
+  if (senderKudos < transferAmount) {
+    return `Sorry, you don't have enough kudos to send praise. You need at least ${transferAmount.toFixed(1)} kudos. Your current balance: ${senderKudos.toFixed(1)} kudos.`;
+  }
+
+  // Create praise record with kudos transfer
   try {
-    const praise = await db.praise.create({
-      data: {
-        senderId: sender.id,
-        senderTelegramId: BigInt(message.from.id),
-        recipientId: recipient?.id ?? null,
-        recipientName: recipientUsername,
-        message: praiseMessage,
-        telegramMsgId: message.message_id.toString(),
-        isPublic: false, // Default to private
-      },
-    });
+    // Perform kudos transfer in a transaction
+    const [praise] = await db.$transaction([
+      // Create praise with transfer data
+      db.praise.create({
+        data: {
+          senderId: sender.id,
+          senderTelegramId: BigInt(message.from.id),
+          recipientId: recipient?.id ?? null,
+          recipientName: recipientUsername,
+          message: praiseMessage,
+          telegramMsgId: message.message_id.toString(),
+          isPublic: false, // Default to private
+          kudosTransferred: transferAmount,
+          senderKudosAtTime: senderKudos,
+        },
+      }),
+      // Deduct kudos from sender
+      db.user.update({
+        where: { id: sender.id },
+        data: { kudos: { decrement: transferAmount } },
+      }),
+      // Add kudos to recipient (if found)
+      ...(recipient
+        ? [
+            db.user.update({
+              where: { id: recipient.id },
+              data: { kudos: { increment: transferAmount } },
+            }),
+          ]
+        : []),
+    ]);
 
     // Log successful praise
     Sentry.addBreadcrumb({

@@ -70,6 +70,7 @@
     "@uidotdev/usehooks": "^2.4.1",
     "@vercel/blob": "^2.0.0",
     "bcryptjs": "^3.0.2",
+    "csv-parse": "^6.1.0",
     "csv-parser": "^3.2.0",
     "d3": "^7.9.0",
     "date-fns": "^4.1.0",

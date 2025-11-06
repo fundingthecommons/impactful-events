@@ -139,6 +139,11 @@ model User {
 
   // Project collaboration relation
   projectCollaborations ProjectCollaborator[] @relation("ProjectCollaborations")
+
+  // Metrics relations
+  createdMetrics        Metric[]              @relation("MetricsCreated")
+  metricMeasurements    MetricMeasurement[]   @relation("MetricMeasurements")
+  projectMetricsAdded   ProjectMetric[]       @relation("ProjectMetricsAdded")
 }
 
 model VerificationToken {
@@ -190,6 +195,7 @@ model Event {
   invitations Invitation[]  // Invitations for this event
   asksOffers  AskOffer[]  @relation("EventAsksOffers")  // Asks and Offers for this event
   praises     Praise[]    @relation("EventPraises")  // Praise messages for this event
+  metricMeasurements MetricMeasurement[] // Measurements during this event
 }
 
 model Hackathon {
@@ -1226,6 +1232,8 @@ model UserProject {
   updates       ProjectUpdate[] // Project timeline updates
   collaborators ProjectCollaborator[] // Users who can collaborate on this project
   likes         UserProjectLike[] // Users who liked this project
+  metrics       ProjectMetric[]     // Metrics tracked for this project
+  measurements  MetricMeasurement[] // Measurements for this project
 
   @@index([profileId])
   @@index([featured])
@@ -1667,4 +1675,165 @@ model Praise {
   @@index([recipientId])
   @@index([eventId])
   @@index([createdAt])
+}
+
+// Metrics System Models
+enum MetricType {
+  BUILDER           // Builder-focused metrics
+  ENVIRONMENTAL     // Environmental/social good metrics
+  GIT               // Git/repository metrics
+  ONCHAIN          // On-chain metrics
+  OFFCHAIN         // Off-chain metrics
+  CUSTOM           // Custom evaluation metrics
+}
+
+enum CollectionMethod {
+  ONCHAIN          // Collected from blockchain
+  OFFCHAIN_API     // Off-chain API calls
+  SELF_REPORTING   // Self-reported by users
+  MANUAL           // Manually collected
+  AUTOMATED        // Automated collection
+}
+
+enum MetricCadence {
+  REALTIME         // Real-time updates
+  DAILY            // Daily updates
+  WEEKLY           // Weekly updates
+  MONTHLY          // Monthly updates
+  QUARTERLY        // Quarterly updates
+  ANNUAL           // Annual updates
+  ONE_TIME         // One-time collection
+  CUSTOM           // Custom cadence
+}
+
+enum MetricTimePeriod {
+  BEFORE           // Before event
+  DURING           // During event
+  AFTER            // After event
+  ONGOING          // Ongoing tracking
+}
+
+model Metric {
+  id                    String            @id @default(cuid())
+
+  // Core identification
+  name                  String            // Metric name (e.g., "Ad-driven platforms' advertiser turn-over rate")
+  slug                  String?           @unique // URL-safe version for routing
+  description           String?           @db.Text // Detailed description
+
+  // Metric type and categorization
+  metricType            MetricType[]      // Multiple types possible (BUILDER, GIT, ONCHAIN, etc.)
+  unitOfMetric          String?           // Unit of measurement (e.g., "USD", "count", "percentage")
+  category              String?           // Additional categorization
+
+  // Collection methodology
+  collectionMethod      CollectionMethod
+  cadence               MetricCadence     @default(ONE_TIME)
+  timePeriod            MetricTimePeriod  @default(DURING)
+
+  // Data sources and tracking
+  isOnChain             Boolean           @default(false)
+  deployerAccount       String?           // Deployer account if on-chain
+  offChainApis          String[]          // Array of off-chain API sources
+  gitMetric             Boolean           @default(false) // Is this a Git-based metric?
+  dependencyTracking    Boolean           @default(false) // Tracks dependencies?
+
+  // Evaluation methods
+  attestationOriented   Boolean           @default(false)
+  customEvaluation      Boolean           @default(false)
+  selfReporting         Boolean           @default(false)
+  hypercertsUsed        Boolean           @default(false) // Uses Hypercerts
+  zkEmail               Boolean           @default(false) // Uses ZK Email
+
+  // Project relationships
+  allSoftwareProjects   Boolean           @default(false) // Applies to all software projects
+  ftcProjects           String[]          // Array of FTC project identifiers
+  projectIdNeeded       Boolean           @default(false) // Requires project ID for tracking
+
+  // Impact focus areas
+  environmentalSocialGood Boolean         @default(false)
+  relevantToBBI         Boolean           @default(false) // Relevant to Builder-Based Infrastructure
+  impactEvaluators      String[]          // Array of evaluator identifiers
+
+  // Proof of concept and sources
+  pocContact            String?           // Point of contact for POC
+  source                String?           // Source of the metric definition
+  notes                 String?           @db.Text // Additional notes and context
+
+  // Measurement data
+  quantity              Float?            // Actual measured quantity (if applicable)
+
+  // Metadata
+  isActive              Boolean           @default(true)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  createdBy             String?           // User who created this metric
+
+  // Relations
+  creator               User?             @relation("MetricsCreated", fields: [createdBy], references: [id], onDelete: SetNull)
+  measurements          MetricMeasurement[] // Historical measurements
+  projectMetrics        ProjectMetric[]   // Link to specific UserProjects
+
+  @@index([slug])
+  @@index([collectionMethod])
+  @@index([cadence])
+  @@index([isOnChain])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+// Historical measurements for metrics
+model MetricMeasurement {
+  id              String    @id @default(cuid())
+  metricId        String
+  projectId       String?   // Optional: specific to a UserProject
+  eventId         String?   // Optional: specific to an Event
+
+  value           Float     // Measured value
+  unitOfMetric    String    // Unit at time of measurement
+  source          String?   // Data source for this measurement
+  verificationUrl String?   // URL to verification (e.g., on-chain tx, API response)
+
+  // Context
+  measurementDate DateTime  // When the measurement was taken
+  timePeriod      MetricTimePeriod // BEFORE, DURING, AFTER
+  notes           String?   @db.Text
+
+  // Metadata
+  measuredBy      String?   // User who recorded this measurement
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  metric          Metric    @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  project         UserProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  event           Event?    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  measuredByUser  User?     @relation("MetricMeasurements", fields: [measuredBy], references: [id], onDelete: SetNull)
+
+  @@index([metricId])
+  @@index([projectId])
+  @@index([eventId])
+  @@index([measurementDate])
+  @@index([timePeriod])
+}
+
+// Link metrics to specific projects
+model ProjectMetric {
+  id          String      @id @default(cuid())
+  projectId   String      // UserProject ID
+  metricId    String      // Metric ID
+  isTracking  Boolean     @default(true) // Actively tracking this metric
+  targetValue Float?      // Target/goal value for this metric
+  addedAt     DateTime    @default(now())
+  addedBy     String?     // User who added this metric
+
+  // Relations
+  project     UserProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  metric      Metric      @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  addedByUser User?       @relation("ProjectMetricsAdded", fields: [addedBy], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, metricId]) // Prevent duplicate metrics per project
+  @@index([projectId])
+  @@index([metricId])
+  @@index([isTracking])
 }
