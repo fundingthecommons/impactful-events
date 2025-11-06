@@ -335,33 +335,76 @@ senderKudosAtTime Float?     // Sender's total kudos when they praised
 - Add transfer tracking to Praise model
 - Create and run migration
 
-### Phase 2: Calculation Logic
+### Phase 2: Calculation Logic ✅ COMPLETE
 - Create kudos calculation utility function with constants:
   - `KUDOS_PER_DAY = 10`
   - `DAYS_ATTENDED = 13` (current)
   - `BASE_KUDOS = 130` (calculated as 13 × 10)
-- Calculate initial kudos for all users (backfill):
+- Created initialization script at `scripts/init-kudos.ts`
+- Script calculates initial kudos for all users (backfill):
   - Base: 130 kudos (attendance)
   - Plus: Historical updates, likes, praise
-- Update User.kudos field for existing users
 
-### Phase 3: Display Integration
+### Phase 3: Display Integration ✅ COMPLETE
 - Add Kudos column to Impact page Residents tab
 - Implement sorting by kudos
-- Add tooltip with formula explanation
-- Style badges with gradient colors
+- Style badges with gradient colors (gold/green/blue/gray)
+- Default sort by kudos descending
 
-### Phase 4: Transfer Implementation (Future)
-- Update like mutations to transfer kudos
-- Update praise mutations to transfer kudos
-- Add kudos cost display in UI
+### Phase 4: Initialization (READY TO RUN)
+
+**Initialize kudos for all users:**
+
+```bash
+bunx tsx scripts/init-kudos.ts
+```
+
+**What the script does:**
+1. Calculates kudos for each user based on historical activity
+2. Updates the `kudos` field in the database
+3. Displays detailed summary with top performers
+4. Shows breakdown of kudos sources for each user
+
+**Calculation includes:**
+- Base attendance: 130 kudos (13 days × 10 kudos/day)
+- Project updates created: +10 kudos each
+- Likes received (all types): +2 kudos each (backfill value)
+- Likes given (all types): -2 kudos each (backfill value)
+- Praise received: +5 kudos each (backfill value)
+- Praise sent: -5 kudos each (backfill value)
+
+**Example output:**
+```
+✅ Alice Johnson: 215 kudos
+✅ Bob Smith: 185 kudos
+✅ Carol Williams: 152 kudos
+
+📊 KUDOS INITIALIZATION SUMMARY
+Total Users Processed: 47
+Successful Updates: 47
+Total Kudos in System: 7,245
+Average Kudos: 154
+
+🏆 TOP 10 KUDOS LEADERS:
+1. Alice Johnson        215 kudos (updates: 8, praise: +5/-2, likes: +12/-8)
+2. Bob Smith           185 kudos (updates: 5, praise: +4/-1, likes: +8/-5)
+...
+```
+
+### Phase 5: Transfer Implementation (Next)
+- Update like mutations to transfer kudos in real-time
+- Update praise mutations to transfer kudos in real-time
+- Add UI feedback showing kudos cost before action
 - Implement minimum kudos checks
+- Disable actions if insufficient kudos
 
-### Phase 5: Advanced Features (Future)
+### Phase 6: Advanced Features (Future)
 - Kudos leaderboard page
 - Kudos history/transaction log
 - Kudos analytics dashboard
 - Export kudos data
+- Weekly kudos reports
+- Badges for kudos milestones
 
 ## Success Metrics
 

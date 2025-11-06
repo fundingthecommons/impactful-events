@@ -1,0 +1,230 @@
+/**
+ * Initialize Kudos Values for All Users
+ *
+ * This script calculates and sets the initial kudos values for all users based on:
+ * - Base attendance kudos (130 = 13 days × 10 kudos/day)
+ * - Project updates created (+10 kudos each)
+ * - Praise transactions (received +5, sent -5 using backfill values)
+ * - Likes (received +2, sent -2 using backfill values) - Note: Not yet implemented in like mutations
+ *
+ * Run with: bunx tsx scripts/init-kudos.ts
+ */
+
+import { PrismaClient } from "@prisma/client";
+import { KUDOS_CONSTANTS } from "~/utils/kudosCalculation";
+
+const db = new PrismaClient();
+
+interface UserKudosData {
+  userId: string;
+  userName: string;
+  baseKudos: number;
+  updatesCreated: number;
+  updatesKudos: number;
+  likesReceived: number;
+  likesReceivedKudos: number;
+  likesGiven: number;
+  likesGivenKudos: number;
+  praiseReceived: number;
+  praiseReceivedKudos: number;
+  praiseSent: number;
+  praiseSentKudos: number;
+  totalKudos: number;
+}
+
+async function calculateUserKudos(userId: string): Promise<UserKudosData | null> {
+  // Get user info
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { name: true, firstName: true, surname: true },
+  });
+
+  if (!user) return null;
+
+  const userName = user.name ?? `${user.firstName ?? ''} ${user.surname ?? ''}`.trim();
+
+  // Count ProjectUpdates created by this user
+  const updatesCreated = await db.projectUpdate.count({
+    where: {
+      project: {
+        profile: {
+          userId: userId,
+        },
+      },
+    },
+  });
+
+  // Count likes received on ProjectUpdates
+  const projectUpdateLikesReceived = await db.projectUpdateLike.count({
+    where: {
+      projectUpdate: {
+        project: {
+          profile: {
+            userId: userId,
+          },
+        },
+      },
+    },
+  });
+
+  // Count likes received on UserProjects
+  const userProjectLikesReceived = await db.userProjectLike.count({
+    where: {
+      project: {
+        profile: {
+          userId: userId,
+        },
+      },
+    },
+  });
+
+  // Count likes received on AsksOffers
+  const askOfferLikesReceived = await db.askOfferLike.count({
+    where: {
+      askOffer: {
+        userId: userId,
+      },
+    },
+  });
+
+  const totalLikesReceived = projectUpdateLikesReceived + userProjectLikesReceived + askOfferLikesReceived;
+
+  // Count likes given (all types)
+  const projectUpdateLikesGiven = await db.projectUpdateLike.count({
+    where: { userId: userId },
+  });
+
+  const userProjectLikesGiven = await db.userProjectLike.count({
+    where: { userId: userId },
+  });
+
+  const askOfferLikesGiven = await db.askOfferLike.count({
+    where: { userId: userId },
+  });
+
+  const totalLikesGiven = projectUpdateLikesGiven + userProjectLikesGiven + askOfferLikesGiven;
+
+  // Count praise received
+  const praiseReceived = await db.praise.count({
+    where: { recipientId: userId },
+  });
+
+  // Count praise sent
+  const praiseSent = await db.praise.count({
+    where: { senderId: userId },
+  });
+
+  // Calculate kudos components
+  const baseKudos = KUDOS_CONSTANTS.BASE_KUDOS;
+  const updatesKudos = updatesCreated * KUDOS_CONSTANTS.UPDATE_WEIGHT;
+  const likesReceivedKudos = totalLikesReceived * KUDOS_CONSTANTS.BACKFILL_LIKE_VALUE;
+  const likesGivenKudos = totalLikesGiven * KUDOS_CONSTANTS.BACKFILL_LIKE_VALUE;
+  const praiseReceivedKudos = praiseReceived * KUDOS_CONSTANTS.BACKFILL_PRAISE_VALUE;
+  const praiseSentKudos = praiseSent * KUDOS_CONSTANTS.BACKFILL_PRAISE_VALUE;
+
+  const totalKudos = Math.max(
+    0,
+    baseKudos + updatesKudos + likesReceivedKudos - likesGivenKudos + praiseReceivedKudos - praiseSentKudos
+  );
+
+  return {
+    userId,
+    userName,
+    baseKudos,
+    updatesCreated,
+    updatesKudos,
+    likesReceived: totalLikesReceived,
+    likesReceivedKudos,
+    likesGiven: totalLikesGiven,
+    likesGivenKudos,
+    praiseReceived,
+    praiseReceivedKudos,
+    praiseSent,
+    praiseSentKudos,
+    totalKudos,
+  };
+}
+
+async function main() {
+  console.log("🎯 Starting kudos initialization...\n");
+
+  // Get all users
+  const users = await db.user.findMany({
+    select: { id: true },
+  });
+
+  console.log(`Found ${users.length} users to process\n`);
+
+  const results: UserKudosData[] = [];
+  let successCount = 0;
+  let errorCount = 0;
+
+  // Calculate kudos for each user
+  for (const user of users) {
+    try {
+      const kudosData = await calculateUserKudos(user.id);
+
+      if (kudosData) {
+        results.push(kudosData);
+
+        // Update user's kudos in database
+        await db.user.update({
+          where: { id: user.id },
+          data: { kudos: kudosData.totalKudos },
+        });
+
+        successCount++;
+        console.log(`✅ ${kudosData.userName}: ${Math.round(kudosData.totalKudos)} kudos`);
+      }
+    } catch (error) {
+      errorCount++;
+      console.error(`❌ Error processing user ${user.id}:`, error);
+    }
+  }
+
+  // Sort by total kudos (descending)
+  results.sort((a, b) => b.totalKudos - a.totalKudos);
+
+  // Print summary statistics
+  console.log("\n" + "=".repeat(80));
+  console.log("📊 KUDOS INITIALIZATION SUMMARY");
+  console.log("=".repeat(80));
+  console.log(`Total Users Processed: ${users.length}`);
+  console.log(`Successful Updates: ${successCount}`);
+  console.log(`Errors: ${errorCount}`);
+  console.log("");
+
+  if (results.length > 0) {
+    const totalKudos = results.reduce((sum, r) => sum + r.totalKudos, 0);
+    const avgKudos = totalKudos / results.length;
+    const maxKudos = results[0]?.totalKudos ?? 0;
+    const minKudos = results[results.length - 1]?.totalKudos ?? 0;
+
+    console.log(`Total Kudos in System: ${Math.round(totalKudos)}`);
+    console.log(`Average Kudos: ${Math.round(avgKudos)}`);
+    console.log(`Highest Kudos: ${Math.round(maxKudos)} (${results[0]?.userName})`);
+    console.log(`Lowest Kudos: ${Math.round(minKudos)} (${results[results.length - 1]?.userName})`);
+    console.log("");
+
+    // Show top 10
+    console.log("🏆 TOP 10 KUDOS LEADERS:");
+    console.log("-".repeat(80));
+    results.slice(0, 10).forEach((r, idx) => {
+      console.log(
+        `${idx + 1}. ${r.userName.padEnd(30)} ${Math.round(r.totalKudos).toString().padStart(6)} kudos ` +
+        `(updates: ${r.updatesCreated}, praise: +${r.praiseReceived}/-${r.praiseSent}, likes: +${r.likesReceived}/-${r.likesGiven})`
+      );
+    });
+  }
+
+  console.log("\n✨ Kudos initialization complete!");
+}
+
+main()
+  .catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  })
+  .finally(() => {
+    void db.$disconnect();
+  });
