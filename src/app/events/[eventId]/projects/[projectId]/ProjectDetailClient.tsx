@@ -55,6 +55,7 @@ import { LikeButton } from "~/app/_components/LikeButton";
 import { GitCommitTimeline } from "~/app/_components/GitCommitTimeline";
 import { CollaboratorsList } from "~/app/_components/CollaboratorsList";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
+import MetricsTab from "./MetricsTab";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -868,6 +869,7 @@ export default function ProjectDetailClient({
                 )}
               </Tabs.Tab>
               <Tabs.Tab value="devtimeline">Dev Timeline</Tabs.Tab>
+              <Tabs.Tab value="metrics">Metrics</Tabs.Tab>
             </Tabs.List>
 
             <Tabs.Panel value="overview" mt="md">
@@ -1204,6 +1206,10 @@ export default function ProjectDetailClient({
                   <GitCommitTimeline githubUrl={project.githubUrl} />
                 </Stack>
               </Paper>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="metrics" mt="md">
+              <MetricsTab projectId={project.id} canEdit={canEdit} />
             </Tabs.Panel>
           </Tabs>
         </Stack>
