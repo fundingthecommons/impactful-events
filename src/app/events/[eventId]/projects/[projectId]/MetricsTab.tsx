@@ -488,10 +488,71 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
             )}
           </Group>
 
+          {/* Selected Project Metrics */}
+          {projectMetrics && projectMetrics.length > 0 && (
+            <>
+              <Divider />
+              <Box>
+                <Text fw={500} size="sm" mb="md">
+                  Selected Metrics ({projectMetrics.length})
+                </Text>
+                <Stack gap="xs">
+                  {projectMetrics.map((pm) => (
+                    <Paper key={pm.id} p="md" withBorder bg="blue.0">
+                      <Group justify="space-between" wrap="nowrap">
+                        <Box style={{ flex: 1, minWidth: 0 }}>
+                          <Text fw={500} size="sm" lineClamp={1} mb="xs">
+                            {pm.metric.name}
+                          </Text>
+                          {pm.metric.description && (
+                            <Text size="xs" c="dimmed" lineClamp={2} mb="xs">
+                              {pm.metric.description}
+                            </Text>
+                          )}
+                          <Group gap="xs">
+                            {pm.metric.metricType.slice(0, 3).map((type) => (
+                              <Badge key={type} size="xs" color={getMetricTypeColor(type)}>
+                                {type.toLowerCase()}
+                              </Badge>
+                            ))}
+                            <Badge size="xs" variant="light" color="gray">
+                              {getCollectionMethodBadge(pm.metric.collectionMethod)}
+                            </Badge>
+                            {pm.metric.unitOfMetric && (
+                              <Text size="xs" c="dimmed">
+                                • {pm.metric.unitOfMetric}
+                              </Text>
+                            )}
+                          </Group>
+                        </Box>
+                        {canEdit && (
+                          <Button
+                            size="xs"
+                            variant="light"
+                            color="red"
+                            leftSection={<IconTrash size={14} />}
+                            onClick={() => handleRemoveMetric(pm.metric.id)}
+                            loading={removeMetricMutation.isPending}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </Group>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Box>
+            </>
+          )}
+
           <Divider />
 
           {/* Search and Filters */}
-          <Stack gap="md">
+          <Box>
+            <Text fw={500} size="sm" mb="md">
+              Browse Available Metrics
+            </Text>
+            <Stack gap="md">
             <TextInput
               placeholder="Search metrics..."
               leftSection={<IconSearch size={16} />}
@@ -604,15 +665,7 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
               </Text>
             </Center>
           )}
-
-          {projectMetrics && projectMetrics.length > 0 && (
-            <>
-              <Divider />
-              <Text size="xs" c="dimmed">
-                {projectMetrics.length} metric{projectMetrics.length !== 1 ? "s" : ""} added to this project
-              </Text>
-            </>
-          )}
+          </Box>
         </Stack>
       </Paper>
 
