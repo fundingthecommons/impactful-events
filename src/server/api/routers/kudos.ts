@@ -198,7 +198,14 @@ export const kudosRouter = createTRPCRouter({
             },
           ],
         },
-        include: {
+        select: {
+          id: true,
+          createdAt: true,
+          kudosTransferred: true,
+          userId: true,
+          projectUpdateId: true,
+          blueskyUri: true,
+          likerKudosAtTime: true,
           user: {
             select: {
               id: true,
@@ -355,11 +362,11 @@ export const kudosRouter = createTRPCRouter({
           id: like.id,
           createdAt: like.createdAt,
           kudosTransferred: like.kudosTransferred ?? 0,
-          from: like.user as { id: string; firstName: string | null; surname: string | null; name: string | null; image: string | null },
-          to: (like.projectUpdate as { user: { id: string; firstName: string | null; surname: string | null; name: string | null; image: string | null } }).user,
+          from: like.user,
+          to: like.projectUpdate.user,
           content: {
-            updateId: (like.projectUpdate as { id: string }).id,
-            updateTitle: (like.projectUpdate as { title: string | null }).title ?? "Untitled Update",
+            updateId: like.projectUpdate.id,
+            updateTitle: like.projectUpdate.title ?? "Untitled Update",
           },
         })),
         ...askOfferLikes.map((like) => ({
