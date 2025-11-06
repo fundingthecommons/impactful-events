@@ -355,11 +355,11 @@ export const kudosRouter = createTRPCRouter({
           id: like.id,
           createdAt: like.createdAt,
           kudosTransferred: like.kudosTransferred ?? 0,
-          from: like.user,
-          to: like.projectUpdate.user,
+          from: like.user as { id: string; firstName: string | null; surname: string | null; name: string | null; image: string | null },
+          to: (like.projectUpdate as { user: { id: string; firstName: string | null; surname: string | null; name: string | null; image: string | null } }).user,
           content: {
-            updateId: like.projectUpdate.id,
-            updateTitle: like.projectUpdate.title ?? "Untitled Update",
+            updateId: (like.projectUpdate as { id: string }).id,
+            updateTitle: (like.projectUpdate as { title: string | null }).title ?? "Untitled Update",
           },
         })),
         ...askOfferLikes.map((like) => ({
