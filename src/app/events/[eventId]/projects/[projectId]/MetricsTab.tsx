@@ -16,6 +16,8 @@ import {
   Loader,
   Center,
   Box,
+  Textarea,
+  MultiSelect,
 } from "@mantine/core";
 import {
   IconPlus,
@@ -23,6 +25,7 @@ import {
   IconTrash,
   IconChartLine,
   IconFilter,
+  IconSparkles,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
@@ -198,8 +201,170 @@ function AddMetricModal({
   );
 }
 
+// Modal for creating a new custom metric
+function CreateMetricModal({
+  opened,
+  onClose,
+  projectId,
+  onMetricCreated,
+}: {
+  opened: boolean;
+  onClose: () => void;
+  projectId: string;
+  onMetricCreated: () => void;
+}) {
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    metricType: [] as string[],
+    unitOfMetric: "",
+    collectionMethod: "" as CollectionMethod | "",
+  });
+
+  const createMetricMutation = api.metric.create.useMutation({
+    onSuccess: async (newMetric) => {
+      // Add the newly created metric to the project
+      await addToProjectMutation.mutateAsync({
+        projectId,
+        metricId: newMetric.id,
+      });
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  const addToProjectMutation = api.metric.addToProject.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Success",
+        message: "Custom metric created and added to project",
+        color: "green",
+      });
+      setFormData({
+        name: "",
+        description: "",
+        metricType: [],
+        unitOfMetric: "",
+        collectionMethod: "",
+      });
+      onMetricCreated();
+      onClose();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!formData.name || formData.metricType.length === 0 || !formData.collectionMethod) {
+      notifications.show({
+        title: "Validation Error",
+        message: "Please fill in all required fields",
+        color: "red",
+      });
+      return;
+    }
+
+    createMetricMutation.mutate({
+      name: formData.name,
+      description: formData.description || undefined,
+      metricType: formData.metricType as MetricType[],
+      unitOfMetric: formData.unitOfMetric || undefined,
+      collectionMethod: formData.collectionMethod,
+    });
+  };
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title="Create Custom Metric"
+      size="lg"
+    >
+      <Stack gap="md">
+        <TextInput
+          label="Metric Name"
+          placeholder="e.g., Resident onboarding rate"
+          required
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.currentTarget.value })}
+        />
+
+        <Textarea
+          label="Description"
+          placeholder="How many residents actively create a project and log in at least once."
+          rows={3}
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.currentTarget.value })}
+        />
+
+        <MultiSelect
+          label="Metric Type"
+          placeholder="Select one or more types"
+          required
+          data={[
+            { value: "BUILDER", label: "Builder" },
+            { value: "ENVIRONMENTAL", label: "Environmental" },
+            { value: "GIT", label: "Git" },
+            { value: "ONCHAIN", label: "On-chain" },
+            { value: "OFFCHAIN", label: "Off-chain" },
+            { value: "CUSTOM", label: "Custom" },
+          ]}
+          value={formData.metricType}
+          onChange={(value) => setFormData({ ...formData, metricType: value })}
+        />
+
+        <Select
+          label="Collection Method"
+          placeholder="How is this metric collected?"
+          required
+          data={[
+            { value: "ONCHAIN", label: "On-chain" },
+            { value: "OFFCHAIN_API", label: "API" },
+            { value: "SELF_REPORTING", label: "Self-reported" },
+            { value: "MANUAL", label: "Manual" },
+            { value: "AUTOMATED", label: "Automated" },
+          ]}
+          value={formData.collectionMethod}
+          onChange={(value) => setFormData({ ...formData, collectionMethod: value as CollectionMethod })}
+        />
+
+        <TextInput
+          label="Unit of Metric"
+          placeholder="e.g., percentage, count, USD"
+          value={formData.unitOfMetric}
+          onChange={(e) => setFormData({ ...formData, unitOfMetric: e.currentTarget.value })}
+        />
+
+        <Group justify="flex-end" mt="md">
+          <Button variant="subtle" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            leftSection={<IconPlus size={16} />}
+            onClick={handleSubmit}
+            loading={createMetricMutation.isPending || addToProjectMutation.isPending}
+          >
+            Create & Add to Project
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
 export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
   const [addModalOpened, setAddModalOpened] = useState(false);
+  const [createModalOpened, setCreateModalOpened] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [collectionFilter, setCollectionFilter] = useState<string | null>(null);
@@ -302,15 +467,26 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
     <Stack gap="lg">
       <Paper p="xl" radius="md" withBorder>
         <Stack gap="lg">
-          <Box>
-            <Group gap="xs" mb="xs">
-              <IconChartLine size={24} />
-              <Title order={2}>Project Metrics</Title>
-            </Group>
-            <Text c="dimmed" size="sm">
-              Browse and add metrics from the Metrics Garden ({allMetrics?.total ?? 92} available)
-            </Text>
-          </Box>
+          <Group justify="space-between" align="flex-start">
+            <Box>
+              <Group gap="xs" mb="xs">
+                <IconChartLine size={24} />
+                <Title order={2}>Project Metrics</Title>
+              </Group>
+              <Text c="dimmed" size="sm">
+                Browse and add metrics from the Metrics Garden ({allMetrics?.total ?? 92} available)
+              </Text>
+            </Box>
+            {canEdit && (
+              <Button
+                leftSection={<IconSparkles size={16} />}
+                onClick={() => setCreateModalOpened(true)}
+                variant="light"
+              >
+                Create Custom Metric
+              </Button>
+            )}
+          </Group>
 
           <Divider />
 
@@ -448,6 +624,15 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
         onMetricAdded={() => {
           void refetch();
           setAddModalOpened(false);
+        }}
+      />
+
+      <CreateMetricModal
+        opened={createModalOpened}
+        onClose={() => setCreateModalOpened(false)}
+        projectId={projectId}
+        onMetricCreated={() => {
+          void refetch();
         }}
       />
     </Stack>
