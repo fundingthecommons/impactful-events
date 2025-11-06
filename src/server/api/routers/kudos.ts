@@ -198,14 +198,7 @@ export const kudosRouter = createTRPCRouter({
             },
           ],
         },
-        select: {
-          id: true,
-          createdAt: true,
-          kudosTransferred: true,
-          userId: true,
-          projectUpdateId: true,
-          blueskyUri: true,
-          likerKudosAtTime: true,
+        include: {
           user: {
             select: {
               id: true,
@@ -216,10 +209,7 @@ export const kudosRouter = createTRPCRouter({
             },
           },
           projectUpdate: {
-            select: {
-              id: true,
-              userId: true,
-              title: true,
+            include: {
               user: {
                 select: {
                   id: true,
