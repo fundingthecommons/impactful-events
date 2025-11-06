@@ -351,6 +351,49 @@ async function processPraiseCommand(
 }
 
 /**
+ * Capture and store Telegram chat ID for a user
+ * This enables the bot to send DMs to users who have interacted with it
+ */
+async function captureTelegramChatId(
+  telegramUserId: number,
+  telegramUsername: string,
+  chatId: number
+): Promise<void> {
+  try {
+    // Find user by their Telegram handle in profile
+    const userProfile = await db.userProfile.findFirst({
+      where: {
+        telegramHandle: {
+          equals: telegramUsername,
+          mode: "insensitive",
+        },
+      },
+    });
+
+    if (userProfile) {
+      // Update the profile with the chat ID if it's different
+      const chatIdStr = chatId.toString();
+      if (userProfile.telegramChatId !== chatIdStr) {
+        await db.userProfile.update({
+          where: { id: userProfile.id },
+          data: { telegramChatId: chatIdStr },
+        });
+        console.log(
+          `[Webhook] Captured chat ID ${chatId} for user with handle @${telegramUsername}`
+        );
+      }
+    } else {
+      console.log(
+        `[Webhook] No user profile found for Telegram handle @${telegramUsername} - user needs to add their handle to their profile`
+      );
+    }
+  } catch (error) {
+    console.error("Failed to capture Telegram chat ID:", error);
+    // Don't throw - this is non-critical for message processing
+  }
+}
+
+/**
  * POST /api/telegram/webhook
  *
  * Webhook endpoint for Telegram Bot API
@@ -382,6 +425,15 @@ export async function POST(request: NextRequest) {
       fromUser: message.from.username,
       text: text.substring(0, 100), // First 100 chars only
     });
+
+    // Capture and store chat ID for this user (for DMs only)
+    if (message.chat.type === "private" && message.from.username) {
+      await captureTelegramChatId(
+        message.from.id,
+        message.from.username,
+        message.chat.id
+      );
+    }
 
     // Check if it's a praise command
     const praiseData = parsePraiseCommand(text);

@@ -82,7 +82,7 @@ interface UpdateDetailClientProps {
 }
 
 export default function UpdateDetailClient({
-  update,
+  update: initialUpdate,
   eventId,
   userId,
 }: UpdateDetailClientProps) {
@@ -92,6 +92,18 @@ export default function UpdateDetailClient({
   const [newComment, setNewComment] = useState("");
 
   const utils = api.useUtils();
+
+  // Use client-side query - this ensures we can update the UI when comments change
+  const { data: update } = api.project.getUpdateById.useQuery(
+    { updateId: initialUpdate.id },
+    {
+      // Keep data fresh for a short time to avoid unnecessary refetches
+      staleTime: 1000 * 30, // 30 seconds
+    }
+  );
+
+  // Fall back to initial data while loading
+  const displayUpdate = update ?? initialUpdate;
 
   const getRelativeTime = (date: Date) => {
     const now = new Date();
@@ -105,18 +117,59 @@ export default function UpdateDetailClient({
     return new Date(date).toLocaleDateString();
   };
 
-  // Create comment mutation
+  // Create comment mutation with optimistic update
   const createComment = api.project.createUpdateComment.useMutation({
+    onMutate: async (newCommentData) => {
+      // Cancel any outgoing refetches
+      await utils.project.getUpdateById.cancel({ updateId: initialUpdate.id });
+
+      // Snapshot the previous value
+      const previousUpdate = utils.project.getUpdateById.getData({ updateId: initialUpdate.id });
+
+      // Optimistically update the cache with a temporary comment
+      utils.project.getUpdateById.setData({ updateId: initialUpdate.id }, (old) => {
+        if (!old) return old;
+
+        // Create optimistic comment with temporary ID
+        const optimisticComment = {
+          id: `temp-${Date.now()}`,
+          content: newCommentData.content,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          userId: userId ?? "",
+          projectUpdateId: initialUpdate.id,
+          user: {
+            id: userId ?? "",
+            name: null,
+            firstName: null,
+            surname: null,
+            image: null,
+          },
+        };
+
+        return {
+          ...old,
+          comments: [...old.comments, optimisticComment],
+        };
+      });
+
+      return { previousUpdate };
+    },
     onSuccess: async () => {
       setNewComment("");
-      await utils.project.getUpdateById.invalidate({ updateId: update.id });
+      // Refetch to get the real comment data from server
+      await utils.project.getUpdateById.invalidate({ updateId: initialUpdate.id });
       notifications.show({
         title: "Comment posted",
         message: "Your comment has been added",
         color: "green",
       });
     },
-    onError: (error) => {
+    onError: (error, _newComment, context) => {
+      // Rollback to previous state on error
+      if (context?.previousUpdate) {
+        utils.project.getUpdateById.setData({ updateId: initialUpdate.id }, context.previousUpdate);
+      }
       notifications.show({
         title: "Error",
         message: error.message,
@@ -130,7 +183,7 @@ export default function UpdateDetailClient({
     onSuccess: async () => {
       setIsEditing(null);
       setEditContent("");
-      await utils.project.getUpdateById.invalidate({ updateId: update.id });
+      await utils.project.getUpdateById.invalidate({ updateId: initialUpdate.id });
       notifications.show({
         title: "Comment updated",
         message: "Your comment has been updated",
@@ -149,7 +202,7 @@ export default function UpdateDetailClient({
   // Delete comment mutation
   const deleteComment = api.project.deleteUpdateComment.useMutation({
     onSuccess: async () => {
-      await utils.project.getUpdateById.invalidate({ updateId: update.id });
+      await utils.project.getUpdateById.invalidate({ updateId: initialUpdate.id });
       notifications.show({
         title: "Comment deleted",
         message: "Your comment has been removed",
@@ -188,27 +241,27 @@ export default function UpdateDetailClient({
                 <Avatar
                   src={getAvatarUrl({
                     customAvatarUrl: null,
-                    oauthImageUrl: update.author.image,
-                    name: update.author.name,
+                    oauthImageUrl: displayUpdate.author.image,
+                    name: displayUpdate.author.name,
                     email: null,
                   })}
                   size="lg"
                   radius="xl"
                 >
                   {getAvatarInitials({
-                    name: update.author.name,
+                    name: displayUpdate.author.name,
                     email: null,
                   })}
                 </Avatar>
                 <div>
                   <Text fw={600} size="lg">
-                    {getDisplayName(update.author, "Anonymous")}
+                    {getDisplayName(displayUpdate.author, "Anonymous")}
                   </Text>
                   <Group gap="xs">
                     <Text size="sm" c="dimmed">
-                      {getRelativeTime(update.createdAt)}
+                      {getRelativeTime(displayUpdate.createdAt)}
                     </Text>
-                    {update.weekNumber && (
+                    {displayUpdate.weekNumber && (
                       <>
                         <Text size="sm" c="dimmed">
                           •
@@ -216,7 +269,7 @@ export default function UpdateDetailClient({
                         <Group gap={4}>
                           <IconCalendarEvent size={14} />
                           <Text size="sm" c="dimmed">
-                            Week {update.weekNumber}
+                            Week {displayUpdate.weekNumber}
                           </Text>
                         </Group>
                       </>
@@ -228,23 +281,23 @@ export default function UpdateDetailClient({
               {/* Project Link */}
               <Button
                 component="a"
-                href={`/events/${eventId}/projects/${update.project.id}`}
+                href={`/events/${eventId}/projects/${displayUpdate.project.id}`}
                 variant="light"
                 size="sm"
               >
-                View Project: {update.project.title}
+                View Project: {displayUpdate.project.title}
               </Button>
             </Group>
 
             <Divider />
 
             {/* Images */}
-            {update.imageUrls.length > 0 && (
+            {displayUpdate.imageUrls.length > 0 && (
               <SimpleGrid
-                cols={{ base: 1, sm: update.imageUrls.length === 1 ? 1 : 2 }}
+                cols={{ base: 1, sm: displayUpdate.imageUrls.length === 1 ? 1 : 2 }}
                 spacing="md"
               >
-                {update.imageUrls.map((url, index) => (
+                {displayUpdate.imageUrls.map((url, index) => (
                   <Image
                     key={index}
                     src={url}
@@ -257,12 +310,12 @@ export default function UpdateDetailClient({
             )}
 
             {/* Title */}
-            <Title order={2}>{update.title}</Title>
+            <Title order={2}>{displayUpdate.title}</Title>
 
             {/* Tags */}
-            {update.tags.length > 0 && (
+            {displayUpdate.tags.length > 0 && (
               <Group gap="xs">
-                {update.tags.map((tag, index) => (
+                {displayUpdate.tags.map((tag, index) => (
                   <Badge key={index} variant="outline" size="md">
                     {tag}
                   </Badge>
@@ -271,15 +324,15 @@ export default function UpdateDetailClient({
             )}
 
             {/* Content */}
-            <MarkdownRenderer content={update.content} />
+            <MarkdownRenderer content={displayUpdate.content} />
 
             {/* GitHub Links */}
-            {update.githubUrls.length > 0 && (
+            {displayUpdate.githubUrls.length > 0 && (
               <Stack gap="xs">
                 <Text size="sm" fw={600}>
                   GitHub Links:
                 </Text>
-                {update.githubUrls.map((url, index) => (
+                {displayUpdate.githubUrls.map((url, index) => (
                   <Anchor
                     key={index}
                     href={url}
@@ -297,12 +350,12 @@ export default function UpdateDetailClient({
             )}
 
             {/* Demo Links */}
-            {update.demoUrls.length > 0 && (
+            {displayUpdate.demoUrls.length > 0 && (
               <Stack gap="xs">
                 <Text size="sm" fw={600}>
                   Demo Links:
                 </Text>
-                {update.demoUrls.map((url, index) => (
+                {displayUpdate.demoUrls.map((url, index) => (
                   <Anchor
                     key={index}
                     href={url}
@@ -324,11 +377,11 @@ export default function UpdateDetailClient({
             {/* Like Button */}
             <Group justify="flex-end">
               <LikeButton
-                updateId={update.id}
-                initialLikeCount={update.likes.length}
+                updateId={displayUpdate.id}
+                initialLikeCount={displayUpdate.likes.length}
                 initialHasLiked={
                   userId
-                    ? update.likes.some((like) => like.userId === userId)
+                    ? displayUpdate.likes.some((like) => like.userId === userId)
                     : false
                 }
                 userId={userId}
@@ -345,15 +398,15 @@ export default function UpdateDetailClient({
               <Group gap="xs">
                 <IconMessageCircle size={20} />
                 <Title order={3}>
-                  Comments ({update.comments.length})
+                  Comments ({displayUpdate.comments.length})
                 </Title>
               </Group>
             </Group>
 
             {/* Comments List */}
-            {update.comments.length > 0 ? (
+            {displayUpdate.comments.length > 0 ? (
               <Stack gap="md">
-                {update.comments.map((comment) => (
+                {displayUpdate.comments.map((comment) => (
                   <Card key={comment.id} withBorder padding="md">
                     {isEditing === comment.id ? (
                       // Edit mode
@@ -478,8 +531,9 @@ export default function UpdateDetailClient({
                     <Button
                       onClick={() =>
                         createComment.mutate({
-                          updateId: update.id,
+                          updateId: displayUpdate.id,
                           content: newComment,
+                          eventId: eventId,
                         })
                       }
                       disabled={!newComment.trim()}

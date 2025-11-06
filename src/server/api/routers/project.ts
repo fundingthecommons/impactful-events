@@ -1105,11 +1105,20 @@ export const projectRouter = createTRPCRouter({
     .input(z.object({
       updateId: z.string(),
       content: z.string().min(1, "Comment cannot be empty").max(5000, "Comment is too long"),
+      eventId: z.string(), // Required for building notification URL
     }))
     .mutation(async ({ ctx, input }) => {
-      // Verify update exists
+      // Verify update exists and get project info
       const update = await ctx.db.projectUpdate.findUnique({
         where: { id: input.updateId },
+        include: {
+          project: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
       });
 
       if (!update) {
@@ -1119,6 +1128,7 @@ export const projectRouter = createTRPCRouter({
         });
       }
 
+      // Create the comment
       const comment = await ctx.db.projectUpdateComment.create({
         data: {
           projectUpdateId: input.updateId,
@@ -1137,6 +1147,40 @@ export const projectRouter = createTRPCRouter({
           },
         },
       });
+
+      // Send Telegram notifications to project members asynchronously via bot
+      // Use void to explicitly ignore the promise (fire-and-forget pattern)
+      void (async () => {
+        try {
+          const { BotNotificationService } = await import("~/server/services/botNotificationService");
+          const botNotificationService = new BotNotificationService(ctx.db);
+
+          const commenterName = comment.user.name ??
+            `${comment.user.firstName ?? ""} ${comment.user.surname ?? ""}`.trim() ??
+            "Someone";
+
+          const updateUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://platform.fundingthecommons.io"}/events/${input.eventId}/updates/${input.updateId}`;
+
+          const results = await botNotificationService.sendUpdateCommentNotifications({
+            commentId: comment.id,
+            updateId: input.updateId,
+            projectId: update.project.id,
+            eventId: input.eventId,
+            commenterUserId: ctx.session.user.id,
+            commenterName,
+            commentContent: input.content,
+            updateUrl,
+          });
+
+          const successCount = results.filter(r => r.success).length;
+          const failureCount = results.filter(r => !r.success).length;
+
+          console.log(`Update comment notifications: ${successCount} sent, ${failureCount} failed for comment ${comment.id}`);
+        } catch (error) {
+          // Log error but don't fail the comment creation
+          console.error("Failed to send update comment notifications:", error);
+        }
+      })();
 
       return comment;
     }),

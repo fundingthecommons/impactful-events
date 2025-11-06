@@ -695,6 +695,7 @@ enum CommunicationContentType {
   // General
   GENERAL
   BULK_MESSAGE     // New: For bulk telegram messages
+  UPDATE_COMMENT   // New: For project update comment notifications
   TEST
   
   // Legacy (for backward compatibility)
@@ -1178,6 +1179,7 @@ model UserProfile {
   
   // Additional contact methods
   telegramHandle        String?
+  telegramChatId        String?  // Telegram chat ID for bot DMs (captured from bot interactions)
   discordHandle         String?
   phoneNumber           String?
   

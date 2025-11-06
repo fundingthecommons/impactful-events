@@ -276,7 +276,7 @@ export const askOfferRouter = createTRPCRouter({
       // Send Telegram notification
       const userName = askOffer.user.name ?? "Someone";
       const typeLabel = type === "ASK" ? "Ask" : "Offer";
-      const asksOffersUrl = `https://platform.fundingthecommons.io/events/${eventId}#asks-offers`;
+      const asksOffersUrl = `https://platform.fundingthecommons.io/events/${eventId}/asks-offers`;
 
       const telegramMessage = `
 🆕 *New ${typeLabel}*
