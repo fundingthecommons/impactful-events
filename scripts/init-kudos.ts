@@ -1,7 +1,8 @@
 /**
- * Initialize Kudos Values for All Users
+ * Initialize Kudos Values for Accepted Residents
  *
- * This script calculates and sets the initial kudos values for all users based on:
+ * This script calculates and sets the initial kudos values for accepted residents
+ * of the "funding-commons-residency-2025" event based on:
  * - Base attendance kudos (130 = 13 days × 10 kudos/day)
  * - Project updates created (+10 kudos each)
  * - Praise transactions (received +5, sent -5 using backfill values)
@@ -146,14 +147,47 @@ async function calculateUserKudos(userId: string): Promise<UserKudosData | null>
 }
 
 async function main() {
-  console.log("🎯 Starting kudos initialization...\n");
+  const EVENT_ID = "funding-commons-residency-2025";
 
-  // Get all users
-  const users = await db.user.findMany({
-    select: { id: true },
+  console.log(`🎯 Starting kudos initialization for ${EVENT_ID}...\n`);
+
+  // Find the event by ID
+  const event = await db.event.findUnique({
+    where: { id: EVENT_ID },
+    select: { id: true, name: true },
   });
 
-  console.log(`Found ${users.length} users to process\n`);
+  if (!event) {
+    console.error(`❌ Event '${EVENT_ID}' not found!`);
+    process.exit(1);
+  }
+
+  console.log(`📍 Found event: ${event.name}\n`);
+
+  // Get only accepted residents for this event
+  const acceptedApplications = await db.application.findMany({
+    where: {
+      eventId: event.id,
+      status: "ACCEPTED",
+    },
+    select: {
+      userId: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          firstName: true,
+          surname: true,
+        },
+      },
+    },
+  });
+
+  const users = acceptedApplications
+    .filter((app) => app.user)
+    .map((app) => ({ id: app.user!.id }));
+
+  console.log(`Found ${users.length} accepted residents to process\n`);
 
   const results: UserKudosData[] = [];
   let successCount = 0;
@@ -189,7 +223,8 @@ async function main() {
   console.log("\n" + "=".repeat(80));
   console.log("📊 KUDOS INITIALIZATION SUMMARY");
   console.log("=".repeat(80));
-  console.log(`Total Users Processed: ${users.length}`);
+  console.log(`Event: ${event.name}`);
+  console.log(`Total Accepted Residents Processed: ${users.length}`);
   console.log(`Successful Updates: ${successCount}`);
   console.log(`Errors: ${errorCount}`);
   console.log("");
