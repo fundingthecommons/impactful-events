@@ -3,10 +3,13 @@
  *
  * This script calculates and sets the initial kudos values for accepted residents
  * of the "funding-commons-residency-2025" event based on:
- * - Base attendance kudos (130 = 13 days × 10 kudos/day)
+ * - Base attendance kudos (default: 13 days × 10 kudos/day = 130, configurable per user)
  * - Project updates created (+10 kudos each)
  * - Praise transactions (received +5, sent -5 using backfill values)
  * - Likes (received +2, sent -2 using backfill values) - Note: Not yet implemented in like mutations
+ *
+ * Configure USER_DAYS_OVERRIDE object below to set custom on-site days for specific users.
+ * Users not in the override map will default to 13 days.
  *
  * Run with: bunx tsx scripts/init-kudos.ts
  */
@@ -16,9 +19,27 @@ import { KUDOS_CONSTANTS } from "~/utils/kudosCalculation";
 
 const db = new PrismaClient();
 
+/**
+ * USER_DAYS_OVERRIDE: Configure custom on-site days for specific users
+ *
+ * Map user email to number of days on-site for users who attended differently
+ * from the default 13 days. Users not listed here will default to 13 days.
+ *
+ * Example:
+ *   const USER_DAYS_OVERRIDE: Record<string, number> = {
+ *     "alice@example.com": 7,   // Only here 1 week
+ *     "bob@example.com": 10,     // Here 10 days
+ *   };
+ */
+const USER_DAYS_OVERRIDE: Record<string, number> = {
+  // Add user overrides here using email addresses
+  // "user@example.com": numberOfDays,
+};
+
 interface UserKudosData {
   userId: string;
   userName: string;
+  daysOnSite: number;
   baseKudos: number;
   updatesCreated: number;
   updatesKudos: number;
@@ -33,7 +54,7 @@ interface UserKudosData {
   totalKudos: number;
 }
 
-async function calculateUserKudos(userId: string): Promise<UserKudosData | null> {
+async function calculateUserKudos(userId: string, daysOnSite: number = KUDOS_CONSTANTS.DAYS_ATTENDED): Promise<UserKudosData | null> {
   // Get user info
   const user = await db.user.findUnique({
     where: { id: userId },
@@ -116,7 +137,7 @@ async function calculateUserKudos(userId: string): Promise<UserKudosData | null>
   });
 
   // Calculate kudos components
-  const baseKudos = KUDOS_CONSTANTS.BASE_KUDOS;
+  const baseKudos = daysOnSite * KUDOS_CONSTANTS.KUDOS_PER_DAY;
   const updatesKudos = updatesCreated * KUDOS_CONSTANTS.UPDATE_WEIGHT;
   const likesReceivedKudos = totalLikesReceived * KUDOS_CONSTANTS.BACKFILL_LIKE_VALUE;
   const likesGivenKudos = totalLikesGiven * KUDOS_CONSTANTS.BACKFILL_LIKE_VALUE;
@@ -131,6 +152,7 @@ async function calculateUserKudos(userId: string): Promise<UserKudosData | null>
   return {
     userId,
     userName,
+    daysOnSite,
     baseKudos,
     updatesCreated,
     updatesKudos,
@@ -178,6 +200,7 @@ async function main() {
           name: true,
           firstName: true,
           surname: true,
+          email: true,
         },
       },
     },
@@ -185,7 +208,10 @@ async function main() {
 
   const users = acceptedApplications
     .filter((app) => app.user)
-    .map((app) => ({ id: app.user!.id }));
+    .map((app) => ({
+      id: app.user!.id,
+      email: app.user!.email,
+    }));
 
   console.log(`Found ${users.length} accepted residents to process\n`);
 
@@ -196,7 +222,9 @@ async function main() {
   // Calculate kudos for each user
   for (const user of users) {
     try {
-      const kudosData = await calculateUserKudos(user.id);
+      // Get days on-site for this user by email (default to 13 if not overridden)
+      const daysOnSite = user.email ? (USER_DAYS_OVERRIDE[user.email] ?? KUDOS_CONSTANTS.DAYS_ATTENDED) : KUDOS_CONSTANTS.DAYS_ATTENDED;
+      const kudosData = await calculateUserKudos(user.id, daysOnSite);
 
       if (kudosData) {
         results.push(kudosData);
@@ -208,7 +236,7 @@ async function main() {
         });
 
         successCount++;
-        console.log(`✅ ${kudosData.userName}: ${Math.round(kudosData.totalKudos)} kudos`);
+        console.log(`✅ ${kudosData.userName}: ${Math.round(kudosData.totalKudos)} kudos (${daysOnSite} days)`);
       }
     } catch (error) {
       errorCount++;
@@ -247,7 +275,7 @@ async function main() {
     results.slice(0, 10).forEach((r, idx) => {
       console.log(
         `${idx + 1}. ${r.userName.padEnd(30)} ${Math.round(r.totalKudos).toString().padStart(6)} kudos ` +
-        `(updates: ${r.updatesCreated}, praise: +${r.praiseReceived}/-${r.praiseSent}, likes: +${r.likesReceived}/-${r.likesGiven})`
+        `(${r.daysOnSite}d, updates: ${r.updatesCreated}, praise: +${r.praiseReceived}/-${r.praiseSent}, likes: +${r.likesReceived}/-${r.likesGiven})`
       );
     });
   }

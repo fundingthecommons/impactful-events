@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { type EmailResult } from "~/server/email/emailService";
 
 export const projectRouter = createTRPCRouter({
   getMyProjects: protectedProcedure
@@ -1148,20 +1149,46 @@ export const projectRouter = createTRPCRouter({
         },
       });
 
-      // Send Telegram notifications to project members asynchronously via bot
+      // Send notifications to project members asynchronously (both email and Telegram)
       // Use void to explicitly ignore the promise (fire-and-forget pattern)
       void (async () => {
         try {
-          const { BotNotificationService } = await import("~/server/services/botNotificationService");
-          const botNotificationService = new BotNotificationService(ctx.db);
-
           const commenterName = comment.user.name ??
             `${comment.user.firstName ?? ""} ${comment.user.surname ?? ""}`.trim() ??
             "Someone";
 
           const updateUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://platform.fundingthecommons.io"}/events/${input.eventId}/updates/${input.updateId}`;
 
-          const results = await botNotificationService.sendUpdateCommentNotifications({
+          // Get all project collaborators (excluding the commenter)
+          const collaborators = await ctx.db.projectCollaborator.findMany({
+            where: {
+              projectId: update.project.id,
+              userId: { not: ctx.session.user.id },
+            },
+            include: {
+              user: {
+                include: {
+                  profile: {
+                    select: {
+                      telegramChatId: true,
+                      telegramHandle: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          let telegramSuccessCount = 0;
+          let telegramFailureCount = 0;
+          let emailSuccessCount = 0;
+          let emailFailureCount = 0;
+
+          // Send Telegram notifications
+          const { BotNotificationService } = await import("~/server/services/botNotificationService");
+          const botNotificationService = new BotNotificationService(ctx.db);
+
+          const telegramResults = await botNotificationService.sendUpdateCommentNotifications({
             commentId: comment.id,
             updateId: input.updateId,
             projectId: update.project.id,
@@ -1172,10 +1199,48 @@ export const projectRouter = createTRPCRouter({
             updateUrl,
           });
 
-          const successCount = results.filter(r => r.success).length;
-          const failureCount = results.filter(r => !r.success).length;
+          telegramSuccessCount = telegramResults.filter(r => r.success).length;
+          telegramFailureCount = telegramResults.filter(r => !r.success).length;
 
-          console.log(`Update comment notifications: ${successCount} sent, ${failureCount} failed for comment ${comment.id}`);
+          // Send Email notifications
+          const { getEmailService } = await import("~/server/email/emailService");
+          const emailService = getEmailService(ctx.db);
+
+          const emailPromises = collaborators
+            .filter(c => c.user.email)
+            .map(async (collaborator): Promise<EmailResult> => {
+              const recipientName = collaborator.user.name ??
+                `${collaborator.user.firstName ?? ""} ${collaborator.user.surname ?? ""}`.trim() ??
+                "Team Member";
+
+              return emailService.sendUpdateCommentEmail({
+                recipientEmail: collaborator.user.email!,
+                recipientName,
+                commenterName,
+                commentContent: input.content,
+                updateUrl,
+                projectTitle: update.project.title,
+                eventId: input.eventId,
+                commentId: comment.id,
+                updateId: input.updateId,
+                projectId: update.project.id,
+              });
+            });
+
+          const emailResults = await Promise.allSettled(emailPromises);
+
+          emailSuccessCount = emailResults.filter(
+            r => r.status === 'fulfilled' && r.value.success
+          ).length;
+          emailFailureCount = emailResults.filter(
+            r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success)
+          ).length;
+
+          console.log(
+            `Update comment notifications for comment ${comment.id}: ` +
+            `Telegram (${telegramSuccessCount} sent, ${telegramFailureCount} failed), ` +
+            `Email (${emailSuccessCount} sent, ${emailFailureCount} failed)`
+          );
         } catch (error) {
           // Log error but don't fail the comment creation
           console.error("Failed to send update comment notifications:", error);

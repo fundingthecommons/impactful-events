@@ -3,7 +3,7 @@ import type { PrismaClient, EmailType, EmailStatus, Prisma } from '@prisma/clien
 import { sendEmail as sendViaPostmark } from '~/lib/email';
 import { templates, type TemplateName, templateToEmailType } from './templates';
 import { captureEmailError } from '~/utils/errorCapture';
-import type { 
+import type {
   ApplicationAcceptedProps,
   ApplicationRejectedProps,
   ApplicationWaitlistedProps,
@@ -11,16 +11,18 @@ import type {
   ApplicationMissingInfoProps,
   InvitationProps,
   PasswordResetProps,
+  UpdateCommentNotificationProps,
 } from './templates';
 
-type TemplateProps = 
+type TemplateProps =
   | ApplicationAcceptedProps
   | ApplicationRejectedProps
   | ApplicationWaitlistedProps
   | ApplicationSubmittedProps
   | ApplicationMissingInfoProps
   | InvitationProps
-  | PasswordResetProps;
+  | PasswordResetProps
+  | UpdateCommentNotificationProps;
 
 // Strongly typed application data interface
 interface ApplicationWithUserAndEvent {
@@ -54,13 +56,19 @@ interface SendEmailParams {
   userId?: string;
 }
 
+export interface EmailResult {
+  success: boolean;
+  emailId?: string;
+  error?: string;
+}
+
 export class EmailService {
   constructor(private db: PrismaClient) {}
 
   /**
    * Send an email using a template
    */
-  async sendEmail(params: SendEmailParams) {
+  async sendEmail(params: SendEmailParams): Promise<EmailResult> {
     const { to, templateName, templateData, applicationId, eventId, userId } = params;
 
     try {
@@ -224,6 +232,44 @@ export class EmailService {
   }
 
   /**
+   * Send update comment notification email
+   */
+  async sendUpdateCommentEmail(params: {
+    recipientEmail: string;
+    recipientName: string;
+    commenterName: string;
+    commentContent: string;
+    updateUrl: string;
+    projectTitle: string;
+    eventId: string;
+    commentId: string;
+    updateId: string;
+    projectId: string;
+  }): Promise<EmailResult> {
+    // Truncate comment for preview
+    const commentPreview =
+      params.commentContent.length > 150
+        ? params.commentContent.substring(0, 150) + '...'
+        : params.commentContent;
+
+    const templateData: UpdateCommentNotificationProps = {
+      recipientName: params.recipientName,
+      commenterName: params.commenterName,
+      commentPreview,
+      updateUrl: params.updateUrl,
+      projectTitle: params.projectTitle,
+    };
+
+    return this.sendEmail({
+      to: params.recipientEmail,
+      templateName: 'updateCommentNotification',
+      templateData,
+      eventId: params.eventId,
+      userId: undefined, // No specific user ID for this type
+    });
+  }
+
+  /**
    * Get subject line for a template
    */
   private getSubjectForTemplate(templateName: TemplateName, data: TemplateProps): string {
@@ -242,6 +288,8 @@ export class EmailService {
         return `You're invited to join ${(data as InvitationProps).eventName}`;
       case 'passwordReset':
         return 'Reset your Funding the Commons password';
+      case 'updateCommentNotification':
+        return `💬 New comment from ${(data as UpdateCommentNotificationProps).commenterName}`;
       default:
         return 'Notification from Funding the Commons';
     }
