@@ -603,12 +603,25 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
               {allMetrics.metrics.map((metric) => {
                 const isAdded = existingMetricIds.includes(metric.id);
                 return (
-                  <Paper key={metric.id} p="md" withBorder>
+                  <Paper
+                    key={metric.id}
+                    p="md"
+                    withBorder
+                    bg={isAdded ? "green.0" : undefined}
+                    style={isAdded ? { borderColor: "var(--mantine-color-green-3)" } : undefined}
+                  >
                     <Group justify="space-between" wrap="nowrap">
                       <Box style={{ flex: 1, minWidth: 0 }}>
-                        <Text fw={500} size="sm" lineClamp={1} mb="xs">
-                          {metric.name}
-                        </Text>
+                        <Group gap="xs" mb="xs">
+                          <Text fw={500} size="sm" lineClamp={1}>
+                            {metric.name}
+                          </Text>
+                          {isAdded && (
+                            <Badge size="xs" color="green" variant="light">
+                              ✓ Added
+                            </Badge>
+                          )}
+                        </Group>
                         {metric.description && (
                           <Text size="xs" c="dimmed" lineClamp={2} mb="xs">
                             {metric.description}
