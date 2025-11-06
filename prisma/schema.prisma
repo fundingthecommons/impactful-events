@@ -20,7 +20,7 @@ model Post {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    createdBy   User   @relation(fields: [createdById], references: [id])
+    createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
     createdById String
 
     @@index([name])
@@ -175,8 +175,8 @@ model Event {
   type        String   // e.g., "HACKATHON", "DINNER", "CONFERENCE"
   isOnline    Boolean  @default(true)
 
-  createdBy   User     @relation("EventsCreatedBy", fields: [createdById], references: [id])
-  createdById String
+  createdBy   User?    @relation("EventsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
 
   hackathon   Hackathon?
   // Add other event-specific relations as needed
@@ -201,8 +201,8 @@ model Hackathon {
   location    String?
   isOnline    Boolean  @default(true)
 
-  createdBy   User     @relation("HackathonCreatedBy", fields: [createdById], references: [id])
-  createdById String
+  createdBy   User?    @relation("HackathonCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
 
   teams       Team[]
   tracks      Track[]
@@ -235,7 +235,7 @@ model Team {
 
 model TeamMembership {
   id      String @id @default(cuid())
-  user    User   @relation(fields: [userId], references: [id])
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId  String
   team    Team   @relation(fields: [teamId], references: [id])
   teamId  String
@@ -260,7 +260,7 @@ model Project {
   track       Track?   @relation(fields: [trackId], references: [id])
   trackId     String?
 
-  createdBy   User     @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+  createdBy   User     @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   createdById String
 
   scores      Score[]
@@ -268,7 +268,7 @@ model Project {
 
 model Judge {
   id     String @id @default(cuid())
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @unique
 
   criteria JudgingCriteria[]
@@ -288,14 +288,14 @@ model Score {
   notes      String?
   project    Project   @relation(fields: [projectId], references: [id])
   projectId  String
-  judge      User      @relation("JudgedBy", fields: [judgeId], references: [id])
+  judge      User      @relation("JudgedBy", fields: [judgeId], references: [id], onDelete: Cascade)
   judgeId    String
   criteria   String
 }
 
 model MentorshipSession {
   id        String   @id @default(cuid())
-  mentor    User     @relation("MentorSessions", fields: [mentorId], references: [id])
+  mentor    User     @relation("MentorSessions", fields: [mentorId], references: [id], onDelete: Cascade)
   mentorId  String
   team      Team     @relation(fields: [teamId], references: [id])
   teamId    String
@@ -323,13 +323,13 @@ model Role {
 
 model UserRole {
   id      String   @id @default(cuid())
-  user    User     @relation(fields: [userId], references: [id])
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId  String
   event   Event    @relation(fields: [eventId], references: [id])
   eventId String
   role    Role     @relation(fields: [roleId], references: [id])
   roleId  String
-  
+
   // Judge-specific fields
   ethereumAddress String? // For hackathon judging (optional, only relevant for judge roles)
 
@@ -409,7 +409,7 @@ model ContactInteraction {
   
   // Relations
   contact       Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  user          User    @relation("ContactInteractions", fields: [userId], references: [id])
+  user          User    @relation("ContactInteractions", fields: [userId], references: [id], onDelete: Cascade)
   communication Communication? @relation(fields: [communicationId], references: [id])
   
   @@index([contactId])
@@ -1659,8 +1659,8 @@ model Praise {
   isPublic      Boolean  @default(false) // Can be shared publicly
 
   // Relations
-  sender        User     @relation("PraiseSent", fields: [senderId], references: [id])
-  recipient     User?    @relation("PraiseReceived", fields: [recipientId], references: [id])
+  sender        User     @relation("PraiseSent", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient     User?    @relation("PraiseReceived", fields: [recipientId], references: [id], onDelete: Cascade)
   event         Event?   @relation("EventPraises", fields: [eventId], references: [id])
 
   @@index([senderId])
