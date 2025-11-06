@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, Menu } from "@mantine/core";
-import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconFileImport, IconMapPin, IconMailOpened, IconUserCircle, IconHeart, IconNews, IconBulb } from "@tabler/icons-react";
+import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconMapPin, IconMailOpened, IconUserCircle, IconHeart, IconNews, IconBulb, IconSparkles } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -23,8 +23,8 @@ export default function AdminNavigation() {
     if (pathname.startsWith("/admin/users")) return "users";
     if (pathname.startsWith("/admin/invitations")) return "invitations";
     if (pathname.startsWith("/contacts")) return "contacts";
-    if (pathname.startsWith("/crypto-nomads-import")) return "import";
     // User navigation tabs
+    if (pathname.startsWith("/events/funding-commons-residency-2025/praise")) return "praise";
     if (pathname.startsWith("/events/funding-commons-residency-2025/impact")) return "impact";
     if (pathname.startsWith("/events/funding-commons-residency-2025/timeline")) return "timeline";
     if (pathname.startsWith("/events/funding-commons-residency-2025/asks-offers")) return "asks-offers";
@@ -128,16 +128,6 @@ export default function AdminNavigation() {
           Contacts
         </TabsTab>
 
-        <TabsTab
-          value="import"
-          leftSection={<IconFileImport size={16} />}
-          component={Link}
-          href="/crypto-nomads-import"
-          style={{ textDecoration: 'none' }}
-        >
-          Import
-        </TabsTab>
-
         {/* User Navigation Items */}
         <TabsTab
           value="my-residency"
@@ -187,6 +177,16 @@ export default function AdminNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Timeline
+        </TabsTab>
+
+        <TabsTab
+          value="praise"
+          leftSection={<IconSparkles size={16} />}
+          component={Link}
+          href="/events/funding-commons-residency-2025/praise"
+          style={{ textDecoration: 'none' }}
+        >
+          Praise
         </TabsTab>
 
         <TabsTab
