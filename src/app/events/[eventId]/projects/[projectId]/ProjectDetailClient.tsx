@@ -611,6 +611,19 @@ export default function ProjectDetailClient({
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .update-hover-container {
+            transition: background-color 0.2s ease;
+          }
+          .update-hover-container:hover {
+            background-color: var(--mantine-color-gray-0);
+          }
+          [data-mantine-color-scheme="dark"] .update-hover-container:hover {
+            background-color: var(--mantine-color-dark-6);
+          }
+        `
+      }} />
       <Container size="lg" py="xl">
         <Stack gap="xl">
           {/* Back Navigation */}
@@ -1000,7 +1013,10 @@ export default function ProjectDetailClient({
                                   variant="subtle"
                                   color="red"
                                   size="sm"
-                                  onClick={() => handleDeleteClick(update.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteClick(update.id);
+                                  }}
                                   title="Delete update"
                                 >
                                   <IconTrash size={16} />
@@ -1009,7 +1025,18 @@ export default function ProjectDetailClient({
                             </Group>
                           }
                         >
-                          <Stack gap="sm" mt="xs">
+                          <Paper
+                            p="md"
+                            radius="md"
+                            className="update-hover-container"
+                            style={{
+                              cursor: 'pointer',
+                            }}
+                            onClick={() => {
+                              router.push(`/events/${eventId}/updates/${update.id}`);
+                            }}
+                          >
+                            <Stack gap="sm" mt="xs">
                             <Group gap="xs">
                               <div style={{ width: 20, height: 20, borderRadius: '50%', overflow: 'hidden' }}>
                                 {update.author.image ? (
@@ -1143,6 +1170,7 @@ export default function ProjectDetailClient({
                               userId={userId}
                             />
                           </Stack>
+                          </Paper>
                         </Timeline.Item>
                       ))}
                     </Timeline>
