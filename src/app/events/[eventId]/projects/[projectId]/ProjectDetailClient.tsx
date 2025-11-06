@@ -1033,7 +1033,7 @@ export default function ProjectDetailClient({
                               cursor: 'pointer',
                             }}
                             onClick={() => {
-                              router.push(`/events/${eventId}/updates/${update.id}`);
+                              router.push(`/events/${_eventId}/updates/${update.id}`);
                             }}
                           >
                             <Stack gap="sm" mt="xs">

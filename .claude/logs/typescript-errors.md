@@ -106,3 +106,27 @@ This log is referenced by CLAUDE.md to help Claude Code generate type-safe TypeS
 **Prevention**: Always verify the rendered element type when using the `component` prop on Mantine components. The event handler types must match the actual DOM element that will be rendered, not the original component type.
 
 ---
+
+## 2025-01-11 - TS2304 Undefined Variable Reference - [Project: impactful-events]
+
+**Error**: Cannot find name 'eventId'. Did you mean '_eventId'?
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/app/events/[eventId]/projects/[projectId]/ProjectDetailClient.tsx
+**Line**: 1036
+**Code Context**:
+```typescript
+// Props destructuring (line 142)
+eventId: _eventId,
+
+// Later usage (line 1036) - INCORRECT
+router.push(`/events/${eventId}/updates/${update.id}`);
+```
+**Fix Applied**: Changed reference from `eventId` to `_eventId` to match the destructured variable name
+```typescript
+// FIXED (line 1036)
+router.push(`/events/${_eventId}/updates/${update.id}`);
+```
+**Type Pattern**: When destructuring props with renamed variables (e.g., `eventId: _eventId`), always use the renamed variable name throughout the component. If a variable is actually being used, don't prefix it with underscore.
+**Prevention**: Either use consistent variable names without renaming in destructuring, OR ensure all references use the renamed variable. The underscore prefix convention is for unused variables per `@typescript-eslint/no-unused-vars`, so if the variable IS used, don't rename it with underscore.
+
+---
