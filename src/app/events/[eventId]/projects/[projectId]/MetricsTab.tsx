@@ -7,9 +7,6 @@ import {
   Text,
   Group,
   Badge,
-  Card,
-  SimpleGrid,
-  ActionIcon,
   Modal,
   TextInput,
   Select,
@@ -19,16 +16,13 @@ import {
   Loader,
   Center,
   Box,
-  Tooltip,
 } from "@mantine/core";
 import {
   IconPlus,
   IconSearch,
   IconTrash,
-  IconTarget,
   IconChartLine,
   IconFilter,
-  IconExternalLink,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
@@ -37,120 +31,6 @@ import { type MetricType, type CollectionMethod } from "@prisma/client";
 interface MetricsTabProps {
   projectId: string;
   canEdit: boolean;
-}
-
-// Metric card component for displaying a single metric
-function MetricCard({
-  metric,
-  projectMetric,
-  canEdit,
-  onRemove,
-}: {
-  metric: {
-    id: string;
-    name: string;
-    slug: string | null;
-    description: string | null;
-    metricType: MetricType[];
-    unitOfMetric: string | null;
-    collectionMethod: CollectionMethod;
-    isOnChain: boolean;
-  };
-  projectMetric?: {
-    targetValue: number | null;
-    addedAt: Date;
-  };
-  canEdit: boolean;
-  onRemove?: () => void;
-}) {
-  const getMetricTypeColor = (type: MetricType) => {
-    const colors: Record<MetricType, string> = {
-      BUILDER: "blue",
-      ENVIRONMENTAL: "green",
-      GIT: "grape",
-      ONCHAIN: "violet",
-      OFFCHAIN: "cyan",
-      CUSTOM: "gray",
-    };
-    return colors[type];
-  };
-
-  const getCollectionMethodBadge = (method: CollectionMethod) => {
-    const labels: Record<CollectionMethod, string> = {
-      ONCHAIN: "On-chain",
-      OFFCHAIN_API: "API",
-      SELF_REPORTING: "Self-reported",
-      MANUAL: "Manual",
-      AUTOMATED: "Automated",
-    };
-    return labels[method];
-  };
-
-  return (
-    <Card withBorder radius="md" p="md">
-      <Stack gap="sm">
-        <Group justify="space-between" wrap="nowrap">
-          <Box style={{ flex: 1, minWidth: 0 }}>
-            <Group gap="xs" mb="xs">
-              <Text fw={600} size="sm" lineClamp={2}>
-                {metric.name}
-              </Text>
-              {metric.isOnChain && (
-                <Tooltip label="On-chain metric">
-                  <Badge size="xs" variant="dot" color="violet">
-                    On-chain
-                  </Badge>
-                </Tooltip>
-              )}
-            </Group>
-
-            {metric.description && (
-              <Text size="xs" c="dimmed" lineClamp={2} mb="xs">
-                {metric.description}
-              </Text>
-            )}
-
-            <Group gap="xs">
-              {metric.metricType.map((type) => (
-                <Badge key={type} size="xs" color={getMetricTypeColor(type)}>
-                  {type.toLowerCase()}
-                </Badge>
-              ))}
-              <Badge size="xs" variant="light" color="gray">
-                {getCollectionMethodBadge(metric.collectionMethod)}
-              </Badge>
-            </Group>
-          </Box>
-
-          {canEdit && onRemove && (
-            <ActionIcon
-              color="red"
-              variant="subtle"
-              onClick={onRemove}
-              size="sm"
-            >
-              <IconTrash size={16} />
-            </ActionIcon>
-          )}
-        </Group>
-
-        {projectMetric?.targetValue && (
-          <Group gap="xs">
-            <IconTarget size={16} />
-            <Text size="xs" c="dimmed">
-              Target: {projectMetric.targetValue} {metric.unitOfMetric ?? ""}
-            </Text>
-          </Group>
-        )}
-
-        {metric.unitOfMetric && (
-          <Text size="xs" c="dimmed">
-            Unit: {metric.unitOfMetric}
-          </Text>
-        )}
-      </Stack>
-    </Card>
-  );
 }
 
 // Modal for searching and adding metrics from the metrics garden
