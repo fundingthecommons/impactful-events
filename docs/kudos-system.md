@@ -4,6 +4,12 @@
 
 The Kudos system is a social economy designed to incentivize meaningful contributions and engagement within the residency program. It creates a dynamic transfer economy where social capital (kudos) flows between participants based on their interactions.
 
+Beyond being a social feedback mechanism, the Kudos system serves as a signal-gathering experiment to better understand how collaboration, support, and recognition manifest within the residency. By documenting these interactions — who contributes, supports, or uplifts others — we generate valuable qualitative and quantitative data about community dynamics.
+
+This documentation is essential for impact evaluation, helping us move beyond anecdotal assessments toward a structured understanding of what kinds of actions, relationships, and projects create measurable value in the context of the residency. In this sense, the primary motivation for the Kudos system is not gamification, but building a transparent, data-informed foundation for evaluating and amplifying impact across the community.
+
+At the same time, I acknowledge the risks and sensitivities of introducing such a system — especially around perception, fairness, and unintended incentives. This is why the Kudos system should be seen as a playful experiment, not a definitive measure of worth or contribution. Input, critique, and co-design from participants are actively encouraged, as the system itself is meant to evolve through reflection, feedback, and lived experience within the residency.
+
 ## Core Principles
 
 ### 1. **Zero-Sum Transfers**
@@ -29,12 +35,39 @@ The Kudos system is a social economy designed to incentivize meaningful contribu
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
-| `BASE_KUDOS` | 100 | Starting kudos for all users |
+| `KUDOS_PER_DAY` | 10 | Kudos earned per day of residency attendance |
+| `DAYS_ATTENDED` | 13 | Current days of residency (assumed all residents present) |
+| `BASE_KUDOS` | 130 | Starting kudos (10 × 13 days) |
 | `UPDATE_WEIGHT` | 10 | Kudos minted per ProjectUpdate posted |
 | `PRAISE_TRANSFER_RATE` | 5% | Percentage transferred when praising |
 | `LIKE_TRANSFER_RATE` | 2% | Percentage transferred when liking |
 | `BACKFILL_PRAISE_VALUE` | 5 | Default kudos for historical praise (no transfer data) |
 | `BACKFILL_LIKE_VALUE` | 2 | Default kudos for historical likes (no transfer data) |
+
+### Base Kudos Calculation
+
+**Formula**: `BASE_KUDOS = DAYS_ATTENDED × KUDOS_PER_DAY`
+
+**Current Calculation**: `130 = 13 days × 10 kudos/day`
+
+**Rationale**:
+- Rewards consistent attendance at the residency
+- 10 kudos per day recognizes physical presence and participation
+- As residency progresses, base kudos increases for all residents
+- Currently assumes all residents have attended all 13 days
+- Future: Can be personalized based on actual attendance tracking
+
+**Attendance-Based Kudos**:
+- Day 1: 10 base kudos
+- Day 7: 70 base kudos
+- Day 13: 130 base kudos (current)
+- Day 30: 300 base kudos (projected)
+
+This creates a growing baseline that:
+1. Rewards commitment to the program
+2. Provides increasing "spending power" over time
+3. Ensures even less active residents have kudos to engage
+4. Reflects that longer tenure = more social capital
 
 ### Transfer Rates Rationale
 
@@ -54,12 +87,20 @@ The Kudos system is a social economy designed to incentivize meaningful contribu
 
 **Initial Kudos (One-Time Backfill)**:
 ```
-Initial Kudos = BASE_KUDOS +
+Initial Kudos = (DAYS_ATTENDED × KUDOS_PER_DAY) +
                 (ProjectUpdates × UPDATE_WEIGHT) +
                 (Likes Received × BACKFILL_LIKE_VALUE) -
                 (Likes Given × BACKFILL_LIKE_VALUE) +
                 (Praise Received × BACKFILL_PRAISE_VALUE) -
                 (Praise Sent × BACKFILL_PRAISE_VALUE)
+
+Current Values:
+Initial Kudos = (13 × 10) +
+                (ProjectUpdates × 10) +
+                (Likes Received × 2) -
+                (Likes Given × 2) +
+                (Praise Received × 5) -
+                (Praise Sent × 5)
 ```
 
 **Ongoing Kudos Calculation**:
@@ -71,6 +112,8 @@ Current Kudos = Initial Kudos +
                 (New Praise Received × [5% of sender's kudos at time]) -
                 (New Praise Sent × [5% of your kudos at time])
 ```
+
+**Note on Attendance**: Currently all residents assumed to have attended all 13 days (130 base kudos). Future implementations can track actual attendance and adjust base kudos accordingly.
 
 ## Action Economics
 
@@ -97,8 +140,10 @@ Current Kudos = Initial Kudos +
 
 **Example Scenarios**:
 - Alice (500 kudos) likes Bob's update → Alice: 500→490, Bob: +10
-- Carol (100 kudos) likes Bob's update → Carol: 100→98, Bob: +2
-- Dave (50 kudos) likes Bob's update → Dave: 50→49, Bob: +1
+- Carol (200 kudos) likes Bob's update → Carol: 200→196, Bob: +4
+- Dave (130 kudos) likes Bob's update → Dave: 130→127.4, Bob: +2.6
+
+**Note**: With 130 base kudos, even new residents with no activity have ~2.6 kudos to transfer per like, ensuring everyone can participate meaningfully from day one.
 
 ### Giving Praise (5% Transfer)
 
@@ -114,8 +159,10 @@ Current Kudos = Initial Kudos +
 
 **Example Scenarios**:
 - Alice (500 kudos) praises Bob → Alice: 500→475, Bob: +25
-- Carol (100 kudos) praises Bob → Carol: 100→95, Bob: +5
-- Dave (50 kudos) praises Bob → Dave: 50→47.5, Bob: +2.5
+- Carol (200 kudos) praises Bob → Carol: 200→190, Bob: +10
+- Dave (130 kudos) praises Bob → Dave: 130→123.5, Bob: +6.5
+
+**Note**: With 130 base kudos, even new residents can give meaningful praise worth 6.5 kudos, making their recognition valuable from the start.
 
 ## Behavioral Economics
 
@@ -161,8 +208,14 @@ Current Kudos = Initial Kudos +
 **Answer**: No - must have sufficient kudos to cover transfer cost.
 
 **Minimum Requirements**:
-- Like: Need at least 1 kudos (2% of 50 = 1)
-- Praise: Need at least 2.5 kudos (5% of 50 = 2.5)
+- Like: Need at least 2.6 kudos (2% of 130 = 2.6)
+- Praise: Need at least 6.5 kudos (5% of 130 = 6.5)
+
+**Practical Impact**: With 130 base kudos from attendance, all residents start with sufficient kudos to:
+- Give ~50 likes before depleting base kudos (130 / 2.6 = 50)
+- Give ~20 praises before depleting base kudos (130 / 6.5 = 20)
+
+This ensures active participation is possible even without creating updates.
 
 ### Historical Data Backfill
 
@@ -249,7 +302,10 @@ senderKudosAtTime Float?     // Sender's total kudos when they praised
 | Alice Smith   | 2        | 15      | 8           | 12              | 523   |
 | Bob Jones     | 1        | 10      | 5           | 8               | 387   |
 | Carol Davis   | 3        | 8       | 12          | 6               | 285   |
+| New Resident  | 0        | 0       | 0           | 0               | 130   |
 ```
+
+**Note**: All residents start with 130 base kudos (13 days × 10 kudos/day), ensuring even new or inactive participants have social capital to engage with the community.
 
 ### Future UI Enhancements
 
@@ -280,8 +336,13 @@ senderKudosAtTime Float?     // Sender's total kudos when they praised
 - Create and run migration
 
 ### Phase 2: Calculation Logic
-- Create kudos calculation utility function
-- Calculate initial kudos for all users (backfill)
+- Create kudos calculation utility function with constants:
+  - `KUDOS_PER_DAY = 10`
+  - `DAYS_ATTENDED = 13` (current)
+  - `BASE_KUDOS = 130` (calculated as 13 × 10)
+- Calculate initial kudos for all users (backfill):
+  - Base: 130 kudos (attendance)
+  - Plus: Historical updates, likes, praise
 - Update User.kudos field for existing users
 
 ### Phase 3: Display Integration

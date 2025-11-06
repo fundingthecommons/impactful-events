@@ -66,6 +66,7 @@ model User {
   password      String?   // Hashed password for email/password authentication
   role          String?   @default("user") // Add simple role field
   isAIReviewer  Boolean   @default(false) // Identifies AI reviewers like Elinor Ostrom
+  kudos         Float     @default(130.0) // Social credit score (130 = 13 days × 10 kudos/day)
   accounts      Account[]
   sessions      Session[]
   posts         Post[]
@@ -1279,6 +1280,10 @@ model ProjectUpdateLike {
   userId          String        // Who liked it
   blueskyUri      String?       // AT Proto URI if synced to Bluesky (future)
 
+  // Kudos transfer system
+  kudosTransferred Float?       // Amount of kudos transferred with this like (2% of liker's kudos)
+  likerKudosAtTime Float?       // Liker's total kudos balance when they liked
+
   createdAt       DateTime      @default(now())
 
   // Relations
@@ -1297,6 +1302,10 @@ model UserProjectLike {
   id        String      @id @default(cuid())
   projectId String      // Which UserProject was liked
   userId    String      // Who liked it
+
+  // Kudos transfer system
+  kudosTransferred Float?  // Amount of kudos transferred with this like (2% of liker's kudos)
+  likerKudosAtTime Float?  // Liker's total kudos balance when they liked
 
   createdAt DateTime    @default(now())
 
@@ -1364,6 +1373,11 @@ model AskOfferLike {
   id          String    @id @default(cuid())
   askOfferId  String    // Which ask/offer was liked
   userId      String    // Who liked it
+
+  // Kudos transfer system
+  kudosTransferred Float?  // Amount of kudos transferred with this like (2% of liker's kudos)
+  likerKudosAtTime Float?  // Liker's total kudos balance when they liked
+
   createdAt   DateTime  @default(now())
 
   askOffer    AskOffer  @relation(fields: [askOfferId], references: [id], onDelete: Cascade)
@@ -1625,6 +1639,10 @@ model Praise {
   // Praise content
   message       String   @db.Text // The praise message
   category      String?  // Optional: auto-tag (e.g., "talk", "help", "mentorship")
+
+  // Kudos transfer system
+  kudosTransferred Float?  // Amount of kudos transferred with this praise (5% of sender's kudos)
+  senderKudosAtTime Float? // Sender's total kudos balance when they praised
 
   // Context
   eventId       String?  // Optional: link to specific event

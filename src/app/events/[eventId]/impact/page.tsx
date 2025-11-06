@@ -19,18 +19,19 @@ import { api } from "~/trpc/react";
 import { getDisplayName } from "~/utils/userDisplay";
 import { IconArrowUp, IconArrowDown } from "@tabler/icons-react";
 import Link from "next/link";
+import { KUDOS_CONSTANTS, getKudosTier } from "~/utils/kudosCalculation";
 
 interface ImpactPageProps {
   params: Promise<{ eventId: string }>;
 }
 
-type SortField = "projects" | "updates" | "praiseSent" | "praiseReceived";
+type SortField = "projects" | "updates" | "praiseSent" | "praiseReceived" | "kudos";
 type SortDirection = "asc" | "desc";
 
 export default function ImpactPage({ params }: ImpactPageProps) {
   const [eventId, setEventId] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string | null>("metrics");
-  const [sortField, setSortField] = useState<SortField>("praiseReceived");
+  const [sortField, setSortField] = useState<SortField>("kudos");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   // Await params in Next.js 15
@@ -107,6 +108,16 @@ export default function ImpactPage({ params }: ImpactPageProps) {
         (t) => t.recipientId === userId
       ).length ?? 0;
 
+      // Calculate kudos
+      // Formula: BASE_KUDOS + (updates × 10) + (praise received × 5) - (praise sent × 5)
+      // Using backfill values for historical praise transactions
+      const kudos = Math.max(0,
+        KUDOS_CONSTANTS.BASE_KUDOS +
+        (updateCount * KUDOS_CONSTANTS.UPDATE_WEIGHT) +
+        (praiseReceivedCount * KUDOS_CONSTANTS.BACKFILL_PRAISE_VALUE) -
+        (praiseSentCount * KUDOS_CONSTANTS.BACKFILL_PRAISE_VALUE)
+      );
+
       return {
         userId,
         name: resident.user?.name,
@@ -117,6 +128,7 @@ export default function ImpactPage({ params }: ImpactPageProps) {
         updates: updateCount,
         praiseSent: praiseSentCount,
         praiseReceived: praiseReceivedCount,
+        kudos,
       };
     }).filter(Boolean);
   }, [residentsData, residentProjects, transactions]);
@@ -229,6 +241,15 @@ export default function ImpactPage({ params }: ImpactPageProps) {
                       <SortIcon field="praiseReceived" />
                     </Group>
                   </Table.Th>
+                  <Table.Th
+                    style={{ cursor: "pointer" }}
+                    onClick={() => handleSort("kudos")}
+                  >
+                    <Group gap="xs">
+                      Kudos
+                      <SortIcon field="kudos" />
+                    </Group>
+                  </Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -264,6 +285,15 @@ export default function ImpactPage({ params }: ImpactPageProps) {
                     </Table.Td>
                     <Table.Td>
                       <Badge variant="light" color="green">{resident!.praiseReceived}</Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge
+                        variant="light"
+                        color={getKudosTier(resident!.kudos).color}
+                        size="lg"
+                      >
+                        {Math.round(resident!.kudos)}
+                      </Badge>
                     </Table.Td>
                   </Table.Tr>
                 ))}

@@ -238,23 +238,6 @@ export default function UpdateDetailClient({
 
             <Divider />
 
-            {/* Title */}
-            <Title order={2}>{update.title}</Title>
-
-            {/* Tags */}
-            {update.tags.length > 0 && (
-              <Group gap="xs">
-                {update.tags.map((tag, index) => (
-                  <Badge key={index} variant="outline" size="md">
-                    {tag}
-                  </Badge>
-                ))}
-              </Group>
-            )}
-
-            {/* Content */}
-            <MarkdownRenderer content={update.content} />
-
             {/* Images */}
             {update.imageUrls.length > 0 && (
               <SimpleGrid
@@ -272,6 +255,23 @@ export default function UpdateDetailClient({
                 ))}
               </SimpleGrid>
             )}
+
+            {/* Title */}
+            <Title order={2}>{update.title}</Title>
+
+            {/* Tags */}
+            {update.tags.length > 0 && (
+              <Group gap="xs">
+                {update.tags.map((tag, index) => (
+                  <Badge key={index} variant="outline" size="md">
+                    {tag}
+                  </Badge>
+                ))}
+              </Group>
+            )}
+
+            {/* Content */}
+            <MarkdownRenderer content={update.content} />
 
             {/* GitHub Links */}
             {update.githubUrls.length > 0 && (
@@ -349,41 +349,6 @@ export default function UpdateDetailClient({
                 </Title>
               </Group>
             </Group>
-
-            {/* Add Comment Form */}
-            {userId && (
-              <Card withBorder padding="md" style={{ backgroundColor: "var(--mantine-color-gray-0)" }}>
-                <Stack gap="sm">
-                  <MentionTextarea
-                    placeholder="Add a comment... (supports Markdown and @mentions)"
-                    value={newComment}
-                    onChange={setNewComment}
-                    minRows={3}
-                  />
-                  <Group justify="flex-end">
-                    <Button
-                      onClick={() =>
-                        createComment.mutate({
-                          updateId: update.id,
-                          content: newComment,
-                        })
-                      }
-                      disabled={!newComment.trim()}
-                      loading={createComment.isPending}
-                      leftSection={<IconMessageCircle size={16} />}
-                    >
-                      Post Comment
-                    </Button>
-                  </Group>
-                </Stack>
-              </Card>
-            )}
-
-            {!userId && (
-              <Text c="dimmed" ta="center" py="md">
-                Please log in to comment
-              </Text>
-            )}
 
             {/* Comments List */}
             {update.comments.length > 0 ? (
@@ -496,6 +461,41 @@ export default function UpdateDetailClient({
             ) : (
               <Text c="dimmed" ta="center" py="md">
                 No comments yet. Be the first to comment!
+              </Text>
+            )}
+
+            {/* Add Comment Form */}
+            {userId && (
+              <Card withBorder padding="md" style={{ backgroundColor: "var(--mantine-color-gray-0)" }}>
+                <Stack gap="sm">
+                  <MentionTextarea
+                    placeholder="Add a comment... (supports Markdown and @mentions)"
+                    value={newComment}
+                    onChange={setNewComment}
+                    minRows={3}
+                  />
+                  <Group justify="flex-end">
+                    <Button
+                      onClick={() =>
+                        createComment.mutate({
+                          updateId: update.id,
+                          content: newComment,
+                        })
+                      }
+                      disabled={!newComment.trim()}
+                      loading={createComment.isPending}
+                      leftSection={<IconMessageCircle size={16} />}
+                    >
+                      Post Comment
+                    </Button>
+                  </Group>
+                </Stack>
+              </Card>
+            )}
+
+            {!userId && (
+              <Text c="dimmed" ta="center" py="md">
+                Please log in to comment
               </Text>
             )}
           </Stack>
