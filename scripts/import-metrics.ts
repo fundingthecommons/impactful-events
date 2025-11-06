@@ -255,9 +255,9 @@ if (args.length === 0) {
   process.exit(1);
 }
 
-const csvPath = args[0];
+const csvPath = args[0] ?? '';
 
-importMetrics(csvPath!)
+importMetrics(csvPath)
   .then(() => {
     console.log('\n✅ Import completed successfully!');
     process.exit(0);
