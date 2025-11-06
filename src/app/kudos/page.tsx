@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getServerAuthSession } from "~/server/auth";
+import { auth } from "~/server/auth";
 import { KudosLeaderboardClient } from "./KudosLeaderboardClient";
 import { type Metadata } from "next";
 
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function KudosLeaderboardPage() {
-  const session = await getServerAuthSession();
+  const session = await auth();
 
   if (!session) {
     redirect("/api/auth/signin");

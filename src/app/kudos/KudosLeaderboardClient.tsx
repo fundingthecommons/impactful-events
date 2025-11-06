@@ -223,8 +223,22 @@ export function KudosLeaderboardClient() {
                 lineWidth={2}
               >
                 {activityTimeline?.map((activity) => {
-                  const from = activity.from;
-                  const to = activity.to;
+                  const from = activity.from as {
+                    id: string;
+                    firstName: string | null;
+                    surname: string | null;
+                    name: string | null;
+                    email?: string | null;
+                    image: string | null;
+                  };
+                  const to = activity.to as {
+                    id: string;
+                    firstName: string | null;
+                    surname: string | null;
+                    name: string | null;
+                    email?: string | null;
+                    image: string | null;
+                  };
 
                   const fromName =
                     from?.firstName && from?.surname
@@ -244,22 +258,22 @@ export function KudosLeaderboardClient() {
                   if (activity.type === "praise") {
                     icon = <IconMessage size={16} />;
                     title = `${fromName} praised ${toName}`;
-                    description = activity.content.message;
+                    description = (activity.content as { message: string }).message;
                     color = "pink";
                   } else if (activity.type === "like_update") {
                     icon = <IconThumbUp size={16} />;
                     title = `${fromName} liked ${toName}'s update`;
-                    description = activity.content.updateTitle ?? "Project update";
+                    description = (activity.content as { updateTitle?: string | null }).updateTitle ?? "Project update";
                     color = "grape";
                   } else if (activity.type === "like_askoffer") {
                     icon = <IconQuestionMark size={16} />;
-                    title = `${fromName} liked ${toName}'s ${activity.content.askOfferType}`;
-                    description = activity.content.askOfferTitle ?? "";
+                    title = `${fromName} liked ${toName}'s ${(activity.content as { askOfferType: string }).askOfferType}`;
+                    description = (activity.content as { askOfferTitle?: string | null }).askOfferTitle ?? "";
                     color = "cyan";
                   } else if (activity.type === "like_project") {
                     icon = <IconBriefcase size={16} />;
                     title = `${fromName} liked ${toName}'s project`;
-                    description = activity.content.projectTitle ?? "Project";
+                    description = (activity.content as { projectTitle?: string | null }).projectTitle ?? "Project";
                     color = "indigo";
                   }
 
