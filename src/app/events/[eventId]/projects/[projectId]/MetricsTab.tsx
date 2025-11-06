@@ -320,9 +320,37 @@ function AddMetricModal({
 
 export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
   const [addModalOpened, setAddModalOpened] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [collectionFilter, setCollectionFilter] = useState<string | null>(null);
 
   const { data: projectMetrics, isLoading, refetch } = api.metric.getProjectMetrics.useQuery({
     projectId,
+  });
+
+  const { data: allMetrics, isLoading: isLoadingAllMetrics } = api.metric.list.useQuery({
+    search: searchQuery || undefined,
+    metricType: typeFilter as MetricType | undefined,
+    collectionMethod: collectionFilter as CollectionMethod | undefined,
+    limit: 100,
+  });
+
+  const addMetricMutation = api.metric.addToProject.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Success",
+        message: "Metric added to project",
+        color: "green",
+      });
+      void refetch();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
   });
 
   const removeMetricMutation = api.metric.removeFromProject.useMutation({
@@ -342,6 +370,13 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
       });
     },
   });
+
+  const handleAddMetric = (metricId: string) => {
+    addMetricMutation.mutate({
+      projectId,
+      metricId,
+    });
+  };
 
   const handleRemoveMetric = (metricId: string) => {
     removeMetricMutation.mutate({
@@ -441,6 +476,191 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
                 </ActionIcon>
               </Tooltip>
             </Group>
+          )}
+        </Stack>
+      </Paper>
+
+      {/* Metrics Garden - Browse All Available Metrics */}
+      <Paper p="xl" radius="md" withBorder>
+        <Stack gap="lg">
+          <Box>
+            <Group gap="xs" mb="xs">
+              <IconSearch size={24} />
+              <Title order={2}>Metrics Garden</Title>
+            </Group>
+            <Text c="dimmed" size="sm">
+              Browse and discover all {allMetrics?.total ?? 92} available metrics
+            </Text>
+          </Box>
+
+          <Divider />
+
+          {/* Search and Filters */}
+          <Stack gap="md">
+            <TextInput
+              placeholder="Search metrics by name or description..."
+              leftSection={<IconSearch size={16} />}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.currentTarget.value)}
+              size="md"
+            />
+
+            <Group>
+              <Select
+                placeholder="Filter by type"
+                data={[
+                  { value: "BUILDER", label: "Builder" },
+                  { value: "ENVIRONMENTAL", label: "Environmental" },
+                  { value: "GIT", label: "Git" },
+                  { value: "ONCHAIN", label: "On-chain" },
+                  { value: "OFFCHAIN", label: "Off-chain" },
+                  { value: "CUSTOM", label: "Custom" },
+                ]}
+                value={typeFilter}
+                onChange={setTypeFilter}
+                clearable
+                leftSection={<IconFilter size={16} />}
+              />
+
+              <Select
+                placeholder="Filter by collection method"
+                data={[
+                  { value: "ONCHAIN", label: "On-chain" },
+                  { value: "OFFCHAIN_API", label: "API" },
+                  { value: "SELF_REPORTING", label: "Self-reported" },
+                  { value: "MANUAL", label: "Manual" },
+                  { value: "AUTOMATED", label: "Automated" },
+                ]}
+                value={collectionFilter}
+                onChange={setCollectionFilter}
+                clearable
+                leftSection={<IconFilter size={16} />}
+              />
+            </Group>
+          </Stack>
+
+          <Divider />
+
+          {/* Metrics List */}
+          {isLoadingAllMetrics ? (
+            <Center py="xl">
+              <Loader size="md" />
+            </Center>
+          ) : allMetrics && allMetrics.metrics.length > 0 ? (
+            <Stack gap="md">
+              <Text size="sm" c="dimmed">
+                Showing {allMetrics.metrics.length} of {allMetrics.total} metrics
+              </Text>
+              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                {allMetrics.metrics.map((metric) => {
+                  const isAdded = existingMetricIds.includes(metric.id);
+                  return (
+                    <Card key={metric.id} withBorder radius="md" p="md">
+                      <Stack gap="sm">
+                        <Group justify="space-between" wrap="nowrap" align="flex-start">
+                          <Box style={{ flex: 1, minWidth: 0 }}>
+                            <Group gap="xs" mb="xs">
+                              <Text fw={600} size="sm" lineClamp={2}>
+                                {metric.name}
+                              </Text>
+                              {metric.isOnChain && (
+                                <Tooltip label="On-chain metric">
+                                  <Badge size="xs" variant="dot" color="violet">
+                                    On-chain
+                                  </Badge>
+                                </Tooltip>
+                              )}
+                            </Group>
+
+                            {metric.description && (
+                              <Text size="xs" c="dimmed" lineClamp={2} mb="xs">
+                                {metric.description}
+                              </Text>
+                            )}
+
+                            <Group gap="xs" mb="xs">
+                              {metric.metricType.map((type) => (
+                                <Badge
+                                  key={type}
+                                  size="xs"
+                                  color={
+                                    type === "BUILDER"
+                                      ? "blue"
+                                      : type === "ENVIRONMENTAL"
+                                        ? "green"
+                                        : type === "GIT"
+                                          ? "grape"
+                                          : type === "ONCHAIN"
+                                            ? "violet"
+                                            : type === "OFFCHAIN"
+                                              ? "cyan"
+                                              : "gray"
+                                  }
+                                >
+                                  {type.toLowerCase()}
+                                </Badge>
+                              ))}
+                              <Badge size="xs" variant="light" color="gray">
+                                {metric.collectionMethod === "ONCHAIN"
+                                  ? "On-chain"
+                                  : metric.collectionMethod === "OFFCHAIN_API"
+                                    ? "API"
+                                    : metric.collectionMethod === "SELF_REPORTING"
+                                      ? "Self-reported"
+                                      : metric.collectionMethod === "MANUAL"
+                                        ? "Manual"
+                                        : "Automated"}
+                              </Badge>
+                            </Group>
+
+                            {metric.unitOfMetric && (
+                              <Text size="xs" c="dimmed">
+                                Unit: {metric.unitOfMetric}
+                              </Text>
+                            )}
+                          </Box>
+                        </Group>
+
+                        {canEdit && (
+                          <Button
+                            size="xs"
+                            variant={isAdded ? "light" : "filled"}
+                            color={isAdded ? "gray" : "blue"}
+                            leftSection={
+                              isAdded ? (
+                                <IconTrash size={14} />
+                              ) : (
+                                <IconPlus size={14} />
+                              )
+                            }
+                            onClick={() =>
+                              isAdded
+                                ? handleRemoveMetric(metric.id)
+                                : handleAddMetric(metric.id)
+                            }
+                            loading={
+                              addMetricMutation.isPending ||
+                              removeMetricMutation.isPending
+                            }
+                            fullWidth
+                          >
+                            {isAdded ? "Remove" : "Add to Project"}
+                          </Button>
+                        )}
+                      </Stack>
+                    </Card>
+                  );
+                })}
+              </SimpleGrid>
+            </Stack>
+          ) : (
+            <Center py="xl">
+              <Text c="dimmed" size="sm">
+                {searchQuery || typeFilter || collectionFilter
+                  ? "No metrics found matching your filters"
+                  : "No metrics available"}
+              </Text>
+            </Center>
           )}
         </Stack>
       </Paper>
