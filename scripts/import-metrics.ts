@@ -138,12 +138,12 @@ async function importMetrics(csvPath: string) {
     fileContent = fileContent.slice(1);
   }
 
-  const records = parse(fileContent, {
+  const records: CsvRow[] = parse(fileContent, {
     columns: true,
     skip_empty_lines: true,
     trim: true,
     bom: true, // Handle BOM automatically
-  }) as CsvRow[];
+  });
 
   console.log(`Found ${records.length} metrics to import\n`);
 
