@@ -54,10 +54,10 @@ export const metricRouter = createTRPCRouter({
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
         isActive: z.boolean().optional(),
-        metricType: metricTypeEnum.optional(),
-        collectionMethod: collectionMethodEnum.optional(),
+        metricType: metricTypeEnum.nullish(),
+        collectionMethod: collectionMethodEnum.nullish(),
         isOnChain: z.boolean().optional(),
-        search: z.string().optional(),
+        search: z.string().nullish(),
       })
     )
     .query(async ({ ctx, input }) => {
