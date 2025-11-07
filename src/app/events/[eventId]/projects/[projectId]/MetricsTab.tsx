@@ -18,6 +18,11 @@ import {
   Box,
   Textarea,
   MultiSelect,
+  Tooltip,
+  Progress,
+  Checkbox,
+  Accordion,
+  Alert,
 } from "@mantine/core";
 import {
   IconPlus,
@@ -26,6 +31,8 @@ import {
   IconChartLine,
   IconFilter,
   IconSparkles,
+  IconInfoCircle,
+  IconCheck,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
@@ -362,9 +369,385 @@ function CreateMetricModal({
   );
 }
 
+// Modal for AI-powered metric suggestions
+function SuggestMetricsModal({
+  opened,
+  onClose,
+  projectId,
+  onMetricsAdded,
+}: {
+  opened: boolean;
+  onClose: () => void;
+  projectId: string;
+  onMetricsAdded: () => void;
+}) {
+  const [selectedExistingMetrics, setSelectedExistingMetrics] = useState<string[]>([]);
+  const [selectedCustomMetrics, setSelectedCustomMetrics] = useState<number[]>([]);
+
+  const suggestMetricsMutation = api.metric.suggestMetrics.useMutation({
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  const addMetricMutation = api.metric.addToProject.useMutation();
+  const createMetricMutation = api.metric.create.useMutation();
+
+  const handleGetSuggestions = () => {
+    setSelectedExistingMetrics([]);
+    setSelectedCustomMetrics([]);
+    suggestMetricsMutation.mutate({ projectId });
+  };
+
+  const handleAddSelectedExisting = async () => {
+    try {
+      for (const metricId of selectedExistingMetrics) {
+        await addMetricMutation.mutateAsync({
+          projectId,
+          metricId,
+        });
+      }
+      notifications.show({
+        title: "Success",
+        message: `Added ${selectedExistingMetrics.length} metric${selectedExistingMetrics.length > 1 ? 's' : ''} to project`,
+        color: "green",
+      });
+      setSelectedExistingMetrics([]);
+      onMetricsAdded();
+    } catch {
+      notifications.show({
+        title: "Error",
+        message: "Failed to add some metrics",
+        color: "red",
+      });
+    }
+  };
+
+  const handleCreateAndAddCustom = async () => {
+    if (!suggestMetricsMutation.data?.customMetrics) return;
+
+    try {
+      for (const index of selectedCustomMetrics) {
+        const customMetric = suggestMetricsMutation.data.customMetrics[index];
+        if (!customMetric) continue;
+
+        const newMetric = await createMetricMutation.mutateAsync({
+          name: customMetric.name,
+          description: customMetric.description,
+          metricType: customMetric.metricType,
+          unitOfMetric: customMetric.unitOfMetric,
+          collectionMethod: customMetric.collectionMethod,
+        });
+
+        await addMetricMutation.mutateAsync({
+          projectId,
+          metricId: newMetric.id,
+        });
+      }
+      notifications.show({
+        title: "Success",
+        message: `Created and added ${selectedCustomMetrics.length} custom metric${selectedCustomMetrics.length > 1 ? 's' : ''}`,
+        color: "green",
+      });
+      setSelectedCustomMetrics([]);
+      onMetricsAdded();
+    } catch {
+      notifications.show({
+        title: "Error",
+        message: "Failed to create some metrics",
+        color: "red",
+      });
+    }
+  };
+
+  const suggestions = suggestMetricsMutation.data;
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={
+        <Group gap="xs">
+          <IconSparkles size={20} />
+          <Text fw={600}>AI Metric Suggestions</Text>
+        </Group>
+      }
+      size="xl"
+    >
+      <Stack gap="md">
+        {!suggestions ? (
+          <Stack gap="md" align="center" py="xl">
+            <Text c="dimmed" ta="center">
+              Get AI-powered metric suggestions based on your project&apos;s name, description, technologies, and updates.
+            </Text>
+            <Button
+              size="lg"
+              leftSection={<IconSparkles size={20} />}
+              onClick={handleGetSuggestions}
+              loading={suggestMetricsMutation.isPending}
+              gradient={{ from: 'blue', to: 'cyan', deg: 90 }}
+              variant="gradient"
+            >
+              Generate Suggestions
+            </Button>
+          </Stack>
+        ) : (
+          <Stack gap="lg">
+            {/* Analysis Context */}
+            {suggestions.analysisContext && (
+              <Alert icon={<IconInfoCircle size={16} />} title="AI Analysis" color="blue" variant="light">
+                <Stack gap="xs">
+                  <Text size="sm">
+                    <strong>Project Type:</strong> {suggestions.analysisContext.projectType}
+                  </Text>
+                  {suggestions.analysisContext.primaryFocus.length > 0 && (
+                    <Group gap="xs">
+                      <Text size="sm"><strong>Focus Areas:</strong></Text>
+                      {suggestions.analysisContext.primaryFocus.map((focus, i) => (
+                        <Badge key={i} size="sm" variant="light">
+                          {focus}
+                        </Badge>
+                      ))}
+                    </Group>
+                  )}
+                  <Text size="xs" c="dimmed">
+                    Confidence: {Math.round(suggestions.confidence * 100)}%
+                  </Text>
+                </Stack>
+              </Alert>
+            )}
+
+            {/* Existing Metrics Suggestions */}
+            {suggestions.existingMetrics.length > 0 && (
+              <Box>
+                <Group justify="space-between" mb="md">
+                  <Group gap="xs">
+                    <Text fw={600} size="sm">
+                      Recommended from Metrics Garden
+                    </Text>
+                    <Badge size="sm" variant="light">
+                      {suggestions.existingMetrics.length}
+                    </Badge>
+                  </Group>
+                  {selectedExistingMetrics.length > 0 && (
+                    <Button
+                      size="xs"
+                      onClick={handleAddSelectedExisting}
+                      loading={addMetricMutation.isPending}
+                      leftSection={<IconCheck size={14} />}
+                    >
+                      Add Selected ({selectedExistingMetrics.length})
+                    </Button>
+                  )}
+                </Group>
+                <Stack gap="xs" mah={400} style={{ overflowY: "auto" }}>
+                  {suggestions.existingMetrics.map((suggestion) => (
+                    <Paper key={suggestion.metricId} p="md" withBorder bg="blue.0">
+                      <Group align="flex-start" wrap="nowrap">
+                        <Checkbox
+                          checked={selectedExistingMetrics.includes(suggestion.metricId)}
+                          onChange={(e) => {
+                            if (e.currentTarget.checked) {
+                              setSelectedExistingMetrics([...selectedExistingMetrics, suggestion.metricId]);
+                            } else {
+                              setSelectedExistingMetrics(
+                                selectedExistingMetrics.filter((id) => id !== suggestion.metricId)
+                              );
+                            }
+                          }}
+                          mt={4}
+                        />
+                        <Box style={{ flex: 1, minWidth: 0 }}>
+                          <Text fw={500} size="sm" mb="xs">
+                            {suggestion.metricName}
+                          </Text>
+                          {suggestion.metricDescription && (
+                            <Text size="xs" c="dimmed" mb="xs">
+                              {suggestion.metricDescription}
+                            </Text>
+                          )}
+                          <Box mb="xs">
+                            <Group gap="xs" mb={4}>
+                              <Text size="xs" c="dimmed">Relevance:</Text>
+                              <Text size="xs" fw={600}>{suggestion.relevanceScore}/10</Text>
+                            </Group>
+                            <Progress
+                              value={suggestion.relevanceScore * 10}
+                              size="sm"
+                              color={suggestion.relevanceScore >= 7 ? "green" : suggestion.relevanceScore >= 5 ? "yellow" : "gray"}
+                            />
+                          </Box>
+                          <Accordion variant="contained" chevronPosition="left">
+                            <Accordion.Item value="reasoning">
+                              <Accordion.Control>
+                                <Text size="xs" fw={500}>Why this metric?</Text>
+                              </Accordion.Control>
+                              <Accordion.Panel>
+                                <Text size="xs" c="dimmed">
+                                  {suggestion.reasoning}
+                                </Text>
+                                {suggestion.matchedKeywords.length > 0 && (
+                                  <Group gap="xs" mt="xs">
+                                    <Text size="xs" c="dimmed">Matched:</Text>
+                                    {suggestion.matchedKeywords.map((keyword, i) => (
+                                      <Badge key={i} size="xs" variant="dot">
+                                        {keyword}
+                                      </Badge>
+                                    ))}
+                                  </Group>
+                                )}
+                              </Accordion.Panel>
+                            </Accordion.Item>
+                          </Accordion>
+                        </Box>
+                      </Group>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+
+            {/* Custom Metrics Suggestions */}
+            {suggestions.customMetrics.length > 0 && (
+              <Box>
+                <Group justify="space-between" mb="md">
+                  <Group gap="xs">
+                    <Text fw={600} size="sm">
+                      Suggested Custom Metrics
+                    </Text>
+                    <Badge size="sm" variant="light" color="purple">
+                      {suggestions.customMetrics.length}
+                    </Badge>
+                  </Group>
+                  {selectedCustomMetrics.length > 0 && (
+                    <Button
+                      size="xs"
+                      color="purple"
+                      onClick={handleCreateAndAddCustom}
+                      loading={createMetricMutation.isPending || addMetricMutation.isPending}
+                      leftSection={<IconPlus size={14} />}
+                    >
+                      Create Selected ({selectedCustomMetrics.length})
+                    </Button>
+                  )}
+                </Group>
+                <Stack gap="xs" mah={400} style={{ overflowY: "auto" }}>
+                  {suggestions.customMetrics.map((suggestion, index) => (
+                    <Paper key={index} p="md" withBorder bg="purple.0">
+                      <Group align="flex-start" wrap="nowrap">
+                        <Checkbox
+                          checked={selectedCustomMetrics.includes(index)}
+                          onChange={(e) => {
+                            if (e.currentTarget.checked) {
+                              setSelectedCustomMetrics([...selectedCustomMetrics, index]);
+                            } else {
+                              setSelectedCustomMetrics(
+                                selectedCustomMetrics.filter((i) => i !== index)
+                              );
+                            }
+                          }}
+                          mt={4}
+                        />
+                        <Box style={{ flex: 1, minWidth: 0 }}>
+                          <Group gap="xs" mb="xs">
+                            <Text fw={500} size="sm">
+                              {suggestion.name}
+                            </Text>
+                            <Badge size="xs" color="purple">
+                              New
+                            </Badge>
+                          </Group>
+                          <Text size="xs" c="dimmed" mb="xs">
+                            {suggestion.description}
+                          </Text>
+                          <Group gap="xs" mb="xs">
+                            {suggestion.metricType.map((type) => (
+                              <Badge key={type} size="xs">
+                                {type.toLowerCase()}
+                              </Badge>
+                            ))}
+                            <Badge size="xs" variant="light" color="gray">
+                              {suggestion.collectionMethod}
+                            </Badge>
+                            {suggestion.unitOfMetric && (
+                              <Text size="xs" c="dimmed">
+                                • {suggestion.unitOfMetric}
+                              </Text>
+                            )}
+                            <Badge
+                              size="xs"
+                              color={
+                                suggestion.estimatedEffort === "low"
+                                  ? "green"
+                                  : suggestion.estimatedEffort === "medium"
+                                    ? "yellow"
+                                    : "orange"
+                              }
+                            >
+                              {suggestion.estimatedEffort} effort
+                            </Badge>
+                          </Group>
+                          <Accordion variant="contained" chevronPosition="left">
+                            <Accordion.Item value="reasoning">
+                              <Accordion.Control>
+                                <Text size="xs" fw={500}>Why this metric?</Text>
+                              </Accordion.Control>
+                              <Accordion.Panel>
+                                <Text size="xs" c="dimmed">
+                                  {suggestion.reasoning}
+                                </Text>
+                                {suggestion.recommendedCadence && (
+                                  <Text size="xs" c="dimmed" mt="xs">
+                                    <strong>Recommended cadence:</strong> {suggestion.recommendedCadence}
+                                  </Text>
+                                )}
+                              </Accordion.Panel>
+                            </Accordion.Item>
+                          </Accordion>
+                        </Box>
+                      </Group>
+                    </Paper>
+                  ))}
+                </Stack>
+              </Box>
+            )}
+
+            {suggestions.existingMetrics.length === 0 && suggestions.customMetrics.length === 0 && (
+              <Center py="xl">
+                <Text c="dimmed" size="sm" ta="center">
+                  No suggestions generated. Try adding more project details or updates.
+                </Text>
+              </Center>
+            )}
+
+            <Group justify="flex-end" mt="md">
+              <Button variant="subtle" onClick={onClose}>
+                Close
+              </Button>
+              <Button
+                variant="light"
+                leftSection={<IconSparkles size={16} />}
+                onClick={handleGetSuggestions}
+                loading={suggestMetricsMutation.isPending}
+              >
+                Regenerate Suggestions
+              </Button>
+            </Group>
+          </Stack>
+        )}
+      </Stack>
+    </Modal>
+  );
+}
+
 export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
   const [addModalOpened, setAddModalOpened] = useState(false);
   const [createModalOpened, setCreateModalOpened] = useState(false);
+  const [suggestModalOpened, setSuggestModalOpened] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [collectionFilter, setCollectionFilter] = useState<string | null>(null);
@@ -478,13 +861,31 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
               </Text>
             </Box>
             {canEdit && (
-              <Button
-                leftSection={<IconSparkles size={16} />}
-                onClick={() => setCreateModalOpened(true)}
-                variant="light"
-              >
-                Create Custom Metric
-              </Button>
+              <Group gap="sm">
+                <Tooltip
+                  label="AI analyzes your project name, description, technologies, and updates to suggest relevant metrics from the garden and recommend custom metrics to create"
+                  multiline
+                  w={300}
+                  withArrow
+                >
+                  <Button
+                    leftSection={<IconSparkles size={16} />}
+                    rightSection={<IconInfoCircle size={14} opacity={0.6} />}
+                    onClick={() => setSuggestModalOpened(true)}
+                    variant="gradient"
+                    gradient={{ from: 'blue', to: 'cyan', deg: 90 }}
+                  >
+                    Suggest metrics
+                  </Button>
+                </Tooltip>
+                <Button
+                  leftSection={<IconPlus size={16} />}
+                  onClick={() => setCreateModalOpened(true)}
+                  variant="light"
+                >
+                  Create Custom Metric
+                </Button>
+              </Group>
             )}
           </Group>
 
@@ -698,6 +1099,15 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
         onClose={() => setCreateModalOpened(false)}
         projectId={projectId}
         onMetricCreated={() => {
+          void refetch();
+        }}
+      />
+
+      <SuggestMetricsModal
+        opened={suggestModalOpened}
+        onClose={() => setSuggestModalOpened(false)}
+        projectId={projectId}
+        onMetricsAdded={() => {
           void refetch();
         }}
       />

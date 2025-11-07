@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { getAIMetricSuggestionService } from "~/server/services/aiMetricSuggestion";
+import { captureApiError } from "~/utils/errorCapture";
 
 /**
  * Metrics System Router
@@ -634,5 +636,102 @@ export const metricRouter = createTRPCRouter({
       });
 
       return projectMetrics;
+    }),
+
+  /**
+   * AI-powered metric suggestions for a project
+   */
+  suggestMetrics: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        includeUpdates: z.boolean().default(true),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        // Fetch project with updates
+        const project = await ctx.db.userProject.findUnique({
+          where: { id: input.projectId },
+          include: {
+            updates: input.includeUpdates
+              ? {
+                  orderBy: { createdAt: 'desc' },
+                  take: 10,
+                  select: {
+                    title: true,
+                    content: true,
+                    weekNumber: true,
+                    createdAt: true,
+                  },
+                }
+              : false,
+          },
+        });
+
+        if (!project) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Project not found",
+          });
+        }
+
+        // Get all active metrics for AI context
+        const allMetrics = await ctx.db.metric.findMany({
+          where: { isActive: true },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            metricType: true,
+            unitOfMetric: true,
+            category: true,
+            collectionMethod: true,
+          },
+        });
+
+        // Get already added metrics to exclude from suggestions
+        const existingProjectMetrics = await ctx.db.projectMetric.findMany({
+          where: { projectId: input.projectId },
+          select: { metricId: true },
+        });
+
+        const alreadyAddedMetricIds = existingProjectMetrics.map(pm => pm.metricId);
+
+        // Build project context
+        const projectContext = {
+          projectId: project.id,
+          title: project.title,
+          description: project.description,
+          technologies: project.technologies,
+          updates: input.includeUpdates ? project.updates : [],
+        };
+
+        // Call AI service
+        const aiService = getAIMetricSuggestionService();
+        const suggestions = await aiService.suggestMetrics(
+          projectContext,
+          allMetrics,
+          alreadyAddedMetricIds,
+        );
+
+        return suggestions;
+      } catch (error) {
+        captureApiError(error, {
+          userId: ctx.session.user.id,
+          route: "metric.suggestMetrics",
+          method: "POST",
+          input: { projectId: input.projectId },
+        });
+
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Failed to generate metric suggestions",
+        });
+      }
     }),
 });

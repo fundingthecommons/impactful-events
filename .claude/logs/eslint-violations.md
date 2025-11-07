@@ -64,6 +64,28 @@ Each entry follows this structure:
 
 ---
 
+## 2025-01-11 - @typescript-eslint/no-unused-vars - [Project: impactful-events]
+
+**Problem**: Caught unused 'error' variables in async catch blocks
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/app/events/[eventId]/projects/[projectId]/MetricsTab.tsx:421,458
+**Code Context**: `catch (error) { notifications.show({ ... }); }` - error variable captured but never used
+**Fix Applied**: Removed unused error parameter: `catch { notifications.show({ ... }); }`
+**Prevention**: If the caught error is not used in the catch block (not logged, not thrown, not inspected), omit the error parameter entirely. Use `catch { }` instead of `catch (error) { }`.
+
+---
+
+## 2025-01-11 - react/no-unescaped-entities - [Project: impactful-events]
+
+**Problem**: Unescaped apostrophe in JSX text content
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/app/events/[eventId]/projects/[projectId]/MetricsTab.tsx:485
+**Code Context**: `Get AI-powered metric suggestions based on your project's name` - apostrophe not escaped
+**Fix Applied**: Escaped apostrophe using HTML entity: `your project&apos;s name`
+**Prevention**: In JSX text content, escape apostrophes/single quotes with `&apos;` or `&#39;`. Alternatively, wrap text in curly braces: `{"your project's name"}`.
+
+---
+
 ## Usage
 
 This log is referenced by CLAUDE.md to help Claude Code generate ESLint-compliant code on the first try by learning from actual mistakes made in this specific codebase.
