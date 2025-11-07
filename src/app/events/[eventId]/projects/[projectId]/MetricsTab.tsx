@@ -619,14 +619,14 @@ function SuggestMetricsModal({
                     <Text fw={600} size="sm">
                       Suggested Custom Metrics
                     </Text>
-                    <Badge size="sm" variant="light" color="purple">
+                    <Badge size="sm" variant="light" color="teal">
                       {suggestions.customMetrics.length}
                     </Badge>
                   </Group>
                   {selectedCustomMetrics.length > 0 && (
                     <Button
                       size="xs"
-                      color="purple"
+                      color="teal"
                       onClick={handleCreateAndAddCustom}
                       loading={createMetricMutation.isPending || addMetricMutation.isPending}
                       leftSection={<IconPlus size={14} />}
@@ -637,7 +637,7 @@ function SuggestMetricsModal({
                 </Group>
                 <Stack gap="xs" mah={400} style={{ overflowY: "auto" }}>
                   {suggestions.customMetrics.map((suggestion, index) => (
-                    <Paper key={index} p="md" withBorder bg="purple.0">
+                    <Paper key={index} p="md" withBorder bg="teal.0">
                       <Group align="flex-start" wrap="nowrap">
                         <Checkbox
                           checked={selectedCustomMetrics.includes(index)}
@@ -657,7 +657,7 @@ function SuggestMetricsModal({
                             <Text fw={500} size="sm">
                               {suggestion.name}
                             </Text>
-                            <Badge size="xs" color="purple">
+                            <Badge size="xs" color="teal">
                               New
                             </Badge>
                           </Group>
