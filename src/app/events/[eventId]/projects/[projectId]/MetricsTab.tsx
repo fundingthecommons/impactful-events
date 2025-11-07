@@ -961,7 +961,7 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
               onChange={(e) => setSearchQuery(e.currentTarget.value)}
             />
 
-            <Group>
+            <Group mb="md">
               <Select
                 placeholder="Filter by type"
                 data={[
