@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { 
-  Container, 
-  Title, 
-  Card, 
-  Text, 
-  Badge, 
-  Group, 
-  Stack, 
+import { useState, useEffect } from "react";
+import {
+  Container,
+  Title,
+  Card,
+  Text,
+  Badge,
+  Group,
+  Stack,
   Button,
   TextInput,
   Select,
@@ -24,8 +24,9 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { 
-  IconSearch, 
+import { useDebouncedValue } from "@mantine/hooks";
+import {
+  IconSearch,
   IconMail,
   IconUserPlus,
   IconEye,
@@ -49,9 +50,12 @@ export default function UsersClient() {
   const [filterEventId, setFilterEventId] = useState<string>("");
   const [filterRoleId, setFilterRoleId] = useState<string>("");
 
+  // Debounce search term to avoid excessive queries
+  const [debouncedSearch] = useDebouncedValue(searchTerm, 300);
+
   // API queries
   const { data: users, refetch: refetchUsers, isLoading: loadingUsers } = api.role.getAllUsersWithEventRoles.useQuery({
-    search: searchTerm || undefined,
+    search: debouncedSearch || undefined,
     eventId: filterEventId || undefined,
     roleId: filterRoleId || undefined,
   });
