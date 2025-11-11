@@ -19,12 +19,14 @@ import {
   Container,
   Button,
   Divider,
+  Timeline,
 } from "@mantine/core";
 import {
   IconBrandGithub,
   IconExternalLink,
   IconArrowLeft,
   IconMessageCircle,
+  IconCalendarEvent,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
@@ -286,27 +288,34 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
         </Stack>
 
         {/* Updates Feed */}
-        <Stack gap="lg">
+        <Timeline active={updates.length} bulletSize={24} lineWidth={2}>
         {updates.map((update) => {
           const updateCommentInput = commentInputs[update.id] ?? "";
           const updateShowCommentInput = showCommentInput[update.id] ?? false;
 
           return (
-          <Card
+          <Timeline.Item
             key={update.id}
-            withBorder
-            radius="md"
-            p="lg"
-            shadow="sm"
-            style={CARD_STYLE}
-            onClick={() => router.push(`/events/${eventId}/updates/${update.id}`)}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--mantine-color-gray-0)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-            }}
+            bullet={<IconCalendarEvent size={12} />}
+            title={
+              <Group justify="space-between" wrap="nowrap" mb="xs">
+                <Text fw={600} size="lg">{update.title}</Text>
+                {update.weekNumber && (
+                  <Badge size="sm" variant="outline">
+                    Week {update.weekNumber}
+                  </Badge>
+                )}
+              </Group>
+            }
           >
+            <Paper
+              withBorder
+              radius="md"
+              p="lg"
+              shadow="sm"
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push(`/events/${eventId}/updates/${update.id}`)}
+            >
             <Stack gap="md">
               {/* Header with project and author info */}
               <Group justify="space-between" wrap="nowrap">
@@ -357,11 +366,6 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                     </Text>
                   </div>
                 </Group>
-                {update.weekNumber && (
-                  <Badge size="sm" variant="outline">
-                    Week {update.weekNumber}
-                  </Badge>
-                )}
               </Group>
 
               {/* Content layout - Image and text side by side on desktop, stacked on mobile */}
@@ -411,14 +415,9 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
 
                   {/* Text content - 2/3 width on desktop */}
                   <Box style={TEXT_CONTENT_CONTAINER_STYLE}>
-                    <Stack gap="md">
-                      <Title order={3} size="h4">
-                        {update.title}
-                      </Title>
-                      <Box>
-                        <MarkdownRenderer content={update.content} />
-                      </Box>
-                    </Stack>
+                    <Box>
+                      <MarkdownRenderer content={update.content} />
+                    </Box>
                   </Box>
                 </Group>
               ) : update.imageUrls.length > 0 ? (
@@ -452,9 +451,6 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                       ))}
                     </SimpleGrid>
                   </Box>
-                  <Title order={3} size="h4">
-                    {update.title}
-                  </Title>
                   <Box>
                     <MarkdownRenderer content={update.content} />
                   </Box>
@@ -462,9 +458,6 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
               ) : (
                 // No images - just text
                 <>
-                  <Title order={3} size="h4">
-                    {update.title}
-                  </Title>
                   <Box>
                     <MarkdownRenderer content={update.content} />
                   </Box>
@@ -609,10 +602,11 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                 </div>
               )}
             </Stack>
-          </Card>
+          </Paper>
+          </Timeline.Item>
           );
         })}
-        </Stack>
+        </Timeline>
       </Stack>
 
       {/* Image preview modal */}
