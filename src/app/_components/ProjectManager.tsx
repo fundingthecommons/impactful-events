@@ -499,7 +499,7 @@ export function ProjectManager({ projects, onProjectsChange, eventId }: ProjectM
           setRepositories([]);
           form.reset();
         }}
-        title={editingProject ? "Edit Project" : "Add Project"}
+        title={editingProject ? "Edit Project!" : "Add Project"}
         size="lg"
       >
         <form onSubmit={form.onSubmit(handleSubmit)}>

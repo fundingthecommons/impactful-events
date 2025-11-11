@@ -55,6 +55,7 @@ import { LikeButton } from "~/app/_components/LikeButton";
 import { GitCommitTimeline } from "~/app/_components/GitCommitTimeline";
 import { CollaboratorsList } from "~/app/_components/CollaboratorsList";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
+import { RepositoryManager } from "~/app/_components/RepositoryManager";
 import MetricsTab from "./MetricsTab";
 import ImpactTab from "./ImpactTab";
 import { getPrimaryRepoUrl, type ProjectWithRepositories } from "~/utils/project";
@@ -177,6 +178,15 @@ export default function ProjectDetailClient({
   const [logoUploadProgress, setLogoUploadProgress] = useState(0);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [bannerUploadProgress, setBannerUploadProgress] = useState(0);
+  const [repositories, setRepositories] = useState<Array<{
+    id?: string;
+    url: string;
+    name: string;
+    description: string;
+    isPrimary: boolean;
+    order: number;
+    isNew?: boolean;
+  }>>([]);
 
   const utils = api.useUtils();
 
@@ -268,7 +278,52 @@ export default function ProjectDetailClient({
 
   // Update project mutation
   const updateProject = api.profile.updateProject.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Handle repository updates
+      if (repositories.length > 0) {
+        try {
+          const existingRepoIds = project.repositories?.map((r) => r.id) ?? [];
+          const currentRepoIds = repositories.filter((r) => r.id).map((r) => r.id!);
+
+          // Delete removed repositories
+          const toDelete = existingRepoIds.filter((id) => !currentRepoIds.includes(id));
+          await Promise.all(toDelete.map((id) => removeRepository.mutateAsync({ id })));
+
+          // Add or update repositories
+          await Promise.all(
+            repositories.map((repo) => {
+              if (repo.id) {
+                // Update existing repository
+                return updateRepository.mutateAsync({
+                  id: repo.id,
+                  url: repo.url,
+                  name: repo.name || undefined,
+                  description: repo.description || undefined,
+                  isPrimary: repo.isPrimary,
+                  order: repo.order,
+                });
+              } else {
+                // Add new repository
+                return addRepository.mutateAsync({
+                  projectId: project.id,
+                  url: repo.url,
+                  name: repo.name || undefined,
+                  description: repo.description || undefined,
+                  isPrimary: repo.isPrimary,
+                  order: repo.order,
+                });
+              }
+            })
+          );
+        } catch (error) {
+          notifications.show({
+            title: "Warning",
+            message: "Project updated but some repositories failed to save",
+            color: "yellow",
+          });
+        }
+      }
+
       notifications.show({
         title: "Success",
         message: "Project updated successfully",
@@ -277,6 +332,7 @@ export default function ProjectDetailClient({
       });
       setEditProjectModalOpen(false);
       projectForm.reset();
+      setRepositories([]);
       router.refresh();
     },
     onError: (error) => {
@@ -336,6 +392,11 @@ export default function ProjectDetailClient({
       });
     },
   });
+
+  // Repository mutations
+  const addRepository = api.profile.addRepository.useMutation();
+  const updateRepository = api.profile.updateRepository.useMutation();
+  const removeRepository = api.profile.removeRepository.useMutation();
 
   // Get user profile for collaborator management
   const { data: userProfile } = api.profile.getMyProfile.useQuery();
@@ -409,6 +470,19 @@ export default function ProjectDetailClient({
       technologies: project.technologies,
       featured: project.featured,
     });
+
+    // Load repositories
+    setRepositories(
+      project.repositories?.map((r) => ({
+        id: r.id,
+        url: r.url,
+        name: r.name ?? "",
+        description: r.description ?? "",
+        isPrimary: r.isPrimary,
+        order: r.order,
+      })) ?? []
+    );
+
     setEditProjectModalOpen(true);
   };
 
@@ -1504,6 +1578,7 @@ export default function ProjectDetailClient({
         onClose={() => {
           setEditProjectModalOpen(false);
           projectForm.reset();
+          setRepositories([]);
         }}
         title="Edit Project"
         size="lg"
@@ -1524,18 +1599,17 @@ export default function ProjectDetailClient({
               {...projectForm.getInputProps("description")}
             />
 
-            <Group grow>
-              <TextInput
-                label="GitHub URL"
-                placeholder="https://github.com/user/repo"
-                {...projectForm.getInputProps("githubUrl")}
-              />
-              <TextInput
-                label="Live Demo URL"
-                placeholder="https://your-project.com"
-                {...projectForm.getInputProps("liveUrl")}
-              />
-            </Group>
+            <RepositoryManager
+              projectId={project.id}
+              initialRepositories={repositories}
+              onChange={setRepositories}
+            />
+
+            <TextInput
+              label="Live Demo URL"
+              placeholder="https://your-project.com"
+              {...projectForm.getInputProps("liveUrl")}
+            />
 
             <Stack gap="xs">
               <Text size="sm" fw={500}>
