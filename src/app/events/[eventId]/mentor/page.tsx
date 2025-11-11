@@ -14,7 +14,12 @@ export default async function FundingCommonsResidencyMentorPage({
 
   // Extract invitation token from search params
   const resolvedSearchParams = await searchParams;
-  const invitationToken = resolvedSearchParams.invitation;
+  let invitationToken = resolvedSearchParams.invitation;
+
+  // Clean up doubled token (e.g., "token?invitation=token" -> "token")
+  if (invitationToken?.includes('?invitation=')) {
+    invitationToken = invitationToken.split('?invitation=')[0];
+  }
 
   console.log('🎫 [Mentor Page] Invitation token from URL:', invitationToken);
 
