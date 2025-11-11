@@ -2,6 +2,172 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { type EmailResult } from "~/server/email/emailService";
+import { env } from "~/env";
+
+// Helper function to send project update notifications to Telegram channel
+async function sendProjectUpdateNotification(params: {
+  updateTitle: string;
+  updateContent: string;
+  projectTitle: string;
+  authorName: string;
+  updateUrl: string;
+  imageUrls?: string[];
+}) {
+  const botToken = env.TELEGRAM_BOT_TOKEN;
+  const chatId = env.TELEGRAM_CHANNEL_ID;
+  const topicId = env.TELEGRAM_UPDATES_TOPIC_ID;
+
+  if (!botToken) {
+    console.warn("TELEGRAM_BOT_TOKEN not configured, skipping notification");
+    return;
+  }
+
+  if (!chatId) {
+    console.warn("TELEGRAM_CHANNEL_ID not configured, skipping notification");
+    return;
+  }
+
+  try {
+    // Truncate content preview if too long
+    const contentPreview = params.updateContent.length > 200
+      ? `${params.updateContent.substring(0, 200)}...`
+      : params.updateContent;
+
+    const imageInfo = params.imageUrls && params.imageUrls.length > 0
+      ? `\n📷 ${params.imageUrls.length} image${params.imageUrls.length > 1 ? 's' : ''}`
+      : '';
+
+    const message = `
+📊 *New Project Update*
+
+*Project:* ${params.projectTitle}
+*Update:* ${params.updateTitle}
+
+${contentPreview}
+
+👤 Posted by: ${params.authorName}${imageInfo}
+
+[View full update](${params.updateUrl})
+`.trim();
+
+    // Build request body
+    const requestBody: {
+      chat_id: string;
+      text: string;
+      parse_mode: string;
+      disable_web_page_preview: boolean;
+      message_thread_id?: string;
+    } = {
+      chat_id: chatId,
+      text: message,
+      parse_mode: "Markdown",
+      disable_web_page_preview: false,
+    };
+
+    // Only include topic ID if configured
+    if (topicId) {
+      requestBody.message_thread_id = topicId;
+    }
+
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/sendMessage`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json() as { description?: string };
+      console.error("Failed to send Telegram notification:", errorData.description ?? "Unknown error");
+    }
+  } catch (error) {
+    console.error("Error sending Telegram notification:", error instanceof Error ? error.message : "Unknown error");
+  }
+}
+
+// Helper function to send update comment notifications to Telegram channel
+async function sendUpdateCommentChannelNotification(params: {
+  projectTitle: string;
+  updateTitle: string;
+  commenterName: string;
+  commentContent: string;
+  updateUrl: string;
+}) {
+  const botToken = env.TELEGRAM_BOT_TOKEN;
+  const chatId = env.TELEGRAM_CHANNEL_ID;
+  const topicId = env.TELEGRAM_UPDATES_TOPIC_ID;
+
+  if (!botToken) {
+    console.warn("TELEGRAM_BOT_TOKEN not configured, skipping notification");
+    return;
+  }
+
+  if (!chatId) {
+    console.warn("TELEGRAM_CHANNEL_ID not configured, skipping notification");
+    return;
+  }
+
+  try {
+    // Truncate comment preview if too long
+    const commentPreview = params.commentContent.length > 200
+      ? `${params.commentContent.substring(0, 200)}...`
+      : params.commentContent;
+
+    const message = `
+💬 *New Comment on Update*
+
+*Project:* ${params.projectTitle}
+*Update:* ${params.updateTitle}
+
+${commentPreview}
+
+👤 Comment by: ${params.commenterName}
+
+[View conversation](${params.updateUrl})
+`.trim();
+
+    // Build request body
+    const requestBody: {
+      chat_id: string;
+      text: string;
+      parse_mode: string;
+      disable_web_page_preview: boolean;
+      message_thread_id?: string;
+    } = {
+      chat_id: chatId,
+      text: message,
+      parse_mode: "Markdown",
+      disable_web_page_preview: false,
+    };
+
+    // Only include topic ID if configured
+    if (topicId) {
+      requestBody.message_thread_id = topicId;
+    }
+
+    const response = await fetch(
+      `https://api.telegram.org/bot${botToken}/sendMessage`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json() as { description?: string };
+      console.error("Failed to send Telegram comment notification:", errorData.description ?? "Unknown error");
+    }
+  } catch (error) {
+    console.error("Error sending Telegram comment notification:", error instanceof Error ? error.message : "Unknown error");
+  }
+}
 
 export const projectRouter = createTRPCRouter({
   getMyProjects: protectedProcedure
@@ -437,6 +603,32 @@ export const projectRouter = createTRPCRouter({
             }
           }
         }
+      });
+
+      // Send Telegram notification
+      // Get user's accepted application to find eventId
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          userId,
+          status: "ACCEPTED",
+        },
+        select: {
+          eventId: true,
+        },
+        take: 1,
+      });
+
+      const eventId = acceptedApplications[0]?.eventId ?? "funding-commons-residency-2025";
+      const authorName = update.author.name ?? "Someone";
+      const updateUrl = `https://platform.fundingthecommons.io/events/${eventId}/projects/${input.projectId}#update-${update.id}`;
+
+      void sendProjectUpdateNotification({
+        updateTitle: update.title,
+        updateContent: update.content,
+        projectTitle: project.title,
+        authorName,
+        updateUrl,
+        imageUrls: update.imageUrls,
       });
 
       return update;
@@ -1057,6 +1249,11 @@ export const projectRouter = createTRPCRouter({
               firstName: true,
               surname: true,
               image: true,
+              profile: {
+                select: {
+                  avatarUrl: true,
+                }
+              }
             },
           },
           project: {
@@ -1080,6 +1277,11 @@ export const projectRouter = createTRPCRouter({
                   firstName: true,
                   surname: true,
                   image: true,
+                  profile: {
+                    select: {
+                      avatarUrl: true,
+                    }
+                  }
                 },
               },
             },
@@ -1228,6 +1430,15 @@ export const projectRouter = createTRPCRouter({
 
           telegramSuccessCount = telegramResults.filter(r => r.success).length;
           telegramFailureCount = telegramResults.filter(r => !r.success).length;
+
+          // Send channel notification to Telegram topic
+          void sendUpdateCommentChannelNotification({
+            projectTitle: update.project.title,
+            updateTitle: update.title,
+            commenterName,
+            commentContent: input.content,
+            updateUrl,
+          });
 
           // Send Email notifications
           const { getEmailService } = await import("~/server/email/emailService");

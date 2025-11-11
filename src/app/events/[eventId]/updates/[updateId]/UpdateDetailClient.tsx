@@ -10,7 +10,6 @@ import {
   Group,
   Stack,
   Button,
-  Avatar,
   Badge,
   ActionIcon,
   Image,
@@ -33,8 +32,8 @@ import { notifications } from "@mantine/notifications";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import { MentionTextarea } from "~/app/_components/MentionTextarea";
 import { LikeButton } from "~/app/_components/LikeButton";
-import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { getDisplayName } from "~/utils/userDisplay";
+import { UserAvatar } from "~/app/_components/UserAvatar";
 
 interface UpdateDetailClientProps {
   update: {
@@ -54,6 +53,9 @@ interface UpdateDetailClientProps {
       firstName: string | null;
       surname: string | null;
       image: string | null;
+      profile?: {
+        avatarUrl: string | null;
+      } | null;
     };
     project: {
       id: string;
@@ -74,6 +76,9 @@ interface UpdateDetailClientProps {
         firstName: string | null;
         surname: string | null;
         image: string | null;
+        profile?: {
+          avatarUrl: string | null;
+        } | null;
       };
     }>;
   };
@@ -144,6 +149,7 @@ export default function UpdateDetailClient({
             firstName: null,
             surname: null,
             image: null,
+            profile: null,
           },
         };
 
@@ -238,21 +244,17 @@ export default function UpdateDetailClient({
             {/* Header with Author Info */}
             <Group justify="space-between" align="flex-start">
               <Group gap="md">
-                <Avatar
-                  src={getAvatarUrl({
-                    customAvatarUrl: null,
+                <UserAvatar
+                  user={{
+                    customAvatarUrl: displayUpdate.author.profile?.avatarUrl,
                     oauthImageUrl: displayUpdate.author.image,
                     name: displayUpdate.author.name,
-                    email: null,
-                  })}
+                    firstName: displayUpdate.author.firstName,
+                    surname: displayUpdate.author.surname,
+                  }}
                   size="lg"
                   radius="xl"
-                >
-                  {getAvatarInitials({
-                    name: displayUpdate.author.name,
-                    email: null,
-                  })}
-                </Avatar>
+                />
                 <div>
                   <Text fw={600} size="lg">
                     {getDisplayName(displayUpdate.author, "Anonymous")}
@@ -446,21 +448,17 @@ export default function UpdateDetailClient({
                       <Stack gap="xs">
                         <Group justify="space-between" align="flex-start">
                           <Group gap="sm">
-                            <Avatar
-                              src={getAvatarUrl({
-                                customAvatarUrl: null,
+                            <UserAvatar
+                              user={{
+                                customAvatarUrl: comment.user.profile?.avatarUrl,
                                 oauthImageUrl: comment.user.image,
                                 name: comment.user.name,
-                                email: null,
-                              })}
+                                firstName: comment.user.firstName,
+                                surname: comment.user.surname,
+                              }}
                               size="sm"
                               radius="xl"
-                            >
-                              {getAvatarInitials({
-                                name: comment.user.name,
-                                email: null,
-                              })}
-                            </Avatar>
+                            />
                             <div>
                               <Text size="sm" fw={500}>
                                 {getDisplayName(comment.user, "Anonymous")}
