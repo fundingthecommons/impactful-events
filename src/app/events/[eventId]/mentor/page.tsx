@@ -16,6 +16,8 @@ export default async function FundingCommonsResidencyMentorPage({
   const resolvedSearchParams = await searchParams;
   const invitationToken = resolvedSearchParams.invitation;
 
+  console.log('🎫 [Mentor Page] Invitation token from URL:', invitationToken);
+
   // Fetch event details for the specific residency
   const event = await db.event.findUnique({
     where: { id: "funding-commons-residency-2025" },

@@ -144,11 +144,12 @@ export const applicationRouter = createTRPCRouter({
   createApplication: protectedProcedure
     .input(CreateApplicationInputSchema)
     .mutation(async ({ ctx, input }) => {
-      console.log('🔍 createApplication called with:', {
+      console.log('🔍 [Backend] createApplication called with:', {
         userId: ctx.session.user.id,
         eventId: input.eventId,
         applicationType: input.applicationType,
-        language: input.language
+        language: input.language,
+        invitationToken: input.invitationToken,
       });
 
       // Check if user has latePass access or is admin/mentor

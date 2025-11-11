@@ -112,6 +112,8 @@ interface MentorApplicationFormProps {
 }
 
 export default function MentorApplicationForm({ eventId, eventName, invitationToken }: MentorApplicationFormProps) {
+  console.log('🎫 [MentorApplicationForm] Received invitation token:', invitationToken);
+
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -201,6 +203,12 @@ export default function MentorApplicationForm({ eventId, eventName, invitationTo
       });
 
       // Create mentor application record
+      console.log('🎫 [MentorApplicationForm] Sending to API:', {
+        eventId,
+        applicationType: "MENTOR",
+        invitationToken: invitationToken,
+      });
+
       await createApplication.mutateAsync({
         eventId: eventId,
         applicationType: "MENTOR",

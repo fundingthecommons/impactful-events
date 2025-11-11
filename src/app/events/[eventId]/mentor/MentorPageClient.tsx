@@ -29,6 +29,8 @@ export default function MentorPageClient({
   initialUserId,
   invitationToken,
 }: MentorPageClientProps) {
+  console.log('🎫 [MentorPageClient] Received invitation token:', invitationToken);
+
   const { data: session, status } = useSession();
   const [showApplication, setShowApplication] = useState(false);
   const [justAuthenticated, setJustAuthenticated] = useState(false);
