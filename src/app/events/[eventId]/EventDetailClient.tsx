@@ -31,6 +31,7 @@ import DynamicApplicationForm from "~/app/_components/DynamicApplicationForm";
 import { getEventContent } from "~/utils/eventContent";
 import { type EventType } from "~/types/event";
 import { getDisplayName } from "~/utils/userDisplay";
+import { getPrimaryRepoUrl } from "~/utils/project";
 
 type Application = {
   id: string;
@@ -739,10 +740,16 @@ export default function EventDetailClient({
                                 </Group>
                               )}
                               <Group gap="xs">
-                                {project.githubUrl && (
-                                  <Button 
+                                {(project.repositories && project.repositories.length > 0
+                                  ? project.repositories.find(r => r.isPrimary)?.url ?? project.repositories[0]?.url
+                                  : project.githubUrl) && (
+                                  <Button
                                     component="a"
-                                    href={project.githubUrl}
+                                    href={
+                                      project.repositories && project.repositories.length > 0
+                                        ? project.repositories.find(r => r.isPrimary)?.url ?? project.repositories[0]?.url ?? undefined
+                                        : project.githubUrl ?? undefined
+                                    }
                                     target="_blank"
                                     variant="light"
                                     size="xs"

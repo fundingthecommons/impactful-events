@@ -26,6 +26,7 @@ import Link from "next/link";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { getDisplayName } from "~/utils/userDisplay";
 import { LikeButton } from "~/app/_components/LikeButton";
+import { getPrimaryRepoUrl } from "~/utils/project";
 
 interface ProjectsPageProps {
   params: Promise<{ eventId: string }>;
@@ -125,14 +126,14 @@ export default function ProjectsPage({ params }: ProjectsPageProps) {
                               </ActionIcon>
                             </Tooltip>
                           )}
-                          {project.githubUrl && (
+                          {getPrimaryRepoUrl(project) && (
                             <Tooltip label="View Source">
                               <ActionIcon
                                 variant="light"
                                 size="xs"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  window.open(project.githubUrl!, '_blank');
+                                  window.open(getPrimaryRepoUrl(project)!, '_blank');
                                 }}
                               >
                                 <IconBrandGithub size={12} />

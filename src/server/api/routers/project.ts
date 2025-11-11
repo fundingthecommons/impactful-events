@@ -342,6 +342,20 @@ export const projectRouter = createTRPCRouter({
                       technologies: true,
                       featured: true,
                       createdAt: true,
+                      repositories: {
+                        select: {
+                          id: true,
+                          url: true,
+                          name: true,
+                          description: true,
+                          isPrimary: true,
+                          order: true,
+                        },
+                        orderBy: [
+                          { isPrimary: "desc" },
+                          { order: "asc" },
+                        ],
+                      },
                     },
                     orderBy: [
                       { featured: "desc" },
@@ -389,6 +403,20 @@ export const projectRouter = createTRPCRouter({
       const project = await ctx.db.userProject.findUnique({
         where: { id: input.projectId },
         include: {
+          repositories: {
+            select: {
+              id: true,
+              url: true,
+              name: true,
+              description: true,
+              isPrimary: true,
+              order: true,
+            },
+            orderBy: [
+              { isPrimary: "desc" },
+              { order: "asc" },
+            ],
+          },
           profile: {
             include: {
               user: {
@@ -463,6 +491,7 @@ export const projectRouter = createTRPCRouter({
         technologies: project.technologies,
         featured: project.featured,
         createdAt: project.createdAt,
+        repositories: project.repositories,
         author: {
           id: project.profile.user.id,
           name: project.profile.user.name,

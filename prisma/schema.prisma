@@ -1216,7 +1216,7 @@ model UserProject {
   profileId     String
   title         String
   description   String?     @db.Text
-  githubUrl     String?
+  githubUrl     String?     // Legacy: Single GitHub URL (kept for backward compatibility)
   liveUrl       String?
   imageUrl      String?     // Project logo (small icon/thumbnail)
   bannerUrl     String?     // Project banner (large header image)
@@ -1229,6 +1229,7 @@ model UserProject {
 
   // Relations
   profile       UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  repositories  Repository[] // Project repositories (supports multiple repos)
   updates       ProjectUpdate[] // Project timeline updates
   collaborators ProjectCollaborator[] // Users who can collaborate on this project
   likes         UserProjectLike[] // Users who liked this project
@@ -1237,6 +1238,24 @@ model UserProject {
 
   @@index([profileId])
   @@index([featured])
+}
+
+model Repository {
+  id          String      @id @default(cuid())
+  url         String      // GitHub repository URL
+  name        String?     // Repository name (e.g., "frontend", "backend", "core")
+  description String?     // Optional description of this repository's purpose
+  isPrimary   Boolean     @default(false) // Mark main/primary repo
+  order       Int         @default(0)     // Display order
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  project     UserProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+
+  @@index([projectId])
+  @@index([isPrimary])
 }
 
 model ProjectCollaborator {

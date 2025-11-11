@@ -57,6 +57,7 @@ import { CollaboratorsList } from "~/app/_components/CollaboratorsList";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
 import MetricsTab from "./MetricsTab";
 import ImpactTab from "./ImpactTab";
+import { getPrimaryRepoUrl, type ProjectWithRepositories } from "~/utils/project";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -83,6 +84,14 @@ interface ProjectDetailClientProps {
     technologies: string[];
     featured: boolean;
     createdAt: Date;
+    repositories?: Array<{
+      id: string;
+      url: string;
+      name: string | null;
+      description: string | null;
+      isPrimary: boolean;
+      order: number;
+    }>;
     author: {
       id: string;
       name: string | null;
@@ -713,16 +722,40 @@ export default function ProjectDetailClient({
                     Delete Project
                   </Button>
                 )}
-                {project.githubUrl && (
-                  <Button
-                    component="a"
-                    href={project.githubUrl}
-                    target="_blank"
-                    leftSection={<IconBrandGithub size={16} />}
-                    variant="light"
-                  >
-                    View Code
-                  </Button>
+                {/* Show repositories if available, otherwise fall back to githubUrl */}
+                {project.repositories && project.repositories.length > 0 ? (
+                  // Multiple repositories - show them all
+                  [...project.repositories]
+                    .sort((a, b) => {
+                      if (a.isPrimary && !b.isPrimary) return -1;
+                      if (!a.isPrimary && b.isPrimary) return 1;
+                      return a.order - b.order;
+                    })
+                    .map((repo) => (
+                      <Button
+                        key={repo.id}
+                        component="a"
+                        href={repo.url}
+                        target="_blank"
+                        leftSection={<IconBrandGithub size={16} />}
+                        variant={repo.isPrimary ? "filled" : "light"}
+                      >
+                        {repo.name ?? "View Code"}
+                      </Button>
+                    ))
+                ) : (
+                  // Legacy: Single githubUrl
+                  project.githubUrl && (
+                    <Button
+                      component="a"
+                      href={project.githubUrl}
+                      target="_blank"
+                      leftSection={<IconBrandGithub size={16} />}
+                      variant="light"
+                    >
+                      View Code
+                    </Button>
+                  )
                 )}
                 {project.liveUrl && (
                   <Button
@@ -1205,7 +1238,13 @@ export default function ProjectDetailClient({
                   <Text c="dimmed" size="sm">
                     Recent commits from the last 7 days
                   </Text>
-                  <GitCommitTimeline githubUrl={project.githubUrl} />
+                  <GitCommitTimeline
+                    githubUrl={
+                      project.repositories && project.repositories.length > 0
+                        ? project.repositories.find(r => r.isPrimary)?.url ?? project.repositories[0]?.url ?? null
+                        : project.githubUrl
+                    }
+                  />
                 </Stack>
               </Paper>
             </Tabs.Panel>

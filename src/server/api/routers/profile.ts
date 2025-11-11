@@ -53,6 +53,24 @@ const projectUpdateSchema = projectCreateSchema.partial().extend({
   id: z.string(),
 });
 
+const repositoryCreateSchema = z.object({
+  projectId: z.string(),
+  url: z.string().url(),
+  name: z.string().max(100).optional(),
+  description: z.string().max(500).optional(),
+  isPrimary: z.boolean().default(false),
+  order: z.number().int().default(0),
+});
+
+const repositoryUpdateSchema = z.object({
+  id: z.string(),
+  url: z.string().url().optional(),
+  name: z.string().max(100).optional(),
+  description: z.string().max(500).optional(),
+  isPrimary: z.boolean().optional(),
+  order: z.number().int().optional(),
+});
+
 const profileSearchSchema = z.object({
   search: z.string().optional(),
   skills: z.array(z.string()).optional(),
@@ -79,6 +97,15 @@ export const profileRouter = createTRPCRouter({
         where: { userId: ctx.session.user.id },
         include: {
           projects: {
+            include: {
+              repositories: {
+                orderBy: [
+                  { isPrimary: "desc" },
+                  { order: "asc" },
+                  { createdAt: "asc" },
+                ],
+              },
+            },
             orderBy: [
               { featured: "desc" },
               { order: "asc" },
@@ -145,6 +172,15 @@ export const profileRouter = createTRPCRouter({
         where: { userId: input.userId },
         include: {
           projects: {
+            include: {
+              repositories: {
+                orderBy: [
+                  { isPrimary: "desc" },
+                  { order: "asc" },
+                  { createdAt: "asc" },
+                ],
+              },
+            },
             orderBy: [
               { featured: "desc" },
               { order: "asc" },
@@ -318,6 +354,14 @@ export const profileRouter = createTRPCRouter({
           },
           projects: {
             where: { featured: true },
+            include: {
+              repositories: {
+                orderBy: [
+                  { isPrimary: "desc" },
+                  { order: "asc" },
+                ],
+              },
+            },
             take: 3,
             orderBy: { order: "asc" },
           },
@@ -1914,5 +1958,221 @@ export const profileRouter = createTRPCRouter({
         results: syncResults,
         dryRun: input.dryRun,
       };
+    }),
+
+  // Repository management
+  addRepository: protectedProcedure
+    .input(repositoryCreateSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Verify user owns the project OR is a collaborator with edit permission
+      const project = await ctx.db.userProject.findUnique({
+        where: { id: input.projectId },
+        include: {
+          profile: true,
+          collaborators: {
+            where: {
+              userId: ctx.session.user.id,
+              canEdit: true,
+            },
+          },
+        },
+      });
+
+      const isOwner = project?.profile.userId === ctx.session.user.id;
+      const isCollaborator = (project?.collaborators.length ?? 0) > 0;
+
+      if (!project || (!isOwner && !isCollaborator)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only add repositories to projects you own or collaborate on",
+        });
+      }
+
+      // If setting as primary, unset other primary repos
+      if (input.isPrimary) {
+        await ctx.db.repository.updateMany({
+          where: {
+            projectId: input.projectId,
+            isPrimary: true,
+          },
+          data: {
+            isPrimary: false,
+          },
+        });
+      }
+
+      const repository = await ctx.db.repository.create({
+        data: input,
+      });
+
+      return repository;
+    }),
+
+  updateRepository: protectedProcedure
+    .input(repositoryUpdateSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...updateData } = input;
+
+      // Verify user owns the project OR is a collaborator with edit permission
+      const repository = await ctx.db.repository.findUnique({
+        where: { id },
+        include: {
+          project: {
+            include: {
+              profile: true,
+              collaborators: {
+                where: {
+                  userId: ctx.session.user.id,
+                  canEdit: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!repository) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Repository not found",
+        });
+      }
+
+      const isOwner = repository.project.profile.userId === ctx.session.user.id;
+      const isCollaborator = (repository.project.collaborators.length ?? 0) > 0;
+
+      if (!isOwner && !isCollaborator) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only update repositories for projects you own or collaborate on",
+        });
+      }
+
+      // If setting as primary, unset other primary repos
+      if (updateData.isPrimary) {
+        await ctx.db.repository.updateMany({
+          where: {
+            projectId: repository.projectId,
+            isPrimary: true,
+            id: { not: id },
+          },
+          data: {
+            isPrimary: false,
+          },
+        });
+      }
+
+      const updatedRepository = await ctx.db.repository.update({
+        where: { id },
+        data: updateData,
+      });
+
+      return updatedRepository;
+    }),
+
+  removeRepository: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify user owns the project OR is a collaborator with edit permission
+      const repository = await ctx.db.repository.findUnique({
+        where: { id: input.id },
+        include: {
+          project: {
+            include: {
+              profile: true,
+              collaborators: {
+                where: {
+                  userId: ctx.session.user.id,
+                  canEdit: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!repository) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Repository not found",
+        });
+      }
+
+      const isOwner = repository.project.profile.userId === ctx.session.user.id;
+      const isCollaborator = (repository.project.collaborators.length ?? 0) > 0;
+
+      if (!isOwner && !isCollaborator) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only remove repositories from projects you own or collaborate on",
+        });
+      }
+
+      await ctx.db.repository.delete({
+        where: { id: input.id },
+      });
+
+      return { success: true };
+    }),
+
+  reorderRepositories: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+      repositoryOrders: z.array(z.object({
+        id: z.string(),
+        order: z.number().int(),
+      })),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify user owns the project OR is a collaborator with edit permission
+      const project = await ctx.db.userProject.findUnique({
+        where: { id: input.projectId },
+        include: {
+          profile: true,
+          collaborators: {
+            where: {
+              userId: ctx.session.user.id,
+              canEdit: true,
+            },
+          },
+        },
+      });
+
+      const isOwner = project?.profile.userId === ctx.session.user.id;
+      const isCollaborator = (project?.collaborators.length ?? 0) > 0;
+
+      if (!project || (!isOwner && !isCollaborator)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only reorder repositories for projects you own or collaborate on",
+        });
+      }
+
+      // Update each repository's order
+      await Promise.all(
+        input.repositoryOrders.map((repoOrder) =>
+          ctx.db.repository.update({
+            where: { id: repoOrder.id },
+            data: { order: repoOrder.order },
+          })
+        )
+      );
+
+      return { success: true };
+    }),
+
+  getProjectRepositories: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const repositories = await ctx.db.repository.findMany({
+        where: { projectId: input.projectId },
+        orderBy: [
+          { isPrimary: "desc" },
+          { order: "asc" },
+          { createdAt: "asc" },
+        ],
+      });
+
+      return repositories;
     }),
 });

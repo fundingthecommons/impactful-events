@@ -32,6 +32,7 @@ import { api } from "~/trpc/react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { getDisplayName } from "~/utils/userDisplay";
+import { getPrimaryRepoUrl } from "~/utils/project";
 
 interface ProjectFilters {
   search: string;
@@ -103,12 +104,13 @@ export function ProjectsClient() {
       );
     }
 
-    if (project.githubUrl) {
+    const primaryRepoUrl = getPrimaryRepoUrl(project);
+    if (primaryRepoUrl) {
       links.push(
         <Tooltip key="github" label="View Source Code">
           <ActionIcon
             component="a"
-            href={project.githubUrl}
+            href={primaryRepoUrl}
             target="_blank"
             variant="light"
             size="sm"

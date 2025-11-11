@@ -34,10 +34,13 @@ import {
 import { notifications } from "@mantine/notifications";
 import { api } from "~/trpc/react";
 import { useSession } from "next-auth/react";
-import type { UserProject } from "@prisma/client";
+import type { UserProject, Repository } from "@prisma/client";
 import { AddProjectButton } from "./AddProjectButton";
 import { UserSearchSelect } from "./UserSearchSelect";
 import { CollaboratorsList } from "./CollaboratorsList";
+import { RepositoryManager } from "./RepositoryManager";
+import { getPrimaryRepoUrl } from "~/utils/project";
+import Link from "next/link";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -51,14 +54,28 @@ const projectSchema = z.object({
 
 type ProjectFormData = z.infer<typeof projectSchema>;
 
+type ProjectWithRepositories = UserProject & {
+  repositories?: Repository[];
+};
+
 interface ProjectManagerProps {
-  projects: UserProject[];
+  projects: ProjectWithRepositories[];
   onProjectsChange?: () => void;
+  eventId?: string;
 }
 
-export function ProjectManager({ projects, onProjectsChange }: ProjectManagerProps) {
+export function ProjectManager({ projects, onProjectsChange, eventId }: ProjectManagerProps) {
   const [opened, setOpened] = useState(false);
-  const [editingProject, setEditingProject] = useState<UserProject | null>(null);
+  const [editingProject, setEditingProject] = useState<ProjectWithRepositories | null>(null);
+  const [repositories, setRepositories] = useState<Array<{
+    id?: string;
+    url: string;
+    name: string;
+    description: string;
+    isPrimary: boolean;
+    order: number;
+    isNew?: boolean;
+  }>>([]);
   const { data: session } = useSession();
 
   // Fetch collaborators for the editing project
@@ -108,8 +125,36 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
     },
   });
 
+  const addRepository = api.profile.addRepository.useMutation();
+  const updateRepository = api.profile.updateRepository.useMutation();
+  const removeRepository = api.profile.removeRepository.useMutation();
+
   const createProject = api.profile.createProject.useMutation({
-    onSuccess: () => {
+    onSuccess: async (project) => {
+      // Save repositories if any were added
+      if (repositories.length > 0) {
+        try {
+          await Promise.all(
+            repositories.map((repo) =>
+              addRepository.mutateAsync({
+                projectId: project.id,
+                url: repo.url,
+                name: repo.name || undefined,
+                description: repo.description || undefined,
+                isPrimary: repo.isPrimary,
+                order: repo.order,
+              })
+            )
+          );
+        } catch (error) {
+          notifications.show({
+            title: "Warning",
+            message: "Project created but some repositories failed to save",
+            color: "yellow",
+          });
+        }
+      }
+
       notifications.show({
         title: "Success",
         message: "Project created successfully",
@@ -118,6 +163,7 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
       });
       setOpened(false);
       form.reset();
+      setRepositories([]);
       onProjectsChange?.();
     },
     onError: (error) => {
@@ -131,7 +177,52 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
   });
 
   const updateProject = api.profile.updateProject.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Handle repository updates if editing a project
+      if (editingProject && repositories.length > 0) {
+        try {
+          const existingRepoIds = editingProject.repositories?.map((r) => r.id) ?? [];
+          const currentRepoIds = repositories.filter((r) => r.id).map((r) => r.id!);
+
+          // Delete removed repositories
+          const toDelete = existingRepoIds.filter((id) => !currentRepoIds.includes(id));
+          await Promise.all(toDelete.map((id) => removeRepository.mutateAsync({ id })));
+
+          // Add or update repositories
+          await Promise.all(
+            repositories.map((repo) => {
+              if (repo.id) {
+                // Update existing repository
+                return updateRepository.mutateAsync({
+                  id: repo.id,
+                  url: repo.url,
+                  name: repo.name || undefined,
+                  description: repo.description || undefined,
+                  isPrimary: repo.isPrimary,
+                  order: repo.order,
+                });
+              } else {
+                // Add new repository
+                return addRepository.mutateAsync({
+                  projectId: editingProject.id,
+                  url: repo.url,
+                  name: repo.name || undefined,
+                  description: repo.description || undefined,
+                  isPrimary: repo.isPrimary,
+                  order: repo.order,
+                });
+              }
+            })
+          );
+        } catch (error) {
+          notifications.show({
+            title: "Warning",
+            message: "Project updated but some repositories failed to save",
+            color: "yellow",
+          });
+        }
+      }
+
       notifications.show({
         title: "Success",
         message: "Project updated successfully",
@@ -141,6 +232,7 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
       setOpened(false);
       form.reset();
       setEditingProject(null);
+      setRepositories([]);
       onProjectsChange?.();
     },
     onError: (error) => {
@@ -205,7 +297,7 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
     }
   };
 
-  const handleEdit = (project: UserProject) => {
+  const handleEdit = (project: ProjectWithRepositories) => {
     setEditingProject(project);
     form.setValues({
       title: project.title,
@@ -216,6 +308,19 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
       technologies: project.technologies,
       featured: project.featured,
     });
+
+    // Load repositories
+    setRepositories(
+      project.repositories?.map((r) => ({
+        id: r.id,
+        url: r.url,
+        name: r.name ?? "",
+        description: r.description ?? "",
+        isPrimary: r.isPrimary,
+        order: r.order,
+      })) ?? []
+    );
+
     setOpened(true);
   };
 
@@ -228,6 +333,7 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
   const handleAddNew = () => {
     setEditingProject(null);
     form.reset();
+    setRepositories([]);
     setOpened(true);
   };
 
@@ -278,76 +384,109 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
                 if (!a.featured && b.featured) return 1;
                 return a.order - b.order;
               })
-              .map((project) => (
-                <Paper key={project.id} p="md" withBorder radius="md">
-                  <Group justify="space-between" align="flex-start" mb="sm">
-                    <div style={{ flex: 1 }}>
-                      <Group gap="xs" mb="xs">
-                        <Text fw={500} size="lg">{project.title}</Text>
-                        {project.featured && (
-                          <Badge size="xs" color="yellow">Featured</Badge>
+              .map((project) => {
+                const content = (
+                  <>
+                    <Group justify="space-between" align="flex-start" mb="sm">
+                      <div style={{ flex: 1 }}>
+                        <Group gap="xs" mb="xs">
+                          <Text fw={500} size="lg">{project.title}</Text>
+                          {project.featured && (
+                            <Badge size="xs" color="yellow">Featured</Badge>
+                          )}
+                        </Group>
+                        {project.description && (
+                          <Text size="sm" c="dimmed" mb="sm">
+                            {project.description}
+                          </Text>
+                        )}
+                      </div>
+
+                      <Group gap="xs">
+                        <ActionIcon
+                          variant="light"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            handleEdit(project);
+                          }}
+                        >
+                          <IconEdit size={16} />
+                        </ActionIcon>
+                        <ActionIcon
+                          variant="light"
+                          color="red"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            handleDelete(project.id);
+                          }}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      </Group>
+                    </Group>
+
+                    <Group justify="space-between" align="flex-end">
+                      <Group gap={4}>
+                        {project.technologies.map((tech) => (
+                          <Badge key={tech} size="xs" variant="dot">
+                            {tech}
+                          </Badge>
+                        ))}
+                      </Group>
+
+                      <Group gap="xs">
+                        {getPrimaryRepoUrl(project) && (
+                          <ActionIcon
+                            component="a"
+                            href={getPrimaryRepoUrl(project) ?? undefined}
+                            target="_blank"
+                            variant="light"
+                            size="sm"
+                          >
+                            <IconBrandGithub size={16} />
+                          </ActionIcon>
+                        )}
+                        {project.repositories && project.repositories.length > 1 && (
+                          <Badge size="xs" variant="light">
+                            +{project.repositories.length - 1} more
+                          </Badge>
+                        )}
+                        {project.liveUrl && (
+                          <ActionIcon
+                            component="a"
+                            href={project.liveUrl}
+                            target="_blank"
+                            variant="light"
+                            size="sm"
+                          >
+                            <IconExternalLink size={16} />
+                          </ActionIcon>
                         )}
                       </Group>
-                      {project.description && (
-                        <Text size="sm" c="dimmed" mb="sm">
-                          {project.description}
-                        </Text>
-                      )}
-                    </div>
-                    
-                    <Group gap="xs">
-                      <ActionIcon
-                        variant="light"
-                        onClick={() => handleEdit(project)}
-                      >
-                        <IconEdit size={16} />
-                      </ActionIcon>
-                      <ActionIcon
-                        variant="light"
-                        color="red"
-                        onClick={() => handleDelete(project.id)}
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
                     </Group>
-                  </Group>
-                  
-                  <Group justify="space-between" align="flex-end">
-                    <Group gap={4}>
-                      {project.technologies.map((tech) => (
-                        <Badge key={tech} size="xs" variant="dot">
-                          {tech}
-                        </Badge>
-                      ))}
-                    </Group>
-                    
-                    <Group gap="xs">
-                      {project.githubUrl && (
-                        <ActionIcon
-                          component="a"
-                          href={project.githubUrl}
-                          target="_blank"
-                          variant="light"
-                          size="sm"
-                        >
-                          <IconBrandGithub size={16} />
-                        </ActionIcon>
-                      )}
-                      {project.liveUrl && (
-                        <ActionIcon
-                          component="a"
-                          href={project.liveUrl}
-                          target="_blank"
-                          variant="light"
-                          size="sm"
-                        >
-                          <IconExternalLink size={16} />
-                        </ActionIcon>
-                      )}
-                    </Group>
-                  </Group>
-                </Paper>
-              ))}
+                  </>
+                );
+
+                return eventId ? (
+                  <Paper
+                    key={project.id}
+                    p="md"
+                    withBorder
+                    radius="md"
+                    component={Link}
+                    href={`/events/${eventId}/projects/${project.id}`}
+                    style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+                  >
+                    {content}
+                  </Paper>
+                ) : (
+                  <Paper key={project.id} p="md" withBorder radius="md">
+                    {content}
+                  </Paper>
+                );
+              })}
           </SimpleGrid>
         )}
       </Card>
@@ -357,6 +496,7 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
         onClose={() => {
           setOpened(false);
           setEditingProject(null);
+          setRepositories([]);
           form.reset();
         }}
         title={editingProject ? "Edit Project" : "Add Project"}
@@ -378,18 +518,17 @@ export function ProjectManager({ projects, onProjectsChange }: ProjectManagerPro
               {...form.getInputProps("description")}
             />
 
-            <Group grow>
-              <TextInput
-                label="GitHub URL"
-                placeholder="https://github.com/user/repo"
-                {...form.getInputProps("githubUrl")}
-              />
-              <TextInput
-                label="Live Demo URL"
-                placeholder="https://your-project.com"
-                {...form.getInputProps("liveUrl")}
-              />
-            </Group>
+            <RepositoryManager
+              projectId={editingProject?.id}
+              initialRepositories={repositories}
+              onChange={setRepositories}
+            />
+
+            <TextInput
+              label="Live Demo URL"
+              placeholder="https://your-project.com"
+              {...form.getInputProps("liveUrl")}
+            />
 
             <TextInput
               label="Image URL"
