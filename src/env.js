@@ -35,6 +35,8 @@ export const env = createEnv({
     TELEGRAM_CHANNEL_ID: z.string().optional(),
     TELEGRAM_PRAISE_TOPIC_ID: z.string().optional(),
     TELEGRAM_ASKOFFER_TOPIC_ID: z.string().optional(),
+    ATPROTO_PDS_URL: z.string().url().optional().default("https://bsky.social"),
+    ATPROTO_ENCRYPTION_KEY: z.string().min(32).optional(),
   },
 
   /**
@@ -74,6 +76,8 @@ export const env = createEnv({
     TELEGRAM_CHANNEL_ID: process.env.TELEGRAM_CHANNEL_ID,
     TELEGRAM_PRAISE_TOPIC_ID: process.env.TELEGRAM_PRAISE_TOPIC_ID,
     TELEGRAM_ASKOFFER_TOPIC_ID: process.env.TELEGRAM_ASKOFFER_TOPIC_ID,
+    ATPROTO_PDS_URL: process.env.ATPROTO_PDS_URL,
+    ATPROTO_ENCRYPTION_KEY: process.env.ATPROTO_ENCRYPTION_KEY,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   },
   /**

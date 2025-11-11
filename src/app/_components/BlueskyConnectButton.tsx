@@ -15,27 +15,91 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconBrandTwitter, IconCheck, IconAlertCircle } from "@tabler/icons-react";
-import { AtpAgent } from "@atproto/api";
+import { api } from "~/trpc/react";
 
 interface BlueskyConnectButtonProps {
   projectTitle: string;
   projectUrl?: string;
 }
 
-interface BlueskyConnection {
-  handle: string;
-  isConnected: boolean;
-}
-
-export default function BlueskyConnectButton({ 
-  projectTitle, 
-  projectUrl 
+export default function BlueskyConnectButton({
+  projectTitle,
+  projectUrl
 }: BlueskyConnectButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isPosting, setIsPosting] = useState(false);
-  const [connection, setConnection] = useState<BlueskyConnection | null>(null);
-  const [agent, setAgent] = useState<AtpAgent | null>(null);
+
+  // Get connection status
+  const { data: connectionStatus, refetch: refetchStatus } = api.atproto.getConnectionStatus.useQuery();
+
+  // Connect mutation
+  const connectMutation = api.atproto.connectAccount.useMutation({
+    onSuccess: async (data) => {
+      notifications.show({
+        title: "Connected to AT Proto!",
+        message: `Successfully connected as @${data.handle}`,
+        color: "blue",
+        icon: <IconCheck size={16} />,
+      });
+      setIsModalOpen(false);
+      form.reset();
+      await refetchStatus();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Connection Failed",
+        message: error.message,
+        color: "red",
+        icon: <IconAlertCircle size={16} />,
+      });
+    },
+  });
+
+  // Disconnect mutation
+  const disconnectMutation = api.atproto.disconnectAccount.useMutation({
+    onSuccess: async () => {
+      notifications.show({
+        title: "Disconnected",
+        message: "Disconnected from AT Proto",
+        color: "gray",
+      });
+      await refetchStatus();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+        icon: <IconAlertCircle size={16} />,
+      });
+    },
+  });
+
+  // Share project mutation
+  const shareProjectMutation = api.atproto.shareProject.useMutation({
+    onSuccess: (data) => {
+      console.log("✅ Post created successfully:", data);
+      console.log("📍 Post URI:", data.uri);
+      console.log("🔗 Post CID:", data.cid);
+
+      notifications.show({
+        title: "Posted to AT Proto!",
+        message: `Successfully shared your project. URI: ${data.uri}`,
+        color: "blue",
+        icon: <IconCheck size={16} />,
+        autoClose: 10000, // Keep notification visible longer
+      });
+    },
+    onError: (error) => {
+      console.error("❌ Post failed:", error);
+
+      notifications.show({
+        title: "Post Failed",
+        message: error.message,
+        color: "red",
+        icon: <IconAlertCircle size={16} />,
+      });
+    },
+  });
 
   const form = useForm({
     initialValues: {
@@ -45,10 +109,9 @@ export default function BlueskyConnectButton({
     validate: {
       handle: (value) => {
         if (!value) return "Handle is required";
-        // Basic handle validation - can be @handle.bsky.social or handle.bsky.social
         const cleanHandle = value.replace("@", "");
         if (!cleanHandle.includes(".")) {
-          return "Handle must include domain (e.g., user.bsky.social)";
+          return "Handle must include domain (e.g., user.bsky.social or user.custom-pds.com)";
         }
         return null;
       },
@@ -61,119 +124,47 @@ export default function BlueskyConnectButton({
   });
 
   const handleConnect = async (values: typeof form.values) => {
-    setIsConnecting(true);
-    
-    try {
-      // Create new AT Protocol agent
-      const newAgent = new AtpAgent({
-        service: "https://bsky.social",
-      });
-
-      // Clean the handle (remove @ if present)
-      const cleanHandle = values.handle.replace("@", "");
-
-      // Login with handle and app password
-      await newAgent.login({
-        identifier: cleanHandle,
-        password: values.password,
-      });
-
-      // Store connection info and agent
-      setAgent(newAgent);
-      setConnection({
-        handle: cleanHandle,
-        isConnected: true,
-      });
-
-      setIsModalOpen(false);
-      form.reset();
-
-      notifications.show({
-        title: "Connected to Bluesky!",
-        message: `Successfully connected as @${cleanHandle}`,
-        color: "blue",
-        icon: <IconCheck size={16} />,
-      });
-    } catch (error) {
-      console.error("Bluesky connection error:", error);
-      
-      let errorMessage = "Failed to connect to Bluesky";
-      if (error instanceof Error) {
-        if (error.message.includes("Invalid identifier or password")) {
-          errorMessage = "Invalid handle or app password. Make sure you're using an app password, not your main password.";
-        } else if (error.message.includes("network")) {
-          errorMessage = "Network error. Please check your connection and try again.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-
-      notifications.show({
-        title: "Connection Failed",
-        message: errorMessage,
-        color: "red",
-        icon: <IconAlertCircle size={16} />,
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handlePost = async () => {
-    if (!agent || !connection) return;
-
-    setIsPosting(true);
-
-    try {
-      // Create a post about the project
-      const postText = `🚀 Check out my project: ${projectTitle}${projectUrl ? `\n\n${projectUrl}` : ""}\n\n#BuildingInPublic #FundingTheCommons`;
-
-      await agent.post({
-        text: postText,
-        createdAt: new Date().toISOString(),
-      });
-
-      notifications.show({
-        title: "Posted to Bluesky!",
-        message: "Successfully shared your project on Bluesky",
-        color: "blue",
-        icon: <IconCheck size={16} />,
-      });
-    } catch (error) {
-      console.error("Bluesky post error:", error);
-      
-      notifications.show({
-        title: "Post Failed",
-        message: "Failed to post to Bluesky. Please try again.",
-        color: "red",
-        icon: <IconAlertCircle size={16} />,
-      });
-    } finally {
-      setIsPosting(false);
-    }
-  };
-
-  const handleDisconnect = () => {
-    setAgent(null);
-    setConnection(null);
-    
-    notifications.show({
-      title: "Disconnected",
-      message: "Disconnected from Bluesky",
-      color: "gray",
+    await connectMutation.mutateAsync({
+      handle: values.handle,
+      appPassword: values.password,
     });
   };
 
-  if (connection?.isConnected) {
+  const handleDisconnect = async () => {
+    await disconnectMutation.mutateAsync();
+  };
+
+  const handlePost = async () => {
+    if (!projectUrl) {
+      notifications.show({
+        title: "Error",
+        message: "Project URL is required to share",
+        color: "red",
+      });
+      return;
+    }
+
+    await shareProjectMutation.mutateAsync({
+      projectTitle,
+      projectUrl,
+    });
+  };
+
+  if (connectionStatus?.isConnected && connectionStatus.handle) {
     return (
       <Group gap="md">
         <Group gap="xs">
           <Badge variant="light" color="blue" size="sm">
             <Group gap={4}>
               <IconBrandTwitter size={12} />
-              @{connection.handle}
+              @{connectionStatus.handle}
             </Group>
           </Badge>
+          {connectionStatus.pdsUrl && connectionStatus.pdsUrl !== "https://bsky.social" && (
+            <Badge variant="outline" color="gray" size="xs">
+              Custom PDS
+            </Badge>
+          )}
         </Group>
         <Group gap="xs">
           <Button
@@ -181,16 +172,17 @@ export default function BlueskyConnectButton({
             variant="light"
             color="blue"
             onClick={handlePost}
-            loading={isPosting}
+            loading={shareProjectMutation.isPending}
             leftSection={<IconBrandTwitter size={14} />}
           >
-            Share on Bluesky
+            Share on AT Proto
           </Button>
           <Button
             size="sm"
             variant="subtle"
             color="gray"
             onClick={handleDisconnect}
+            loading={disconnectMutation.isPending}
           >
             Disconnect
           </Button>
@@ -208,38 +200,38 @@ export default function BlueskyConnectButton({
         leftSection={<IconBrandTwitter size={14} />}
         onClick={() => setIsModalOpen(true)}
       >
-        Connect Bluesky
+        Connect AT Proto
       </Button>
 
       <Modal
         opened={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="Connect to Bluesky"
+        title="Connect to AT Proto"
         size="md"
       >
         <form onSubmit={form.onSubmit(handleConnect)}>
           <Stack gap="md">
             <Alert color="blue" variant="light">
               <Text size="sm">
-                Connect your Bluesky account to share updates about your project.
+                Connect your AT Proto account (Bluesky or custom PDS) to share updates about your project.
                 You&apos;ll need to use an <strong>App Password</strong> (not your main password).
               </Text>
             </Alert>
 
             <TextInput
-              label="Bluesky Handle"
+              label="Handle"
               placeholder="your-handle.bsky.social"
-              description="Your Bluesky handle (with or without @)"
+              description="Your AT Proto handle (with or without @)"
               required
               {...form.getInputProps("handle")}
             />
 
             <PasswordInput
               label="App Password"
-              placeholder="Enter your Bluesky app password"
+              placeholder="Enter your app password"
               description={
                 <Text size="xs" c="dimmed">
-                  Create an app password in Bluesky Settings → Privacy and Security → App Passwords
+                  Create an app password in your AT Proto client settings
                 </Text>
               }
               required
@@ -250,7 +242,7 @@ export default function BlueskyConnectButton({
               <Button variant="subtle" onClick={() => setIsModalOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" loading={isConnecting}>
+              <Button type="submit" loading={connectMutation.isPending}>
                 Connect
               </Button>
             </Group>

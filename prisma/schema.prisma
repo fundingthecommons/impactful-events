@@ -138,6 +138,9 @@ model User {
   createdMetrics        Metric[]              @relation("MetricsCreated")
   metricMeasurements    MetricMeasurement[]   @relation("MetricMeasurements")
   projectMetricsAdded   ProjectMetric[]       @relation("ProjectMetricsAdded")
+
+  // AT Proto integration relation
+  atProtoAccount        AtProtoAccount?
 }
 
 model VerificationToken {
@@ -1728,4 +1731,31 @@ model ProjectMetric {
   @@index([projectId])
   @@index([metricId])
   @@index([isTracking])
+}
+
+// AT Proto (Bluesky/Custom PDS) Integration
+model AtProtoAccount {
+  id          String   @id @default(cuid())
+  userId      String   @unique // One AT Proto account per user
+
+  // Identity
+  handle      String   // user.bsky.social or user.custom-pds.com
+  did         String   @unique // Decentralized identifier (did:plc:xxx)
+  pdsUrl      String   // PDS server URL (e.g., https://bsky.social or custom PDS)
+
+  // Encrypted session credentials (stored server-side only)
+  accessJwt   String?  @db.Text // Encrypted access token
+  refreshJwt  String?  @db.Text // Encrypted refresh token
+
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lastUsedAt  DateTime @default(now()) // Track last time credentials were used
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([did])
+  @@index([handle])
 }
