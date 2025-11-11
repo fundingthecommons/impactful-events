@@ -145,6 +145,7 @@ export function KudosLeaderboardClient() {
                           <Group gap="md" wrap="nowrap">
                             <UserAvatar
                               user={{
+                                customAvatarUrl: entry.user.profile?.avatarUrl,
                                 oauthImageUrl: entry.user.image,
                                 name: entry.user.name,
                                 email: entry.user.email,

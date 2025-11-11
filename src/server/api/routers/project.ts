@@ -740,6 +740,11 @@ export const projectRouter = createTRPCRouter({
               surname: true,
               name: true,
               image: true,
+              profile: {
+                select: {
+                  avatarUrl: true,
+                }
+              }
             }
           },
           project: {

@@ -150,6 +150,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                 <Group gap="sm" wrap="nowrap" align="flex-start">
                   <UserAvatar
                     user={{
+                      customAvatarUrl: update.author.profile?.avatarUrl,
                       oauthImageUrl: update.author.image,
                       name: update.author.name,
                       firstName: update.author.firstName,

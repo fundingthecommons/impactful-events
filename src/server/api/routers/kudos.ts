@@ -44,6 +44,11 @@ export const kudosRouter = createTRPCRouter({
           email: true,
           image: true,
           kudos: true,
+          profile: {
+            select: {
+              avatarUrl: true,
+            }
+          }
         },
         orderBy: {
           kudos: "desc",
@@ -102,6 +107,7 @@ export const kudosRouter = createTRPCRouter({
               name: user.name,
               email: user.email,
               image: user.image,
+              profile: user.profile,
             },
             kudos: user.kudos,
             breakdown: {

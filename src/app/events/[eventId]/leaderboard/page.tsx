@@ -108,6 +108,7 @@ export default function LeaderboardPage({ params }: LeaderboardPageProps) {
         userId,
         name: resident.user?.name,
         image: resident.user?.image,
+        customAvatarUrl: resident.user?.profile?.avatarUrl,
         firstName: resident.user?.firstName,
         surname: resident.user?.surname,
         projects: totalProjects,
@@ -225,6 +226,7 @@ export default function LeaderboardPage({ params }: LeaderboardPageProps) {
                   <Group gap="sm">
                     <UserAvatar
                       user={{
+                        customAvatarUrl: resident!.customAvatarUrl,
                         oauthImageUrl: resident!.image,
                         name: resident!.name,
                         firstName: resident!.firstName,
