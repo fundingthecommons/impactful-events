@@ -58,7 +58,6 @@ import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
 import { RepositoryManager } from "~/app/_components/RepositoryManager";
 import MetricsTab from "./MetricsTab";
 import ImpactTab from "./ImpactTab";
-import { getPrimaryRepoUrl, type ProjectWithRepositories } from "~/utils/project";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -315,7 +314,7 @@ export default function ProjectDetailClient({
               }
             })
           );
-        } catch (error) {
+        } catch {
           notifications.show({
             title: "Warning",
             message: "Project updated but some repositories failed to save",

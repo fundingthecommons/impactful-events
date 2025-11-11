@@ -86,6 +86,56 @@ Each entry follows this structure:
 
 ---
 
+## 2025-01-11 - @typescript-eslint/no-unused-vars - Timeline Layout Changes - [Project: impactful-events]
+
+**Problem**: Multiple unused variables and imports after implementing timeline layout changes
+**Project Type**: Next.js + TypeScript + Vercel
+**Files Affected**:
+  - src/app/_components/ProjectManager.tsx:149,217
+  - src/app/_components/RepositoryManager.tsx:21,24,43
+  - src/app/admin/users/UsersClient.tsx:3
+  - src/app/events/[eventId]/EventDetailClient.tsx:34
+  - src/app/events/[eventId]/projects/[projectId]/ProjectDetailClient.tsx:61,318
+
+**Code Context**:
+```typescript
+// Unused error parameters in catch blocks
+catch (error) { notifications.show({ ... }); }
+
+// Unused imports
+import { IconStar } from "@tabler/icons-react"; // Not used
+import type { Repository } from "@prisma/client"; // Not used
+import { useState, useEffect } from "react"; // useEffect not used
+import { getPrimaryRepoUrl } from "~/utils/project"; // Not used
+import { getPrimaryRepoUrl, type ProjectWithRepositories } from "~/utils/project"; // Both not used
+
+// Unused function parameter
+function RepositoryManager({ projectId, ... }) { // projectId not used
+```
+
+**Fix Applied**:
+```typescript
+// ✅ Removed error parameters from catch blocks
+catch { notifications.show({ ... }); }
+
+// ✅ Removed unused imports
+// Removed IconStar, Repository type import
+import { useState } from "react"; // Removed useEffect
+// Removed getPrimaryRepoUrl and ProjectWithRepositories imports
+
+// ✅ Prefixed unused parameter with underscore per project convention
+function RepositoryManager({ projectId: _projectId, ... }) {
+```
+
+**Prevention**:
+1. After removing features or refactoring components, always run `bun run check` to identify unused imports and variables
+2. If catch block doesn't use the error, omit the parameter: `catch { }` instead of `catch (error) { }`
+3. For required function parameters that aren't used, prefix with underscore: `_projectId` per `@typescript-eslint/no-unused-vars` rule with `argsIgnorePattern: "^_"`
+4. Remove utility function imports when the functions are no longer called in the component
+5. Only import specific hooks/functions that are actually used in the component
+
+---
+
 ## Usage
 
 This log is referenced by CLAUDE.md to help Claude Code generate ESLint-compliant code on the first try by learning from actual mistakes made in this specific codebase.

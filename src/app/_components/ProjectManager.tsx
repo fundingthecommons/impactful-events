@@ -146,7 +146,7 @@ export function ProjectManager({ projects, onProjectsChange, eventId }: ProjectM
               })
             )
           );
-        } catch (error) {
+        } catch {
           notifications.show({
             title: "Warning",
             message: "Project created but some repositories failed to save",
@@ -214,7 +214,7 @@ export function ProjectManager({ projects, onProjectsChange, eventId }: ProjectM
               }
             })
           );
-        } catch (error) {
+        } catch {
           notifications.show({
             title: "Warning",
             message: "Project updated but some repositories failed to save",

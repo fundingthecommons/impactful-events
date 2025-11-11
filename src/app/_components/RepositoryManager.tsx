@@ -18,10 +18,8 @@ import {
   IconPlus,
   IconTrash,
   IconBrandGithub,
-  IconStar,
   IconStarFilled,
 } from "@tabler/icons-react";
-import type { Repository } from "@prisma/client";
 
 interface RepositoryInput {
   id?: string; // Undefined for new repos
@@ -40,7 +38,7 @@ interface RepositoryManagerProps {
 }
 
 export function RepositoryManager({
-  projectId,
+  projectId: _projectId,
   initialRepositories,
   onChange,
 }: RepositoryManagerProps) {

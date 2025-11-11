@@ -31,7 +31,6 @@ import DynamicApplicationForm from "~/app/_components/DynamicApplicationForm";
 import { getEventContent } from "~/utils/eventContent";
 import { type EventType } from "~/types/event";
 import { getDisplayName } from "~/utils/userDisplay";
-import { getPrimaryRepoUrl } from "~/utils/project";
 
 type Application = {
   id: string;
