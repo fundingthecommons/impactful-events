@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Stack,
   Card,
@@ -18,6 +18,7 @@ import {
   Modal,
   Container,
   Button,
+  Divider,
 } from "@mantine/core";
 import {
   IconBrandGithub,
@@ -33,6 +34,10 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserAvatar } from "~/app/_components/UserAvatar";
+import { CommentPreview } from "~/app/_components/CommentPreview";
+import { MentionTextarea } from "~/app/_components/MentionTextarea";
+import { notifications } from "@mantine/notifications";
+import { UpdateCard } from "~/app/_components/UpdateCard";
 
 interface UpdatesFeedClientProps {
   eventId: string;
@@ -42,17 +47,101 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
   const { data: session } = useSession();
   const router = useRouter();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+  const [showCommentInput, setShowCommentInput] = useState<Record<string, boolean>>({});
 
-  const { data: updates, isLoading } = api.project.getAllEventUpdates.useQuery({
-    eventId,
-  });
+  const utils = api.useUtils();
+
+  const { data: updates, isLoading } = api.project.getAllEventUpdates.useQuery(
+    { eventId },
+    {
+      // Disable aggressive refetching to prevent lag during typing
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 30000, // Consider data fresh for 30 seconds
+    }
+  );
 
   // Fetch user metrics for badges
-  const { data: userMetrics } = api.project.getEventUserMetrics.useQuery({
-    eventId,
+  const { data: userMetrics } = api.project.getEventUserMetrics.useQuery(
+    { eventId },
+    {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 60000, // Consider data fresh for 60 seconds
+    }
+  );
+
+  // Create comment mutation with optimistic update
+  const createComment = api.project.createUpdateComment.useMutation({
+    onSuccess: async () => {
+      // Refetch to get the complete updated data
+      await utils.project.getAllEventUpdates.refetch({ eventId });
+      notifications.show({
+        title: "Comment posted",
+        message: "Your comment has been added",
+        color: "green",
+      });
+    },
+    onMutate: async (variables) => {
+      // Clear input immediately for instant feedback
+      setCommentInputs((prev) => ({ ...prev, [variables.updateId]: "" }));
+      setShowCommentInput((prev) => ({ ...prev, [variables.updateId]: false }));
+
+      // Cancel outgoing refetches
+      await utils.project.getAllEventUpdates.cancel({ eventId });
+
+      // Snapshot previous value
+      const previousData = utils.project.getAllEventUpdates.getData({ eventId });
+
+      // Optimistically update with temporary comment
+      if (session?.user && previousData) {
+        const optimisticComment = {
+          id: "temp-" + Date.now(),
+          content: variables.content,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          userId: session.user.id,
+          projectUpdateId: variables.updateId,
+          user: {
+            id: session.user.id,
+            name: session.user.name ?? null,
+            firstName: null, // Session doesn't include firstName
+            surname: null, // Session doesn't include surname
+            image: session.user.image ?? null,
+            profile: null,
+          },
+        };
+
+        utils.project.getAllEventUpdates.setData({ eventId },
+          previousData.map((update) => {
+            if (update.id === variables.updateId) {
+              return {
+                ...update,
+                comments: [optimisticComment, ...update.comments].slice(0, 2),
+              };
+            }
+            return update;
+          })
+        );
+      }
+
+      return { previousData };
+    },
+    onError: (error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        utils.project.getAllEventUpdates.setData({ eventId }, context.previousData);
+      }
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
   });
 
-  const getRelativeTime = (date: Date) => {
+  const getRelativeTime = useCallback((date: Date) => {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - new Date(date).getTime()) / 1000);
 
@@ -62,11 +151,33 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
     if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)}w ago`;
     return new Date(date).toLocaleDateString();
-  };
+  }, []);
 
-  const handleImageClick = (url: string) => {
+  const handleImageClick = useCallback((url: string) => {
     setSelectedImage(url);
-  };
+  }, []);
+
+  const handlePostComment = useCallback((updateId: string) => {
+    const content = commentInputs[updateId];
+    if (!content?.trim()) return;
+
+    createComment.mutate({
+      eventId,
+      updateId,
+      content: content.trim(),
+    });
+  }, [commentInputs, createComment, eventId]);
+
+  const toggleCommentInput = useCallback((updateId: string) => {
+    setShowCommentInput((prev) => ({ ...prev, [updateId]: !prev[updateId] }));
+  }, []);
+
+  const handleCommentChange = useCallback((updateId: string, value: string) => {
+    setCommentInputs((prev) => ({
+      ...prev,
+      [updateId]: value,
+    }));
+  }, []);
 
   if (isLoading) {
     return (
@@ -125,7 +236,11 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
 
         {/* Updates Feed */}
         <Stack gap="lg">
-        {updates.map((update) => (
+        {updates.map((update) => {
+          const updateCommentInput = commentInputs[update.id] ?? "";
+          const updateShowCommentInput = showCommentInput[update.id] ?? false;
+
+          return (
           <Card
             key={update.id}
             withBorder
@@ -391,9 +506,91 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                   </div>
                 </Group>
               </Group>
+
+              {/* Inline Comments Section */}
+              {(update.comments.length > 0 || session?.user) && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Divider my="sm" />
+                  <Stack gap="sm">
+                    {/* View all comments link */}
+                    {update.comments.length > 2 && (
+                      <Anchor
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/events/${eventId}/updates/${update.id}`);
+                        }}
+                      >
+                        View all {update.comments.length} comments
+                      </Anchor>
+                    )}
+
+                    {/* Show last 2 comments */}
+                    {update.comments.slice(0, 2).map((comment) => (
+                      <CommentPreview key={comment.id} comment={comment} />
+                    ))}
+
+                    {/* Add comment section */}
+                    {session?.user && (
+                      <Stack gap="xs">
+                        {!updateShowCommentInput ? (
+                          <Button
+                            variant="subtle"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleCommentInput(update.id);
+                            }}
+                          >
+                            Add a comment...
+                          </Button>
+                        ) : (
+                          <Stack gap="xs">
+                            <MentionTextarea
+                              value={updateCommentInput}
+                              onChange={(value) => handleCommentChange(update.id, value)}
+                              placeholder="Write your comment... (Use @ to mention users)"
+                              description="Supports Markdown formatting: **bold**, *italic*, [links](url)"
+                              minRows={2}
+                            />
+                            <Group gap="xs" justify="flex-end">
+                              <Button
+                                variant="subtle"
+                                size="xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleCommentInput(update.id);
+                                  setCommentInputs((prev) => ({
+                                    ...prev,
+                                    [update.id]: "",
+                                  }));
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePostComment(update.id);
+                                }}
+                                loading={createComment.isPending}
+                                disabled={!updateCommentInput.trim()}
+                              >
+                                Post
+                              </Button>
+                            </Group>
+                          </Stack>
+                        )}
+                      </Stack>
+                    )}
+                  </Stack>
+                </div>
+              )}
             </Stack>
           </Card>
-        ))}
+          );
+        })}
         </Stack>
       </Stack>
 

@@ -1158,6 +1158,7 @@ model ProjectUpdate {
   title         String      // Update title/milestone
   content       String      @db.Text // Update content (markdown supported)
   weekNumber    Int?        // Which week of the program (optional)
+  updateDate    DateTime    @default(now()) // Date the update occurred (can be backdated)
   imageUrls     String[]    // Progress screenshots
   githubUrls    String[]    // Links to relevant commits/PRs
   demoUrls      String[]    // Links to demos/prototypes
@@ -1175,6 +1176,7 @@ model ProjectUpdate {
   @@index([projectId])
   @@index([userId])
   @@index([weekNumber])
+  @@index([updateDate])
   @@index([createdAt])
 }
 

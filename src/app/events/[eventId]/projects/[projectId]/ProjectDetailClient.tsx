@@ -28,6 +28,7 @@ import {
   TagsInput,
   Switch,
 } from "@mantine/core";
+import { DatePickerInput } from "@mantine/dates";
 import {
   IconArrowLeft,
   IconBrandGithub,
@@ -408,6 +409,7 @@ export default function ProjectDetailClient({
       title: "",
       content: "",
       weekNumber: undefined as number | undefined,
+      updateDate: new Date(),
       imageUrls: [] as string[],
       githubUrls: [] as string[],
       demoUrls: [] as string[],
@@ -421,6 +423,7 @@ export default function ProjectDetailClient({
       title: values.title,
       content: values.content,
       weekNumber: values.weekNumber,
+      updateDate: values.updateDate,
       imageUrls: values.imageUrls.filter(url => url.trim() !== ""),
       githubUrls: values.githubUrls.filter(url => url.trim() !== ""),
       demoUrls: values.demoUrls.filter(url => url.trim() !== ""),
@@ -1466,6 +1469,19 @@ export default function ProjectDetailClient({
               min={1}
               max={20}
               {...form.getInputProps('weekNumber')}
+            />
+
+            <DatePickerInput
+              label="Update Date"
+              placeholder="When did this update occur?"
+              value={form.values.updateDate}
+              onChange={(value) => {
+                const dateValue = value ? (typeof value === 'string' ? new Date(value) : value) : new Date();
+                form.setFieldValue('updateDate', dateValue);
+              }}
+              maxDate={new Date()}
+              clearable
+              required
             />
 
             <Stack gap="xs">

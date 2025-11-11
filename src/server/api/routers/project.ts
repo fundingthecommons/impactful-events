@@ -568,6 +568,7 @@ export const projectRouter = createTRPCRouter({
       title: z.string().min(1, "Update title is required"),
       content: z.string().min(1, "Update content is required"),
       weekNumber: z.number().optional(),
+      updateDate: z.date().optional(),
       imageUrls: z.array(z.string().url()).optional(),
       githubUrls: z.array(z.string().url()).optional(),
       demoUrls: z.array(z.string().url()).optional(),
@@ -621,6 +622,7 @@ export const projectRouter = createTRPCRouter({
           title: input.title,
           content: input.content,
           weekNumber: input.weekNumber ?? null,
+          updateDate: input.updateDate ?? new Date(),
           imageUrls: input.imageUrls ?? [],
           githubUrls: input.githubUrls ?? [],
           demoUrls: input.demoUrls ?? [],
@@ -675,6 +677,7 @@ export const projectRouter = createTRPCRouter({
       title: z.string().min(1, "Update title is required").optional(),
       content: z.string().min(1, "Update content is required").optional(),
       weekNumber: z.number().optional(),
+      updateDate: z.date().optional(),
       imageUrls: z.array(z.string().url()).optional(),
       githubUrls: z.array(z.string().url()).optional(),
       demoUrls: z.array(z.string().url()).optional(),
@@ -708,6 +711,7 @@ export const projectRouter = createTRPCRouter({
           ...(input.title && { title: input.title }),
           ...(input.content && { content: input.content }),
           ...(input.weekNumber !== undefined && { weekNumber: input.weekNumber }),
+          ...(input.updateDate !== undefined && { updateDate: input.updateDate }),
           ...(input.imageUrls && { imageUrls: input.imageUrls }),
           ...(input.githubUrls && { githubUrls: input.githubUrls }),
           ...(input.demoUrls && { demoUrls: input.demoUrls }),
@@ -1010,9 +1014,24 @@ export const projectRouter = createTRPCRouter({
             }
           },
           comments: {
-            select: {
-              id: true,
-            }
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  firstName: true,
+                  surname: true,
+                  image: true,
+                  profile: {
+                    select: {
+                      avatarUrl: true,
+                    }
+                  }
+                }
+              }
+            },
+            orderBy: { createdAt: "desc" },
+            take: 2, // Last 2 comments only
           }
         },
         orderBy: { createdAt: "desc" },
