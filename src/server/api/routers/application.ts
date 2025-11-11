@@ -194,8 +194,12 @@ export const applicationRouter = createTRPCRouter({
             status: invitation.status,
             expired: invitation.expiresAt <= now,
             wrongEvent: invitation.eventId !== input.eventId,
-            wrongEmail: invitation.email.toLowerCase() !== ctx.session.user.email?.toLowerCase()
+            wrongEmail: invitation.email.toLowerCase() !== ctx.session.user.email?.toLowerCase(),
+            invitationEmail: invitation.email.toLowerCase(),
+            userEmail: ctx.session.user.email?.toLowerCase()
           });
+        } else {
+          console.log('❌ Invitation not found with token:', input.invitationToken);
         }
       }
 
