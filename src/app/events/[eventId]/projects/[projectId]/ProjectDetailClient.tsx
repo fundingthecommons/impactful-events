@@ -1084,6 +1084,60 @@ export default function ProjectDetailClient({
                       </Stack>
                     </>
                   )}
+
+                  {/* Repositories Section */}
+                  {project.repositories && project.repositories.length > 0 && (
+                    <>
+                      <Divider />
+                      <Stack gap="md">
+                        <Title order={3}>Repositories</Title>
+                        <Stack gap="sm">
+                          {[...project.repositories]
+                            .sort((a, b) => {
+                              if (a.isPrimary && !b.isPrimary) return -1;
+                              if (!a.isPrimary && b.isPrimary) return 1;
+                              return a.order - b.order;
+                            })
+                            .map((repo) => (
+                              <Paper key={repo.id} p="md" withBorder radius="md">
+                                <Group justify="space-between" align="flex-start">
+                                  <Stack gap="xs" style={{ flex: 1 }}>
+                                    <Group gap="xs">
+                                      <Text fw={500} size="sm">
+                                        {repo.name ?? "Repository"}
+                                      </Text>
+                                      {repo.isPrimary && (
+                                        <Badge size="xs" variant="light" color="blue">
+                                          Primary
+                                        </Badge>
+                                      )}
+                                    </Group>
+                                    {repo.description && (
+                                      <Text size="sm" c="dimmed">
+                                        {repo.description}
+                                      </Text>
+                                    )}
+                                    <Text size="xs" c="dimmed" style={{ wordBreak: 'break-all' }}>
+                                      {repo.url}
+                                    </Text>
+                                  </Stack>
+                                  <Button
+                                    component="a"
+                                    href={repo.url}
+                                    target="_blank"
+                                    size="sm"
+                                    variant="light"
+                                    leftSection={<IconBrandGithub size={16} />}
+                                  >
+                                    View
+                                  </Button>
+                                </Group>
+                              </Paper>
+                            ))}
+                        </Stack>
+                      </Stack>
+                    </>
+                  )}
                 </Stack>
               </Paper>
             </Tabs.Panel>
@@ -1312,13 +1366,48 @@ export default function ProjectDetailClient({
                   <Text c="dimmed" size="sm">
                     Recent commits from the last 7 days
                   </Text>
-                  <GitCommitTimeline
-                    githubUrl={
-                      project.repositories && project.repositories.length > 0
-                        ? project.repositories.find(r => r.isPrimary)?.url ?? project.repositories[0]?.url ?? null
-                        : project.githubUrl
-                    }
-                  />
+
+                  {/* Show sub-tabs if multiple repositories, otherwise show single timeline */}
+                  {project.repositories && project.repositories.length > 1 ? (
+                    <Tabs defaultValue={
+                      project.repositories.find(r => r.isPrimary)?.id ??
+                      project.repositories[0]?.id
+                    }>
+                      <Tabs.List>
+                        {[...project.repositories]
+                          .sort((a, b) => {
+                            if (a.isPrimary && !b.isPrimary) return -1;
+                            if (!a.isPrimary && b.isPrimary) return 1;
+                            return a.order - b.order;
+                          })
+                          .map((repo) => (
+                            <Tabs.Tab key={repo.id} value={repo.id}>
+                              {repo.name ?? "Repository"}
+                              {repo.isPrimary && " (Primary)"}
+                            </Tabs.Tab>
+                          ))}
+                      </Tabs.List>
+
+                      {project.repositories.map((repo) => (
+                        <Tabs.Panel key={repo.id} value={repo.id} pt="md">
+                          {repo.description && (
+                            <Text size="sm" c="dimmed" mb="md">
+                              {repo.description}
+                            </Text>
+                          )}
+                          <GitCommitTimeline githubUrl={repo.url} />
+                        </Tabs.Panel>
+                      ))}
+                    </Tabs>
+                  ) : (
+                    <GitCommitTimeline
+                      githubUrl={
+                        project.repositories && project.repositories.length > 0
+                          ? project.repositories[0]?.url ?? null
+                          : project.githubUrl
+                      }
+                    />
+                  )}
                 </Stack>
               </Paper>
             </Tabs.Panel>

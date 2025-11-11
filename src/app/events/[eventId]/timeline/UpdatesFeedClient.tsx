@@ -183,39 +183,80 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                 )}
               </Group>
 
-              {/* Images */}
-              {update.imageUrls.length > 0 && (
-                <Box mt="xs">
-                  {update.imageUrls.length === 1 ? (
-                    // Single image - display large
-                    <Paper
-                      radius="md"
-                      withBorder
+              {/* Content layout - Image and text side by side on desktop, stacked on mobile */}
+              {update.imageUrls.length > 0 && update.imageUrls.length === 1 ? (
+                // Single image with side-by-side layout on desktop
+                <Group
+                  mt="xs"
+                  align="flex-start"
+                  wrap="nowrap"
+                  gap="md"
+                  style={{
+                    flexDirection: 'row',
+                  }}
+                  styles={{
+                    root: {
+                      '@media (max-width: 768px)': {
+                        flexDirection: 'column',
+                      },
+                    },
+                  }}
+                >
+                  {/* Image - 1/3 width on desktop */}
+                  <Paper
+                    radius="md"
+                    withBorder
+                    style={{
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s ease',
+                      flexShrink: 0,
+                      width: 'calc(100% / 3)',
+                      minWidth: 'calc(100% / 3)',
+                    }}
+                    onClick={() => handleImageClick(update.imageUrls[0]!)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.02)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }}
+                    styles={{
+                      root: {
+                        '@media (max-width: 768px)': {
+                          width: '100%',
+                          minWidth: '100%',
+                        },
+                      },
+                    }}
+                  >
+                    <Image
+                      src={update.imageUrls[0]}
+                      alt="Update image"
                       style={{
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        transition: 'transform 0.2s ease',
+                        width: "100%",
+                        maxHeight: "400px",
+                        objectFit: "cover"
                       }}
-                      onClick={() => handleImageClick(update.imageUrls[0]!)}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'scale(1.02)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }}
-                    >
-                      <Image
-                        src={update.imageUrls[0]}
-                        alt="Update image"
-                        style={{
-                          width: "100%",
-                          maxHeight: "400px",
-                          objectFit: "cover"
-                        }}
-                      />
-                    </Paper>
-                  ) : (
-                    // Multiple images - display grid
+                    />
+                  </Paper>
+
+                  {/* Text content - 2/3 width on desktop */}
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <Stack gap="md">
+                      <Title order={3} size="h4">
+                        {update.title}
+                      </Title>
+                      <Box>
+                        <MarkdownRenderer content={update.content} />
+                      </Box>
+                    </Stack>
+                  </Box>
+                </Group>
+              ) : update.imageUrls.length > 0 ? (
+                // Multiple images - keep original grid layout
+                <>
+                  <Box mt="xs">
                     <SimpleGrid
                       cols={{ base: 1, sm: 2, md: update.imageUrls.length >= 3 ? 3 : 2 }}
                       spacing="md"
@@ -251,19 +292,25 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                         </Paper>
                       ))}
                     </SimpleGrid>
-                  )}
-                </Box>
+                  </Box>
+                  <Title order={3} size="h4">
+                    {update.title}
+                  </Title>
+                  <Box>
+                    <MarkdownRenderer content={update.content} />
+                  </Box>
+                </>
+              ) : (
+                // No images - just text
+                <>
+                  <Title order={3} size="h4">
+                    {update.title}
+                  </Title>
+                  <Box>
+                    <MarkdownRenderer content={update.content} />
+                  </Box>
+                </>
               )}
-
-              {/* Update title */}
-              <Title order={3} size="h4">
-                {update.title}
-              </Title>
-
-              {/* Update content */}
-              <Box>
-                <MarkdownRenderer content={update.content} />
-              </Box>
 
               {/* Links */}
               {(update.githubUrls.length > 0 || update.demoUrls.length > 0) && (
