@@ -554,13 +554,21 @@ export const projectRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      // Verify the project exists and the user owns it
+      // Verify the project exists and the user can edit it (owner or collaborator with edit permissions)
       const project = await ctx.db.userProject.findUnique({
         where: { id: input.projectId },
         include: {
           profile: {
             select: {
               userId: true,
+            }
+          },
+          collaborators: {
+            where: {
+              userId,
+            },
+            select: {
+              canEdit: true,
             }
           }
         }
@@ -573,7 +581,11 @@ export const projectRouter = createTRPCRouter({
         });
       }
 
-      if (project.profile.userId !== userId) {
+      // Check if user is the owner or a collaborator with edit permissions
+      const isOwner = project.profile.userId === userId;
+      const isCollaboratorWithEdit = project.collaborators.some(c => c.canEdit);
+
+      if (!isOwner && !isCollaboratorWithEdit) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You don't have permission to update this project",
@@ -701,9 +713,28 @@ export const projectRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
 
-      // Verify the update exists and the user owns it
+      // Verify the update exists and the user can delete it
       const update = await ctx.db.projectUpdate.findUnique({
         where: { id: input.updateId },
+        include: {
+          project: {
+            include: {
+              profile: {
+                select: {
+                  userId: true,
+                }
+              },
+              collaborators: {
+                where: {
+                  userId,
+                },
+                select: {
+                  canEdit: true,
+                }
+              }
+            }
+          }
+        }
       });
 
       if (!update) {
@@ -713,7 +744,12 @@ export const projectRouter = createTRPCRouter({
         });
       }
 
-      if (update.userId !== userId) {
+      // Check if user is the update author, project owner, or collaborator with edit permissions
+      const isAuthor = update.userId === userId;
+      const isProjectOwner = update.project.profile.userId === userId;
+      const isCollaboratorWithEdit = update.project.collaborators.some(c => c.canEdit);
+
+      if (!isAuthor && !isProjectOwner && !isCollaboratorWithEdit) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You don't have permission to delete this update",

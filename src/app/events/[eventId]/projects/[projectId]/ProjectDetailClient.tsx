@@ -1176,7 +1176,7 @@ export default function ProjectDetailClient({
                                   </Badge>
                                 )}
                               </Group>
-                              {isOwner && (
+                              {canEdit && (
                                 <ActionIcon
                                   variant="subtle"
                                   color="red"
