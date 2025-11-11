@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -12,28 +12,15 @@ interface MarkdownRendererProps {
   content: string;
 }
 
-export function MarkdownRenderer({ content }: MarkdownRendererProps) {
-  // Preprocess content to handle HTML elements like <aside>
-  const preprocessedContent = content
-    // Convert <aside> tags to properly formatted info blocks
-    .replace(/<aside>([\s\S]*?)<\/aside>/g, (_match: string, asideContent: string) => {
-      // Clean up the content and format as an info block
-      const cleanContent = asideContent.trim();
-      if (!cleanContent) return '';
-      
-      // Split content by lines and create a formatted block
-      const lines = cleanContent.split('\n').filter((line: string) => line.trim());
-      const formattedLines = lines.map((line: string) => `> ${line.trim()}`).join('\n');
-      
-      return `\n\n> **ℹ️ Info**\n${formattedLines}\n\n`;
-    });
+// Define plugins outside component for stable references
+const remarkPlugins = [remarkGfm];
+const rehypePlugins = [rehypeHighlight];
 
-  return (
-    <div style={{ lineHeight: 1.6, fontSize: '16px' }}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
-        components={{
+// Define wrapper style outside component
+const wrapperStyle = { lineHeight: 1.6, fontSize: '16px' } as const;
+
+// Define all markdown component renderers outside to avoid recreation
+const markdownComponents = {
           // Headers
           h1: ({ children }) => (
             <Title order={1} mb="lg" mt="xl">
@@ -195,17 +182,45 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
             </th>
           ),
           td: ({ children }) => (
-            <td style={{ 
-              padding: '12px', 
+            <td style={{
+              padding: '12px',
               borderBottom: '1px solid var(--mantine-color-gray-2)',
             }}>
               {children}
             </td>
           ),
-        }}
+};
+
+function MarkdownRendererComponent({ content }: MarkdownRendererProps) {
+  // Memoize preprocessing to avoid running regex on every render
+  const preprocessedContent = useMemo(() => {
+    return content
+      // Convert <aside> tags to properly formatted info blocks
+      .replace(/<aside>([\s\S]*?)<\/aside>/g, (_match: string, asideContent: string) => {
+        // Clean up the content and format as an info block
+        const cleanContent = asideContent.trim();
+        if (!cleanContent) return '';
+
+        // Split content by lines and create a formatted block
+        const lines = cleanContent.split('\n').filter((line: string) => line.trim());
+        const formattedLines = lines.map((line: string) => `> ${line.trim()}`).join('\n');
+
+        return `\n\n> **ℹ️ Info**\n${formattedLines}\n\n`;
+      });
+  }, [content]);
+
+  return (
+    <div style={wrapperStyle}>
+      <ReactMarkdown
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
+        components={markdownComponents}
       >
         {preprocessedContent}
       </ReactMarkdown>
     </div>
   );
 }
+
+// Memoize the entire component - only re-render when content actually changes
+export const MarkdownRenderer = memo(MarkdownRendererComponent);

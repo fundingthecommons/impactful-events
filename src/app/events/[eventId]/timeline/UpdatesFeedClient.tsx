@@ -37,11 +37,62 @@ import { UserAvatar } from "~/app/_components/UserAvatar";
 import { CommentPreview } from "~/app/_components/CommentPreview";
 import { MentionTextarea } from "~/app/_components/MentionTextarea";
 import { notifications } from "@mantine/notifications";
-import { UpdateCard } from "~/app/_components/UpdateCard";
 
 interface UpdatesFeedClientProps {
   eventId: string;
 }
+
+// Extract static styles to prevent inline object creation
+const CARD_STYLE = {
+  cursor: "pointer",
+  transition: "background-color 0.2s ease", // Only transition what changes
+} as const;
+
+const PROJECT_TITLE_STYLE = {
+  textDecoration: 'none',
+  whiteSpace: 'nowrap' as const,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+};
+
+const AUTHOR_NAME_STYLE = { whiteSpace: 'nowrap' as const };
+
+const AUTHOR_CONTAINER_STYLE = { flex: 1, minWidth: 0 };
+
+// Layout styles for image rendering
+const SINGLE_IMAGE_LAYOUT_STYLE = {
+  flexDirection: 'row' as const,
+};
+
+const SINGLE_IMAGE_PAPER_STYLE = {
+  overflow: 'hidden',
+  cursor: 'pointer',
+  transition: 'transform 0.2s ease',
+  flexShrink: 0,
+  width: 'calc(100% / 3)',
+  minWidth: 'calc(100% / 3)',
+};
+
+const SINGLE_IMAGE_STYLE = {
+  width: "100%",
+  maxHeight: "400px",
+  objectFit: "cover" as const,
+};
+
+const TEXT_CONTENT_CONTAINER_STYLE = { flex: 1, minWidth: 0 };
+
+const MULTI_IMAGE_PAPER_STYLE = {
+  overflow: 'hidden',
+  cursor: 'pointer',
+  transition: 'transform 0.2s ease',
+  aspectRatio: '16/9',
+};
+
+const MULTI_IMAGE_STYLE = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover" as const,
+};
 
 export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
   const { data: session } = useSession();
@@ -247,10 +298,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
             radius="md"
             p="lg"
             shadow="sm"
-            style={{
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
+            style={CARD_STYLE}
             onClick={() => router.push(`/events/${eventId}/updates/${update.id}`)}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = "var(--mantine-color-gray-0)";
@@ -274,9 +322,9 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                     size="md"
                     radius="xl"
                   />
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={AUTHOR_CONTAINER_STYLE}>
                     <Group gap="xs">
-                      <Text fw={500} size="sm" style={{ whiteSpace: 'nowrap' }}>
+                      <Text fw={500} size="sm" style={AUTHOR_NAME_STYLE}>
                         {update.author.name ?? 'Anonymous'}
                       </Text>
                       <Text c="dimmed" size="sm">
@@ -287,12 +335,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                         href={`/events/${eventId}/projects/${update.project.id}`}
                         c="blue"
                         size="sm"
-                        style={{
-                          textDecoration: 'none',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}
+                        style={PROJECT_TITLE_STYLE}
                       >
                         {update.project.title}
                       </Text>
@@ -329,9 +372,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                   align="flex-start"
                   wrap="nowrap"
                   gap="md"
-                  style={{
-                    flexDirection: 'row',
-                  }}
+                  style={SINGLE_IMAGE_LAYOUT_STYLE}
                   styles={{
                     root: {
                       '@media (max-width: 768px)': {
@@ -344,14 +385,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                   <Paper
                     radius="md"
                     withBorder
-                    style={{
-                      overflow: 'hidden',
-                      cursor: 'pointer',
-                      transition: 'transform 0.2s ease',
-                      flexShrink: 0,
-                      width: 'calc(100% / 3)',
-                      minWidth: 'calc(100% / 3)',
-                    }}
+                    style={SINGLE_IMAGE_PAPER_STYLE}
                     onClick={() => handleImageClick(update.imageUrls[0]!)}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = 'scale(1.02)';
@@ -371,16 +405,12 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                     <Image
                       src={update.imageUrls[0]}
                       alt="Update image"
-                      style={{
-                        width: "100%",
-                        maxHeight: "400px",
-                        objectFit: "cover"
-                      }}
+                      style={SINGLE_IMAGE_STYLE}
                     />
                   </Paper>
 
                   {/* Text content - 2/3 width on desktop */}
-                  <Box style={{ flex: 1, minWidth: 0 }}>
+                  <Box style={TEXT_CONTENT_CONTAINER_STYLE}>
                     <Stack gap="md">
                       <Title order={3} size="h4">
                         {update.title}
@@ -404,12 +434,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                           key={imgIndex}
                           radius="md"
                           withBorder
-                          style={{
-                            overflow: 'hidden',
-                            cursor: 'pointer',
-                            transition: 'transform 0.2s ease',
-                            aspectRatio: '16/9'
-                          }}
+                          style={MULTI_IMAGE_PAPER_STYLE}
                           onClick={() => handleImageClick(url)}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.transform = 'scale(1.05)';
@@ -421,11 +446,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                           <Image
                             src={url}
                             alt={`Update image ${imgIndex + 1}`}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover"
-                            }}
+                            style={MULTI_IMAGE_STYLE}
                           />
                         </Paper>
                       ))}

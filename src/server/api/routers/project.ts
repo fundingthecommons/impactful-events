@@ -474,7 +474,7 @@ export const projectRouter = createTRPCRouter({
             }
           }
         },
-        orderBy: { createdAt: "desc" }
+        orderBy: { updateDate: "desc" }
       });
 
       return updates;
@@ -554,7 +554,7 @@ export const projectRouter = createTRPCRouter({
             }
           }
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { updateDate: "desc" },
         take: 50, // Limit to most recent 50 updates
       });
 
@@ -1034,7 +1034,7 @@ export const projectRouter = createTRPCRouter({
             take: 2, // Last 2 comments only
           }
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { updateDate: "desc" },
       });
 
       return updates;
