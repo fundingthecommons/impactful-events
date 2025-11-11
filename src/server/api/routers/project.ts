@@ -620,7 +620,7 @@ export const projectRouter = createTRPCRouter({
 
       const eventId = acceptedApplications[0]?.eventId ?? "funding-commons-residency-2025";
       const authorName = update.author.name ?? "Someone";
-      const updateUrl = `https://platform.fundingthecommons.io/events/${eventId}/projects/${input.projectId}#update-${update.id}`;
+      const updateUrl = `https://platform.fundingthecommons.io/events/${eventId}/updates/${update.id}`;
 
       void sendProjectUpdateNotification({
         updateTitle: update.title,
