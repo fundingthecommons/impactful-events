@@ -1036,6 +1036,19 @@ export const projectRouter = createTRPCRouter({
 
           const updateUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "https://platform.fundingthecommons.io"}/events/${input.eventId}/updates/${input.updateId}`;
 
+          // Get update author to ensure they're notified
+          const updateAuthor = await ctx.db.user.findUnique({
+            where: { id: update.userId },
+            include: {
+              profile: {
+                select: {
+                  telegramChatId: true,
+                  telegramHandle: true,
+                },
+              },
+            },
+          });
+
           // Get all project collaborators (excluding the commenter)
           const collaborators = await ctx.db.projectCollaborator.findMany({
             where: {
@@ -1055,6 +1068,23 @@ export const projectRouter = createTRPCRouter({
               },
             },
           });
+
+          // Combine update author and collaborators, deduplicate by userId
+          const allRecipients = new Map<string, typeof updateAuthor>();
+
+          // Add update author first (if not the commenter)
+          if (updateAuthor && update.userId !== ctx.session.user.id) {
+            allRecipients.set(updateAuthor.id, updateAuthor);
+          }
+
+          // Add collaborators (will skip duplicates due to Map)
+          for (const collab of collaborators) {
+            if (!allRecipients.has(collab.user.id)) {
+              allRecipients.set(collab.user.id, collab.user);
+            }
+          }
+
+          const recipients = Array.from(allRecipients.values());
 
           let telegramSuccessCount = 0;
           let telegramFailureCount = 0;
@@ -1083,15 +1113,15 @@ export const projectRouter = createTRPCRouter({
           const { getEmailService } = await import("~/server/email/emailService");
           const emailService = getEmailService(ctx.db);
 
-          const emailPromises = collaborators
-            .filter(c => c.user.email)
-            .map(async (collaborator): Promise<EmailResult> => {
-              const recipientName = collaborator.user.name ??
-                `${collaborator.user.firstName ?? ""} ${collaborator.user.surname ?? ""}`.trim() ??
+          const emailPromises = recipients
+            .filter(recipient => recipient?.email)
+            .map(async (recipient): Promise<EmailResult> => {
+              const recipientName = recipient!.name ??
+                `${recipient!.firstName ?? ""} ${recipient!.surname ?? ""}`.trim() ??
                 "Team Member";
 
               return emailService.sendUpdateCommentEmail({
-                recipientEmail: collaborator.user.email!,
+                recipientEmail: recipient!.email!,
                 recipientName,
                 commenterName,
                 commentContent: input.content,
