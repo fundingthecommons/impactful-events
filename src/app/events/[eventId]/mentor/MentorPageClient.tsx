@@ -20,12 +20,14 @@ interface MentorPageClientProps {
   event: ExtendedEvent;
   initialUserApplication?: ExtendedApplication | null;
   initialUserId?: string;
+  invitationToken?: string;
 }
 
 export default function MentorPageClient({
   event,
   initialUserApplication: _initialUserApplication,
   initialUserId,
+  invitationToken,
 }: MentorPageClientProps) {
   const { data: session, status } = useSession();
   const [showApplication, setShowApplication] = useState(false);
@@ -177,7 +179,11 @@ export default function MentorPageClient({
     >
       {(styles) => (
         <div style={styles}>
-          <MentorApplicationForm eventId={event.id} eventName={event.name} />
+          <MentorApplicationForm
+            eventId={event.id}
+            eventName={event.name}
+            invitationToken={invitationToken}
+          />
         </div>
       )}
     </Transition>

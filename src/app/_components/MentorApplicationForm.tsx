@@ -108,9 +108,10 @@ const timezoneOptions = [
 interface MentorApplicationFormProps {
   eventId: string;
   eventName: string;
+  invitationToken?: string;
 }
 
-export default function MentorApplicationForm({ eventId, eventName }: MentorApplicationFormProps) {
+export default function MentorApplicationForm({ eventId, eventName, invitationToken }: MentorApplicationFormProps) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -204,6 +205,7 @@ export default function MentorApplicationForm({ eventId, eventName }: MentorAppl
         eventId: eventId,
         applicationType: "MENTOR",
         language: "en",
+        invitationToken: invitationToken,
       });
 
       // Update the user's profile with mentor information

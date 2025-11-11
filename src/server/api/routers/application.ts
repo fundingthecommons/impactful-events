@@ -19,6 +19,7 @@ const CreateApplicationInputSchema = z.object({
   eventId: z.string(),
   language: z.string().default("en"),
   applicationType: z.enum(["RESIDENT", "MENTOR"]).default("RESIDENT"),
+  invitationToken: z.string().optional(),
 });
 
 const UpdateApplicationResponseSchema = z.object({
@@ -152,7 +153,7 @@ export const applicationRouter = createTRPCRouter({
 
       // Check if user has latePass access or is admin/mentor
       const isAdmin = ctx.session.user.role === "admin" || ctx.session.user.role === "staff";
-      
+
       // Check if user is a mentor for this event
       const mentorRole = await ctx.db.userRole.findFirst({
         where: {
@@ -164,6 +165,38 @@ export const applicationRouter = createTRPCRouter({
         }
       });
       const isMentor = !!mentorRole;
+
+      // Validate invitation token if provided
+      let hasValidInvitation = false;
+      if (input.invitationToken) {
+        const invitation = await ctx.db.invitation.findUnique({
+          where: { token: input.invitationToken },
+          select: {
+            id: true,
+            email: true,
+            eventId: true,
+            status: true,
+            expiresAt: true,
+          }
+        });
+
+        const now = new Date();
+        if (invitation &&
+            invitation.status === "PENDING" &&
+            invitation.expiresAt > now &&
+            invitation.eventId === input.eventId &&
+            invitation.email.toLowerCase() === ctx.session.user.email?.toLowerCase()) {
+          hasValidInvitation = true;
+          console.log('✅ Valid invitation token found for user');
+        } else if (invitation) {
+          console.log('❌ Invalid invitation:', {
+            status: invitation.status,
+            expired: invitation.expiresAt <= now,
+            wrongEvent: invitation.eventId !== input.eventId,
+            wrongEmail: invitation.email.toLowerCase() !== ctx.session.user.email?.toLowerCase()
+          });
+        }
+      }
 
       // Get event details to check if applications are open
       const event = await ctx.db.event.findUnique({
@@ -186,17 +219,18 @@ export const applicationRouter = createTRPCRouter({
       // Check if applications are currently open (within deadline)
       const now = new Date();
       const applicationsOpen = now <= event.startDate; // Applications close when event starts
-      
+
       console.log('🕐 Application timing check:', {
         now: now.toISOString(),
         eventStart: event.startDate.toISOString(),
         applicationsOpen,
         isAdmin,
-        isMentor
+        isMentor,
+        hasValidInvitation
       });
 
-      // If applications are closed and user is not admin/mentor, they need latePass
-      if (!applicationsOpen && !isAdmin && !isMentor) {
+      // If applications are closed and user is not admin/mentor/invited, they cannot apply
+      if (!applicationsOpen && !isAdmin && !isMentor && !hasValidInvitation) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Applications for this event are closed. A late pass is required to apply.",

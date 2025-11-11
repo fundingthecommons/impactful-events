@@ -4,9 +4,17 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import MentorPageClient from "./MentorPageClient";
 
-export default async function FundingCommonsResidencyMentorPage() {
+export default async function FundingCommonsResidencyMentorPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ invitation?: string }>;
+}) {
   // Check authentication but don't redirect
   const session = await auth();
+
+  // Extract invitation token from search params
+  const resolvedSearchParams = await searchParams;
+  const invitationToken = resolvedSearchParams.invitation;
 
   // Fetch event details for the specific residency
   const event = await db.event.findUnique({
@@ -87,10 +95,11 @@ export default async function FundingCommonsResidencyMentorPage() {
         </div>
       </div>
 
-      <MentorPageClient 
-        event={typedEvent} 
+      <MentorPageClient
+        event={typedEvent}
         initialUserApplication={userApplication}
         initialUserId={session?.user?.id}
+        invitationToken={invitationToken}
       />
     </div>
   );
