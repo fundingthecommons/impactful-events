@@ -7,7 +7,6 @@ import {
   Card,
   Text,
   Group,
-  Avatar,
   Badge,
   Loader,
   Center,
@@ -18,6 +17,7 @@ import { getDisplayName } from "~/utils/userDisplay";
 import { IconArrowUp, IconArrowDown } from "@tabler/icons-react";
 import Link from "next/link";
 import { KUDOS_CONSTANTS, getKudosTier } from "~/utils/kudosCalculation";
+import { UserAvatar } from "~/app/_components/UserAvatar";
 
 interface LeaderboardPageProps {
   params: Promise<{ eventId: string }>;
@@ -223,9 +223,13 @@ export default function LeaderboardPage({ params }: LeaderboardPageProps) {
               <Table.Tr key={resident!.userId}>
                 <Table.Td>
                   <Group gap="sm">
-                    <Avatar
-                      src={resident!.image}
-                      alt={getDisplayName(resident, "Unknown")}
+                    <UserAvatar
+                      user={{
+                        oauthImageUrl: resident!.image,
+                        name: resident!.name,
+                        firstName: resident!.firstName,
+                        surname: resident!.surname,
+                      }}
                       radius="xl"
                       size="sm"
                     />

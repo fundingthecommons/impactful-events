@@ -6,7 +6,16 @@ import "./src/env.js";
 import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.public.blob.vercel-storage.com',
+      },
+    ],
+  },
+};
 
 // Make sure adding Sentry options is the last code to run before exporting
 export default withSentryConfig(config, {

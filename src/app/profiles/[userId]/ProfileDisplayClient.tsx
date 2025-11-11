@@ -5,7 +5,6 @@ import {
   Container,
   Grid,
   Card,
-  Avatar,
   Text,
   Badge,
   Button,
@@ -45,6 +44,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import { getDisplayName } from "~/utils/userDisplay";
+import { UserAvatar } from "~/app/_components/UserAvatar";
 
 interface ProfileDisplayClientProps {
   userId: string;
@@ -90,13 +90,14 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
     );
   }
 
-  const { user, ...profile } = profileData;
+  const user = profileData.user;
+  const profile = profileData;
   const isOwnProfile = session?.user?.id === userId;
 
   // Note: Privacy check is now enforced server-side in the getProfile query
   // This client-side check is kept for better UX (shows friendly message instead of error)
   // However, the server will return a FORBIDDEN error if accessed directly via API
-  const isPublic = profile?.isPublic ?? true;
+  const isPublic = profile.isPublic ?? true;
   if (isPublic === false && !isOwnProfile) {
     return (
       <Container size="md" py="xl">
@@ -141,8 +142,12 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
         <Grid.Col span={12}>
           <Card shadow="sm" padding="xl" radius="md" withBorder>
             <Group align="flex-start" gap="xl">
-              <Avatar
-                src={user.image}
+              <UserAvatar
+                user={{
+                  customAvatarUrl: ('avatarUrl' in profile ? (profile.avatarUrl as string | null | undefined) : null) ?? null,
+                  oauthImageUrl: user.image ?? null,
+                  name: user.name ?? null,
+                }}
                 size={120}
                 radius="md"
               />

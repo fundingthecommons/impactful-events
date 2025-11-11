@@ -6,7 +6,6 @@ import {
   Title,
   Grid,
   Card,
-  Avatar,
   Text,
   Badge,
   Button,
@@ -35,6 +34,7 @@ import {
 import { api } from "~/trpc/react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { UserAvatar } from "~/app/_components/UserAvatar";
 
 interface ProfileFilters {
   search: string;
@@ -237,8 +237,15 @@ export function ProfilesClient() {
                     >
                       <Card.Section p="lg" pb="xs">
                         <Group gap="sm">
-                          <Avatar
-                            src={member.image}
+                          <UserAvatar
+                            user={{
+                              customAvatarUrl: member.profile?.avatarUrl,
+                              oauthImageUrl: member.image,
+                              name: member.name,
+                              email: member.email,
+                              firstName: member.firstName,
+                              surname: member.surname,
+                            }}
                             size="lg"
                             radius="md"
                           />

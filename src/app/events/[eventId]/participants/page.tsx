@@ -11,7 +11,6 @@ import {
   Card,
   Group,
   Badge,
-  Avatar,
   ActionIcon,
   Alert,
   Button,
@@ -28,8 +27,8 @@ import {
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
-import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { getDisplayName } from "~/utils/userDisplay";
+import { UserAvatar } from "~/app/_components/UserAvatar";
 
 interface ParticipantsPageProps {
   params: Promise<{ eventId: string }>;
@@ -158,21 +157,17 @@ export default function ParticipantsPage({ params }: ParticipantsPageProps) {
                   >
                     <Card.Section p="lg" pb="xs">
                       <Group gap="sm">
-                        <Avatar
-                          src={getAvatarUrl({
+                        <UserAvatar
+                          user={{
                             customAvatarUrl: resident.user?.profile?.avatarUrl,
                             oauthImageUrl: resident.user?.image,
                             name: resident.user?.name,
-                            email: undefined,
-                          })}
+                            firstName: resident.user?.firstName,
+                            surname: resident.user?.surname,
+                          }}
                           size="lg"
                           radius="md"
-                        >
-                          {getAvatarInitials({
-                            name: resident.user?.name,
-                            email: undefined,
-                          })}
-                        </Avatar>
+                        />
                         <div style={{ flex: 1 }}>
                           <Text fw={600} size="lg" lineClamp={1}>
                             {getDisplayName(resident.user, "Anonymous")}

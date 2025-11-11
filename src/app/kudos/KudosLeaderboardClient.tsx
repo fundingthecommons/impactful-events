@@ -6,7 +6,6 @@ import {
   Paper,
   Stack,
   Group,
-  Avatar,
   Text,
   Badge,
   Tabs,
@@ -32,6 +31,7 @@ import {
 import { api } from "~/trpc/react";
 import { getKudosTier } from "~/utils/kudosCalculation";
 import { formatDistanceToNow } from "date-fns";
+import { UserAvatar } from "~/app/_components/UserAvatar";
 
 export function KudosLeaderboardClient() {
   const { data: leaderboard, isLoading: leaderboardLoading } =
@@ -143,13 +143,17 @@ export function KudosLeaderboardClient() {
 
                           {/* User Info */}
                           <Group gap="md" wrap="nowrap">
-                            <Avatar
-                              src={entry.user.image}
+                            <UserAvatar
+                              user={{
+                                oauthImageUrl: entry.user.image,
+                                name: entry.user.name,
+                                email: entry.user.email,
+                                firstName: entry.user.firstName,
+                                surname: entry.user.surname,
+                              }}
                               size="lg"
                               radius="xl"
-                            >
-                              {displayName?.[0]?.toUpperCase()}
-                            </Avatar>
+                            />
                             <div>
                               <Text fw={600} size="lg">
                                 {displayName}

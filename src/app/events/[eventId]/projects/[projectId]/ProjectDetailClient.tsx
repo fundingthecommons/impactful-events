@@ -59,6 +59,7 @@ import { RepositoryManager } from "~/app/_components/RepositoryManager";
 import MetricsTab from "./MetricsTab";
 import ImpactTab from "./ImpactTab";
 import SDSTab from "./SDSTab";
+import HypercertsTab from "./HypercertsTab";
 
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -979,6 +980,7 @@ export default function ProjectDetailClient({
               <Tabs.Tab value="devtimeline">Dev Timeline</Tabs.Tab>
               <Tabs.Tab value="impact">Impact</Tabs.Tab>
               <Tabs.Tab value="metrics">Manage metrics</Tabs.Tab>
+              <Tabs.Tab value="hypercerts">Hypercerts</Tabs.Tab>
               <Tabs.Tab value="sds">SDS</Tabs.Tab>
             </Tabs.List>
 
@@ -1025,9 +1027,9 @@ export default function ProjectDetailClient({
                           {isOwner ? "Share Your Project" : "Contact Author"}
                         </Title>
                         
-                        {/* Bluesky connect button - only for project owner */}
+                        {/* AT Proto integration buttons - only for project owner */}
                         {isOwner && (
-                          <BlueskyConnectButton 
+                          <BlueskyConnectButton
                             projectTitle={project.title}
                             projectUrl={typeof window !== 'undefined' ? window.location.href : undefined}
                           />
@@ -1419,6 +1421,10 @@ export default function ProjectDetailClient({
 
             <Tabs.Panel value="metrics" mt="md">
               <MetricsTab projectId={project.id} canEdit={canEdit} />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="hypercerts" mt="md">
+              <HypercertsTab projectId={project.id} projectTitle={project.title} canEdit={canEdit} />
             </Tabs.Panel>
 
             <Tabs.Panel value="sds" mt="md">

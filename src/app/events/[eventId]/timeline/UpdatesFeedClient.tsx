@@ -12,7 +12,6 @@ import {
   Anchor,
   SimpleGrid,
   Paper,
-  Avatar,
   Title,
   Loader,
   Center,
@@ -33,6 +32,7 @@ import { UserMetricsBadges } from "~/app/_components/UserMetricsBadges";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { UserAvatar } from "~/app/_components/UserAvatar";
 
 interface UpdatesFeedClientProps {
   eventId: string;
@@ -148,9 +148,13 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
               {/* Header with project and author info */}
               <Group justify="space-between" wrap="nowrap">
                 <Group gap="sm" wrap="nowrap" align="flex-start">
-                  <Avatar
-                    src={update.author.image}
-                    alt={update.author.name ?? "Author"}
+                  <UserAvatar
+                    user={{
+                      oauthImageUrl: update.author.image,
+                      name: update.author.name,
+                      firstName: update.author.firstName,
+                      surname: update.author.surname,
+                    }}
                     size="md"
                     radius="xl"
                   />
