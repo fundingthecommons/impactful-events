@@ -71,12 +71,6 @@ model User {
   sessions      Session[]
   posts         Post[]
 
-  teamMemberships TeamMembership[]
-  mentorSessions  MentorshipSession[] @relation("MentorSessions")
-  createdHackathons Hackathon[]       @relation("HackathonCreatedBy")
-  createdProjects Project[]           @relation("ProjectCreatedBy")
-  judgedScores   Score[]              @relation("JudgedBy")
-  judge           Judge?
   userRoles       UserRole[]
   userGlobalRoles UserGlobalRole[] // Keep for backward compatibility but use role field primarily
   createdEvents   Event[]              @relation("EventsCreatedBy")
@@ -183,7 +177,6 @@ model Event {
   createdBy   User?    @relation("EventsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdById String?
 
-  hackathon   Hackathon?
   // Add other event-specific relations as needed
 
   userRoles   UserRole[]
@@ -196,126 +189,6 @@ model Event {
   asksOffers  AskOffer[]  @relation("EventAsksOffers")  // Asks and Offers for this event
   praises     Praise[]    @relation("EventPraises")  // Praise messages for this event
   metricMeasurements MetricMeasurement[] // Measurements during this event
-}
-
-model Hackathon {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  startDate   DateTime
-  endDate     DateTime
-  location    String?
-  isOnline    Boolean  @default(true)
-
-  createdBy   User?    @relation("HackathonCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  createdById String?
-
-  teams       Team[]
-  tracks      Track[]
-  announcements Announcement[]
-
-  event Event? @relation(fields: [eventId], references: [id])
-  eventId String? @unique
-}
-
-model Track {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  hackathon   Hackathon @relation(fields: [hackathonId], references: [id])
-  hackathonId String
-
-  projects    Project[]
-}
-
-model Team {
-  id          String   @id @default(cuid())
-  name        String
-  hackathon   Hackathon @relation(fields: [hackathonId], references: [id])
-  hackathonId String
-
-  members     TeamMembership[]
-  project     Project?
-  mentorshipSessions MentorshipSession[]
-}
-
-model TeamMembership {
-  id      String @id @default(cuid())
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId  String
-  team    Team   @relation(fields: [teamId], references: [id])
-  teamId  String
-
-  joinedAt DateTime @default(now())
-
-  @@unique([userId, teamId])
-}
-
-model Project {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  repoUrl     String?
-  demoUrl     String?
-  videoUrl    String?
-  submissionDate DateTime?
-
-  team        Team     @relation(fields: [teamId], references: [id])
-  teamId      String   @unique
-
-  track       Track?   @relation(fields: [trackId], references: [id])
-  trackId     String?
-
-  createdBy   User     @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  createdById String
-
-  scores      Score[]
-}
-
-model Judge {
-  id     String @id @default(cuid())
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String @unique
-
-  criteria JudgingCriteria[]
-}
-
-model JudgingCriteria {
-  id        String @id @default(cuid())
-  name      String
-  weight    Float  @default(1.0)
-  judge     Judge  @relation(fields: [judgeId], references: [id])
-  judgeId   String
-}
-
-model Score {
-  id         String    @id @default(cuid())
-  value      Float
-  notes      String?
-  project    Project   @relation(fields: [projectId], references: [id])
-  projectId  String
-  judge      User      @relation("JudgedBy", fields: [judgeId], references: [id], onDelete: Cascade)
-  judgeId    String
-  criteria   String
-}
-
-model MentorshipSession {
-  id        String   @id @default(cuid())
-  mentor    User     @relation("MentorSessions", fields: [mentorId], references: [id], onDelete: Cascade)
-  mentorId  String
-  team      Team     @relation(fields: [teamId], references: [id])
-  teamId    String
-  scheduledAt DateTime
-  durationMinutes Int
-  notes     String?
-}
-
-model Announcement {
-  id          String   @id @default(cuid())
-  hackathon   Hackathon @relation(fields: [hackathonId], references: [id])
-  hackathonId String
-  message     String
-  publishedAt DateTime @default(now())
 }
 
 model Role {

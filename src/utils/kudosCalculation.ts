@@ -21,6 +21,7 @@ export const KUDOS_CONSTANTS = {
 
   // Content creation rewards
   UPDATE_WEIGHT: 10,          // Kudos minted per ProjectUpdate posted
+  METRICS_WEIGHT: 10,         // Kudos earned per project with at least one metric
 
   // Transfer rates for engagement
   PRAISE_TRANSFER_RATE: 0.05, // 5% of sender's kudos transferred with praise
@@ -47,6 +48,7 @@ interface KudosBreakdown {
  * Formula:
  * Kudos = BASE_KUDOS +
  *         (ProjectUpdates × 10) +
+ *         (Projects with Metrics × 10) +
  *         (Likes Received × kudosTransferred) -
  *         (Likes Given × kudosTransferred) +
  *         (Praise Received × kudosTransferred) -

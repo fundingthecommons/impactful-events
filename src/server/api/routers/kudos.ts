@@ -44,12 +44,6 @@ export const kudosRouter = createTRPCRouter({
           email: true,
           image: true,
           kudos: true,
-          // Count project updates
-          _count: {
-            select: {
-              createdProjects: true,
-            },
-          },
         },
         orderBy: {
           kudos: "desc",

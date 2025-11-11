@@ -9,7 +9,6 @@ import PublicHomepage from "./PublicHomepage";
 import AdminDashboard from "../admin/AdminDashboard";
 import ParticipantEventsClient from "../events/ParticipantEventsClient";
 import SponsorDashboard from "./SponsorDashboard";
-import MentorDashboard from "./MentorDashboard";
 import OrganizerDashboard from "./OrganizerDashboard";
 import DefaultUserDashboard from "./DefaultUserDashboard";
 
@@ -78,16 +77,10 @@ export default function RoleBasedHomepage() {
     return <OrganizerDashboard />;
   }
   
-  // Sponsors get sponsor dashboard  
+  // Sponsors get sponsor dashboard
   if (roleNames.includes("sponsor")) {
     console.log("✅ Routing to: SponsorDashboard");
     return <SponsorDashboard />;
-  }
-  
-  // Mentors get mentor dashboard
-  if (roleNames.includes("mentor")) {
-    console.log("✅ Routing to: MentorDashboard");
-    return <MentorDashboard />;
   }
 
   // Judges get participant events view to see events they can judge

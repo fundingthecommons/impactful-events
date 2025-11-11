@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs } from "@mantine/core";
-import { IconMapPin, IconHeart, IconNews, IconHandStop, IconUsers, IconBulb } from "@tabler/icons-react";
+import { IconMapPin, IconHeart, IconNews, IconHandStop, IconUsers, IconBulb, IconTrophy } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -16,6 +16,7 @@ export default function UserNavigation() {
 
   // Determine active tab based on current path
   const getActiveTab = () => {
+    if (pathname.startsWith("/events/funding-commons-residency-2025/leaderboard")) return "leaderboard";
     if (pathname.startsWith("/events/funding-commons-residency-2025/impact")) return "impact";
     if (pathname.startsWith("/events/funding-commons-residency-2025/timeline")) return "timeline";
     if (pathname.startsWith("/events/funding-commons-residency-2025/asks-offers")) return "asks-offers";
@@ -78,6 +79,16 @@ export default function UserNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Timeline
+        </TabsTab>
+
+        <TabsTab
+          value="leaderboard"
+          leftSection={<IconTrophy size={16} />}
+          component={Link}
+          href="/events/funding-commons-residency-2025/leaderboard"
+          style={{ textDecoration: 'none' }}
+        >
+          Leaderboard
         </TabsTab>
 
         <TabsTab

@@ -8,7 +8,6 @@ import { applicationRouter } from "~/server/api/routers/application";
 import { emailRouter } from "~/server/api/routers/email";
 import { communicationRouter } from "~/server/api/routers/communication";
 import { invitationRouter } from "~/server/api/routers/invitation";
-import { mentorshipRouter } from "~/server/api/routers/mentorship";
 import { userRouter } from "~/server/api/routers/user";
 import { projectIdeaRouter } from "~/server/api/routers/projectIdea";
 import { evaluationRouter } from "~/server/api/routers/evaluation";
@@ -42,7 +41,6 @@ export const appRouter = createTRPCRouter({
   email: emailRouter,
   communication: communicationRouter,
   invitation: invitationRouter,
-  mentorship: mentorshipRouter,
   user: userRouter,
   projectIdea: projectIdeaRouter,
   evaluation: evaluationRouter,

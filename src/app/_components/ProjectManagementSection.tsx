@@ -19,15 +19,6 @@ import {
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 
-interface ProjectData {
-  id: string;
-  title: string;
-  description: string | null;
-  repoUrl: string | null;
-  demoUrl: string | null;
-  submissionDate: Date | null;
-}
-
 interface ProjectManagementSectionProps {
   userId?: string;
 }
@@ -35,11 +26,13 @@ interface ProjectManagementSectionProps {
 export default function ProjectManagementSection({ userId }: ProjectManagementSectionProps) {
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
-  // Fetch user's projects
-  const { data: userProjects, isLoading: projectsLoading } = api.project.getUserProjects.useQuery(
+  // Fetch user's profile with projects
+  const { data: userProfile, isLoading: projectsLoading } = api.profile.getProfile.useQuery(
     { userId: userId! },
     { enabled: !!userId }
-  ) as { data: ProjectData[] | undefined; isLoading: boolean };
+  );
+
+  const userProjects = userProfile?.projects ?? [];
 
   if (!userId) {
     return (
@@ -87,50 +80,50 @@ export default function ProjectManagementSection({ userId }: ProjectManagementSe
                     <Text fw={600} size="sm">
                       {project.title}
                     </Text>
-                    {project.submissionDate && (
+                    {project.featured && (
                       <Badge size="xs" color="green" variant="light">
-                        Submitted
+                        Featured
                       </Badge>
                     )}
                   </Group>
-                  
+
                   {project.description && (
                     <Text size="xs" c="dimmed" lineClamp={2}>
                       {project.description}
                     </Text>
                   )}
-                  
-                  {project.submissionDate && (
+
+                  {project.createdAt && (
                     <Group gap="xs">
                       <IconCalendar size={12} color="gray" />
                       <Text size="xs" c="dimmed">
-                        Submitted: {new Date(project.submissionDate).toLocaleDateString()}
+                        Created: {new Date(project.createdAt).toLocaleDateString()}
                       </Text>
                     </Group>
                   )}
                 </Stack>
-                
+
                 <Group gap="xs">
-                  {project.repoUrl && (
+                  {project.repositories?.[0]?.url && (
                     <ActionIcon
                       size="sm"
                       variant="subtle"
                       color="gray"
                       component="a"
-                      href={project.repoUrl}
+                      href={project.repositories[0].url}
                       target="_blank"
                       title="View Repository"
                     >
                       <IconBrandGithub size={14} />
                     </ActionIcon>
                   )}
-                  {project.demoUrl && (
+                  {project.liveUrl && (
                     <ActionIcon
                       size="sm"
                       variant="subtle"
                       color="blue"
                       component="a"
-                      href={project.demoUrl}
+                      href={project.liveUrl}
                       target="_blank"
                       title="View Demo"
                     >

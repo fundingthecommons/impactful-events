@@ -1756,6 +1756,14 @@ export const applicationRouter = createTRPCRouter({
                           userId: true,
                         },
                       },
+                      metrics: {
+                        where: {
+                          isTracking: true,
+                        },
+                        select: {
+                          id: true,
+                        },
+                      },
                     },
                   },
                 },
