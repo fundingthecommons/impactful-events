@@ -29,6 +29,7 @@ import {
 import { api } from "~/trpc/react";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import { LikeButton } from "~/app/_components/LikeButton";
+import { UserMetricsBadges } from "~/app/_components/UserMetricsBadges";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,6 +44,11 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const { data: updates, isLoading } = api.project.getAllEventUpdates.useQuery({
+    eventId,
+  });
+
+  // Fetch user metrics for badges
+  const { data: userMetrics } = api.project.getEventUserMetrics.useQuery({
     eventId,
   });
 
@@ -141,7 +147,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
             <Stack gap="md">
               {/* Header with project and author info */}
               <Group justify="space-between" wrap="nowrap">
-                <Group gap="sm" wrap="nowrap">
+                <Group gap="sm" wrap="nowrap" align="flex-start">
                   <Avatar
                     src={update.author.image}
                     alt={update.author.name ?? "Author"}
@@ -171,7 +177,19 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                         {update.project.title}
                       </Text>
                     </Group>
-                    <Text c="dimmed" size="xs">
+                    {/* User metrics badges - Stack Overflow style */}
+                    {userMetrics?.[update.author.id] && (
+                      <Box mt={4}>
+                        <UserMetricsBadges
+                          kudos={userMetrics[update.author.id]!.kudos}
+                          updates={userMetrics[update.author.id]!.updates}
+                          projects={userMetrics[update.author.id]!.projects}
+                          praiseReceived={userMetrics[update.author.id]!.praiseReceived}
+                          size="xs"
+                        />
+                      </Box>
+                    )}
+                    <Text c="dimmed" size="xs" mt={4}>
                       {getRelativeTime(update.createdAt)}
                     </Text>
                   </div>

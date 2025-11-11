@@ -766,6 +766,121 @@ export const projectRouter = createTRPCRouter({
       return updates;
     }),
 
+  // Get user metrics for event residents (for badges/leaderboard)
+  getEventUserMetrics: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Get accepted residents for this event
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+          applicationType: "RESIDENT",
+        },
+        select: {
+          user: {
+            select: {
+              id: true,
+              profile: {
+                select: {
+                  projects: {
+                    select: {
+                      id: true,
+                      metrics: {
+                        select: {
+                          id: true,
+                        }
+                      },
+                      updates: {
+                        select: {
+                          id: true,
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Get all praise transactions with proper typing
+      const praiseTransactions = await ctx.db.praise.findMany({
+        select: {
+          senderId: true,
+          recipientId: true,
+        }
+      }) as Array<{ senderId: string; recipientId: string }>;
+
+      // Calculate metrics for each user
+      const userMetrics = acceptedApplications
+        .filter(app => app.user)
+        .map(app => {
+          const userId = app.user!.id;
+          const projects = app.user!.profile?.projects ?? [];
+
+          // Count projects with at least one metric
+          const projectsWithMetrics = projects.filter(
+            p => p.metrics && p.metrics.length > 0
+          ).length;
+
+          // Count total updates across all projects
+          const updateCount = projects.reduce(
+            (sum, p) => sum + (p.updates?.length ?? 0),
+            0
+          );
+
+          // Count praise sent and received
+          const praiseSent = praiseTransactions.filter(
+            t => t.senderId === userId
+          ).length;
+
+          const praiseReceived = praiseTransactions.filter(
+            t => t.recipientId === userId
+          ).length;
+
+          // Calculate kudos using the same formula as leaderboard
+          const KUDOS_CONSTANTS = {
+            BASE_KUDOS: 130,
+            UPDATE_WEIGHT: 10,
+            METRICS_WEIGHT: 10,
+            BACKFILL_PRAISE_VALUE: 5,
+          };
+
+          const kudos = Math.max(0,
+            KUDOS_CONSTANTS.BASE_KUDOS +
+            (updateCount * KUDOS_CONSTANTS.UPDATE_WEIGHT) +
+            (projectsWithMetrics * KUDOS_CONSTANTS.METRICS_WEIGHT) +
+            (praiseReceived * KUDOS_CONSTANTS.BACKFILL_PRAISE_VALUE) -
+            (praiseSent * KUDOS_CONSTANTS.BACKFILL_PRAISE_VALUE)
+          );
+
+          return {
+            userId,
+            kudos,
+            updates: updateCount,
+            projects: projectsWithMetrics,
+            praiseReceived,
+            praiseSent,
+          };
+        });
+
+      // Return as a map for easy lookup by userId
+      const metricsMap: Record<string, {
+        userId: string;
+        kudos: number;
+        updates: number;
+        projects: number;
+        praiseReceived: number;
+        praiseSent: number;
+      }> = Object.fromEntries(
+        userMetrics.map(m => [m.userId, m])
+      );
+
+      return metricsMap;
+    }),
+
   // Protected: Like a UserProject
   likeUserProject: protectedProcedure
     .input(z.object({

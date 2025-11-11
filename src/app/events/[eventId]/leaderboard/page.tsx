@@ -23,7 +23,7 @@ interface LeaderboardPageProps {
   params: Promise<{ eventId: string }>;
 }
 
-type SortField = "projects" | "updates" | "praiseSent" | "praiseReceived" | "kudos";
+type SortField = "projects" | "projectsWithMetrics" | "updates" | "praiseSent" | "praiseReceived" | "kudos";
 type SortDirection = "asc" | "desc";
 
 export default function LeaderboardPage({ params }: LeaderboardPageProps) {
@@ -71,6 +71,8 @@ export default function LeaderboardPage({ params }: LeaderboardPageProps) {
         (p) => p.profile?.user?.id === userId
       ) ?? [];
 
+      const totalProjects = userProjects.length;
+
       // Count projects with at least one metric selected
       const projectsWithMetrics = userProjects.filter(
         (p) => p.metrics && p.metrics.length > 0
@@ -108,7 +110,8 @@ export default function LeaderboardPage({ params }: LeaderboardPageProps) {
         image: resident.user?.image,
         firstName: resident.user?.firstName,
         surname: resident.user?.surname,
-        projects: projectsWithMetrics,
+        projects: totalProjects,
+        projectsWithMetrics,
         updates: updateCount,
         praiseSent: praiseSentCount,
         praiseReceived: praiseReceivedCount,
@@ -164,8 +167,17 @@ export default function LeaderboardPage({ params }: LeaderboardPageProps) {
                 onClick={() => handleSort("projects")}
               >
                 <Group gap="xs">
-                  Projects with Metrics
+                  Projects
                   <SortIcon field="projects" />
+                </Group>
+              </Table.Th>
+              <Table.Th
+                style={{ cursor: "pointer" }}
+                onClick={() => handleSort("projectsWithMetrics")}
+              >
+                <Group gap="xs">
+                  Projects with Metrics
+                  <SortIcon field="projectsWithMetrics" />
                 </Group>
               </Table.Th>
               <Table.Th
@@ -230,6 +242,9 @@ export default function LeaderboardPage({ params }: LeaderboardPageProps) {
                 </Table.Td>
                 <Table.Td>
                   <Badge variant="light">{resident!.projects}</Badge>
+                </Table.Td>
+                <Table.Td>
+                  <Badge variant="light">{resident!.projectsWithMetrics}</Badge>
                 </Table.Td>
                 <Table.Td>
                   <Badge variant="light">{resident!.updates}</Badge>
