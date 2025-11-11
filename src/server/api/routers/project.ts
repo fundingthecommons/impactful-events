@@ -484,8 +484,8 @@ export const projectRouter = createTRPCRouter({
   getUserProjectUpdates: publicProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ ctx, input }) => {
-      // First, get all projects by this user
-      const userProjects = await ctx.db.userProject.findMany({
+      // Get all projects where the user is the owner
+      const ownedProjects = await ctx.db.userProject.findMany({
         where: {
           profile: {
             userId: input.userId
@@ -498,7 +498,29 @@ export const projectRouter = createTRPCRouter({
         }
       });
 
-      if (userProjects.length === 0) {
+      // Get all projects where the user is a collaborator
+      const collaboratorProjects = await ctx.db.projectCollaborator.findMany({
+        where: {
+          userId: input.userId
+        },
+        select: {
+          project: {
+            select: {
+              id: true,
+              title: true,
+              imageUrl: true,
+            }
+          }
+        }
+      });
+
+      // Combine both lists of projects
+      const allProjects = [
+        ...ownedProjects,
+        ...collaboratorProjects.map(c => c.project)
+      ];
+
+      if (allProjects.length === 0) {
         return [];
       }
 
@@ -506,7 +528,7 @@ export const projectRouter = createTRPCRouter({
       const updates = await ctx.db.projectUpdate.findMany({
         where: {
           projectId: {
-            in: userProjects.map(p => p.id)
+            in: allProjects.map(p => p.id)
           }
         },
         include: {
