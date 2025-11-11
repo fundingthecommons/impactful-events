@@ -130,3 +130,98 @@ router.push(`/events/${_eventId}/updates/${update.id}`);
 **Prevention**: Either use consistent variable names without renaming in destructuring, OR ensure all references use the renamed variable. The underscore prefix convention is for unused variables per `@typescript-eslint/no-unused-vars`, so if the variable IS used, don't rename it with underscore.
 
 ---
+
+## 2025-01-11 - TS7006 Implicit Any Type in React Component Props - [Project: impactful-events]
+
+**Error**: Binding element 'children' implicitly has an 'any' type.
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/app/_components/MarkdownRenderer.tsx
+**Lines**: 25, 30, 35, 40, 45, 50, 57, 96, 115, 125, 130, 135, 142, 152, 159, 166, 173, 184
+**Code Context**:
+```typescript
+// ❌ INCORRECT - Missing type annotations
+const markdownComponents = {
+  h1: ({ children }) => (
+    <Title order={1}>{children}</Title>
+  ),
+  p: ({ children }) => (
+    <Text>{children}</Text>
+  ),
+  a: ({ href, children }) => (
+    <Anchor href={href}>{children}</Anchor>
+  ),
+  // ... more components
+};
+```
+**Fix Applied**: Added explicit type annotations to all component function parameters
+```typescript
+// ✅ CORRECT - Explicit type annotations
+const markdownComponents = {
+  h1: ({ children }: { children?: React.ReactNode }) => (
+    <Title order={1}>{children}</Title>
+  ),
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <Text>{children}</Text>
+  ),
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <Anchor href={href ?? '#'}>{children}</Anchor>
+  ),
+  code: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <Code>{children}</Code>
+  ),
+  // ... more components with proper types
+};
+```
+**Type Pattern**: When defining component objects for React Markdown or similar libraries, always provide explicit type annotations for all props. Use `React.ReactNode` for children and appropriate types for other props.
+**Prevention**:
+1. All React component functions must have explicit type annotations in strict TypeScript mode
+2. Use `{ children?: React.ReactNode }` for components that render children
+3. For components with multiple props, list all prop types: `{ href?: string; children?: React.ReactNode }`
+4. Use optional types (`?`) when props may not be provided by the parent library
+5. Use nullish coalescing (`??`) for fallback values instead of implicit undefined handling
+
+---
+
+## 2025-01-11 - @typescript-eslint/no-unsafe-argument - [Project: impactful-events]
+
+**Error**: Unsafe argument of type error typed assigned to a parameter of type `Date`.
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/app/events/[eventId]/projects/[projectId]/ProjectDetailClient.tsx
+**Line**: 1228
+**Code Context**:
+```typescript
+// Timeline interface (lines 132-147)
+interface TimelineItem {
+  id: string;
+  type: 'UPDATE' | 'MILESTONE';
+  content: string;
+  createdAt: Date;
+  author: {
+    id: string;
+    name: string | null;
+    image: string | null;
+  };
+  // ... other fields
+}
+
+// ❌ INCORRECT - Using non-existent field
+<Text size="sm" c="dimmed">
+  {update.author.name ?? 'Anonymous'} • {getRelativeTime(update.updateDate)}
+</Text>
+```
+**Fix Applied**: Changed to use the correct field name from the interface
+```typescript
+// ✅ CORRECT - Using createdAt field that exists in interface
+<Text size="sm" c="dimmed">
+  {update.author.name ?? 'Anonymous'} • {getRelativeTime(update.createdAt)}
+</Text>
+```
+**Type Pattern**: Always reference fields that exist in the type definition. Verify interface definitions before accessing nested properties.
+**Prevention**:
+1. Check interface definitions (lines 132-147) to see available fields
+2. Use TypeScript autocomplete to avoid referencing non-existent fields
+3. The error type indicates TypeScript couldn't infer the type of `update.updateDate` because it doesn't exist
+4. Timeline items have `createdAt: Date` not `updateDate`
+5. When working with complex nested objects, verify the interface structure first
+
+---

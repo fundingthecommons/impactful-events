@@ -45,7 +45,7 @@ interface UpdateDetailClientProps {
     githubUrls: string[];
     demoUrls: string[];
     tags: string[];
-    createdAt: Date;
+    updateDate: Date;
     updatedAt: Date;
     author: {
       id: string;
@@ -261,7 +261,7 @@ export default function UpdateDetailClient({
                   </Text>
                   <Group gap="xs">
                     <Text size="sm" c="dimmed">
-                      {getRelativeTime(displayUpdate.createdAt)}
+                      {getRelativeTime(displayUpdate.updateDate)}
                     </Text>
                     {displayUpdate.weekNumber && (
                       <>

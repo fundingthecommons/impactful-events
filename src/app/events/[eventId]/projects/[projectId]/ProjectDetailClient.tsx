@@ -138,7 +138,7 @@ interface ProjectDetailClientProps {
     githubUrls: string[];
     demoUrls: string[];
     tags: string[];
-    createdAt: Date;
+    updateDate: Date;
     author: {
       id: string;
       name: string | null;
@@ -1225,7 +1225,7 @@ export default function ProjectDetailClient({
                                 )}
                               </div>
                               <Text size="sm" c="dimmed">
-                                {update.author.name ?? 'Anonymous'} • {getRelativeTime(update.createdAt)}
+                                {update.author.name ?? 'Anonymous'} • {getRelativeTime(update.updateDate)}
                               </Text>
                             </Group>
                             

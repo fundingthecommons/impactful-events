@@ -389,7 +389,7 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
                           </div>
                         </Group>
                         <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-                          {getRelativeTime(update.createdAt)}
+                          {getRelativeTime(update.updateDate)}
                         </Text>
                       </Group>
 

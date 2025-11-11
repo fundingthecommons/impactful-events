@@ -22,46 +22,46 @@ const wrapperStyle = { lineHeight: 1.6, fontSize: '16px' } as const;
 // Define all markdown component renderers outside to avoid recreation
 const markdownComponents = {
           // Headers
-          h1: ({ children }) => (
+          h1: ({ children }: { children?: React.ReactNode }) => (
             <Title order={1} mb="lg" mt="xl">
               {children}
             </Title>
           ),
-          h2: ({ children }) => (
+          h2: ({ children }: { children?: React.ReactNode }) => (
             <Title order={2} mb="md" mt="xl">
               {children}
             </Title>
           ),
-          h3: ({ children }) => (
+          h3: ({ children }: { children?: React.ReactNode }) => (
             <Title order={3} mb="md" mt="lg">
               {children}
             </Title>
           ),
-          h4: ({ children }) => (
+          h4: ({ children }: { children?: React.ReactNode }) => (
             <Title order={4} mb="sm" mt="md">
               {children}
             </Title>
           ),
-          h5: ({ children }) => (
+          h5: ({ children }: { children?: React.ReactNode }) => (
             <Title order={5} mb="sm" mt="md">
               {children}
             </Title>
           ),
-          h6: ({ children }) => (
+          h6: ({ children }: { children?: React.ReactNode }) => (
             <Title order={6} mb="sm" mt="md">
               {children}
             </Title>
           ),
-          
+
           // Paragraphs
-          p: ({ children }) => (
+          p: ({ children }: { children?: React.ReactNode }) => (
             <Text mb="md" size="md" style={{ lineHeight: 1.7 }}>
               {children}
             </Text>
           ),
           
           // Links
-          a: ({ href, children }) => {
+          a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
             // Check if this is a mention link
             if (href?.startsWith('mention:')) {
               const userId = href.replace('mention:', '');
@@ -81,7 +81,7 @@ const markdownComponents = {
             // Regular external link
             return (
               <Anchor
-                href={href}
+                href={href ?? '#'}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
@@ -93,7 +93,7 @@ const markdownComponents = {
           },
           
           // Code blocks
-          pre: ({ children }) => (
+          pre: ({ children }: { children?: React.ReactNode }) => (
             <Code
               block
               mb="md"
@@ -110,9 +110,9 @@ const markdownComponents = {
               {children}
             </Code>
           ),
-          
+
           // Inline code
-          code: ({ children, className }) => {
+          code: ({ children, className }: { children?: React.ReactNode; className?: string }) => {
             // If it has a className, it's a code block (handled by pre)
             if (className) {
               return <>{children}</>;
@@ -120,59 +120,59 @@ const markdownComponents = {
             // Otherwise it's inline code
             return <Code>{children}</Code>;
           },
-          
+
           // Lists
-          ul: ({ children }) => (
+          ul: ({ children }: { children?: React.ReactNode }) => (
             <List mb="md" spacing="sm">
               {children}
             </List>
           ),
-          ol: ({ children }) => (
+          ol: ({ children }: { children?: React.ReactNode }) => (
             <List mb="md" spacing="sm" type="ordered">
               {children}
             </List>
           ),
-          li: ({ children }) => (
+          li: ({ children }: { children?: React.ReactNode }) => (
             <List.Item style={{ marginBottom: '4px' }}>
               {children}
             </List.Item>
           ),
-          
+
           // Blockquotes
-          blockquote: ({ children }) => (
+          blockquote: ({ children }: { children?: React.ReactNode }) => (
             <Blockquote mb="md" mt="md">
               {children}
             </Blockquote>
           ),
-          
+
           // Horizontal rules
           hr: () => <Divider my="xl" />,
-          
+
           // Strong/Bold
-          strong: ({ children }) => (
+          strong: ({ children }: { children?: React.ReactNode }) => (
             <Text component="strong" fw={700} style={{ display: 'inline' }}>
               {children}
             </Text>
           ),
-          
+
           // Emphasis/Italic
-          em: ({ children }) => (
+          em: ({ children }: { children?: React.ReactNode }) => (
             <Text component="em" fs="italic" style={{ display: 'inline' }}>
               {children}
             </Text>
           ),
-          
+
           // Tables
-          table: ({ children }) => (
+          table: ({ children }: { children?: React.ReactNode }) => (
             <Paper withBorder mb="md" style={{ overflow: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 {children}
               </table>
             </Paper>
           ),
-          th: ({ children }) => (
-            <th style={{ 
-              padding: '12px', 
+          th: ({ children }: { children?: React.ReactNode }) => (
+            <th style={{
+              padding: '12px',
               background: 'var(--mantine-color-gray-0)',
               borderBottom: '1px solid var(--mantine-color-gray-3)',
               textAlign: 'left',
@@ -181,7 +181,7 @@ const markdownComponents = {
               {children}
             </th>
           ),
-          td: ({ children }) => (
+          td: ({ children }: { children?: React.ReactNode }) => (
             <td style={{
               padding: '12px',
               borderBottom: '1px solid var(--mantine-color-gray-2)',

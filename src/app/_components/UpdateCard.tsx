@@ -32,7 +32,7 @@ interface UpdateCardProps {
     id: string;
     title: string;
     content: string;
-    createdAt: Date;
+    updateDate: Date;
     weekNumber: number | null;
     tags: string[];
     imageUrls: string[];
@@ -178,7 +178,7 @@ function UpdateCardComponent({
                 </Box>
               )}
               <Text c="dimmed" size="xs" mt={4}>
-                {getRelativeTime(update.createdAt)}
+                {getRelativeTime(update.updateDate)}
               </Text>
             </div>
           </Group>
