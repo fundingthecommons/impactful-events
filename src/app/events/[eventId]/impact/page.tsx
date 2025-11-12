@@ -16,6 +16,7 @@ import {
   Divider,
   Card,
   Table,
+  Box,
 } from "@mantine/core";
 import {
   IconChartBar,
@@ -98,14 +99,14 @@ export default function ImpactPage({ params }: ImpactPageProps) {
     { enabled: !!eventId }
   );
 
-  // Get residents for hyperboard
-  const { data: residentsHyperboard } = api.application.getResidentsForHyperboard.useQuery(
+  // Get residents for kudosboard (sized by kudos)
+  const { data: residentsKudosboard } = api.application.getResidentsForKudosboard.useQuery(
     { eventId },
     { enabled: !!eventId }
   );
 
-  // Get residents for kudosboard (sized by kudos)
-  const { data: residentsKudosboard } = api.application.getResidentsForKudosboard.useQuery(
+  // Get projects for hyperboard
+  const { data: projectsHyperboard } = api.application.getProjectsForHyperboard.useQuery(
     { eventId },
     { enabled: !!eventId }
   );
@@ -239,11 +240,11 @@ export default function ImpactPage({ params }: ImpactPageProps) {
           <Tabs.Tab value="sponsor-hyperboard" leftSection={<IconTable size={16} />}>
             Sponsor Hyperboard
           </Tabs.Tab>
-          <Tabs.Tab value="residents-hyperboard" leftSection={<IconUsers size={16} />}>
+          <Tabs.Tab value="kudosboard" leftSection={<IconSparkles size={16} />}>
             Residents Hyperboard
           </Tabs.Tab>
-          <Tabs.Tab value="kudosboard" leftSection={<IconSparkles size={16} />}>
-            Kudosboard
+          <Tabs.Tab value="projects-hyperboard" leftSection={<IconBriefcase size={16} />}>
+            Projects Hyperboard
           </Tabs.Tab>
         </Tabs.List>
 
@@ -511,22 +512,6 @@ export default function ImpactPage({ params }: ImpactPageProps) {
           )}
         </Tabs.Panel>
 
-        <Tabs.Panel value="residents-hyperboard" pt="xl">
-          {residentsHyperboard && residentsHyperboard.length > 0 ? (
-            <Hyperboard
-              data={residentsHyperboard}
-              height={800}
-              label="Residents"
-              onClickLabel={() => {
-                console.log("Label clicked");
-              }}
-              grayscaleImages={false}
-              borderColor="white"
-            />
-          ) : (
-            <Text c="dimmed">No residents found for this event.</Text>
-          )}
-        </Tabs.Panel>
 
         <Tabs.Panel value="kudosboard" pt="xl">
           {residentsKudosboard && residentsKudosboard.length > 0 ? (
@@ -542,6 +527,28 @@ export default function ImpactPage({ params }: ImpactPageProps) {
             />
           ) : (
             <Text c="dimmed">No residents found for this event.</Text>
+          )}
+        </Tabs.Panel>
+
+        <Tabs.Panel value="projects-hyperboard" pt="xl">
+          {projectsHyperboard && projectsHyperboard.length > 0 ? (
+            <Hyperboard
+              data={projectsHyperboard}
+              height={800}
+              label="Projects"
+              onClickLabel={() => {
+                console.log("Projects data:", projectsHyperboard);
+              }}
+              grayscaleImages={false}
+              borderColor="white"
+            />
+          ) : (
+            <Box>
+              <Text c="dimmed">No projects found for this event.</Text>
+              <Text size="xs" c="dimmed" mt="sm">
+                Debug: projectsHyperboard = {JSON.stringify(projectsHyperboard)}
+              </Text>
+            </Box>
           )}
         </Tabs.Panel>
       </Tabs>

@@ -2208,4 +2208,49 @@ export const applicationRouter = createTRPCRouter({
           };
         });
     }),
+
+  // Get projects for hyperboard visualization
+  getProjectsForHyperboard: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+        },
+        include: {
+          user: {
+            include: {
+              profile: {
+                select: {
+                  projects: {
+                    select: {
+                      id: true,
+                      title: true,
+                      description: true,
+                      imageUrl: true,
+                      bannerUrl: true,
+                      featured: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const projects = acceptedApplications
+        .flatMap(app => app.user?.profile?.projects ?? [])
+        .filter(project => project.id);
+
+      return projects.map((project) => ({
+        type: "project",
+        id: project.id,
+        avatar: project.imageUrl ?? project.bannerUrl,
+        displayName: project.title,
+        value: 1, // Equal value = same tile size
+        isBlueprint: false,
+      }));
+    }),
 });

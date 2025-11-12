@@ -120,8 +120,9 @@ export const Tile = ({
               alt={name}
               style={{
                 opacity,
-                maxWidth: "60%",
-                maxHeight: "80%",
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
                 filter: grayScale ? `grayscale(${opacity})` : undefined,
               }}
             />
