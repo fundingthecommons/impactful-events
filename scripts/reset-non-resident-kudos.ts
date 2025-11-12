@@ -132,6 +132,7 @@ main()
     console.error("❌ Error:", error);
     process.exit(1);
   })
-  .finally(async () => {
-    await db.$disconnect();
+  .then(() => db.$disconnect())
+  .catch((error) => {
+    console.error("❌ Disconnect error:", error);
   });

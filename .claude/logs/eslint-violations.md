@@ -225,6 +225,50 @@ import {
 
 ---
 
+## 2025-01-12 - @typescript-eslint/no-misused-promises - Script File - [Project: impactful-events]
+
+**Problem**: Promise returned in function argument where a void return was expected
+**Project Type**: Next.js + TypeScript + Vercel
+**Files Affected**:
+  - scripts/reset-non-resident-kudos.ts:135
+
+**Code Context**:
+```typescript
+// ❌ INCORRECT - main() returns a promise but it's not handled
+main()
+  .catch((error) => {
+    console.error("❌ Error:", error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await db.$disconnect();
+  });
+```
+
+**Fix Applied**:
+```typescript
+// ✅ CORRECT - Use void operator for fire-and-forget promises
+void main()
+  .catch((error) => {
+    console.error("❌ Error:", error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await db.$disconnect();
+  });
+```
+
+**Prevention**:
+1. When calling async functions at the top level (like main()), use the `void` operator if it's a fire-and-forget operation
+2. The `void` operator explicitly indicates you're intentionally not awaiting the promise
+3. This satisfies `@typescript-eslint/no-misused-promises` rule which prevents accidental floating promises
+4. Alternative: If you need to handle errors, use top-level await: `await main().catch(...)`
+5. This error is caught by pre-push hooks - always run `bun run check` before pushing
+
+**Reference**: See CLAUDE.md "CODE QUALITY REQUIREMENTS FOR VERCEL BUILD" section 4 for Promise Handling guidelines
+
+---
+
 ## Usage
 
 This log is referenced by CLAUDE.md to help Claude Code generate ESLint-compliant code on the first try by learning from actual mistakes made in this specific codebase.
