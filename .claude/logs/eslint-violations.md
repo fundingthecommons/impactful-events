@@ -136,6 +136,95 @@ function RepositoryManager({ projectId: _projectId, ... }) {
 
 ---
 
+## 2025-01-12 - @typescript-eslint/no-unused-vars - Multiple Files - [Project: impactful-events]
+
+**Problem**: Multiple unused imports across different files after refactoring
+**Project Type**: Next.js + TypeScript + Vercel
+**Files Affected**:
+  - src/app/events/[eventId]/impact/page.tsx:19,20
+  - src/app/events/[eventId]/latest/UpdatesFeedClient.tsx:48
+  - src/app/kudos/KudosLeaderboardClient.tsx:20
+
+**Code Context**:
+```typescript
+// File 1: impact/page.tsx
+import {
+  Container,
+  Title,
+  Text,
+  Group,
+  Paper,
+  Loader,
+  Center,
+  Tabs,
+  Timeline,
+  Badge,
+  Divider,
+  Card,
+  Table,
+  ThemeIcon,  // ❌ Not used
+  Box,        // ❌ Not used
+} from "@mantine/core";
+
+// File 2: UpdatesFeedClient.tsx
+const CARD_STYLE = {  // ❌ Not used
+  cursor: "pointer",
+  transition: "background-color 0.2s ease",
+} as const;
+
+// File 3: KudosLeaderboardClient.tsx
+import {
+  IconTrophy,
+  IconSparkles,  // ❌ Not used
+  IconThumbUp,
+  IconMessage,
+  IconFileText,
+} from "@tabler/icons-react";
+```
+
+**Fix Applied**:
+```typescript
+// ✅ File 1: Removed ThemeIcon and Box from imports
+import {
+  Container,
+  Title,
+  Text,
+  Group,
+  Paper,
+  Loader,
+  Center,
+  Tabs,
+  Timeline,
+  Badge,
+  Divider,
+  Card,
+  Table,
+} from "@mantine/core";
+
+// ✅ File 2: Removed entire CARD_STYLE constant
+// const CARD_STYLE removed - style was never used
+
+// ✅ File 3: Removed IconSparkles from imports
+import {
+  IconTrophy,
+  IconThumbUp,
+  IconMessage,
+  IconFileText,
+} from "@tabler/icons-react";
+```
+
+**Prevention**:
+1. After refactoring components or changing UI layout, always run `bun run check` to catch unused imports
+2. Remove entire constant declarations if they're not used anywhere (not just the usage)
+3. When multiple files are affected by the same refactoring, check all related files for unused imports
+4. Pay special attention to:
+   - Mantine UI component imports that may no longer be needed
+   - Tabler icon imports after icon changes
+   - Style constants that were defined for optimization but never applied
+5. ESLint will fail Vercel builds with unused imports - catch them in development
+
+---
+
 ## Usage
 
 This log is referenced by CLAUDE.md to help Claude Code generate ESLint-compliant code on the first try by learning from actual mistakes made in this specific codebase.

@@ -17,7 +17,6 @@ import {
 } from "@mantine/core";
 import {
   IconTrophy,
-  IconSparkles,
   IconThumbUp,
   IconMessage,
   IconFileText,

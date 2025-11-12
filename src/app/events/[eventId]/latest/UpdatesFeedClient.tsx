@@ -45,11 +45,6 @@ interface UpdatesFeedClientProps {
 }
 
 // Extract static styles to prevent inline object creation
-const CARD_STYLE = {
-  cursor: "pointer",
-  transition: "background-color 0.2s ease", // Only transition what changes
-} as const;
-
 const PROJECT_TITLE_STYLE = {
   textDecoration: 'none',
   whiteSpace: 'nowrap' as const,

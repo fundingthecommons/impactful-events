@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Container,
   Title,
@@ -15,8 +16,6 @@ import {
   Divider,
   Card,
   Table,
-  ThemeIcon,
-  Box,
 } from "@mantine/core";
 import {
   IconChartBar,
@@ -47,14 +46,33 @@ interface ImpactPageProps {
 }
 
 export default function ImpactPage({ params }: ImpactPageProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [eventId, setEventId] = useState<string>("");
   const [sortField, setSortField] = useState<SortField>("kudos");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [activeTab, setActiveTab] = useState<string>("stats");
 
   // Await params in Next.js 15
   useEffect(() => {
     void params.then(({ eventId: id }) => setEventId(id));
   }, [params]);
+
+  // Handle URL tab parameter
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  // Update URL when tab changes
+  const handleTabChange = (value: string | null) => {
+    if (value) {
+      setActiveTab(value);
+      router.push(`?tab=${value}`, { scroll: false });
+    }
+  };
 
   // Get event details
   const { isLoading: eventLoading } = api.event.getEvent.useQuery(
@@ -82,6 +100,12 @@ export default function ImpactPage({ params }: ImpactPageProps) {
 
   // Get residents for hyperboard
   const { data: residentsHyperboard } = api.application.getResidentsForHyperboard.useQuery(
+    { eventId },
+    { enabled: !!eventId }
+  );
+
+  // Get residents for kudosboard (sized by kudos)
+  const { data: residentsKudosboard } = api.application.getResidentsForKudosboard.useQuery(
     { eventId },
     { enabled: !!eventId }
   );
@@ -201,7 +225,7 @@ export default function ImpactPage({ params }: ImpactPageProps) {
     <Container size="xl" py="xl">
       <Title order={1} mb="xl">Residency Impact</Title>
 
-      <Tabs defaultValue="stats">
+      <Tabs value={activeTab} onChange={handleTabChange}>
         <Tabs.List>
           <Tabs.Tab value="stats" leftSection={<IconChartBar size={16} />}>
             Statistics
@@ -217,6 +241,9 @@ export default function ImpactPage({ params }: ImpactPageProps) {
           </Tabs.Tab>
           <Tabs.Tab value="residents-hyperboard" leftSection={<IconUsers size={16} />}>
             Residents Hyperboard
+          </Tabs.Tab>
+          <Tabs.Tab value="kudosboard" leftSection={<IconSparkles size={16} />}>
+            Kudosboard
           </Tabs.Tab>
         </Tabs.List>
 
@@ -490,6 +517,23 @@ export default function ImpactPage({ params }: ImpactPageProps) {
               data={residentsHyperboard}
               height={800}
               label="Residents"
+              onClickLabel={() => {
+                console.log("Label clicked");
+              }}
+              grayscaleImages={false}
+              borderColor="white"
+            />
+          ) : (
+            <Text c="dimmed">No residents found for this event.</Text>
+          )}
+        </Tabs.Panel>
+
+        <Tabs.Panel value="kudosboard" pt="xl">
+          {residentsKudosboard && residentsKudosboard.length > 0 ? (
+            <Hyperboard
+              data={residentsKudosboard}
+              height={800}
+              label="Kudos Leaders"
               onClickLabel={() => {
                 console.log("Label clicked");
               }}
