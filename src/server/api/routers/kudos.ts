@@ -75,7 +75,7 @@ export const kudosRouter = createTRPCRouter({
           });
 
           // Count total likes received (all types)
-          const [projectUpdateLikes, askOfferLikes, userProjectLikes] =
+          const [projectUpdateLikes, askOfferLikes, userProjectLikes, commentLikes] =
             await Promise.all([
               ctx.db.projectUpdateLike.count({
                 where: {
@@ -94,10 +94,15 @@ export const kudosRouter = createTRPCRouter({
                   },
                 },
               }),
+              ctx.db.projectUpdateCommentLike.count({
+                where: {
+                  comment: { userId: user.id },
+                },
+              }),
             ]);
 
           const likesReceivedCount =
-            projectUpdateLikes + askOfferLikes + userProjectLikes;
+            projectUpdateLikes + askOfferLikes + userProjectLikes + commentLikes;
 
           return {
             user: {
@@ -117,6 +122,7 @@ export const kudosRouter = createTRPCRouter({
               praiseReceivedCount,
               praiseSentCount,
               likesReceivedCount,
+              commentLikesReceivedCount: commentLikes,
             },
           };
         }),
@@ -427,6 +433,8 @@ export const kudosRouter = createTRPCRouter({
         askOfferLikesGiven,
         userProjectLikesReceived,
         userProjectLikesGiven,
+        commentLikesReceived,
+        commentLikesGiven,
       ] = await Promise.all([
         ctx.db.projectUpdate.count({
           where: { userId },
@@ -463,15 +471,24 @@ export const kudosRouter = createTRPCRouter({
         ctx.db.userProjectLike.count({
           where: { userId },
         }),
+        ctx.db.projectUpdateCommentLike.count({
+          where: {
+            comment: { userId },
+          },
+        }),
+        ctx.db.projectUpdateCommentLike.count({
+          where: { userId },
+        }),
       ]);
 
       const totalLikesReceived =
         projectUpdateLikesReceived +
         askOfferLikesReceived +
-        userProjectLikesReceived;
+        userProjectLikesReceived +
+        commentLikesReceived;
 
       const totalLikesGiven =
-        projectUpdateLikesGiven + askOfferLikesGiven + userProjectLikesGiven;
+        projectUpdateLikesGiven + askOfferLikesGiven + userProjectLikesGiven + commentLikesGiven;
 
       return {
         currentKudos: user.kudos,
@@ -483,6 +500,8 @@ export const kudosRouter = createTRPCRouter({
           praiseSentCount,
           likesReceivedCount: totalLikesReceived,
           likesGivenCount: totalLikesGiven,
+          commentLikesReceivedCount: commentLikesReceived,
+          commentLikesGivenCount: commentLikesGiven,
         },
       };
     }),

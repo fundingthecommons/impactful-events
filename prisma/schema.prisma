@@ -121,6 +121,7 @@ model User {
   projectUpdates       ProjectUpdate[]        @relation("ProjectUpdates")
   projectUpdateLikes   ProjectUpdateLike[]    @relation("ProjectUpdateLikes")
   projectUpdateComments ProjectUpdateComment[] @relation("ProjectUpdateComments")
+  projectUpdateCommentLikes ProjectUpdateCommentLike[] @relation("ProjectUpdateCommentLikes")
   userProjectLikes     UserProjectLike[]      @relation("UserProjectLikes")
   askOfferLikes        AskOfferLike[]         @relation("AskOfferLikes")
 
@@ -1240,8 +1241,30 @@ model ProjectUpdateComment {
   // Relations
   projectUpdate   ProjectUpdate @relation(fields: [projectUpdateId], references: [id], onDelete: Cascade)
   user            User          @relation("ProjectUpdateComments", fields: [userId], references: [id], onDelete: Cascade)
+  likes           ProjectUpdateCommentLike[]
 
   @@index([projectUpdateId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Likes on project update comments
+model ProjectUpdateCommentLike {
+  id        String   @id @default(cuid())
+  commentId String   // Which comment was liked
+  userId    String   // Who liked it
+
+  // Kudos transfer system
+  kudosTransferred Float? // Amount of kudos transferred with this like (2% of liker's kudos)
+  likerKudosAtTime Float? // Liker's total kudos balance when they liked
+
+  createdAt DateTime @default(now())
+
+  comment ProjectUpdateComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User                 @relation("ProjectUpdateCommentLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
   @@index([userId])
   @@index([createdAt])
 }

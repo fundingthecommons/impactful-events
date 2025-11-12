@@ -1028,6 +1028,16 @@ export const projectRouter = createTRPCRouter({
                     }
                   }
                 }
+              },
+              likes: {
+                select: {
+                  userId: true,
+                }
+              },
+              _count: {
+                select: {
+                  likes: true,
+                }
               }
             },
             orderBy: { createdAt: "desc" },
@@ -1660,10 +1670,139 @@ export const projectRouter = createTRPCRouter({
               image: true,
             },
           },
+          likes: {
+            select: {
+              userId: true,
+            }
+          },
+          _count: {
+            select: {
+              likes: true,
+            }
+          }
         },
         orderBy: { createdAt: "desc" },
       });
 
       return comments;
+    }),
+
+  // Protected: Like a comment on a project update
+  likeUpdateComment: protectedProcedure
+    .input(z.object({
+      commentId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Check if comment exists
+      const comment = await ctx.db.projectUpdateComment.findUnique({
+        where: { id: input.commentId },
+      });
+
+      if (!comment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Comment not found",
+        });
+      }
+
+      // Check if user already liked this comment
+      const existingLike = await ctx.db.projectUpdateCommentLike.findUnique({
+        where: {
+          commentId_userId: {
+            commentId: input.commentId,
+            userId,
+          },
+        },
+      });
+
+      if (existingLike) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You already liked this comment",
+        });
+      }
+
+      // Get liker's current kudos for transfer calculation
+      const liker = await ctx.db.user.findUnique({
+        where: { id: userId },
+        select: { kudos: true },
+      });
+
+      if (!liker) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      // Calculate kudos transfer (2% of liker's kudos)
+      const transferAmount = liker.kudos * 0.02;
+
+      // Check if user has sufficient kudos
+      if (liker.kudos < transferAmount) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Insufficient kudos to like this comment",
+        });
+      }
+
+      // Perform kudos transfer in a transaction
+      const [like] = await ctx.db.$transaction([
+        // Create the like with transfer data
+        ctx.db.projectUpdateCommentLike.create({
+          data: {
+            commentId: input.commentId,
+            userId,
+            kudosTransferred: transferAmount,
+            likerKudosAtTime: liker.kudos,
+          },
+        }),
+        // Deduct kudos from liker
+        ctx.db.user.update({
+          where: { id: userId },
+          data: { kudos: { decrement: transferAmount } },
+        }),
+        // Add kudos to comment author
+        ctx.db.user.update({
+          where: { id: comment.userId },
+          data: { kudos: { increment: transferAmount } },
+        }),
+      ]);
+
+      return like;
+    }),
+
+  // Protected: Unlike a comment on a project update
+  unlikeUpdateComment: protectedProcedure
+    .input(z.object({
+      commentId: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+
+      // Find and delete the like
+      const like = await ctx.db.projectUpdateCommentLike.findUnique({
+        where: {
+          commentId_userId: {
+            commentId: input.commentId,
+            userId,
+          },
+        },
+      });
+
+      if (!like) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Like not found",
+        });
+      }
+
+      await ctx.db.projectUpdateCommentLike.delete({
+        where: { id: like.id },
+      });
+
+      return { success: true };
     }),
 });

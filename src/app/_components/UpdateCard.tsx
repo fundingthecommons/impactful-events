@@ -298,7 +298,11 @@ function UpdateCardComponent({
 
               {/* Show last 2 comments */}
               {update.comments.slice(0, 2).map((comment) => (
-                <CommentPreview key={comment.id} comment={comment} />
+                <CommentPreview
+                  key={comment.id}
+                  comment={comment}
+                  currentUserId={userId}
+                />
               ))}
 
               {/* Add comment section */}
