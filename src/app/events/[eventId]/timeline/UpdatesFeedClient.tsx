@@ -164,6 +164,10 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
             image: session.user.image ?? null,
             profile: null,
           },
+          likes: [],
+          _count: {
+            likes: 0,
+          },
         };
 
         utils.project.getAllEventUpdates.setData({ eventId },
@@ -541,7 +545,11 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
 
                     {/* Show last 2 comments */}
                     {update.comments.slice(0, 2).map((comment) => (
-                      <CommentPreview key={comment.id} comment={comment} />
+                      <CommentPreview
+                        key={comment.id}
+                        comment={comment}
+                        currentUserId={session?.user?.id}
+                      />
                     ))}
 
                     {/* Add comment section */}
