@@ -11,98 +11,51 @@ const sponsors = [
   {
     name: "Protocol Labs",
     websiteUrl: "https://protocol.ai",
-    logoUrl:
-      "https://site-assets.plasmic.app/feaac31a2e81ebe1a563aae40a7fa1f0.svg",
-    marketCap: 5000000000, // $5B
+    logoUrl: "/images/pl-logo.svg",
+    marketCap: 35000000, // $35M funding
     qualified: true,
   },
   {
-    name: "Brave",
-    websiteUrl: "https://brave.com",
-    logoUrl:
-      "https://brave.com/static-assets/images/brave-logo-sans-text.svg",
-    marketCap: 1000000000, // $1B
+    name: "NEAR",
+    websiteUrl: "https://near.org",
+    logoUrl: "/images/near.jpeg",
+    marketCap: 20000000, // $20M funding
+    qualified: true,
+  },
+  {
+    name: "Stellar",
+    websiteUrl: "https://stellar.org",
+    logoUrl: "/images/stellar-logo.jpeg",
+    marketCap: 17000000, // $17M funding
     qualified: true,
   },
   {
     name: "Octant",
     websiteUrl: "https://octant.app",
-    logoUrl:
-      "https://octant.app/assets/logo-DhwO-Rxr.svg",
-    marketCap: 500000000, // $500M
+    logoUrl: "/images/octant-logo.jpg",
+    marketCap: 17000000, // $17M funding
     qualified: true,
   },
   {
-    name: "Ethereum Foundation",
-    websiteUrl: "https://ethereum.org",
-    logoUrl:
-      "https://ethereum.org/static/a183661dd70e0e5c70689a0ec95ef0ba/cdbe4/eth-diamond-purple.webp",
-    marketCap: 300000000000, // $300B (ETH market cap)
+    name: "Human Tech",
+    websiteUrl: "https://human.tech",
+    logoUrl: "/images/human-tech.jpg",
+    marketCap: 10000000, // $10M funding
     qualified: true,
   },
   {
-    name: "Gitcoin",
-    websiteUrl: "https://gitcoin.co",
-    logoUrl:
-      "https://www.gitcoin.co/logo192.png",
-    marketCap: 150000000, // $150M
+    name: "Logos",
+    websiteUrl: "https://logos.co",
+    logoUrl: "/images/logos-logo.png",
+    marketCap: 7000000, // $7M funding
     qualified: true,
   },
   {
-    name: "Optimism",
-    websiteUrl: "https://optimism.io",
-    logoUrl:
-      "https://cryptologos.cc/logos/optimism-ethereum-op-logo.png",
-    marketCap: 8000000000, // $8B
+    name: "Drips",
+    websiteUrl: "https://drips.network",
+    logoUrl: "/images/drips-logo.svg",
+    marketCap: 5000000, // $5M funding
     qualified: true,
-  },
-  {
-    name: "Polygon",
-    websiteUrl: "https://polygon.technology",
-    logoUrl:
-      "https://cryptologos.cc/logos/polygon-matic-logo.png",
-    marketCap: 7000000000, // $7B
-    qualified: true,
-  },
-  {
-    name: "Arbitrum",
-    websiteUrl: "https://arbitrum.io",
-    logoUrl:
-      "https://cryptologos.cc/logos/arbitrum-arb-logo.png",
-    marketCap: 12000000000, // $12B
-    qualified: true,
-  },
-  {
-    name: "Uniswap",
-    websiteUrl: "https://uniswap.org",
-    logoUrl:
-      "https://cryptologos.cc/logos/uniswap-uni-logo.png",
-    marketCap: 6000000000, // $6B
-    qualified: true,
-  },
-  {
-    name: "Aave",
-    websiteUrl: "https://aave.com",
-    logoUrl:
-      "https://cryptologos.cc/logos/aave-aave-logo.png",
-    marketCap: 4000000000, // $4B
-    qualified: true,
-  },
-  {
-    name: "ENS",
-    websiteUrl: "https://ens.domains",
-    logoUrl:
-      "https://cryptologos.cc/logos/ethereum-name-service-ens-logo.png",
-    marketCap: 500000000, // $500M
-    qualified: true,
-  },
-  {
-    name: "The Graph",
-    websiteUrl: "https://thegraph.com",
-    logoUrl:
-      "https://cryptologos.cc/logos/the-graph-grt-logo.png",
-    marketCap: 2000000000, // $2B
-    qualified: false, // Blueprint sponsor
   },
 ];
 

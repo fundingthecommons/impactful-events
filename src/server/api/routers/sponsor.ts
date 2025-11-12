@@ -269,15 +269,29 @@ export const sponsorRouter = createTRPCRouter({
         },
       });
 
+      // Sponsor funding amounts (in thousands)
+      const sponsorFunding: Record<string, number> = {
+        "Protocol Labs": 35,
+        "NEAR": 20,
+        "Stellar": 17,
+        "Octant": 17,
+        "Human Tech": 10,
+        "Logos": 7,
+        "Drips": 5,
+      };
+
       // Transform sponsors into hyperboard entry format
-      return eventSponsors.map((es) => ({
-        type: "sponsor",
-        id: es.sponsor.id,
-        avatar: es.sponsor.logoUrl,
-        displayName: es.sponsor.name,
-        // Use equal value for all sponsors to make tiles the same size
-        value: 1,
-        isBlueprint: !es.qualified,
-      }));
+      return eventSponsors.map((es) => {
+        const fundingAmount = sponsorFunding[es.sponsor.name] ?? 1;
+
+        return {
+          type: "sponsor",
+          id: es.sponsor.id,
+          avatar: es.sponsor.logoUrl,
+          displayName: es.sponsor.name,
+          value: fundingAmount, // Tile size based on funding amount
+          isBlueprint: !es.qualified,
+        };
+      });
     }),
 }); 

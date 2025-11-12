@@ -17,6 +17,10 @@ import {
   Card,
   Table,
   Box,
+  ThemeIcon,
+  SimpleGrid,
+  Stack,
+  RingProgress,
 } from "@mantine/core";
 import {
   IconChartBar,
@@ -139,6 +143,11 @@ export default function ImpactPage({ params }: ImpactPageProps) {
     }, 0);
   }, [residentProjects]);
 
+  // Get total praise count
+  const totalPraise = useMemo(() => {
+    return transactions?.length ?? 0;
+  }, [transactions]);
+
   // Build resident statistics for leaderboard
   const residentStats = useMemo(() => {
     if (!residentsData?.residents) return [];
@@ -249,24 +258,223 @@ export default function ImpactPage({ params }: ImpactPageProps) {
         </Tabs.List>
 
         <Tabs.Panel value="stats" pt="xl">
-          <Group grow>
-            <Paper p="lg" withBorder>
-              <Text size="sm" c="dimmed" mb="xs">Residents</Text>
-              <Text size="2xl" fw={700}>{residentsData?.visibleResidents ?? 0}</Text>
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 5 }} spacing="lg">
+            {/* Residents Card */}
+            <Paper
+              p="xl"
+              radius="md"
+              style={{
+                background: "linear-gradient(135deg, rgba(103, 58, 183, 0.1) 0%, rgba(103, 58, 183, 0.05) 100%)",
+                border: "1px solid rgba(103, 58, 183, 0.2)",
+                transition: "all 0.3s ease",
+                cursor: "pointer",
+              }}
+              className="stat-card"
+            >
+              <Stack gap="md">
+                <Group justify="space-between" align="flex-start">
+                  <ThemeIcon
+                    size={56}
+                    radius="md"
+                    variant="light"
+                    color="violet"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(103, 58, 183, 0.2) 0%, rgba(103, 58, 183, 0.1) 100%)",
+                    }}
+                  >
+                    <IconUsers size={32} />
+                  </ThemeIcon>
+                  <Badge variant="light" color="violet" size="sm">
+                    Active
+                  </Badge>
+                </Group>
+                <Box>
+                  <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={4}>
+                    Residents
+                  </Text>
+                  <Text size="3rem" fw={900} lh={1} style={{ color: "rgba(103, 58, 183, 1)" }}>
+                    {residentsData?.visibleResidents ?? 0}
+                  </Text>
+                </Box>
+              </Stack>
             </Paper>
-            <Paper p="lg" withBorder>
-              <Text size="sm" c="dimmed" mb="xs">Projects</Text>
-              <Text size="2xl" fw={700}>{residentProjects?.length ?? 0}</Text>
+
+            {/* Projects Card */}
+            <Paper
+              p="xl"
+              radius="md"
+              style={{
+                background: "linear-gradient(135deg, rgba(37, 99, 235, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)",
+                border: "1px solid rgba(37, 99, 235, 0.2)",
+                transition: "all 0.3s ease",
+                cursor: "pointer",
+              }}
+              className="stat-card"
+            >
+              <Stack gap="md">
+                <Group justify="space-between" align="flex-start">
+                  <ThemeIcon
+                    size={56}
+                    radius="md"
+                    variant="light"
+                    color="blue"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%)",
+                    }}
+                  >
+                    <IconBriefcase size={32} />
+                  </ThemeIcon>
+                  <RingProgress
+                    size={50}
+                    thickness={4}
+                    sections={[{ value: 100, color: "blue" }]}
+                    label={
+                      <Center>
+                        <Text size="xs" fw={700} c="blue">
+                          100%
+                        </Text>
+                      </Center>
+                    }
+                  />
+                </Group>
+                <Box>
+                  <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={4}>
+                    Projects
+                  </Text>
+                  <Text size="3rem" fw={900} lh={1} style={{ color: "rgba(37, 99, 235, 1)" }}>
+                    {residentProjects?.length ?? 0}
+                  </Text>
+                </Box>
+              </Stack>
             </Paper>
-            <Paper p="lg" withBorder>
-              <Text size="sm" c="dimmed" mb="xs">Project Updates</Text>
-              <Text size="2xl" fw={700}>{totalUpdates}</Text>
+
+            {/* Project Updates Card */}
+            <Paper
+              p="xl"
+              radius="md"
+              style={{
+                background: "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%)",
+                border: "1px solid rgba(16, 185, 129, 0.2)",
+                transition: "all 0.3s ease",
+                cursor: "pointer",
+              }}
+              className="stat-card"
+            >
+              <Stack gap="md">
+                <Group justify="space-between" align="flex-start">
+                  <ThemeIcon
+                    size={56}
+                    radius="md"
+                    variant="light"
+                    color="teal"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%)",
+                    }}
+                  >
+                    <IconActivity size={32} />
+                  </ThemeIcon>
+                  <Badge variant="light" color="teal" size="sm">
+                    Live
+                  </Badge>
+                </Group>
+                <Box>
+                  <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={4}>
+                    Project Updates
+                  </Text>
+                  <Text size="3rem" fw={900} lh={1} style={{ color: "rgba(16, 185, 129, 1)" }}>
+                    {totalUpdates}
+                  </Text>
+                </Box>
+              </Stack>
             </Paper>
-            <Paper p="lg" withBorder>
-              <Text size="sm" c="dimmed" mb="xs">Total Likes</Text>
-              <Text size="2xl" fw={700}>{totalLikes}</Text>
+
+            {/* Total Likes Card */}
+            <Paper
+              p="xl"
+              radius="md"
+              style={{
+                background: "linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%)",
+                border: "1px solid rgba(236, 72, 153, 0.2)",
+                transition: "all 0.3s ease",
+                cursor: "pointer",
+              }}
+              className="stat-card"
+            >
+              <Stack gap="md">
+                <Group justify="space-between" align="flex-start">
+                  <ThemeIcon
+                    size={56}
+                    radius="md"
+                    variant="light"
+                    color="pink"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(236, 72, 153, 0.2) 0%, rgba(236, 72, 153, 0.1) 100%)",
+                    }}
+                  >
+                    <IconThumbUp size={32} />
+                  </ThemeIcon>
+                  <Badge variant="light" color="pink" size="sm">
+                    Total
+                  </Badge>
+                </Group>
+                <Box>
+                  <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={4}>
+                    Total Likes
+                  </Text>
+                  <Text size="3rem" fw={900} lh={1} style={{ color: "rgba(236, 72, 153, 1)" }}>
+                    {totalLikes}
+                  </Text>
+                </Box>
+              </Stack>
             </Paper>
-          </Group>
+
+            {/* Total Praise Card */}
+            <Paper
+              p="xl"
+              radius="md"
+              style={{
+                background: "linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%)",
+                border: "1px solid rgba(249, 115, 22, 0.2)",
+                transition: "all 0.3s ease",
+                cursor: "pointer",
+              }}
+              className="stat-card"
+            >
+              <Stack gap="md">
+                <Group justify="space-between" align="flex-start">
+                  <ThemeIcon
+                    size={56}
+                    radius="md"
+                    variant="light"
+                    color="orange"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0.1) 100%)",
+                    }}
+                  >
+                    <IconMessage size={32} />
+                  </ThemeIcon>
+                  <Badge variant="light" color="orange" size="sm">
+                    Sent
+                  </Badge>
+                </Group>
+                <Box>
+                  <Text size="xs" tt="uppercase" fw={700} c="dimmed" mb={4}>
+                    Total Praise
+                  </Text>
+                  <Text size="3rem" fw={900} lh={1} style={{ color: "rgba(249, 115, 22, 1)" }}>
+                    {totalPraise}
+                  </Text>
+                </Box>
+              </Stack>
+            </Paper>
+          </SimpleGrid>
+
+          <style jsx>{`
+            :global(.stat-card:hover) {
+              transform: translateY(-4px);
+              box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+            }
+          `}</style>
         </Tabs.Panel>
 
         <Tabs.Panel value="activity" pt="xl">
@@ -506,6 +714,8 @@ export default function ImpactPage({ params }: ImpactPageProps) {
               }}
               grayscaleImages={true}
               borderColor="white"
+              borderWidth={3}
+              logoSize="50%"
             />
           ) : (
             <Text c="dimmed">No sponsors found for this event.</Text>

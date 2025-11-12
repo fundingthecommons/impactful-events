@@ -21,7 +21,9 @@ interface TileProps {
   padding: number;
   grayScale?: boolean;
   borderColor?: string;
+  borderWidth?: number;
   imageObjectFit?: "cover" | "contain";
+  logoSize?: string;
 }
 
 const borderRadius = "0px";
@@ -56,12 +58,14 @@ const Wrapper = ({
   left,
   children,
   borderColor = "white",
+  borderWidth = 1.2,
 }: {
   width: number;
   height: number;
   top: number;
   left: number;
   borderColor?: string;
+  borderWidth?: number;
   children: React.ReactNode;
 }) => {
   const [ref, isHover] = useHover();
@@ -77,7 +81,7 @@ const Wrapper = ({
         top,
         left,
         borderRadius,
-        border: `1.2px solid ${borderColor}`,
+        border: `${borderWidth}px solid ${borderColor}`,
       }}
     >
       <Flex style={{ width: "100%", zIndex: 1 }}>{children}</Flex>
@@ -94,6 +98,7 @@ export const Tile = ({
   padding: _padding,
   grayScale = true,
   imageObjectFit = "contain",
+  logoSize = "60%",
   ...wrapperProps
 }: TileProps) => {
   const opacity = entry.isBlueprint ? 0.5 : 1;
@@ -111,8 +116,8 @@ export const Tile = ({
         objectFit: "cover" as const,
       }
     : {
-        maxWidth: "60%",
-        maxHeight: "80%",
+        maxWidth: logoSize,
+        maxHeight: logoSize,
       };
 
   return (
