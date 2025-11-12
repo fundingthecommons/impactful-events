@@ -35,8 +35,12 @@ interface TelegramUpdate {
 
 /**
  * Parse praise command from message text
- * Format: !Praise @username for message content
- * Also supports: !Praise @alice @bob @charlie for message content
+ * Supports multiple natural language formats:
+ * - !praise @alice for message
+ * - !praise @alice @bob for message
+ * - !praise @alice and @bob for message
+ * - !praise @alice, @bob for message
+ * - !praise @alice, @bob, and @charlie for message
  * Works with or without bot mention prefix
  */
 function parsePraiseCommand(text: string): {
@@ -47,16 +51,16 @@ function parsePraiseCommand(text: string): {
   // Only remove if it's before the !praise command
   const cleanText = text.replace(/^@\w+\s+(!praise)/i, "$1").trim();
 
-  // Match pattern: !Praise @username1 @username2 ... for message
-  // Captures all @mentions before "for"
-  const praiseRegex = /^!praise\s+((?:@\w+\s*)+)\s+for\s+(.+)$/i;
+  // Match pattern: !Praise ... for message
+  // Captures everything between !praise and "for" (more flexible)
+  const praiseRegex = /^!praise\s+(.+?)\s+for\s+(.+)$/i;
   const match = praiseRegex.exec(cleanText);
 
   if (!match) {
     return null;
   }
 
-  // Extract all @usernames from the mentions group
+  // Extract all @usernames from the mentions section
   const mentionsText = match[1]!;
   const usernameMatches = mentionsText.match(/@(\w+)/g);
 
@@ -64,7 +68,7 @@ function parsePraiseCommand(text: string): {
     return null;
   }
 
-  // Remove @ prefix and convert to lowercase, then deduplicate
+  // Remove @ prefix and convert to lowercase
   const usernames = usernameMatches
     .map(mention => mention.substring(1).toLowerCase());
 
