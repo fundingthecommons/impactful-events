@@ -2175,4 +2175,114 @@ export const profileRouter = createTRPCRouter({
 
       return repositories;
     }),
+
+  // Wallet Address Management
+  getMyWalletAddresses: protectedProcedure
+    .query(async ({ ctx }) => {
+      const wallets = await ctx.db.walletAddress.findMany({
+        where: { userId: ctx.session.user.id },
+        orderBy: [
+          { isPrimary: "desc" },
+          { createdAt: "asc" },
+        ],
+      });
+
+      return wallets;
+    }),
+
+  addWalletAddress: protectedProcedure
+    .input(z.object({
+      address: z.string().min(1, "Wallet address is required"),
+      chain: z.enum(["ETHEREUM", "POLYGON", "ARBITRUM", "OPTIMISM", "BASE", "SOLANA", "COSMOS", "OTHER"]),
+      label: z.string().max(100).optional(),
+      isPrimary: z.boolean().optional().default(false),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // If setting as primary, unset other primary wallets
+      if (input.isPrimary) {
+        await ctx.db.walletAddress.updateMany({
+          where: {
+            userId: ctx.session.user.id,
+            isPrimary: true,
+          },
+          data: { isPrimary: false },
+        });
+      }
+
+      const wallet = await ctx.db.walletAddress.create({
+        data: {
+          userId: ctx.session.user.id,
+          address: input.address,
+          chain: input.chain,
+          label: input.label,
+          isPrimary: input.isPrimary ?? false,
+        },
+      });
+
+      return wallet;
+    }),
+
+  updateWalletAddress: protectedProcedure
+    .input(z.object({
+      id: z.string(),
+      label: z.string().max(100).optional(),
+      isPrimary: z.boolean().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify ownership
+      const wallet = await ctx.db.walletAddress.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!wallet || wallet.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only update your own wallet addresses",
+        });
+      }
+
+      // If setting as primary, unset other primary wallets
+      if (input.isPrimary) {
+        await ctx.db.walletAddress.updateMany({
+          where: {
+            userId: ctx.session.user.id,
+            isPrimary: true,
+            id: { not: input.id },
+          },
+          data: { isPrimary: false },
+        });
+      }
+
+      const updatedWallet = await ctx.db.walletAddress.update({
+        where: { id: input.id },
+        data: {
+          label: input.label,
+          isPrimary: input.isPrimary,
+        },
+      });
+
+      return updatedWallet;
+    }),
+
+  deleteWalletAddress: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify ownership
+      const wallet = await ctx.db.walletAddress.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!wallet || wallet.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only delete your own wallet addresses",
+        });
+      }
+
+      await ctx.db.walletAddress.delete({
+        where: { id: input.id },
+      });
+
+      return { success: true };
+    }),
 });

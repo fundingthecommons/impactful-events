@@ -142,6 +142,9 @@ model User {
 
   // AT Proto integration relation
   atProtoAccount        AtProtoAccount?
+
+  // Wallet addresses relation
+  walletAddresses       WalletAddress[]     @relation("UserWalletAddresses")
 }
 
 model VerificationToken {
@@ -1790,4 +1793,37 @@ model AtProtoAccount {
   @@index([userId])
   @@index([did])
   @@index([handle])
+}
+
+// Wallet Address System
+enum WalletChain {
+  ETHEREUM
+  POLYGON
+  ARBITRUM
+  OPTIMISM
+  BASE
+  SOLANA
+  COSMOS
+  OTHER
+}
+
+model WalletAddress {
+  id          String      @id @default(cuid())
+  userId      String      // User who owns this wallet
+  address     String      // Wallet address (e.g., 0x... or solana address)
+  chain       WalletChain @default(ETHEREUM) // Which blockchain
+  label       String?     // Optional label (e.g., "Main Wallet", "Governance")
+  isPrimary   Boolean     @default(false) // Mark as primary wallet
+  isVerified  Boolean     @default(false) // Whether ownership has been verified
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  user        User        @relation("UserWalletAddresses", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, address, chain]) // Prevent duplicate address per user per chain
+  @@index([userId])
+  @@index([address])
+  @@index([chain])
+  @@index([isPrimary])
 }

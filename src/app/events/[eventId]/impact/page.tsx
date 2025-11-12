@@ -713,8 +713,8 @@ export default function ImpactPage({ params }: ImpactPageProps) {
                 console.log("Label clicked");
               }}
               grayscaleImages={true}
-              borderColor="white"
-              borderWidth={3}
+              borderColor="#000000"
+              borderWidth={1}
               logoSize="50%"
             />
           ) : (

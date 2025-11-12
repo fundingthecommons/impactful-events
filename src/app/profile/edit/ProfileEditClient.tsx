@@ -30,7 +30,7 @@ import {
   Progress,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconX, IconArrowLeft, IconDownload, IconEye } from "@tabler/icons-react";
+import { IconCheck, IconX, IconArrowLeft, IconDownload, IconEye, IconWallet, IconTrash, IconStar } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -557,6 +557,9 @@ export function ProfileEditClient() {
             setHasInitialized(false);
           }} />
 
+          {/* Wallet Addresses Section */}
+          <WalletAddressManager />
+
           {/* Projects Section */}
           {currentProfile && (
             <ProjectManager
@@ -852,6 +855,288 @@ function ApplicationImportSection({ onImportComplete }: ApplicationImportSection
             </Group>
           </Stack>
         ) : null}
+      </Modal>
+    </>
+  );
+}
+
+function WalletAddressManager() {
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [newWallet, setNewWallet] = useState({
+    address: "",
+    chain: "ETHEREUM" as const,
+    label: "",
+    isPrimary: false,
+  });
+
+  const { data: wallets, refetch: refetchWallets } = api.profile.getMyWalletAddresses.useQuery();
+
+  const addWalletMutation = api.profile.addWalletAddress.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Wallet Added",
+        message: "Your wallet address has been added successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      setAddModalOpen(false);
+      setNewWallet({
+        address: "",
+        chain: "ETHEREUM",
+        label: "",
+        isPrimary: false,
+      });
+      void refetchWallets();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to add wallet address",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  const updateWalletMutation = api.profile.updateWalletAddress.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Wallet Updated",
+        message: "Your wallet address has been updated successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      void refetchWallets();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to update wallet address",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  const deleteWalletMutation = api.profile.deleteWalletAddress.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Wallet Deleted",
+        message: "Your wallet address has been deleted successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+      void refetchWallets();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to delete wallet address",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    },
+  });
+
+  const handleAddWallet = () => {
+    if (!newWallet.address) {
+      notifications.show({
+        title: "Validation Error",
+        message: "Wallet address is required",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+      return;
+    }
+
+    addWalletMutation.mutate({
+      address: newWallet.address,
+      chain: newWallet.chain,
+      label: newWallet.label || undefined,
+      isPrimary: newWallet.isPrimary,
+    });
+  };
+
+  const handleSetPrimary = (walletId: string) => {
+    updateWalletMutation.mutate({
+      id: walletId,
+      isPrimary: true,
+    });
+  };
+
+  const handleDelete = (walletId: string) => {
+    deleteWalletMutation.mutate({ id: walletId });
+  };
+
+  const chainOptions = [
+    { value: "ETHEREUM", label: "Ethereum" },
+    { value: "POLYGON", label: "Polygon" },
+    { value: "ARBITRUM", label: "Arbitrum" },
+    { value: "OPTIMISM", label: "Optimism" },
+    { value: "BASE", label: "Base" },
+    { value: "SOLANA", label: "Solana" },
+    { value: "COSMOS", label: "Cosmos" },
+    { value: "OTHER", label: "Other" },
+  ];
+
+  return (
+    <>
+      <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Group justify="space-between" mb="md">
+          <Title order={2} size="h3">
+            Wallet Addresses
+          </Title>
+          <Button
+            leftSection={<IconWallet size={16} />}
+            onClick={() => setAddModalOpen(true)}
+            size="sm"
+          >
+            Add Wallet
+          </Button>
+        </Group>
+
+        {!wallets || wallets.length === 0 ? (
+          <Text c="dimmed" size="sm">
+            No wallet addresses added yet. Add your wallet addresses to display them on your profile.
+          </Text>
+        ) : (
+          <Stack gap="sm">
+            {wallets.map((wallet) => (
+              <Box
+                key={wallet.id}
+                p="md"
+                style={{
+                  border: "1px solid var(--mantine-color-gray-3)",
+                  borderRadius: 8,
+                  backgroundColor: wallet.isPrimary ? "var(--mantine-color-blue-0)" : undefined,
+                }}
+              >
+                <Group justify="space-between" align="flex-start">
+                  <div style={{ flex: 1 }}>
+                    <Group gap="xs" mb="xs">
+                      <Text fw={500} size="sm">
+                        {wallet.chain}
+                      </Text>
+                      {wallet.isPrimary && (
+                        <Badge size="sm" color="blue" leftSection={<IconStar size={12} />}>
+                          Primary
+                        </Badge>
+                      )}
+                      {wallet.label && (
+                        <Badge size="sm" color="gray" variant="light">
+                          {wallet.label}
+                        </Badge>
+                      )}
+                    </Group>
+                    <Text size="sm" style={{ fontFamily: "monospace", wordBreak: "break-all" }}>
+                      {wallet.address}
+                    </Text>
+                  </div>
+                  <Group gap="xs">
+                    {!wallet.isPrimary && (
+                      <Button
+                        size="xs"
+                        variant="light"
+                        color="blue"
+                        onClick={() => handleSetPrimary(wallet.id)}
+                        loading={updateWalletMutation.isPending}
+                      >
+                        Set Primary
+                      </Button>
+                    )}
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="red"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={() => handleDelete(wallet.id)}
+                      loading={deleteWalletMutation.isPending}
+                    >
+                      Delete
+                    </Button>
+                  </Group>
+                </Group>
+              </Box>
+            ))}
+          </Stack>
+        )}
+      </Card>
+
+      <Modal
+        opened={addModalOpen}
+        onClose={() => {
+          setAddModalOpen(false);
+          setNewWallet({
+            address: "",
+            chain: "ETHEREUM",
+            label: "",
+            isPrimary: false,
+          });
+        }}
+        title={
+          <Group>
+            <IconWallet size={20} />
+            <Text fw={600}>Add Wallet Address</Text>
+          </Group>
+        }
+        size="md"
+      >
+        <Stack gap="md">
+          <TextInput
+            label="Wallet Address"
+            placeholder="0x... or solana address"
+            value={newWallet.address}
+            onChange={(e) => setNewWallet({ ...newWallet, address: e.target.value })}
+            required
+          />
+
+          <Select
+            label="Blockchain"
+            data={chainOptions}
+            value={newWallet.chain}
+            onChange={(value) =>
+              setNewWallet({ ...newWallet, chain: value as typeof newWallet.chain })
+            }
+            required
+          />
+
+          <TextInput
+            label="Label (Optional)"
+            placeholder="Main Wallet, Governance, etc."
+            value={newWallet.label}
+            onChange={(e) => setNewWallet({ ...newWallet, label: e.target.value })}
+          />
+
+          <Checkbox
+            label="Set as primary wallet"
+            checked={newWallet.isPrimary}
+            onChange={(e) => setNewWallet({ ...newWallet, isPrimary: e.target.checked })}
+          />
+
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="light"
+              onClick={() => {
+                setAddModalOpen(false);
+                setNewWallet({
+                  address: "",
+                  chain: "ETHEREUM",
+                  label: "",
+                  isPrimary: false,
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddWallet}
+              loading={addWalletMutation.isPending}
+              leftSection={<IconCheck size={16} />}
+            >
+              Add Wallet
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
     </>
   );

@@ -36,26 +36,43 @@ interface TelegramUpdate {
 /**
  * Parse praise command from message text
  * Format: !Praise @username for message content
+ * Also supports: !Praise @alice @bob @charlie for message content
  * Works with or without bot mention prefix
  */
 function parsePraiseCommand(text: string): {
-  recipientUsername: string;
+  recipientUsernames: string[];
   message: string;
 } | null {
   // Remove bot mention if present at the start (e.g., "@platform_praise_bot !praise...")
   // Only remove if it's before the !praise command
   const cleanText = text.replace(/^@\w+\s+(!praise)/i, "$1").trim();
 
-  // Match pattern: !Praise @username for message
-  const praiseRegex = /^!praise\s+@(\w+)\s+for\s+(.+)$/i;
+  // Match pattern: !Praise @username1 @username2 ... for message
+  // Captures all @mentions before "for"
+  const praiseRegex = /^!praise\s+((?:@\w+\s*)+)\s+for\s+(.+)$/i;
   const match = praiseRegex.exec(cleanText);
 
   if (!match) {
     return null;
   }
 
+  // Extract all @usernames from the mentions group
+  const mentionsText = match[1]!;
+  const usernameMatches = mentionsText.match(/@(\w+)/g);
+
+  if (!usernameMatches || usernameMatches.length === 0) {
+    return null;
+  }
+
+  // Remove @ prefix and convert to lowercase, then deduplicate
+  const usernames = usernameMatches
+    .map(mention => mention.substring(1).toLowerCase());
+
+  // Deduplicate usernames (in case same person mentioned multiple times)
+  const uniqueUsernames = [...new Set(usernames)];
+
   return {
-    recipientUsername: match[1]!.toLowerCase(),
+    recipientUsernames: uniqueUsernames,
     message: match[2]!.trim(),
   };
 }
@@ -115,7 +132,7 @@ async function reactToMessage(
  * Find user by Telegram information
  */
 async function findUserByTelegram(
-  telegramId: number,
+  _telegramId: number,
   username?: string,
 ): Promise<{ id: string; name: string | null; kudos: number } | null> {
   // Try to find by Contact with matching telegramId
@@ -258,9 +275,15 @@ async function sendTelegramReply(chatId: number, text: string): Promise<void> {
  */
 async function processPraiseCommand(
   message: TelegramMessage,
-  praiseData: { recipientUsername: string; message: string },
+  praiseData: { recipientUsernames: string[]; message: string },
 ): Promise<string> {
-  const { recipientUsername, message: praiseMessage } = praiseData;
+  const { recipientUsernames, message: praiseMessage } = praiseData;
+
+  // Maximum recipients limit
+  const MAX_RECIPIENTS = 10;
+  if (recipientUsernames.length > MAX_RECIPIENTS) {
+    return `Sorry, you can only praise up to ${MAX_RECIPIENTS} people at once. You mentioned ${recipientUsernames.length} people.`;
+  }
 
   // Find sender
   const sender = await findUserByTelegram(
@@ -272,63 +295,85 @@ async function processPraiseCommand(
     return `Sorry, I couldn't find your user account. Make sure you're registered in the platform.`;
   }
 
-  // Find recipient
-  const recipient = await findRecipientByUsername(recipientUsername);
+  // Find all recipients in parallel
+  const recipientResults = await Promise.all(
+    recipientUsernames.map(async (username) => ({
+      username,
+      user: await findRecipientByUsername(username),
+    })),
+  );
 
   // Get sender's current kudos for transfer calculation
   const senderKudos = sender.kudos ?? 130; // Default to base kudos if not set
 
-  // Calculate kudos transfer (5% of sender's kudos)
-  const transferAmount = senderKudos * 0.05;
+  // Calculate kudos transfer per recipient (5% of sender's kudos split among all)
+  const totalTransferAmount = senderKudos * 0.05;
+  const transferAmountPerRecipient = totalTransferAmount / recipientUsernames.length;
 
   // Check if sender has sufficient kudos
-  if (senderKudos < transferAmount) {
-    return `Sorry, you don't have enough kudos to send praise. You need at least ${transferAmount.toFixed(1)} kudos. Your current balance: ${senderKudos.toFixed(1)} kudos.`;
+  if (senderKudos < totalTransferAmount) {
+    return `Sorry, you don't have enough kudos to send praise. You need at least ${totalTransferAmount.toFixed(1)} kudos. Your current balance: ${senderKudos.toFixed(1)} kudos.`;
   }
 
-  // Create praise record with kudos transfer
+  // Create praise records with kudos transfer
   try {
-    // Perform kudos transfer in a transaction
-    const [praise] = await db.$transaction([
-      // Create praise with transfer data
-      db.praise.create({
-        data: {
-          senderId: sender.id,
-          senderTelegramId: BigInt(message.from.id),
-          recipientId: recipient?.id ?? null,
-          recipientName: recipientUsername,
-          message: praiseMessage,
-          telegramMsgId: message.message_id.toString(),
-          isPublic: false, // Default to private
-          kudosTransferred: transferAmount,
-          senderKudosAtTime: senderKudos,
-        },
-      }),
-      // Deduct kudos from sender
+    // Build transaction operations
+    const transactionOps = [];
+
+    // Create praise record for each recipient
+    for (const { username, user } of recipientResults) {
+      transactionOps.push(
+        db.praise.create({
+          data: {
+            senderId: sender.id,
+            senderTelegramId: BigInt(message.from.id),
+            recipientId: user?.id ?? null,
+            recipientName: username,
+            message: praiseMessage,
+            telegramMsgId: message.message_id.toString(),
+            isPublic: false, // Default to private
+            kudosTransferred: transferAmountPerRecipient,
+            senderKudosAtTime: senderKudos,
+          },
+        }),
+      );
+
+      // Add kudos to recipient if found
+      if (user) {
+        transactionOps.push(
+          db.user.update({
+            where: { id: user.id },
+            data: { kudos: { increment: transferAmountPerRecipient } },
+          }),
+        );
+      }
+    }
+
+    // Deduct total kudos from sender once
+    transactionOps.push(
       db.user.update({
         where: { id: sender.id },
-        data: { kudos: { decrement: transferAmount } },
+        data: { kudos: { decrement: totalTransferAmount } },
       }),
-      // Add kudos to recipient (if found)
-      ...(recipient
-        ? [
-            db.user.update({
-              where: { id: recipient.id },
-              data: { kudos: { increment: transferAmount } },
-            }),
-          ]
-        : []),
-    ]);
+    );
+
+    // Execute all operations in a single transaction
+    const results = await db.$transaction(transactionOps);
+
+    // Extract praise records (they're the first N operations)
+    const praiseRecords = results.slice(0, recipientUsernames.length);
 
     // Log successful praise
     Sentry.addBreadcrumb({
       category: "praise",
-      message: "Praise created",
+      message: `Praised ${recipientUsernames.length} people`,
       data: {
-        praiseId: praise.id,
         senderId: sender.id,
-        recipientId: recipient?.id ?? "unknown",
-        recipientName: recipientUsername,
+        recipients: recipientResults.map(r => ({
+          username: r.username,
+          found: !!r.user,
+        })),
+        kudosPerRecipient: transferAmountPerRecipient,
       },
       level: "info",
     });
@@ -337,41 +382,70 @@ async function processPraiseCommand(
     const isPublic = isGroupMessage(message);
     const senderName = isPublic ? sender.name ?? "Someone" : undefined;
 
-    // Cross-post to channel (with sender name if public, anonymous if DM)
-    const channelResult = await crossPostPraiseToChannel(
-      recipientUsername,
-      praiseMessage,
-      senderName,
-    );
+    // Cross-post to channel for each recipient
+    for (let i = 0; i < recipientUsernames.length; i++) {
+      const username = recipientUsernames[i]!;
+      const praise = praiseRecords[i];
 
-    // Update praise record with channel message ID if successful
-    if (channelResult.success && channelResult.messageId) {
-      await db.praise.update({
-        where: { id: praise.id },
-        data: {
-          channelMessageId: channelResult.messageId,
-          crossPostedAt: new Date(),
-        },
-      });
+      const channelResult = await crossPostPraiseToChannel(
+        username,
+        praiseMessage,
+        senderName,
+      );
+
+      // Update praise record with channel message ID if successful
+      if (channelResult.success && channelResult.messageId && praise) {
+        await db.praise.update({
+          where: { id: (praise as { id: string }).id },
+          data: {
+            channelMessageId: channelResult.messageId,
+            crossPostedAt: new Date(),
+          },
+        });
+      }
     }
 
-    // React with thumbs up if in a group, reply if DM
+    // React with thumbs up if in a group
     if (isPublic) {
       await reactToMessage(message.chat.id, message.message_id, "👍");
     }
 
-    const recipientDisplay = recipient?.name ?? `@${recipientUsername}`;
+    // Build success message
+    const foundRecipients = recipientResults.filter(r => r.user);
+    const notFoundRecipients = recipientResults.filter(r => !r.user);
+
+    let responseMessage = "";
+
+    if (foundRecipients.length > 0) {
+      const recipientDisplays = foundRecipients.map(
+        r => r.user?.name ?? `@${r.username}`
+      );
+      const recipientList = recipientDisplays.length === 1
+        ? recipientDisplays[0]
+        : recipientDisplays.length === 2
+        ? `${recipientDisplays[0]} and ${recipientDisplays[1]}`
+        : `${recipientDisplays.slice(0, -1).join(", ")}, and ${recipientDisplays[recipientDisplays.length - 1]}`;
+
+      responseMessage = `✅ Praise recorded! You praised ${recipientList} for: "${praiseMessage}"`;
+
+      if (foundRecipients.length > 1) {
+        responseMessage += ` (${transferAmountPerRecipient.toFixed(1)} kudos each)`;
+      }
+    }
+
+    if (notFoundRecipients.length > 0) {
+      const notFoundList = notFoundRecipients.map(r => `@${r.username}`).join(", ");
+      responseMessage += `\n\n⚠️ Note: Couldn't find ${notFoundList} in the system, but praise was still recorded.`;
+    }
 
     // Only send reply in DM, not in groups
-    return isPublic
-      ? "" // No text response in groups (just react)
-      : `✅ Praise recorded! You praised ${recipientDisplay} for: "${praiseMessage}"`;
+    return isPublic ? "" : responseMessage;
   } catch (error) {
     Sentry.captureException(error, {
       tags: { operation: "create_praise" },
       extra: {
         senderId: sender.id,
-        recipientUsername,
+        recipientUsernames,
         praiseMessage,
       },
     });
@@ -386,7 +460,7 @@ async function processPraiseCommand(
  * This enables the bot to send DMs to users who have interacted with it
  */
 async function captureTelegramChatId(
-  telegramUserId: number,
+  _telegramUserId: number,
   telegramUsername: string,
   chatId: number
 ): Promise<void> {
