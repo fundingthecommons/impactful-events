@@ -121,6 +121,7 @@ export const Hyperboard = (props: HyperboardProps) => {
               left={leaf.x0}
               grayScale={props.grayscaleImages}
               borderColor={props.borderColor}
+              imageObjectFit={props.imageObjectFit}
             />
           );
         })}

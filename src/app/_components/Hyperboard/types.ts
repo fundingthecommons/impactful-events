@@ -42,6 +42,7 @@ export interface HyperboardProps {
   onClickLabel: () => void;
   grayscaleImages?: boolean;
   borderColor?: string;
+  imageObjectFit?: "cover" | "contain";
 }
 
 /**

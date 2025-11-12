@@ -21,6 +21,7 @@ interface TileProps {
   padding: number;
   grayScale?: boolean;
   borderColor?: string;
+  imageObjectFit?: "cover" | "contain";
 }
 
 const borderRadius = "0px";
@@ -92,6 +93,7 @@ export const Tile = ({
   entry,
   padding: _padding,
   grayScale = true,
+  imageObjectFit = "contain",
   ...wrapperProps
 }: TileProps) => {
   const opacity = entry.isBlueprint ? 0.5 : 1;
@@ -100,6 +102,18 @@ export const Tile = ({
   const name = entry.displayName ?? entry.name ?? fallback;
   const toolTipLabel = formatTooltipLabel(entry.id ?? "unknown", name);
   const layout = getTileLayout(wrapperProps.width, wrapperProps.height);
+
+  // Determine image styles based on objectFit mode
+  const imageStyles = imageObjectFit === "cover"
+    ? {
+        width: "100%",
+        height: "100%",
+        objectFit: "cover" as const,
+      }
+    : {
+        maxWidth: "60%",
+        maxHeight: "80%",
+      };
 
   return (
     <Wrapper {...wrapperProps}>
@@ -120,9 +134,7 @@ export const Tile = ({
               alt={name}
               style={{
                 opacity,
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
+                ...imageStyles,
                 filter: grayScale ? `grayscale(${opacity})` : undefined,
               }}
             />

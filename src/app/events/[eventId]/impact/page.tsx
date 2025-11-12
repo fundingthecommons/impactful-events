@@ -524,6 +524,7 @@ export default function ImpactPage({ params }: ImpactPageProps) {
               }}
               grayscaleImages={false}
               borderColor="white"
+              imageObjectFit="cover"
             />
           ) : (
             <Text c="dimmed">No residents found for this event.</Text>
