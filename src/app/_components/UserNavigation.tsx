@@ -16,7 +16,7 @@ export default function UserNavigation() {
 
   // Determine active tab based on current path
   const getActiveTab = () => {
-    if (pathname.startsWith("/events/funding-commons-residency-2025/leaderboard")) return "leaderboard";
+    if (pathname.startsWith("/kudos")) return "kudos";
     if (pathname.startsWith("/events/funding-commons-residency-2025/impact")) return "impact";
     if (pathname.startsWith("/events/funding-commons-residency-2025/timeline")) return "timeline";
     if (pathname.startsWith("/events/funding-commons-residency-2025/asks-offers")) return "asks-offers";
@@ -82,13 +82,13 @@ export default function UserNavigation() {
         </TabsTab>
 
         <TabsTab
-          value="leaderboard"
+          value="kudos"
           leftSection={<IconTrophy size={16} />}
           component={Link}
-          href="/events/funding-commons-residency-2025/leaderboard"
+          href="/kudos"
           style={{ textDecoration: 'none' }}
         >
-          Leaderboard
+          Kudos
         </TabsTab>
 
         <TabsTab

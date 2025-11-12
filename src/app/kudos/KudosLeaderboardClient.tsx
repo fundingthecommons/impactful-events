@@ -17,6 +17,7 @@ import {
   Card,
   Divider,
   Tooltip,
+  Table,
 } from "@mantine/core";
 import {
   IconTrophy,
@@ -27,13 +28,25 @@ import {
   IconFileText,
   IconBriefcase,
   IconQuestionMark,
+  IconArrowUp,
+  IconArrowDown,
+  IconUsers,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
-import { getKudosTier } from "~/utils/kudosCalculation";
+import { getKudosTier, KUDOS_CONSTANTS } from "~/utils/kudosCalculation";
 import { formatDistanceToNow } from "date-fns";
 import { UserAvatar } from "~/app/_components/UserAvatar";
+import { getDisplayName } from "~/utils/userDisplay";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+type SortField = "projects" | "projectsWithMetrics" | "updates" | "praiseSent" | "praiseReceived" | "kudos";
+type SortDirection = "asc" | "desc";
 
 export function KudosLeaderboardClient() {
+  const [sortField, setSortField] = useState<SortField>("kudos");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
   const { data: leaderboard, isLoading: leaderboardLoading } =
     api.kudos.getLeaderboard.useQuery({ limit: 50 });
 
@@ -41,6 +54,101 @@ export function KudosLeaderboardClient() {
     api.kudos.getActivityTimeline.useQuery({ limit: 50 });
 
   const { data: myStats } = api.kudos.getUserStats.useQuery({});
+
+  // Residency leaderboard data
+  const eventId = "funding-commons-residency-2025";
+
+  const { data: transactions } = api.praise.getAllTransactions.useQuery({
+    limit: 100,
+  });
+
+  const { isLoading: eventLoading } = api.event.getEvent.useQuery(
+    { id: eventId },
+    { enabled: !!eventId }
+  );
+
+  const { data: residentProjects } = api.application.getResidentProjects.useQuery(
+    { eventId },
+    { enabled: !!eventId }
+  );
+
+  const { data: residentsData } = api.application.getAcceptedResidents.useQuery(
+    { eventId },
+    { enabled: !!eventId }
+  );
+
+  // Build resident statistics
+  const residentStats = useMemo(() => {
+    if (!residentsData?.residents) return [];
+
+    return residentsData.residents.map((resident) => {
+      const userId = resident.user?.id;
+      if (!userId) return null;
+
+      const userProjects = residentProjects?.filter(
+        (p) => p.profile?.user?.id === userId
+      ) ?? [];
+
+      const totalProjects = userProjects.length;
+
+      const projectsWithMetrics = userProjects.filter(
+        (p) => p.metrics && p.metrics.length > 0
+      ).length;
+
+      const updateCount = userProjects.reduce(
+        (sum: number, p) => sum + (p.updates?.length ?? 0),
+        0
+      );
+
+      const praiseSentCount = transactions?.filter(
+        (t) => t.senderId === userId
+      ).length ?? 0;
+
+      const praiseReceivedCount = transactions?.filter(
+        (t) => t.recipientId === userId
+      ).length ?? 0;
+
+      const actualKudos = resident.user?.kudos ?? KUDOS_CONSTANTS.BASE_KUDOS;
+
+      return {
+        userId,
+        name: resident.user?.name,
+        image: resident.user?.image,
+        customAvatarUrl: resident.user?.profile?.avatarUrl,
+        firstName: resident.user?.firstName,
+        surname: resident.user?.surname,
+        projects: totalProjects,
+        projectsWithMetrics,
+        updates: updateCount,
+        praiseSent: praiseSentCount,
+        praiseReceived: praiseReceivedCount,
+        kudos: actualKudos,
+      };
+    }).filter(Boolean);
+  }, [residentsData, residentProjects, transactions]);
+
+  // Sort resident stats
+  const sortedResidentStats = useMemo(() => {
+    return [...residentStats].sort((a, b) => {
+      const aVal = a![sortField];
+      const bVal = b![sortField];
+      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+    });
+  }, [residentStats, sortField, sortDirection]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null;
+    return sortDirection === "asc" ? <IconArrowUp size={14} /> : <IconArrowDown size={14} />;
+  };
 
   return (
     <Container size="xl" py="xl">
@@ -51,7 +159,7 @@ export function KudosLeaderboardClient() {
             <Title order={1}>
               <Group gap="sm">
                 <IconTrophy size={36} />
-                Kudos Leaderboard
+                Kudos
               </Group>
             </Title>
             <Text c="dimmed" mt="xs">
@@ -96,6 +204,9 @@ export function KudosLeaderboardClient() {
             </Tabs.Tab>
             <Tabs.Tab value="activity" leftSection={<IconActivity size={16} />}>
               Activity Timeline
+            </Tabs.Tab>
+            <Tabs.Tab value="residency" leftSection={<IconUsers size={16} />}>
+              Residency Leaderboard
             </Tabs.Tab>
           </Tabs.List>
 
@@ -184,7 +295,7 @@ export function KudosLeaderboardClient() {
                                     size="sm"
                                     variant="light"
                                     color="grape"
-                                    leftSection={<IconThumbUp size={12} />}
+                                    leftSection={<IconThumbUp size={16} />}
                                   >
                                     {entry.breakdown.likesReceivedCount} likes
                                   </Badge>
@@ -313,6 +424,133 @@ export function KudosLeaderboardClient() {
                   );
                 })}
               </Timeline>
+            )}
+          </Tabs.Panel>
+
+          {/* Residency Leaderboard Tab */}
+          <Tabs.Panel value="residency" pt="xl">
+            {eventLoading ? (
+              <Center py="xl">
+                <Loader />
+              </Center>
+            ) : (
+              <Card withBorder>
+                <Table>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Resident</Table.Th>
+                      <Table.Th
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleSort("projects")}
+                      >
+                        <Group gap="xs">
+                          Projects
+                          <SortIcon field="projects" />
+                        </Group>
+                      </Table.Th>
+                      <Table.Th
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleSort("projectsWithMetrics")}
+                      >
+                        <Group gap="xs">
+                          Projects with Metrics
+                          <SortIcon field="projectsWithMetrics" />
+                        </Group>
+                      </Table.Th>
+                      <Table.Th
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleSort("updates")}
+                      >
+                        <Group gap="xs">
+                          Updates
+                          <SortIcon field="updates" />
+                        </Group>
+                      </Table.Th>
+                      <Table.Th
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleSort("praiseSent")}
+                      >
+                        <Group gap="xs">
+                          Praise Sent
+                          <SortIcon field="praiseSent" />
+                        </Group>
+                      </Table.Th>
+                      <Table.Th
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleSort("praiseReceived")}
+                      >
+                        <Group gap="xs">
+                          Praise Received
+                          <SortIcon field="praiseReceived" />
+                        </Group>
+                      </Table.Th>
+                      <Table.Th
+                        style={{ cursor: "pointer" }}
+                        onClick={() => handleSort("kudos")}
+                      >
+                        <Group gap="xs">
+                          Kudos
+                          <SortIcon field="kudos" />
+                        </Group>
+                      </Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {sortedResidentStats.map((resident) => (
+                      <Table.Tr key={resident!.userId}>
+                        <Table.Td>
+                          <Group gap="sm">
+                            <UserAvatar
+                              user={{
+                                customAvatarUrl: resident!.customAvatarUrl,
+                                oauthImageUrl: resident!.image,
+                                name: resident!.name,
+                                firstName: resident!.firstName,
+                                surname: resident!.surname,
+                              }}
+                              radius="xl"
+                              size="sm"
+                            />
+                            <Text
+                              component={Link}
+                              href={`/profiles/${resident!.userId}`}
+                              size="sm"
+                              fw={500}
+                              style={{ textDecoration: "none", color: "inherit" }}
+                            >
+                              {getDisplayName(resident, "Unknown")}
+                            </Text>
+                          </Group>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge variant="light">{resident!.projects}</Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge variant="light">{resident!.projectsWithMetrics}</Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge variant="light">{resident!.updates}</Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge variant="light" color="blue">{resident!.praiseSent}</Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge variant="light" color="green">{resident!.praiseReceived}</Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge
+                            variant="light"
+                            color={getKudosTier(resident!.kudos).color}
+                            size="lg"
+                          >
+                            {Math.round(resident!.kudos)}
+                          </Badge>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </Card>
             )}
           </Tabs.Panel>
         </Tabs>
