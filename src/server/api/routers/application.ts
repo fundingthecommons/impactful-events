@@ -1778,7 +1778,6 @@ export const applicationRouter = createTRPCRouter({
                   website: true,
                   avatarUrl: true,
                   projects: {
-                    where: { featured: true },
                     orderBy: [
                       { featured: "desc" },
                       { order: "asc" },
