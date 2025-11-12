@@ -275,8 +275,8 @@ export const sponsorRouter = createTRPCRouter({
         id: es.sponsor.id,
         avatar: es.sponsor.logoUrl,
         displayName: es.sponsor.name,
-        // Use market cap as value, default to 1 if not available
-        value: es.sponsor.geckoCoin?.marketCap ?? 1,
+        // Use equal value for all sponsors to make tiles the same size
+        value: 1,
         isBlueprint: !es.qualified,
       }));
     }),

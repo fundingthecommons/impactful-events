@@ -168,15 +168,22 @@ model PasswordResetToken {
   @@index([expiresAt])
 }
 
+enum EventStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 model Event {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
   description String?
   startDate   DateTime
   endDate     DateTime
   location    String?
-  type        String   // e.g., "HACKATHON", "DINNER", "CONFERENCE"
-  isOnline    Boolean  @default(true)
+  type        String      // e.g., "HACKATHON", "DINNER", "CONFERENCE"
+  isOnline    Boolean     @default(true)
+  status      EventStatus @default(ACTIVE)
 
   createdBy   User?    @relation("EventsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdById String?

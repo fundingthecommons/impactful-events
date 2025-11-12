@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs } from "@mantine/core";
-import { IconMapPin, IconHeart, IconNews, IconHandStop, IconUsers, IconBulb, IconTrophy } from "@tabler/icons-react";
+import { IconMapPin, IconHeart, IconNews, IconHandStop, IconUsers, IconBulb } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -16,9 +16,8 @@ export default function UserNavigation() {
 
   // Determine active tab based on current path
   const getActiveTab = () => {
-    if (pathname.startsWith("/kudos")) return "kudos";
     if (pathname.startsWith("/events/funding-commons-residency-2025/impact")) return "impact";
-    if (pathname.startsWith("/events/funding-commons-residency-2025/timeline")) return "timeline";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/latest")) return "latest";
     if (pathname.startsWith("/events/funding-commons-residency-2025/asks-offers")) return "asks-offers";
     if (pathname.startsWith("/events/funding-commons-residency-2025/participants")) return "participants";
     if (pathname.startsWith("/events/funding-commons-residency-2025/projects")) return "event-projects";
@@ -32,13 +31,13 @@ export default function UserNavigation() {
     <Tabs value={getActiveTab()} color="blue">
       <Tabs.List>
         <TabsTab
-          value="residency"
-          leftSection={<IconMapPin size={16} />}
+          value="latest"
+          leftSection={<IconNews size={16} />}
           component={Link}
-          href="https://platform.fundingthecommons.io/events/funding-commons-residency-2025"
+          href="/events/funding-commons-residency-2025/latest"
           style={{ textDecoration: 'none' }}
         >
-          My Residency
+          Latest
         </TabsTab>
 
         <TabsTab
@@ -72,26 +71,6 @@ export default function UserNavigation() {
         </TabsTab>
 
         <TabsTab
-          value="timeline"
-          leftSection={<IconNews size={16} />}
-          component={Link}
-          href="/events/funding-commons-residency-2025/timeline"
-          style={{ textDecoration: 'none' }}
-        >
-          Timeline
-        </TabsTab>
-
-        <TabsTab
-          value="kudos"
-          leftSection={<IconTrophy size={16} />}
-          component={Link}
-          href="/kudos"
-          style={{ textDecoration: 'none' }}
-        >
-          Kudos
-        </TabsTab>
-
-        <TabsTab
           value="impact"
           leftSection={<IconHeart size={16} />}
           component={Link}
@@ -99,6 +78,16 @@ export default function UserNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Impact
+        </TabsTab>
+
+        <TabsTab
+          value="residency"
+          leftSection={<IconMapPin size={16} />}
+          component={Link}
+          href="https://platform.fundingthecommons.io/events/funding-commons-residency-2025"
+          style={{ textDecoration: 'none' }}
+        >
+          My Residency
         </TabsTab>
       </Tabs.List>
     </Tabs>

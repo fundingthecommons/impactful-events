@@ -26,7 +26,7 @@ export default function AdminNavigation() {
     // User navigation tabs
     if (pathname.startsWith("/events/funding-commons-residency-2025/praise")) return "praise";
     if (pathname.startsWith("/events/funding-commons-residency-2025/impact")) return "impact";
-    if (pathname.startsWith("/events/funding-commons-residency-2025/timeline")) return "timeline";
+    if (pathname.startsWith("/events/funding-commons-residency-2025/latest")) return "latest";
     if (pathname.startsWith("/events/funding-commons-residency-2025/asks-offers")) return "asks-offers";
     if (pathname.startsWith("/events/funding-commons-residency-2025/participants")) return "participants";
     if (pathname.startsWith("/events/funding-commons-residency-2025/projects")) return "event-projects";
@@ -170,13 +170,13 @@ export default function AdminNavigation() {
         </TabsTab>
 
         <TabsTab
-          value="timeline"
+          value="latest"
           leftSection={<IconNews size={16} />}
           component={Link}
-          href="/events/funding-commons-residency-2025/timeline"
+          href="/events/funding-commons-residency-2025/latest"
           style={{ textDecoration: 'none' }}
         >
-          Timeline
+          Latest
         </TabsTab>
 
         <TabsTab

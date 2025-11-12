@@ -265,66 +265,72 @@ export default function ParticipantEventsClient() {
   return (
     <Container size="xl" py="xl">
       <Stack gap="xl">
-        {/* Header Section */}
-        <Stack gap="md" ta="center">
-          <Group justify="center" gap="xs">
-            <ThemeIcon size="xl" radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'purple' }}>
-              <IconCalendarEvent size={28} />
-            </ThemeIcon>
-            <Title order={1} size="h1" fw={700}>
-              Available Events
-            </Title>
-          </Group>
-          <Text size="lg" c="dimmed" maw={600} mx="auto">
-            Discover and apply to events that match your interests. Track your applications and stay updated on your status.
-          </Text>
-        </Stack>
+        {/* Header Section - Only show if there are active events */}
+        {events.length > 0 && (
+          <>
+            <Stack gap="md" ta="center">
+              <Group justify="center" gap="xs">
+                <ThemeIcon size="xl" radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'purple' }}>
+                  <IconCalendarEvent size={28} />
+                </ThemeIcon>
+                <Title order={1} size="h1" fw={700}>
+                  Available Events
+                </Title>
+              </Group>
+              <Text size="lg" c="dimmed" maw={600} mx="auto">
+                Discover and apply to events that match your interests. Track your applications and stay updated on your status.
+              </Text>
+            </Stack>
 
-        {/* Stats Overview */}
-        <Paper p="md" radius="md" withBorder>
-          <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="lg">
-            <Stack gap={0} ta="center">
-              <Text size="xl" fw={700} c="blue">
-                {events.length}
-              </Text>
-              <Text size="sm" c="dimmed">Available Events</Text>
-            </Stack>
-            <Stack gap={0} ta="center">
-              <Text size="xl" fw={700} c="green">
-                {userApplications?.length ?? 0}
-              </Text>
-              <Text size="sm" c="dimmed">Your Applications</Text>
-            </Stack>
-            <Stack gap={0} ta="center">
-              <Text size="xl" fw={700} c="orange">
-                {userApplications?.filter(app => app.status === "ACCEPTED").length ?? 0}
-              </Text>
-              <Text size="sm" c="dimmed">Accepted</Text>
-            </Stack>
-          </SimpleGrid>
-        </Paper>
+            {/* Stats Overview */}
+            <Paper p="md" radius="md" withBorder>
+              <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="lg">
+                <Stack gap={0} ta="center">
+                  <Text size="xl" fw={700} c="blue">
+                    {events.length}
+                  </Text>
+                  <Text size="sm" c="dimmed">Available Events</Text>
+                </Stack>
+                <Stack gap={0} ta="center">
+                  <Text size="xl" fw={700} c="green">
+                    {userApplications?.length ?? 0}
+                  </Text>
+                  <Text size="sm" c="dimmed">Your Applications</Text>
+                </Stack>
+                <Stack gap={0} ta="center">
+                  <Text size="xl" fw={700} c="orange">
+                    {userApplications?.filter(app => app.status === "ACCEPTED").length ?? 0}
+                  </Text>
+                  <Text size="sm" c="dimmed">Accepted</Text>
+                </Stack>
+              </SimpleGrid>
+            </Paper>
+          </>
+        )}
 
         {/* Events Grid */}
-        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-          {events.map((event) => {
-            const application = applicationMap.get(event.id);
-            const applicationStatus = {
-              hasApplication: !!application,
-              canApply: !application,
-              application: application ? {
-                status: application.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED"
-              } : undefined
-            };
+        {events.length > 0 && (
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+            {events.map((event) => {
+              const application = applicationMap.get(event.id);
+              const applicationStatus = {
+                hasApplication: !!application,
+                canApply: !application,
+                application: application ? {
+                  status: application.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED"
+                } : undefined
+              };
 
-            return (
-              <EventCard 
-                key={event.id} 
-                event={event}
-                applicationStatus={applicationStatus}
-              />
-            );
-          })}
-        </SimpleGrid>
+              return (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  applicationStatus={applicationStatus}
+                />
+              );
+            })}
+          </SimpleGrid>
+        )}
       </Stack>
     </Container>
   );

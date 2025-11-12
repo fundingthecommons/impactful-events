@@ -19,11 +19,11 @@ export default function PublicHomepage() {
         <Stack gap="xl" align="center">
           {/* Hero Section */}
           <Stack gap="lg" ta="center" maw={800}>
-            <Title 
-              order={1} 
-              size="3.5rem" 
-              fw={800} 
-              style={{ 
+            <Title
+              order={1}
+              size="3.5rem"
+              fw={800}
+              style={{
                 background: 'linear-gradient(45deg, #667eea 0%, #764ba2 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
@@ -33,23 +33,23 @@ export default function PublicHomepage() {
               Funding the Commons
             </Title>
             <Title order={2} size="1.5rem" fw={400} c="dimmed">
-              Residency 2025
+              Join the Commons
             </Title>
             <Text size="xl" c="dimmed" maw={600} mx="auto" style={{ lineHeight: 1.6 }}>
-              Join our 3-month residency program for builders working on public goods and sustainable funding mechanisms.
+              Join our community to connect with people who innovate and build public goods.
             </Text>
           </Stack>
 
           {/* Single CTA Button */}
-          <Link href="/events/funding-commons-residency-2025" style={{ textDecoration: 'none' }}>
-            <Button 
-              size="xl" 
+          <Link href="https://platform.fundingthecommons.io" style={{ textDecoration: 'none' }}>
+            <Button
+              size="xl"
               radius="xl"
-              variant="gradient" 
+              variant="gradient"
               gradient={{ from: 'blue', to: 'purple' }}
               leftSection={<IconCalendarEvent size={24} />}
             >
-              Apply to Residency 2025
+              Enter the Commons
             </Button>
           </Link>
         </Stack>

@@ -38,8 +38,8 @@ export function GitHubCorner() {
             target="_blank"
             rel="noopener noreferrer"
             size="lg"
-            variant="filled"
-            color="red"
+            variant="outline"
+            color="dark"
             style={{
               transition: "transform 0.2s ease",
             }}

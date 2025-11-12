@@ -249,41 +249,27 @@ export default function DefaultUserDashboard() {
           </Stack>
         )}
 
-        {/* Available Events */}
-        <Stack gap="md">
-          <Group justify="space-between">
-            <Title order={2}>Available Events</Title>
-            {hasApplications && (
-              <Link href="/events" style={{ textDecoration: 'none' }}>
-                <Button variant="light" leftSection={<IconPlus size={16} />}>
-                  New Application
-                </Button>
-              </Link>
-            )}
-          </Group>
+        {/* Available Events - Only show if there are active events */}
+        {availableEvents && availableEvents.length > 0 && (
+          <Stack gap="md">
+            <Group justify="space-between">
+              <Title order={2}>Available Events</Title>
+              {hasApplications && (
+                <Link href="/events" style={{ textDecoration: 'none' }}>
+                  <Button variant="light" leftSection={<IconPlus size={16} />}>
+                    New Application
+                  </Button>
+                </Link>
+              )}
+            </Group>
 
-          {!availableEvents || availableEvents.length === 0 ? (
-            <Paper p="xl" withBorder radius="md" ta="center">
-              <Stack gap="md" align="center">
-                <ThemeIcon size={60} radius="xl" color="gray" variant="light">
-                  <IconCalendarEvent size={30} />
-                </ThemeIcon>
-                <Stack gap="xs" align="center">
-                  <Title order={3} c="dimmed">No Events Available</Title>
-                  <Text c="dimmed" ta="center" maw={400}>
-                    There are no events currently accepting applications. Check back soon for new opportunities!
-                  </Text>
-                </Stack>
-              </Stack>
-            </Paper>
-          ) : (
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
               {availableEvents.slice(0, hasApplications ? 3 : 6).map((event) => (
                 <EventCard key={event.id} event={event} />
               ))}
             </SimpleGrid>
-          )}
-        </Stack>
+          </Stack>
+        )}
 
         {/* Get Involved Opportunities */}
         <Stack gap="md">

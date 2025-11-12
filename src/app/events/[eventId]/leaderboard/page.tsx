@@ -93,16 +93,9 @@ export default function LeaderboardPage({ params }: LeaderboardPageProps) {
         (t) => t.recipientId === userId
       ).length ?? 0;
 
-      // Calculate kudos
-      // Formula: BASE_KUDOS + (updates × 10) + (projects with metrics × 10) + (praise received × 5) - (praise sent × 5)
-      // Using backfill values for historical praise transactions
-      const kudos = Math.max(0,
-        KUDOS_CONSTANTS.BASE_KUDOS +
-        (updateCount * KUDOS_CONSTANTS.UPDATE_WEIGHT) +
-        (projectsWithMetrics * KUDOS_CONSTANTS.METRICS_WEIGHT) +
-        (praiseReceivedCount * KUDOS_CONSTANTS.BACKFILL_PRAISE_VALUE) -
-        (praiseSentCount * KUDOS_CONSTANTS.BACKFILL_PRAISE_VALUE)
-      );
+      // Get user's actual kudos from database
+      // This includes all dynamic transfers (likes, comment likes, praise with actual transfer amounts)
+      const actualKudos = resident.user?.kudos ?? KUDOS_CONSTANTS.BASE_KUDOS;
 
       return {
         userId,
@@ -116,7 +109,7 @@ export default function LeaderboardPage({ params }: LeaderboardPageProps) {
         updates: updateCount,
         praiseSent: praiseSentCount,
         praiseReceived: praiseReceivedCount,
-        kudos,
+        kudos: actualKudos,
       };
     }).filter(Boolean);
   }, [residentsData, residentProjects, transactions]);

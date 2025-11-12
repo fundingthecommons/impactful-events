@@ -652,10 +652,11 @@ export const eventRouter = createTRPCRouter({
   }),
 
   getAvailableEvents: publicProcedure.query(async ({ ctx }) => {
-    // Get events that are current, ongoing, or upcoming (not past events)
+    // Get events that are active and current, ongoing, or upcoming (not past events)
     const now = new Date();
     const events = await ctx.db.event.findMany({
       where: {
+        status: 'ACTIVE', // Only show active events
         OR: [
           // Ongoing events (started but not ended)
           {

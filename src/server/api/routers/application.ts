@@ -1689,6 +1689,7 @@ export const applicationRouter = createTRPCRouter({
               surname: true,
               name: true,
               image: true,
+              kudos: true,
               profile: {
                 select: {
                   id: true,
@@ -2113,5 +2114,51 @@ export const applicationRouter = createTRPCRouter({
       }
 
       return application;
+    }),
+
+  // Get accepted residents for hyperboard visualization
+  getResidentsForHyperboard: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              surname: true,
+              name: true,
+              image: true,
+              profile: {
+                select: {
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      return acceptedApplications
+        .filter(app => app.user)
+        .map((app) => {
+          const user = app.user!;
+          const displayName = user.firstName && user.surname
+            ? `${user.firstName} ${user.surname}`
+            : user.name ?? 'Unknown Resident';
+
+          return {
+            type: "resident",
+            id: user.id,
+            avatar: user.profile?.avatarUrl ?? user.image,
+            displayName,
+            value: 1, // Equal value = same tile size
+            isBlueprint: false, // All accepted residents are qualified
+          };
+        });
     }),
 });
