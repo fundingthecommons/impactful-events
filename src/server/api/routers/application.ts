@@ -2253,4 +2253,112 @@ export const applicationRouter = createTRPCRouter({
         isBlueprint: false,
       }));
     }),
+
+  // Get combined hyperboard (sponsors + residents)
+  getCombinedHyperboard: publicProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Fetch sponsors
+      const eventSponsors = await ctx.db.eventSponsor.findMany({
+        where: {
+          eventId: input.eventId,
+        },
+        include: {
+          sponsor: {
+            include: {
+              geckoCoin: true,
+            },
+          },
+        },
+      });
+
+      // Sponsor funding amounts (in thousands)
+      const sponsorFunding: Record<string, number> = {
+        "Protocol Labs": 35,
+        "NEAR": 20,
+        "Stellar": 17,
+        "Octant": 17,
+        "Human Tech": 10,
+        "Logos": 7,
+        "Drips": 5,
+      };
+
+      // Fetch accepted residents
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              surname: true,
+              name: true,
+              image: true,
+              kudos: true,
+              profile: {
+                select: {
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Transform sponsors
+      const sponsorEntries = eventSponsors.map((es) => {
+        const fundingAmount = sponsorFunding[es.sponsor.name] ?? 1;
+
+        return {
+          type: "sponsor",
+          id: es.sponsor.id,
+          avatar: es.sponsor.logoUrl,
+          displayName: es.sponsor.name,
+          value: fundingAmount,
+          isBlueprint: !es.qualified,
+        };
+      });
+
+      // Transform residents
+      const residentEntries = acceptedApplications
+        .filter(app => app.user)
+        .map((app) => {
+          const user = app.user!;
+          const displayName = user.firstName && user.surname
+            ? `${user.firstName} ${user.surname}`
+            : user.name ?? 'Unknown Resident';
+
+          return {
+            type: "resident",
+            id: user.id,
+            avatar: user.profile?.avatarUrl ?? user.image,
+            displayName,
+            value: user.kudos ?? 100,
+            isBlueprint: false,
+          };
+        });
+
+      // Calculate scaling to achieve 64% sponsors, 36% residents
+      const totalSponsorValue = sponsorEntries.reduce((sum, s) => sum + s.value, 0);
+      const totalResidentKudos = residentEntries.reduce((sum, r) => sum + r.value, 0);
+
+      // Scale resident values so they occupy 36% of total board space
+      // Target: sponsors = 64%, residents = 36%
+      // Formula: (totalSponsor * 0.36) / (totalResident * 0.64) = multiplier
+      const residentMultiplier = totalResidentKudos > 0
+        ? (totalSponsorValue * 0.36) / (totalResidentKudos * 0.64)
+        : 1;
+
+      // Scale resident values
+      const scaledResidentEntries = residentEntries.map((r) => ({
+        ...r,
+        value: r.value * residentMultiplier,
+      }));
+
+      // Combine both datasets
+      return [...sponsorEntries, ...scaledResidentEntries];
+    }),
 });

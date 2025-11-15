@@ -34,6 +34,7 @@ import {
   IconBriefcase,
   IconArrowUp,
   IconArrowDown,
+  IconLayoutGrid,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { Hyperboard } from "~/app/_components/Hyperboard";
@@ -111,6 +112,12 @@ export default function ImpactPage({ params }: ImpactPageProps) {
 
   // Get projects for hyperboard
   const { data: projectsHyperboard } = api.application.getProjectsForHyperboard.useQuery(
+    { eventId },
+    { enabled: !!eventId }
+  );
+
+  // Get combined hyperboard (sponsors + residents)
+  const { data: combinedHyperboard } = api.application.getCombinedHyperboard.useQuery(
     { eventId },
     { enabled: !!eventId }
   );
@@ -254,6 +261,9 @@ export default function ImpactPage({ params }: ImpactPageProps) {
           </Tabs.Tab>
           <Tabs.Tab value="projects-hyperboard" leftSection={<IconBriefcase size={16} />}>
             Projects Hyperboard
+          </Tabs.Tab>
+          <Tabs.Tab value="combined-hyperboard" leftSection={<IconLayoutGrid size={16} />}>
+            Combined Hyperboard
           </Tabs.Tab>
         </Tabs.List>
 
@@ -760,6 +770,25 @@ export default function ImpactPage({ params }: ImpactPageProps) {
                 Debug: projectsHyperboard = {JSON.stringify(projectsHyperboard)}
               </Text>
             </Box>
+          )}
+        </Tabs.Panel>
+
+        <Tabs.Panel value="combined-hyperboard" pt="xl">
+          {combinedHyperboard && combinedHyperboard.length > 0 ? (
+            <Hyperboard
+              data={combinedHyperboard}
+              height={800}
+              label="Sponsors & Residents"
+              onClickLabel={() => {
+                console.log("Combined hyperboard clicked");
+              }}
+              grayscaleImages={true}
+              borderColor="#000000"
+              borderWidth={1}
+              logoSize="50%"
+            />
+          ) : (
+            <Text c="dimmed">No data found for this event.</Text>
           )}
         </Tabs.Panel>
       </Tabs>
