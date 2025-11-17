@@ -773,23 +773,49 @@ export default function ImpactPage({ params }: ImpactPageProps) {
           )}
         </Tabs.Panel>
 
-        <Tabs.Panel value="combined-hyperboard" pt="xl">
-          {combinedHyperboard && combinedHyperboard.length > 0 ? (
-            <Hyperboard
-              data={combinedHyperboard}
-              height={800}
-              label="Sponsors & Residents"
-              onClickLabel={() => {
-                console.log("Combined hyperboard clicked");
-              }}
-              grayscaleImages={true}
-              borderColor="#000000"
-              borderWidth={1}
-              logoSize="50%"
-            />
-          ) : (
-            <Text c="dimmed">No data found for this event.</Text>
-          )}
+        <Tabs.Panel
+          value="combined-hyperboard"
+          pt="xl"
+          style={{
+            position: "relative",
+            minHeight: "800px",
+          }}
+        >
+          <Box
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: "100%",
+              backgroundImage: "url(/images/ba.jpg)",
+              backgroundSize: "cover",
+              backgroundPosition: "left center",
+              backgroundRepeat: "no-repeat",
+              opacity: 0.4,
+              filter: "grayscale(100%)",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
+          <Box style={{ position: "relative", zIndex: 1 }}>
+            {combinedHyperboard && combinedHyperboard.length > 0 ? (
+              <Hyperboard
+                data={combinedHyperboard}
+                height={800}
+                label="Sponsors & Residents"
+                onClickLabel={() => {
+                  console.log("Combined hyperboard clicked");
+                }}
+                grayscaleImages={true}
+                borderColor="#000000"
+                borderWidth={1}
+                logoSize="50%"
+              />
+            ) : (
+              <Text c="dimmed">No data found for this event.</Text>
+            )}
+          </Box>
         </Tabs.Panel>
       </Tabs>
     </Container>

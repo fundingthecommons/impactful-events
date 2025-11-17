@@ -38,11 +38,11 @@ const Background = ({ hovering }: { hovering: boolean }) => {
         position: "absolute",
         width: "100%",
         height: "100%",
-        backgroundColor: hovering ? "#3b82f6" : "white",
+        backgroundColor: hovering ? "#3b82f6" : "transparent",
         borderRadius,
-        opacity: 0.5,
+        opacity: hovering ? 0.5 : 0,
         zIndex: 0,
-        transition: "background-color 0.2s ease",
+        transition: "background-color 0.2s ease, opacity 0.2s ease",
       }}
     />
   );

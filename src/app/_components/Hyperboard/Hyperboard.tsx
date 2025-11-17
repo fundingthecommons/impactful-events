@@ -106,6 +106,7 @@ export const Hyperboard = (props: HyperboardProps) => {
           overflow: "hidden",
           position: "relative",
           flex: 1,
+          backgroundColor: "transparent",
         }}
       >
         {leaves.map((leaf, index) => {
