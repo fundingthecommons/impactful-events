@@ -5,7 +5,8 @@ import { api } from "~/trpc/react";
 import {
   Table, Stack, Title, Text, Badge, Avatar, Group, Paper, Container,
   Drawer, ActionIcon, Divider, Anchor, CopyButton, Tooltip, Tabs,
-  MultiSelect, Textarea, Button, Alert, Select, Loader, TextInput, Checkbox
+  MultiSelect, Textarea, Button, Alert, Select, Loader, TextInput, Checkbox,
+  Modal
 } from "@mantine/core";
 import { 
   IconEye, IconBrandTwitter, IconBrandGithub, IconBrandLinkedin, 
@@ -70,6 +71,14 @@ export default function ContactsPage() {
     about: "",
     skills: [] as string[],
   });
+
+  // Create sponsor state
+  const [sponsorModalOpened, setSponsorModalOpened] = useState(false);
+  const [sponsorFormData, setSponsorFormData] = useState({
+    name: "",
+    websiteUrl: "",
+    logoUrl: "",
+  });
   
   const { data: contacts, isLoading } = api.contact.getContacts.useQuery();
   const { data: telegramAuthStatus } = api.telegramAuth.getAuthStatus.useQuery();
@@ -87,6 +96,7 @@ export default function ContactsPage() {
   const sendBulkMessage = api.telegramAuth.sendBulkMessage.useMutation();
   const sendBulkMessageToList = api.telegramAuth.sendBulkMessageToList.useMutation();
   const createContactMutation = api.contact.createContact.useMutation();
+  const createSponsorMutation = api.sponsor.createSponsor.useMutation();
   const utils = api.useUtils();
 
   const openDrawer = useCallback((contact: Contact) => {
@@ -231,6 +241,50 @@ export default function ContactsPage() {
 
   const updateCreateFormField = useCallback((field: string, value: string | string[]) => {
     setCreateFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  // Sponsor creation handlers
+  const openSponsorModal = useCallback(() => {
+    setSponsorModalOpened(true);
+  }, []);
+
+  const closeSponsorModal = useCallback(() => {
+    setSponsorModalOpened(false);
+    setSponsorFormData({
+      name: "",
+      websiteUrl: "",
+      logoUrl: "",
+    });
+    createSponsorMutation.reset();
+  }, [createSponsorMutation]);
+
+  const handleCreateSponsor = useCallback(async () => {
+    if (!sponsorFormData.name.trim()) {
+      return;
+    }
+
+    try {
+      const newSponsor = await createSponsorMutation.mutateAsync({
+        name: sponsorFormData.name.trim(),
+        websiteUrl: sponsorFormData.websiteUrl || undefined,
+        logoUrl: sponsorFormData.logoUrl || undefined,
+      });
+
+      // Refresh sponsors list
+      void utils.sponsor.getSponsors.invalidate();
+
+      // Auto-select the newly created sponsor
+      setCreateFormData(prev => ({ ...prev, sponsorId: newSponsor.id }));
+
+      // Close modal and reset form
+      closeSponsorModal();
+    } catch (error) {
+      console.error("Failed to create sponsor:", error);
+    }
+  }, [sponsorFormData, createSponsorMutation, utils, closeSponsorModal]);
+
+  const updateSponsorFormField = useCallback((field: string, value: string) => {
+    setSponsorFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
   // Helper to get recipient count for current mode (memoized)
@@ -971,12 +1025,21 @@ export default function ContactsPage() {
             <Select
               label="Associated Sponsor"
               placeholder="Choose a sponsor (optional)"
-              data={sponsors?.map(sponsor => ({
-                value: sponsor.id,
-                label: sponsor.name,
-              })) ?? []}
+              data={[
+                ...(sponsors?.map(sponsor => ({
+                  value: sponsor.id,
+                  label: sponsor.name,
+                })) ?? []),
+                { value: '__create_new__', label: '+ Create New Sponsor...' }
+              ]}
               value={createFormData.sponsorId}
-              onChange={(value) => updateCreateFormField("sponsorId", value ?? "")}
+              onChange={(value) => {
+                if (value === '__create_new__') {
+                  openSponsorModal();
+                } else {
+                  updateCreateFormField("sponsorId", value ?? "");
+                }
+              }}
               clearable
               searchable
             />
@@ -1045,9 +1108,7 @@ export default function ContactsPage() {
                 // Group skills by category
                 const grouped = availableSkills.reduce((acc, skill) => {
                   const category = skill.category ?? "Other";
-                  if (!acc[category]) {
-                    acc[category] = [];
-                  }
+                  acc[category] ??= [];
                   acc[category].push({
                     value: skill.name,
                     label: skill.name,
@@ -1106,7 +1167,65 @@ export default function ContactsPage() {
           )}
         </Stack>
       </Drawer>
-    
+
+      {/* Create Sponsor Modal */}
+      <Modal
+        opened={sponsorModalOpened}
+        onClose={closeSponsorModal}
+        title="Create New Sponsor"
+        size="md"
+      >
+        <Stack gap="md">
+          <TextInput
+            label="Sponsor Name"
+            placeholder="Enter sponsor name"
+            required
+            value={sponsorFormData.name}
+            onChange={(e) => updateSponsorFormField("name", e.target.value)}
+            error={createSponsorMutation.error?.message}
+          />
+
+          <TextInput
+            label="Website URL"
+            placeholder="https://example.com (optional)"
+            value={sponsorFormData.websiteUrl}
+            onChange={(e) => updateSponsorFormField("websiteUrl", e.target.value)}
+            leftSection={<IconWorld size={16} />}
+          />
+
+          <TextInput
+            label="Logo URL"
+            placeholder="https://example.com/logo.png (optional)"
+            value={sponsorFormData.logoUrl}
+            onChange={(e) => updateSponsorFormField("logoUrl", e.target.value)}
+            leftSection={<IconBuilding size={16} />}
+          />
+
+          <Group justify="flex-end" gap="sm" mt="md">
+            <Button
+              variant="subtle"
+              onClick={closeSponsorModal}
+              disabled={createSponsorMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateSponsor}
+              loading={createSponsorMutation.isPending}
+              disabled={!sponsorFormData.name.trim()}
+            >
+              Create Sponsor
+            </Button>
+          </Group>
+
+          {createSponsorMutation.isSuccess && (
+            <Alert icon={<IconCheck size={16} />} color="green" variant="light">
+              <Text fw={500}>Sponsor created successfully!</Text>
+            </Alert>
+          )}
+        </Stack>
+      </Modal>
+
   </>
   );
 }

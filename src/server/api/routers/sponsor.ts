@@ -7,6 +7,25 @@ import {
 } from "~/server/api/trpc";
 
 export const sponsorRouter = createTRPCRouter({
+  createSponsor: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1, "Sponsor name is required"),
+        websiteUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+        logoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sponsor = await ctx.db.sponsor.create({
+        data: {
+          name: input.name,
+          websiteUrl: input.websiteUrl === "" ? null : input.websiteUrl,
+          logoUrl: input.logoUrl === "" ? null : input.logoUrl,
+        },
+      });
+      return sponsor;
+    }),
+
   getSponsors: publicProcedure.query(async ({ ctx }) => {
     const sponsors = await ctx.db.sponsor.findMany({
       include: {
