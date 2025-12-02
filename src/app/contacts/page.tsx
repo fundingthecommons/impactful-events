@@ -8,11 +8,11 @@ import {
   MultiSelect, Textarea, Button, Alert, Select, Loader, TextInput, Checkbox,
   Modal
 } from "@mantine/core";
-import { 
-  IconEye, IconBrandTwitter, IconBrandGithub, IconBrandLinkedin, 
+import {
+  IconEye, IconBrandTwitter, IconBrandGithub, IconBrandLinkedin,
   IconBrandTelegram, IconPhone, IconMail, IconCopy, IconCheck,
   IconBuilding, IconWorld, IconUser, IconAddressBook, IconMessage,
-  IconSend, IconX, IconUsers, IconUsersGroup, IconPlus
+  IconSend, IconX, IconUsers, IconUsersGroup, IconPlus, IconSearch
 } from "@tabler/icons-react";
 import { redirect } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -54,7 +54,8 @@ export default function ContactsPage() {
   
   // Contact filtering state
   const [selectedContactFilter, setSelectedContactFilter] = useState<string | null>(null);
-  
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Create contact state
   const [createDrawerOpened, setCreateDrawerOpened] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -127,14 +128,36 @@ export default function ContactsPage() {
 
   // Filtered contacts for display (memoized)
   const displayContacts = useMemo(() => {
-    if (!selectedContactFilter || !filteredContactsList) {
-      return contacts; // Show all contacts when no filter is selected
+    let filtered = contacts;
+
+    // First, apply smart list filter if selected
+    if (selectedContactFilter && filteredContactsList) {
+      const smartListEmails = new Set(filteredContactsList.map(c => c.email).filter(Boolean));
+      filtered = contacts?.filter(contact => contact.email && smartListEmails.has(contact.email)) ?? [];
     }
-    
-    // Filter main contacts list to only show those in the smart list
-    const smartListEmails = new Set(filteredContactsList.map(c => c.email).filter(Boolean));
-    return contacts?.filter(contact => contact.email && smartListEmails.has(contact.email)) ?? [];
-  }, [contacts, selectedContactFilter, filteredContactsList]);
+
+    // Then apply search query filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered?.filter(contact => {
+        const fullName = `${contact.firstName} ${contact.lastName}`.toLowerCase();
+        const email = contact.email?.toLowerCase() ?? "";
+        const phone = contact.phone?.toLowerCase() ?? "";
+        const telegram = contact.telegram?.toLowerCase() ?? "";
+        const sponsorName = contact.sponsor?.name.toLowerCase() ?? "";
+
+        return (
+          fullName.includes(query) ||
+          email.includes(query) ||
+          phone.includes(query) ||
+          telegram.includes(query) ||
+          sponsorName.includes(query)
+        );
+      }) ?? [];
+    }
+
+    return filtered;
+  }, [contacts, selectedContactFilter, filteredContactsList, searchQuery]);
 
   // Get selected smart list info for display (memoized)
   const selectedListInfo = useMemo(() => 
@@ -531,7 +554,26 @@ export default function ContactsPage() {
                         </Button>
                       </Group>
                     </Group>
-                    
+
+                    {/* Search Box */}
+                    <TextInput
+                      placeholder="Search by name, email, phone, telegram, or sponsor..."
+                      leftSection={<IconSearch size={16} />}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      rightSection={
+                        searchQuery ? (
+                          <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={() => setSearchQuery("")}
+                          >
+                            <IconX size={14} />
+                          </ActionIcon>
+                        ) : null
+                      }
+                    />
+
                     {tableData && tableData.body.length > 0 ? (
                       <Table 
                         data={tableData} 
@@ -542,7 +584,9 @@ export default function ContactsPage() {
                       />
                     ) : (
                       <Text ta="center" c="dimmed" py="xl">
-                        No contacts found. Try syncing with Google Contacts below.
+                        {searchQuery
+                          ? `No contacts match "${searchQuery}". Try a different search term.`
+                          : "No contacts found. Try syncing with Google Contacts below."}
                       </Text>
                     )}
                   </Stack>
