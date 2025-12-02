@@ -8,7 +8,7 @@ import {
 } from "@mantine/core";
 import {
   IconWorld, IconBuilding, IconUsers, IconCalendar, IconArrowLeft,
-  IconAlertCircle
+  IconAlertCircle, IconSend
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -21,6 +21,11 @@ export default function OrganizationDetailsPage() {
 
   const { data: organization, isLoading, error } = api.sponsor.getSponsor.useQuery(
     { id: organizationId },
+    { enabled: !!organizationId }
+  );
+
+  const { data: communications } = api.sponsor.getSponsorCommunications.useQuery(
+    { sponsorId: organizationId, limit: 20 },
     { enabled: !!organizationId }
   );
 
@@ -240,6 +245,76 @@ export default function OrganizationDetailsPage() {
             )}
           </Stack>
         </Group>
+
+        {/* Communications History */}
+        {communications && communications.length > 0 && (
+          <Paper shadow="xs" p="md" radius="md" withBorder>
+            <Stack gap="md">
+              <Title order={3}>
+                <Group gap="sm">
+                  <IconSend size={24} />
+                  Communications ({communications.length})
+                </Group>
+              </Title>
+              <Stack gap="xs">
+                {communications.map(comm => (
+                  <Paper key={comm.id} p="md" withBorder>
+                    <Stack gap={8}>
+                      <Group justify="space-between" align="flex-start">
+                        <Group gap="sm">
+                          <Badge size="sm" variant="light" color={comm.channel === 'TELEGRAM' ? 'blue' : 'gray'}>
+                            {comm.channel}
+                          </Badge>
+                          <Badge size="sm" variant="light" color={
+                            comm.status === 'SENT' ? 'green' :
+                            comm.status === 'FAILED' ? 'red' :
+                            'gray'
+                          }>
+                            {comm.status}
+                          </Badge>
+                          {comm.contact && (
+                            <Anchor component={Link} href={`/contacts/${comm.contact.id}`} size="sm">
+                              To: {comm.contact.firstName} {comm.contact.lastName}
+                            </Anchor>
+                          )}
+                        </Group>
+                        <Text size="xs" c="dimmed">
+                          {comm.sentAt
+                            ? new Date(comm.sentAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : new Date(comm.createdAt).toLocaleDateString()}
+                        </Text>
+                      </Group>
+                      {comm.subject && (
+                        <Text size="sm" fw={500}>{comm.subject}</Text>
+                      )}
+                      <Text size="sm" c="dimmed" lineClamp={3}>
+                        {comm.textContent}
+                      </Text>
+                      <Group gap="xs">
+                        {comm.toTelegram && (
+                          <Text size="xs" c="dimmed">
+                            To: @{comm.toTelegram}
+                          </Text>
+                        )}
+                        {comm.toEmail && (
+                          <Text size="xs" c="dimmed">
+                            To: {comm.toEmail}
+                          </Text>
+                        )}
+                      </Group>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            </Stack>
+          </Paper>
+        )}
 
         <Divider />
 

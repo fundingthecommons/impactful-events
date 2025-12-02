@@ -54,6 +54,81 @@ export const sponsorRouter = createTRPCRouter({
       return sponsor;
     }),
 
+  getSponsorCommunications: publicProcedure
+    .input(z.object({
+      sponsorId: z.string(),
+      limit: z.number().optional().default(20),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Get all contacts for this sponsor
+      const contacts = await ctx.db.contact.findMany({
+        where: { sponsorId: input.sponsorId },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          telegram: true,
+        },
+      });
+
+      if (contacts.length === 0) {
+        return [];
+      }
+
+      // Build OR conditions for all contact emails and telegram usernames
+      const whereConditions = [];
+      for (const contact of contacts) {
+        if (contact.email) {
+          whereConditions.push({ toEmail: contact.email });
+        }
+        if (contact.telegram) {
+          whereConditions.push({ toTelegram: contact.telegram });
+        }
+      }
+
+      if (whereConditions.length === 0) {
+        return [];
+      }
+
+      // Query all communications to any of these contacts
+      const communications = await ctx.db.communication.findMany({
+        where: {
+          OR: whereConditions,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: input.limit,
+        select: {
+          id: true,
+          channel: true,
+          type: true,
+          status: true,
+          subject: true,
+          textContent: true,
+          sentAt: true,
+          createdAt: true,
+          createdBy: true,
+          toEmail: true,
+          toTelegram: true,
+        },
+      });
+
+      // Enrich communications with contact info
+      return communications.map(comm => {
+        const contact = contacts.find(
+          c => c.email === comm.toEmail || c.telegram === comm.toTelegram
+        );
+        return {
+          ...comm,
+          contact: contact ? {
+            id: contact.id,
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+          } : null,
+        };
+      });
+    }),
+
   // Get sponsor residency data including visit requests and deliverables
   getSponsorResidencyData: publicProcedure
     .input(z.object({ eventSponsorId: z.string() }))
