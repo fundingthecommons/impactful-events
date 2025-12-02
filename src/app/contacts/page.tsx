@@ -1039,11 +1039,28 @@ export default function ContactsPage() {
             <MultiSelect
               label="Skills"
               placeholder="Select or add skills..."
-              data={availableSkills?.map(skill => ({
-                value: skill.name,
-                label: skill.name,
-                group: skill.category ?? "Other"
-              })) ?? []}
+              data={(() => {
+                if (!availableSkills) return [];
+
+                // Group skills by category
+                const grouped = availableSkills.reduce((acc, skill) => {
+                  const category = skill.category ?? "Other";
+                  if (!acc[category]) {
+                    acc[category] = [];
+                  }
+                  acc[category].push({
+                    value: skill.name,
+                    label: skill.name,
+                  });
+                  return acc;
+                }, {} as Record<string, Array<{ value: string; label: string }>>);
+
+                // Convert to Mantine v8 grouped format
+                return Object.entries(grouped).map(([group, items]) => ({
+                  group,
+                  items,
+                }));
+              })()}
               value={createFormData.skills}
               onChange={(values) => updateCreateFormField("skills", values)}
               searchable
