@@ -420,6 +420,78 @@ export const contactRouter = createTRPCRouter({
     return contacts ?? null;
   }),
 
+  getContact: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const contact = await ctx.db.contact.findUnique({
+        where: { id: input.id },
+        include: {
+          sponsor: true,
+          interactions: {
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+          },
+        },
+      });
+      return contact;
+    }),
+
+  getContactCommunications: publicProcedure
+    .input(z.object({
+      contactId: z.string(),
+      limit: z.number().optional().default(20),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Get the contact to find their email and telegram
+      const contact = await ctx.db.contact.findUnique({
+        where: { id: input.contactId },
+        select: {
+          email: true,
+          telegram: true,
+        },
+      });
+
+      if (!contact) {
+        return [];
+      }
+
+      // Query communications by email or telegram username
+      const whereConditions = [];
+      if (contact.email) {
+        whereConditions.push({ toEmail: contact.email });
+      }
+      if (contact.telegram) {
+        whereConditions.push({ toTelegram: contact.telegram });
+      }
+
+      if (whereConditions.length === 0) {
+        return [];
+      }
+
+      const communications = await ctx.db.communication.findMany({
+        where: {
+          OR: whereConditions,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: input.limit,
+        select: {
+          id: true,
+          channel: true,
+          type: true,
+          status: true,
+          subject: true,
+          textContent: true,
+          sentAt: true,
+          createdAt: true,
+          createdBy: true,
+          toEmail: true,
+          toTelegram: true,
+        },
+      });
+
+      return communications;
+    }),
+
   assignContactToSponsor: publicProcedure
     .input(z.object({ 
       contactId: z.string(),

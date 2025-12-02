@@ -12,11 +12,13 @@ import {
   IconEye, IconBrandTwitter, IconBrandGithub, IconBrandLinkedin,
   IconBrandTelegram, IconPhone, IconMail, IconCopy, IconCheck,
   IconBuilding, IconWorld, IconUser, IconAddressBook, IconMessage,
-  IconSend, IconX, IconUsers, IconUsersGroup, IconPlus, IconSearch
+  IconSend, IconX, IconUsers, IconUsersGroup, IconPlus, IconSearch,
+  IconExternalLink
 } from "@tabler/icons-react";
 import { redirect } from "next/navigation";
 import { useSession } from "next-auth/react";
 import ContactsClient from "./ContactsClient";
+import Link from "next/link";
 
 interface Contact {
   id: string;
@@ -396,14 +398,27 @@ export default function ContactsPage() {
         {contact.id}
       </Text>,
       // Actions column
-      <ActionIcon 
-        variant="subtle" 
-        color="blue" 
-        onClick={() => openDrawer(contact)}
-        key={`actions-${contact.id}`}
-      >
-        <IconEye size={16} />
-      </ActionIcon>
+      <Group gap="xs" key={`actions-${contact.id}`}>
+        <Tooltip label="Quick view">
+          <ActionIcon
+            variant="subtle"
+            color="blue"
+            onClick={() => openDrawer(contact)}
+          >
+            <IconEye size={16} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label="View full details">
+          <ActionIcon
+            component={Link}
+            href={`/contacts/${contact.id}`}
+            variant="subtle"
+            color="blue"
+          >
+            <IconExternalLink size={16} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
     ])
   } : null, [displayContacts, openDrawer]);
 

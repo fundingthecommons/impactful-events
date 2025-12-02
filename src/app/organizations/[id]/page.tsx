@@ -160,7 +160,14 @@ export default function OrganizationDetailsPage() {
                   </Title>
                   <Stack gap="xs">
                     {organization.contacts.map(contact => (
-                      <Paper key={contact.id} p="md" withBorder>
+                      <Paper
+                        key={contact.id}
+                        p="md"
+                        withBorder
+                        component={Link}
+                        href={`/contacts/${contact.id}`}
+                        style={{ cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}
+                      >
                         <Group gap="md">
                           <Avatar size="md" color="blue">
                             {contact.firstName[0]?.toUpperCase()}{contact.lastName[0]?.toUpperCase()}
