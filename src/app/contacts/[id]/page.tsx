@@ -10,7 +10,7 @@ import {
 import {
   IconMail, IconPhone, IconBrandTwitter, IconBrandGithub,
   IconBrandLinkedin, IconBrandTelegram, IconArrowLeft, IconAlertCircle,
-  IconBuilding, IconWorld, IconUser, IconClock, IconMessage, IconSend, IconDownload
+  IconBuilding, IconWorld, IconUser, IconClock, IconMessage, IconSend, IconDownload, IconRefresh
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useSession } from "next-auth/react";
@@ -21,8 +21,11 @@ export default function ContactDetailsPage() {
   const params = useParams();
   const { data: session, status } = useSession();
   const contactId = params.id as string;
-  const [importModalOpened, setImportModalOpened] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [importTelegramModalOpened, setImportTelegramModalOpened] = useState(false);
+  const [importGmailModalOpened, setImportGmailModalOpened] = useState(false);
+  const [selectedTelegramEventId, setSelectedTelegramEventId] = useState<string>("");
+  const [selectedGmailEventId, setSelectedGmailEventId] = useState<string>("");
+  const [reconnecting, setReconnecting] = useState(false);
 
   const { data: contact, isLoading, error } = api.contact.getContact.useQuery(
     { id: contactId },
@@ -43,7 +46,28 @@ export default function ContactDetailsPage() {
         message: `Successfully imported ${result.imported} Telegram messages`,
         color: "green",
       });
-      setImportModalOpened(false);
+      setImportTelegramModalOpened(false);
+      void refetchCommunications();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Import Failed",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  const disconnectGoogleAccount = api.contact.disconnectGoogleAccount.useMutation();
+
+  const importGmailMessages = api.contact.importGmailMessagesForContact.useMutation({
+    onSuccess: (result) => {
+      notifications.show({
+        title: "Import Complete",
+        message: `Successfully imported ${result.imported} Gmail messages`,
+        color: "green",
+      });
+      setImportGmailModalOpened(false);
       void refetchCommunications();
     },
     onError: (error) => {
@@ -56,7 +80,7 @@ export default function ContactDetailsPage() {
   });
 
   const handleImportTelegram = () => {
-    if (!selectedEventId) {
+    if (!selectedTelegramEventId) {
       notifications.show({
         title: "Event Required",
         message: "Please select an event to associate messages with",
@@ -67,9 +91,48 @@ export default function ContactDetailsPage() {
 
     importTelegramMessages.mutate({
       contactId,
-      eventId: selectedEventId,
+      eventId: selectedTelegramEventId,
       maxMessages: 100,
     });
+  };
+
+  const handleImportGmail = () => {
+    if (!selectedGmailEventId) {
+      notifications.show({
+        title: "Event Required",
+        message: "Please select an event to associate messages with",
+        color: "orange",
+      });
+      return;
+    }
+
+    importGmailMessages.mutate({
+      contactId,
+      eventId: selectedGmailEventId,
+      maxMessages: 100,
+    });
+  };
+
+  const handleReconnectGoogle = async () => {
+    setReconnecting(true);
+    try {
+      console.log("Disconnecting existing Google account...");
+      await disconnectGoogleAccount.mutateAsync();
+      console.log("Google account disconnected, redirecting to OAuth...");
+
+      // Small delay to ensure the disconnect is processed
+      setTimeout(() => {
+        window.location.href = "/api/auth/signin?provider=google";
+      }, 500);
+    } catch (e) {
+      console.error("Failed to disconnect Google account:", e);
+      setReconnecting(false);
+      notifications.show({
+        title: "Reconnect Failed",
+        message: "Failed to disconnect Google account. Please try again.",
+        color: "red",
+      });
+    }
   };
 
   // Handle authentication on client side
@@ -178,23 +241,67 @@ export default function ContactDetailsPage() {
                 </Group>
               )}
 
-              {/* Import Telegram Messages Button */}
-              {contact.telegram && (
-                <Group gap="xs" mt="md">
-                  <Button
-                    leftSection={<IconDownload size={16} />}
-                    variant="light"
-                    color="blue"
-                    onClick={() => setImportModalOpened(true)}
-                    loading={importTelegramMessages.isPending}
-                  >
-                    Import Telegram Messages
-                  </Button>
-                  <Text size="sm" c="dimmed">
-                    Import chat history with @{contact.telegram}
-                  </Text>
-                </Group>
-              )}
+              {/* Import Messages Buttons */}
+              <Stack gap="sm" mt="md">
+                {contact.telegram && (
+                  <Group gap="xs">
+                    <Button
+                      leftSection={<IconDownload size={16} />}
+                      variant="light"
+                      color="blue"
+                      onClick={() => setImportTelegramModalOpened(true)}
+                      loading={importTelegramMessages.isPending}
+                    >
+                      Import Telegram Messages
+                    </Button>
+                    <Text size="sm" c="dimmed">
+                      Import chat history with @{contact.telegram}
+                    </Text>
+                  </Group>
+                )}
+                {contact.email && !contact.email.endsWith("telegram.placeholder") && (
+                  <Stack gap="xs">
+                    <Group gap="xs">
+                      <Button
+                        leftSection={<IconDownload size={16} />}
+                        variant="light"
+                        color="green"
+                        onClick={() => setImportGmailModalOpened(true)}
+                        loading={importGmailMessages.isPending}
+                      >
+                        Import Gmail Messages
+                      </Button>
+                      <Text size="sm" c="dimmed">
+                        Import email history with {contact.email}
+                      </Text>
+                    </Group>
+                    {importGmailMessages.error && (
+                      <Alert icon={<IconAlertCircle size={16} />} color="red" variant="light">
+                        <Text fw={500}>Import Failed:</Text>
+                        <Text size="sm" mb="sm">
+                          {importGmailMessages.error.message === "GOOGLE_GMAIL_PERMISSIONS_INSUFFICIENT"
+                            ? "Gmail access permission is missing. Please reconnect your Google account to grant Gmail access."
+                            : importGmailMessages.error.message}
+                        </Text>
+                        {importGmailMessages.error.message === "GOOGLE_GMAIL_PERMISSIONS_INSUFFICIENT" && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            leftSection={reconnecting ? <Loader size={14} /> : <IconRefresh size={14} />}
+                            onClick={handleReconnectGoogle}
+                            disabled={reconnecting || disconnectGoogleAccount.isPending}
+                            loading={reconnecting || disconnectGoogleAccount.isPending}
+                          >
+                            {reconnecting || disconnectGoogleAccount.isPending
+                              ? "Reconnecting..."
+                              : "Disconnect & Reconnect Google"}
+                          </Button>
+                        )}
+                      </Alert>
+                    )}
+                  </Stack>
+                )}
+              </Stack>
             </Stack>
           </Group>
         </Paper>
@@ -486,8 +593,8 @@ export default function ContactDetailsPage() {
 
       {/* Import Telegram Messages Modal */}
       <Modal
-        opened={importModalOpened}
-        onClose={() => setImportModalOpened(false)}
+        opened={importTelegramModalOpened}
+        onClose={() => setImportTelegramModalOpened(false)}
         title="Import Telegram Messages"
         size="md"
       >
@@ -504,8 +611,8 @@ export default function ContactDetailsPage() {
               value: event.id,
               label: event.name,
             })) ?? []}
-            value={selectedEventId}
-            onChange={(value) => setSelectedEventId(value ?? "")}
+            value={selectedTelegramEventId}
+            onChange={(value) => setSelectedTelegramEventId(value ?? "")}
           />
 
           <Text size="sm" c="dimmed">
@@ -515,7 +622,7 @@ export default function ContactDetailsPage() {
           <Group justify="flex-end" gap="sm">
             <Button
               variant="subtle"
-              onClick={() => setImportModalOpened(false)}
+              onClick={() => setImportTelegramModalOpened(false)}
               disabled={importTelegramMessages.isPending}
             >
               Cancel
@@ -524,6 +631,54 @@ export default function ContactDetailsPage() {
               onClick={handleImportTelegram}
               loading={importTelegramMessages.isPending}
               leftSection={<IconDownload size={16} />}
+            >
+              Import Messages
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Import Gmail Messages Modal */}
+      <Modal
+        opened={importGmailModalOpened}
+        onClose={() => setImportGmailModalOpened(false)}
+        title="Import Gmail Messages"
+        size="md"
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Import email history with <strong>{contact.email}</strong> into the Communication table.
+          </Text>
+
+          <Select
+            label="Event"
+            placeholder="Select an event to associate messages with"
+            required
+            data={events?.map((event) => ({
+              value: event.id,
+              label: event.name,
+            })) ?? []}
+            value={selectedGmailEventId}
+            onChange={(value) => setSelectedGmailEventId(value ?? "")}
+          />
+
+          <Text size="sm" c="dimmed">
+            This will import up to 100 recent emails from or to this contact.
+          </Text>
+
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="subtle"
+              onClick={() => setImportGmailModalOpened(false)}
+              disabled={importGmailMessages.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImportGmail}
+              loading={importGmailMessages.isPending}
+              leftSection={<IconDownload size={16} />}
+              color="green"
             >
               Import Messages
             </Button>

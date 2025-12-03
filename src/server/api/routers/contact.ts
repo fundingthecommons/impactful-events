@@ -26,6 +26,7 @@ import {
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
+import { convertHtmlToText } from "~/utils/htmlToText";
 
 type Context = {
   db: PrismaClient;
@@ -849,7 +850,8 @@ export const contactRouter = createTRPCRouter({
 
             // Extract message body
             const body = extractMessageBody(payload);
-            const textContent = body.text ?? body.html ?? '';
+            // Convert HTML to text if plain text is not available
+            const textContent = body.text ?? (body.html ? convertHtmlToText(body.html) : '');
 
             if (!textContent) {
               errors++;
@@ -1343,4 +1345,240 @@ export const contactRouter = createTRPCRouter({
       throw new Error(`Failed to disconnect Google account: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }),
+
+  importGmailMessagesForContact: protectedProcedure
+    .input(
+      z.object({
+        contactId: z.string().min(1, "Contact ID is required"),
+        eventId: z.string().min(1, "Event ID is required"),
+        maxMessages: z.number().min(1).max(500).default(100),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Fetch the contact to get their email
+      const contact = await ctx.db.contact.findUnique({
+        where: { id: input.contactId },
+        select: { email: true, firstName: true, lastName: true },
+      });
+
+      if (!contact?.email) {
+        throw new Error("This contact does not have an email address");
+      }
+
+      if (contact.email.endsWith("telegram.placeholder")) {
+        throw new Error("Cannot import Gmail messages for a Telegram placeholder email");
+      }
+
+      // Get Google OAuth client with Gmail scope
+      const oauth2Client = await getGoogleAuthClient(ctx, 'gmail');
+      const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+      // Build query to search for emails from or to this contact
+      const query = `from:${contact.email} OR to:${contact.email}`;
+
+      try {
+        // List messages matching the query
+        const listResponse = await gmail.users.messages.list({
+          userId: "me",
+          maxResults: input.maxMessages,
+          q: query,
+        });
+
+        const messages = listResponse.data.messages ?? [];
+        let imported = 0;
+        let errors = 0;
+        const errorMessages: string[] = [];
+
+        for (const message of messages) {
+          if (!message.id) continue;
+
+          try {
+            // Fetch full message content
+            const fullMessage = await gmail.users.messages.get({
+              userId: 'me',
+              id: message.id,
+              format: 'full',
+            });
+
+            const headers = fullMessage.data.payload?.headers;
+            const fromHeader = getHeaderValue(headers, 'From');
+            const toHeader = getHeaderValue(headers, 'To');
+            const subject = getHeaderValue(headers, 'Subject');
+            const dateHeader = getHeaderValue(headers, 'Date');
+
+            if (!fromHeader || !toHeader) {
+              errors++;
+              continue;
+            }
+
+            const fromEmail = parseEmailAddress(fromHeader).email;
+            const toEmail = parseEmailAddress(toHeader).email;
+
+            // Extract message body
+            const body = extractMessageBody(fullMessage.data.payload ?? {});
+
+            // Parse date
+            let sentAt: Date;
+            if (dateHeader) {
+              sentAt = new Date(dateHeader);
+              if (isNaN(sentAt.getTime())) {
+                sentAt = new Date();
+              }
+            } else {
+              sentAt = new Date();
+            }
+
+            // Save to Communication table
+            await ctx.db.communication.create({
+              data: {
+                channel: 'EMAIL',
+                type: 'GENERAL',
+                status: 'SENT',
+                fromEmail,
+                toEmail,
+                subject: subject ?? undefined,
+                // Convert HTML to text if plain text is not available
+                textContent: body.text ?? (body.html ? convertHtmlToText(body.html) : ''),
+                htmlContent: body.html ?? undefined,
+                sentAt,
+                eventId: input.eventId,
+                createdBy: ctx.session.user.id,
+              },
+            });
+
+            imported++;
+          } catch (error) {
+            errors++;
+            errorMessages.push(
+              `Message ${message.id}: ${error instanceof Error ? error.message : 'Unknown error'}`
+            );
+          }
+        }
+
+        return {
+          imported,
+          errors,
+          total: messages.length,
+          errorMessages: errorMessages.slice(0, 5), // Return first 5 errors
+        };
+      } catch (error) {
+        throw new Error(
+          `Failed to import Gmail messages: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    }),
+
+  mergeContacts: protectedProcedure
+    .input(
+      z.object({
+        contactIds: z.array(z.string()).min(2, "Must select at least 2 contacts to merge"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Fetch all contacts to be merged
+      const contacts = await ctx.db.contact.findMany({
+        where: {
+          id: { in: input.contactIds },
+        },
+      });
+
+      if (contacts.length < 2) {
+        throw new Error("At least 2 contacts must exist to merge");
+      }
+
+      // Determine which contact is from Telegram (email ends in "telegram.placeholder")
+      const telegramContact = contacts.find(c => c.email?.endsWith("telegram.placeholder"));
+      const nonTelegramContact = contacts.find(c => !c.email?.endsWith("telegram.placeholder"));
+
+      // Determine the primary contact to keep
+      // If there's a non-telegram contact, prefer it (so we can use its email)
+      // Otherwise, use the first contact
+      const primaryContact = nonTelegramContact ?? contacts[0];
+      if (!primaryContact) {
+        throw new Error("No primary contact found");
+      }
+
+      // Build merged data using the rules:
+      // 1. Telegram contacts are canonical for telegram and phone fields
+      // 2. Non-telegram email overwrites telegram.placeholder email
+      // 3. Other fields: concatenate with ' - ' if they clash
+      const mergedData: {
+        email?: string | null;
+        phone?: string | null;
+        telegram?: string | null;
+        firstName?: string;
+        lastName?: string;
+        twitter?: string | null;
+        github?: string | null;
+        linkedIn?: string | null;
+        about?: string | null;
+        skills?: string[];
+      } = {};
+
+      // Email: Use non-telegram email if available, otherwise use telegram email
+      if (nonTelegramContact?.email && !nonTelegramContact.email.endsWith("telegram.placeholder")) {
+        mergedData.email = nonTelegramContact.email;
+      } else if (telegramContact?.email) {
+        mergedData.email = telegramContact.email;
+      } else {
+        mergedData.email = primaryContact.email;
+      }
+
+      // Phone and Telegram: Use telegram contact values if available (canonical)
+      if (telegramContact) {
+        mergedData.phone = telegramContact.phone;
+        mergedData.telegram = telegramContact.telegram;
+      } else {
+        // Merge phone numbers from all contacts
+        const phones = contacts.map(c => c.phone).filter(Boolean);
+        mergedData.phone = phones.length > 0 ? phones.join(' - ') : null;
+
+        // Merge telegram usernames from all contacts
+        const telegrams = contacts.map(c => c.telegram).filter(Boolean);
+        mergedData.telegram = telegrams.length > 0 ? telegrams.join(' - ') : null;
+      }
+
+      // First/Last names: Concatenate if different
+      const firstNames = [...new Set(contacts.map(c => c.firstName))];
+      const lastNames = [...new Set(contacts.map(c => c.lastName))];
+      mergedData.firstName = firstNames.join(' - ');
+      mergedData.lastName = lastNames.join(' - ');
+
+      // Other text fields: Concatenate unique values
+      const mergeTextField = (field: 'twitter' | 'github' | 'linkedIn' | 'about') => {
+        const values = contacts.map(c => c[field]).filter(Boolean) as string[];
+        const uniqueValues = [...new Set(values)];
+        return uniqueValues.length > 0 ? uniqueValues.join(' - ') : null;
+      };
+
+      mergedData.twitter = mergeTextField('twitter');
+      mergedData.github = mergeTextField('github');
+      mergedData.linkedIn = mergeTextField('linkedIn');
+      mergedData.about = mergeTextField('about');
+
+      // Skills: Merge all unique skills
+      const allSkills = contacts.flatMap(c => c.skills ?? []);
+      mergedData.skills = [...new Set(allSkills)];
+
+      // Update the primary contact with merged data
+      await ctx.db.contact.update({
+        where: { id: primaryContact.id },
+        data: mergedData,
+      });
+
+      // Delete all other contacts
+      const contactsToDelete = contacts.filter(c => c.id !== primaryContact.id);
+      await ctx.db.contact.deleteMany({
+        where: {
+          id: { in: contactsToDelete.map(c => c.id) },
+        },
+      });
+
+      return {
+        success: true,
+        mergedContactId: primaryContact.id,
+        deletedContactIds: contactsToDelete.map(c => c.id),
+        mergedCount: contacts.length,
+      };
+    }),
 });

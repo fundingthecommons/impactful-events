@@ -58,6 +58,10 @@ export default function ContactsPage() {
   const [selectedContactFilter, setSelectedContactFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Contact merging state
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [mergeModalOpened, setMergeModalOpened] = useState(false);
+
   // Create contact state
   const [createDrawerOpened, setCreateDrawerOpened] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -100,6 +104,7 @@ export default function ContactsPage() {
   const sendBulkMessageToList = api.telegramAuth.sendBulkMessageToList.useMutation();
   const createContactMutation = api.contact.createContact.useMutation();
   const createSponsorMutation = api.sponsor.createSponsor.useMutation();
+  const mergeContactsMutation = api.contact.mergeContacts.useMutation();
   const utils = api.useUtils();
 
   const openDrawer = useCallback((contact: Contact) => {
@@ -312,6 +317,30 @@ export default function ContactsPage() {
     setSponsorFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
+  // Merge contacts handler
+  const handleMergeContacts = useCallback(async () => {
+    if (selectedContactIds.length < 2) {
+      return;
+    }
+
+    try {
+      const result = await mergeContactsMutation.mutateAsync({
+        contactIds: selectedContactIds,
+      });
+
+      // Refresh contacts list
+      void utils.contact.getContacts.invalidate();
+
+      // Clear selections and close modal
+      setSelectedContactIds([]);
+      setMergeModalOpened(false);
+
+      console.log(`Successfully merged ${result.mergedCount} contacts into ${result.mergedContactId}`);
+    } catch (error) {
+      console.error("Failed to merge contacts:", error);
+    }
+  }, [selectedContactIds, mergeContactsMutation, utils]);
+
   // Helper to get recipient count for current mode (memoized)
   const getRecipientCount = useCallback(() => {
     if (messagingMode === 'smartlist') {
@@ -329,10 +358,48 @@ export default function ContactsPage() {
     return false;
   }, [messageText, messagingMode, selectedRecipients.length, selectedSmartList]);
 
+  // Checkbox handlers
+  const handleSelectContact = useCallback((contactId: string, checked: boolean) => {
+    setSelectedContactIds(prev =>
+      checked
+        ? [...prev, contactId]
+        : prev.filter(id => id !== contactId)
+    );
+  }, []);
+
+  const handleSelectAll = useCallback((checked: boolean) => {
+    setSelectedContactIds(checked ? (displayContacts?.map(c => c.id) ?? []) : []);
+  }, [displayContacts]);
+
+  const isAllSelected = useMemo(() =>
+    displayContacts && displayContacts.length > 0 && selectedContactIds.length === displayContacts.length,
+    [displayContacts, selectedContactIds]
+  );
+
   // Transform contacts into table data format for Mantine Table (memoized)
   const tableData = useMemo(() => displayContacts ? {
-    head: ['Contact', 'Phone & Telegram', 'Email', 'Associated Sponsor', 'ID', 'Actions'],
+    head: [
+      <Checkbox
+        key="select-all"
+        checked={isAllSelected}
+        onChange={(e) => handleSelectAll(e.currentTarget.checked)}
+        aria-label="Select all contacts"
+      />,
+      'Contact',
+      'Phone & Telegram',
+      'Email',
+      'Associated Sponsor',
+      'ID',
+      'Actions'
+    ],
     body: displayContacts.map((contact) => [
+      // Checkbox column
+      <Checkbox
+        key={`checkbox-${contact.id}`}
+        checked={selectedContactIds.includes(contact.id)}
+        onChange={(e) => handleSelectContact(contact.id, e.currentTarget.checked)}
+        aria-label={`Select ${contact.firstName} ${contact.lastName}`}
+      />,
       // Contact column with avatar and name
       <Group gap="sm" key={`contact-${contact.id}`}>
         <Avatar size="sm" color="blue">
@@ -420,7 +487,7 @@ export default function ContactsPage() {
         </Tooltip>
       </Group>
     ])
-  } : null, [displayContacts, openDrawer]);
+  } : null, [displayContacts, openDrawer, selectedContactIds, isAllSelected, handleSelectAll, handleSelectContact]);
 
   // Handle authentication on client side
   if (status === "loading") {
@@ -558,6 +625,16 @@ export default function ContactsPage() {
                           <Text size="sm" c="dimmed">
                             Filtered from {contacts?.length ?? 0} total contacts
                           </Text>
+                        )}
+                        {selectedContactIds.length >= 2 && (
+                          <Button
+                            leftSection={<IconUsers size={16} />}
+                            onClick={() => setMergeModalOpened(true)}
+                            variant="light"
+                            color="orange"
+                          >
+                            Merge {selectedContactIds.length} Contacts
+                          </Button>
                         )}
                         <Button
                           leftSection={<IconPlus size={16} />}
@@ -1280,6 +1357,134 @@ export default function ContactsPage() {
           {createSponsorMutation.isSuccess && (
             <Alert icon={<IconCheck size={16} />} color="green" variant="light">
               <Text fw={500}>Sponsor created successfully!</Text>
+            </Alert>
+          )}
+        </Stack>
+      </Modal>
+
+      {/* Merge Contacts Modal */}
+      <Modal
+        opened={mergeModalOpened}
+        onClose={() => setMergeModalOpened(false)}
+        title="Merge Contacts"
+        size="lg"
+      >
+        <Stack gap="md">
+          <Alert icon={<IconUsers size={16} />} color="orange" variant="light">
+            <Text fw={500}>You are about to merge {selectedContactIds.length} contacts</Text>
+            <Text size="sm" mt="xs">
+              This action will combine all selected contacts into one contact using intelligent merge rules.
+            </Text>
+          </Alert>
+
+          {/* Show preview of contacts to be merged */}
+          <Stack gap="xs">
+            <Text fw={500} size="sm">Selected contacts:</Text>
+            {selectedContactIds.map((contactId) => {
+              const contact = contacts?.find(c => c.id === contactId);
+              if (!contact) return null;
+
+              return (
+                <Paper key={contactId} p="sm" withBorder>
+                  <Group gap="sm">
+                    <Avatar size="sm" color="blue">
+                      {contact.firstName?.[0]?.toUpperCase()}{contact.lastName?.[0]?.toUpperCase()}
+                    </Avatar>
+                    <Stack gap={0}>
+                      <Text size="sm" fw={500}>
+                        {contact.firstName} {contact.lastName}
+                      </Text>
+                      <Group gap="xs">
+                        {contact.email && (
+                          <Text size="xs" c="dimmed">
+                            {contact.email}
+                          </Text>
+                        )}
+                        {contact.telegram && (
+                          <Badge size="xs" variant="light" color="blue">
+                            @{contact.telegram}
+                          </Badge>
+                        )}
+                        {contact.email?.endsWith("telegram.placeholder") && (
+                          <Badge size="xs" variant="light" color="orange">
+                            Telegram Import
+                          </Badge>
+                        )}
+                      </Group>
+                    </Stack>
+                  </Group>
+                </Paper>
+              );
+            })}
+          </Stack>
+
+          <Divider />
+
+          {/* Merge Rules Explanation */}
+          <Stack gap="xs">
+            <Text fw={500} size="sm">Merge Rules:</Text>
+            <Stack gap={4}>
+              <Group gap="xs">
+                <Text size="xs" c="dimmed">•</Text>
+                <Text size="xs" c="dimmed">
+                  Telegram contacts (with telegram.placeholder email) are canonical for phone & telegram fields
+                </Text>
+              </Group>
+              <Group gap="xs">
+                <Text size="xs" c="dimmed">•</Text>
+                <Text size="xs" c="dimmed">
+                  Non-telegram email will overwrite telegram.placeholder email
+                </Text>
+              </Group>
+              <Group gap="xs">
+                <Text size="xs" c="dimmed">•</Text>
+                <Text size="xs" c="dimmed">
+                  Conflicting fields will be concatenated with &apos; - &apos;
+                </Text>
+              </Group>
+              <Group gap="xs">
+                <Text size="xs" c="dimmed">•</Text>
+                <Text size="xs" c="dimmed">
+                  One contact will be kept, others will be deleted
+                </Text>
+              </Group>
+            </Stack>
+          </Stack>
+
+          {/* Action Buttons */}
+          <Group justify="flex-end" gap="sm" mt="md">
+            <Button
+              variant="subtle"
+              onClick={() => setMergeModalOpened(false)}
+              disabled={mergeContactsMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="orange"
+              onClick={handleMergeContacts}
+              loading={mergeContactsMutation.isPending}
+              leftSection={<IconUsers size={16} />}
+            >
+              {mergeContactsMutation.isPending ? "Merging..." : "Merge Contacts"}
+            </Button>
+          </Group>
+
+          {/* Error Display */}
+          {mergeContactsMutation.error && (
+            <Alert icon={<IconX size={16} />} color="red" variant="light">
+              <Text fw={500}>Failed to merge contacts</Text>
+              <Text size="sm">{mergeContactsMutation.error.message}</Text>
+            </Alert>
+          )}
+
+          {/* Success Display */}
+          {mergeContactsMutation.isSuccess && (
+            <Alert icon={<IconCheck size={16} />} color="green" variant="light">
+              <Text fw={500}>Contacts merged successfully!</Text>
+              <Text size="sm">
+                {mergeContactsMutation.data.mergedCount} contacts merged into one.
+              </Text>
             </Alert>
           )}
         </Stack>
