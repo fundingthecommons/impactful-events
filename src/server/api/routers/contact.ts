@@ -36,9 +36,9 @@ type Context = {
   };
 };
 
-async function getGoogleAuthClient(ctx: Context) {
+async function getGoogleAuthClient(ctx: Context, requiredScope?: 'contacts' | 'gmail') {
   console.log(`[DEBUG] Getting Google auth client for user: ${ctx.session.user.id}`);
-  
+
   // 1. Get user's Google access token from session
   const account = await ctx.db.account.findFirst({
     where: {
@@ -53,9 +53,11 @@ async function getGoogleAuthClient(ctx: Context) {
   }
 
   // Log token information (safely)
-  const requiredScope = "https://www.googleapis.com/auth/contacts.readonly";
-  const hasContactsScope = account.scope?.includes(requiredScope) ?? false;
-  
+  const contactsScope = "https://www.googleapis.com/auth/contacts.readonly";
+  const gmailScope = "https://www.googleapis.com/auth/gmail.readonly";
+  const hasContactsScope = account.scope?.includes(contactsScope) ?? false;
+  const hasGmailScope = account.scope?.includes(gmailScope) ?? false;
+
   console.log(`[DEBUG] Google account details for user ${ctx.session.user.id}:`, {
     hasAccessToken: !!account.access_token,
     accessTokenLength: account.access_token?.length,
@@ -63,6 +65,7 @@ async function getGoogleAuthClient(ctx: Context) {
     refreshTokenLength: account.refresh_token?.length,
     scope: account.scope,
     hasContactsScope,
+    hasGmailScope,
     requiredScope,
     expiresAt: account.expires_at,
     currentTime: Math.floor(Date.now() / 1000),
@@ -71,10 +74,15 @@ async function getGoogleAuthClient(ctx: Context) {
     providerAccountId: account.providerAccountId
   });
 
-  // Check if account has required contacts scope
-  if (!hasContactsScope) {
+  // Check if account has required scope
+  if (requiredScope === 'contacts' && !hasContactsScope) {
     console.log(`[DEBUG] Account missing contacts scope for user: ${ctx.session.user.id}. Current scope: ${account.scope}`);
     throw new Error("GOOGLE_PERMISSIONS_INSUFFICIENT");
+  }
+
+  if (requiredScope === 'gmail' && !hasGmailScope) {
+    console.log(`[DEBUG] Account missing Gmail scope for user: ${ctx.session.user.id}. Current scope: ${account.scope}`);
+    throw new Error("GOOGLE_GMAIL_PERMISSIONS_INSUFFICIENT");
   }
 
   // 2. Set up Google API client with credentials and refresh token handling
@@ -132,6 +140,80 @@ async function getGoogleAuthClient(ctx: Context) {
   });
 
   return oauth2Client;
+}
+
+// Gmail message parser helpers
+function parseEmailAddress(emailString: string): { email: string; name?: string } {
+  // Parse email from formats like: "John Doe <john@example.com>" or "john@example.com"
+  const withBracketsRegex = /(.*?)<(.+?)>/;
+  const simpleEmailRegex = /^(.+)$/;
+
+  const withBracketsMatch = withBracketsRegex.exec(emailString);
+  const simpleMatch = withBracketsMatch ?? simpleEmailRegex.exec(emailString);
+
+  if (simpleMatch) {
+    if (simpleMatch[2]) {
+      // Has name and email
+      return {
+        name: simpleMatch[1]?.trim(),
+        email: simpleMatch[2].trim().toLowerCase(),
+      };
+    } else {
+      // Just email
+      return {
+        email: simpleMatch[1]?.trim().toLowerCase() ?? '',
+      };
+    }
+  }
+
+  return { email: emailString.trim().toLowerCase() };
+}
+
+function decodeBase64(data: string): string {
+  // Gmail API returns base64url encoded strings (- instead of +, _ instead of /)
+  const base64 = data.replace(/-/g, '+').replace(/_/g, '/');
+  return Buffer.from(base64, 'base64').toString('utf-8');
+}
+
+function extractMessageBody(payload: gmail_v1.Schema$MessagePart): { text?: string; html?: string } {
+  const result: { text?: string; html?: string } = {};
+
+  // If message has parts, it's multipart
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      const mimeType = part.mimeType;
+
+      if (mimeType === 'text/plain' && part.body?.data) {
+        result.text = decodeBase64(part.body.data);
+      } else if (mimeType === 'text/html' && part.body?.data) {
+        result.html = decodeBase64(part.body.data);
+      } else if (part.parts) {
+        // Recursively check nested parts
+        const nested = extractMessageBody(part);
+        if (nested.text) result.text = nested.text;
+        if (nested.html) result.html = nested.html;
+      }
+    }
+  } else if (payload.body?.data) {
+    // Simple message with single body
+    const mimeType = payload.mimeType;
+    const decoded = decodeBase64(payload.body.data);
+
+    if (mimeType === 'text/plain') {
+      result.text = decoded;
+    } else if (mimeType === 'text/html') {
+      result.html = decoded;
+    } else {
+      // Default to text
+      result.text = decoded;
+    }
+  }
+
+  return result;
+}
+
+function getHeaderValue(headers: gmail_v1.Schema$MessagePartHeader[] | undefined, name: string): string | undefined {
+  return headers?.find(h => h.name?.toLowerCase() === name.toLowerCase())?.value ?? undefined;
 }
 
 // Extract contact data from application responses
@@ -525,9 +607,9 @@ export const contactRouter = createTRPCRouter({
 
   importGoogleContacts: protectedProcedure.mutation(async ({ ctx }) => {
     console.log(`[DEBUG] Starting Google Contacts import for user: ${ctx.session.user.id}`);
-    
+
     try {
-      const oauth2Client = await getGoogleAuthClient(ctx);
+      const oauth2Client = await getGoogleAuthClient(ctx, 'contacts');
       console.log(`[DEBUG] OAuth client obtained successfully for user: ${ctx.session.user.id}`);
       
       const people = google.people({ version: "v1", auth: oauth2Client });
@@ -538,7 +620,7 @@ export const contactRouter = createTRPCRouter({
       
       const res = await people.people.connections.list({
         resourceName: "people/me",
-        personFields: "names,emailAddresses",
+        personFields: "names,emailAddresses,phoneNumbers",
         pageSize: 1000,
       });
       
@@ -552,10 +634,12 @@ export const contactRouter = createTRPCRouter({
       for (const person of connections) {
         const email = person.emailAddresses?.[0]?.value;
         if (email) {
+          const phone = person.phoneNumbers?.[0]?.value;
           await upsertContact(ctx.db, {
             email,
             firstName: person.names?.[0]?.givenName ?? "",
             lastName: person.names?.[0]?.familyName ?? "",
+            phone: phone ?? undefined,
           });
         }
       }
@@ -637,7 +721,7 @@ export const contactRouter = createTRPCRouter({
   }),
 
   importGoogleContactsFromEmails: protectedProcedure.mutation(async ({ ctx }) => {
-    const oauth2Client = await getGoogleAuthClient(ctx);
+    const oauth2Client = await getGoogleAuthClient(ctx, 'gmail');
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
     const emails = new Set<string>();
@@ -690,6 +774,139 @@ export const contactRouter = createTRPCRouter({
 
     return { count: emails.size };
   }),
+
+  importGmailMessages: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string().min(1, "Event ID is required"),
+        maxMessages: z.number().min(1).max(500).default(100),
+        dateFilter: z
+          .object({
+            after: z.string().optional(), // Format: YYYY/MM/DD
+            before: z.string().optional(), // Format: YYYY/MM/DD
+          })
+          .optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const oauth2Client = await getGoogleAuthClient(ctx, 'gmail');
+      const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+      let imported = 0;
+      let errors = 0;
+      const errorMessages: string[] = [];
+
+      try {
+        // Build Gmail query string
+        let query = '';
+        if (input.dateFilter?.after) {
+          query += `after:${input.dateFilter.after} `;
+        }
+        if (input.dateFilter?.before) {
+          query += `before:${input.dateFilter.before} `;
+        }
+
+        // List messages
+        const listResponse = await gmail.users.messages.list({
+          userId: "me",
+          maxResults: input.maxMessages,
+          q: query.trim() || undefined,
+        });
+
+        const messages = listResponse.data.messages ?? [];
+
+        // Process each message
+        for (const message of messages) {
+          if (!message.id) continue;
+
+          try {
+            // Fetch full message content
+            const fullMessage = await gmail.users.messages.get({
+              userId: 'me',
+              id: message.id,
+              format: 'full',
+            });
+
+            const payload = fullMessage.data.payload;
+            if (!payload) continue;
+
+            const headers = payload.headers;
+
+            // Extract metadata from headers
+            const fromHeader = getHeaderValue(headers, 'From');
+            const toHeader = getHeaderValue(headers, 'To');
+            const subjectHeader = getHeaderValue(headers, 'Subject');
+            const dateHeader = getHeaderValue(headers, 'Date');
+
+            if (!fromHeader || !toHeader) {
+              errors++;
+              continue;
+            }
+
+            // Parse email addresses
+            const fromEmail = parseEmailAddress(fromHeader).email;
+            const toEmail = parseEmailAddress(toHeader).email;
+
+            // Extract message body
+            const body = extractMessageBody(payload);
+            const textContent = body.text ?? body.html ?? '';
+
+            if (!textContent) {
+              errors++;
+              continue;
+            }
+
+            // Parse date
+            let sentAt: Date | null = null;
+            if (dateHeader) {
+              const parsedDate = new Date(dateHeader);
+              if (!isNaN(parsedDate.getTime())) {
+                sentAt = parsedDate;
+              }
+            }
+
+            // If no valid date from header, use internalDate from Gmail
+            if (!sentAt && fullMessage.data.internalDate) {
+              sentAt = new Date(parseInt(fullMessage.data.internalDate));
+            }
+
+            // Save to Communication table
+            await ctx.db.communication.create({
+              data: {
+                channel: 'EMAIL',
+                type: 'GENERAL',
+                status: 'SENT',
+                fromEmail,
+                toEmail,
+                subject: subjectHeader ?? undefined,
+                textContent,
+                htmlContent: body.html ?? undefined,
+                sentAt: sentAt ?? undefined,
+                eventId: input.eventId,
+                createdBy: ctx.session.user.id,
+              },
+            });
+
+            imported++;
+          } catch (error) {
+            errors++;
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            errorMessages.push(`Message ${message.id}: ${errorMessage}`);
+            console.error(`Failed to import message ${message.id}:`, error);
+          }
+        }
+
+        return {
+          imported,
+          errors,
+          total: messages.length,
+          errorMessages: errorMessages.slice(0, 10), // Return first 10 errors
+        };
+      } catch (error) {
+        console.error('Gmail import error:', error);
+        throw new Error(`Failed to import Gmail messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }),
 
   importNotionContacts: protectedProcedure.mutation(async ({ ctx }) => {
     const notionToken = process.env.NOTION_TOKEN;
