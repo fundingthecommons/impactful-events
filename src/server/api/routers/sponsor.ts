@@ -48,7 +48,11 @@ export const sponsorRouter = createTRPCRouter({
         where: { id: input.id },
         include: {
           contacts: true,
-          events: true,
+          events: {
+            include: {
+              event: true,
+            },
+          },
         },
       });
       return sponsor;

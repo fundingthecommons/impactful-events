@@ -302,9 +302,9 @@ export default function SponsorDashboard() {
         <Stack gap="md">
           <Group justify="space-between">
             <Title order={2}>Your Sponsored Events</Title>
-            <Link href="/contacts" style={{ textDecoration: 'none' }}>
+            <Link href="/crm/contacts" style={{ textDecoration: 'none' }}>
               <Button variant="light" leftSection={<IconMail size={16} />}>
-                Manage Contacts
+                Manage CRM
               </Button>
             </Link>
           </Group>
@@ -353,9 +353,9 @@ export default function SponsorDashboard() {
                 </div>
               </Group>
               
-              <Link href="/contacts" style={{ textDecoration: 'none' }}>
+              <Link href="/crm/contacts" style={{ textDecoration: 'none' }}>
                 <Button rightSection={<IconArrowRight size={16} />} fullWidth>
-                  View Contacts
+                  View CRM
                 </Button>
               </Link>
             </Stack>

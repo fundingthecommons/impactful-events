@@ -22,7 +22,7 @@ export default function AdminNavigation() {
     if (pathname.startsWith("/admin/profiles")) return "profiles";
     if (pathname.startsWith("/admin/users")) return "users";
     if (pathname.startsWith("/admin/invitations")) return "invitations";
-    if (pathname.startsWith("/contacts")) return "contacts";
+    if (pathname.startsWith("/crm")) return "crm";
     // User navigation tabs
     if (pathname.startsWith("/events/funding-commons-residency-2025/praise")) return "praise";
     if (pathname.startsWith("/events/funding-commons-residency-2025/impact")) return "impact";
@@ -119,13 +119,13 @@ export default function AdminNavigation() {
         </TabsTab>
 
         <TabsTab
-          value="contacts"
+          value="crm"
           leftSection={<IconAddressBook size={16} />}
           component={Link}
-          href="/contacts"
+          href="/crm/contacts"
           style={{ textDecoration: 'none' }}
         >
-          Contacts
+          CRM
         </TabsTab>
 
         {/* User Navigation Items */}

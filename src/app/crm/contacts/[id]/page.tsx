@@ -129,7 +129,7 @@ export default function ContactDetailsPage() {
   }
 
   if (!session?.user) {
-    redirect("/signin?callbackUrl=/contacts");
+    redirect("/signin?callbackUrl=/crm/contacts");
     return null;
   }
 
@@ -157,7 +157,7 @@ export default function ContactDetailsPage() {
         <Stack gap="lg">
           <Button
             component={Link}
-            href="/contacts"
+            href="/crm/contacts"
             leftSection={<IconArrowLeft size={16} />}
             variant="subtle"
           >
@@ -182,7 +182,7 @@ export default function ContactDetailsPage() {
         <Group justify="space-between">
           <Button
             component={Link}
-            href="/contacts"
+            href="/crm/contacts"
             leftSection={<IconArrowLeft size={16} />}
             variant="subtle"
           >
@@ -422,7 +422,7 @@ export default function ContactDetailsPage() {
                         </Avatar>
                       )}
                       <Stack gap={4} style={{ flex: 1 }}>
-                        <Anchor component={Link} href={`/organizations/${contact.sponsor.id}`} fw={500} size="lg">
+                        <Anchor component={Link} href={`/crm/organizations/${contact.sponsor.id}`} fw={500} size="lg">
                           {contact.sponsor.name}
                         </Anchor>
                         {contact.sponsor.websiteUrl && (

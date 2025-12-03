@@ -39,7 +39,7 @@ export default function OrganizationDetailsPage() {
   }
 
   if (!session?.user) {
-    redirect("/signin?callbackUrl=/organizations");
+    redirect("/signin?callbackUrl=/crm/organizations");
     return null;
   }
 
@@ -67,7 +67,7 @@ export default function OrganizationDetailsPage() {
         <Stack gap="lg">
           <Button
             component={Link}
-            href="/organizations"
+            href="/crm/organizations"
             leftSection={<IconArrowLeft size={16} />}
             variant="subtle"
           >
@@ -92,7 +92,7 @@ export default function OrganizationDetailsPage() {
         <Group justify="space-between">
           <Button
             component={Link}
-            href="/organizations"
+            href="/crm/organizations"
             leftSection={<IconArrowLeft size={16} />}
             variant="subtle"
           >
@@ -170,7 +170,7 @@ export default function OrganizationDetailsPage() {
                         p="md"
                         withBorder
                         component={Link}
-                        href={`/contacts/${contact.id}`}
+                        href={`/crm/contacts/${contact.id}`}
                         style={{ cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}
                       >
                         <Group gap="md">
@@ -273,7 +273,7 @@ export default function OrganizationDetailsPage() {
                             {comm.status}
                           </Badge>
                           {comm.contact && (
-                            <Anchor component={Link} href={`/contacts/${comm.contact.id}`} size="sm">
+                            <Anchor component={Link} href={`/crm/contacts/${comm.contact.id}`} size="sm">
                               To: {comm.contact.firstName} {comm.contact.lastName}
                             </Anchor>
                           )}

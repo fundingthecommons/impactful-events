@@ -15,6 +15,30 @@ const config = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/contacts',
+        destination: '/crm/contacts',
+        permanent: true,
+      },
+      {
+        source: '/contacts/:id',
+        destination: '/crm/contacts/:id',
+        permanent: true,
+      },
+      {
+        source: '/organizations',
+        destination: '/crm/organizations',
+        permanent: true,
+      },
+      {
+        source: '/organizations/:id',
+        destination: '/crm/organizations/:id',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 // Make sure adding Sentry options is the last code to run before exporting

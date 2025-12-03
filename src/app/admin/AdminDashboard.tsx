@@ -313,7 +313,7 @@ export default function AdminDashboard() {
               <ThemeIcon size="md" color="cyan" variant="light">
                 <IconAddressBook size={18} />
               </ThemeIcon>
-              <Text fw={600}>Contacts</Text>
+              <Text fw={600}>CRM</Text>
             </Group>
             <Text size="sm" c="dimmed">
               Manage sponsor contacts and relationships
@@ -321,9 +321,9 @@ export default function AdminDashboard() {
             <Text size="xs" c="dimmed">
               Sponsor contact management
             </Text>
-            <Link href="/contacts" style={{ textDecoration: 'none' }}>
+            <Link href="/crm/contacts" style={{ textDecoration: 'none' }}>
               <Button variant="light" fullWidth rightSection={<IconEye size={16} />}>
-                View Contacts
+                View CRM
               </Button>
             </Link>
           </Stack>

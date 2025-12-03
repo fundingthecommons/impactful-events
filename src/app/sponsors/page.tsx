@@ -2,7 +2,7 @@
 import { Card, Group, Text, Title, Stack, Paper, ScrollArea, Badge, Avatar, SimpleGrid, ActionIcon, Button, Drawer, Modal, Select, Timeline, Checkbox, Tabs } from "@mantine/core";
 import { useState, useMemo } from "react";
 import '@mantine/core/styles.css';
-import { IconExternalLink, IconPlus, IconTrash, IconMapPin } from "@tabler/icons-react";
+import { IconExternalLink, IconPlus, IconTrash, IconMapPin, IconCalendar } from "@tabler/icons-react";
 import AddLeadPanel from "../admin/events/AddLeadPanel";
 import { api } from "~/trpc/react";
 import Link from "next/link";
@@ -168,16 +168,154 @@ function SponsorCard({ sponsor, onClick }: { sponsor: SponsorCardData; onClick: 
             </Badge>
           )}
         </Group>
-        <Badge 
-          color="blue" 
-          size="sm" 
-          variant="filled" 
+        <Badge
+          color="blue"
+          size="sm"
+          variant="filled"
           style={{ alignSelf: 'flex-start' }}
         >
           {sponsor.state}
         </Badge>
       </Stack>
     </Card>
+  );
+}
+
+function EventsTab({ sponsorId }: { sponsorId: string }) {
+  const { data: sponsor, isLoading } = api.sponsor.getSponsor.useQuery({ id: sponsorId });
+
+  if (isLoading) {
+    return (
+      <Stack align="center" py="xl">
+        <Text c="dimmed">Loading events...</Text>
+      </Stack>
+    );
+  }
+
+  if (!sponsor?.events || sponsor.events.length === 0) {
+    return (
+      <Stack align="center" py="xl">
+        <Text c="dimmed" ta="center">
+          This sponsor is not associated with any events yet.
+        </Text>
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack gap="md">
+      <Text fw={500} size="lg">Events</Text>
+      <Text size="sm" c="dimmed">
+        {sponsor.events.length} event{sponsor.events.length !== 1 ? 's' : ''}
+      </Text>
+
+      <Stack gap="sm">
+        {sponsor.events.map((eventSponsor) => (
+          <Paper key={eventSponsor.id} p="md" withBorder>
+            <Group gap="sm" justify="space-between" align="flex-start">
+              <Group gap="sm">
+                <IconCalendar size={18} />
+                <Stack gap={0}>
+                  <Text fw={500} size="sm">
+                    {eventSponsor.event.name}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {new Date(eventSponsor.event.startDate).toLocaleDateString()} - {new Date(eventSponsor.event.endDate).toLocaleDateString()}
+                  </Text>
+                  {eventSponsor.event.location && (
+                    <Text size="xs" c="dimmed">
+                      {eventSponsor.event.location}
+                    </Text>
+                  )}
+                </Stack>
+              </Group>
+              {eventSponsor.qualified && (
+                <Badge size="sm" color="green" variant="light">
+                  Qualified
+                </Badge>
+              )}
+            </Group>
+          </Paper>
+        ))}
+      </Stack>
+    </Stack>
+  );
+}
+
+function CommunicationsTab({ sponsorId }: { sponsorId: string }) {
+  const { data: communications, isLoading } = api.sponsor.getSponsorCommunications.useQuery({
+    sponsorId,
+    limit: 50,
+  });
+
+  if (isLoading) {
+    return (
+      <Stack align="center" py="xl">
+        <Text c="dimmed">Loading communications...</Text>
+      </Stack>
+    );
+  }
+
+  if (!communications || communications.length === 0) {
+    return (
+      <Stack align="center" py="xl">
+        <Text c="dimmed" ta="center">
+          No communications found for this sponsor.
+          <br />
+          Communications are shown when contacts associated with this sponsor have been communicated with.
+        </Text>
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack gap="md">
+      <Text fw={500} size="lg">Communication History</Text>
+      <Text size="sm" c="dimmed">
+        {communications.length} communication{communications.length !== 1 ? 's' : ''} found
+      </Text>
+
+      <Stack gap="sm">
+        {communications.map((comm) => (
+          <Paper key={comm.id} p="md" withBorder>
+            <Stack gap="xs">
+              <Group justify="space-between" align="flex-start">
+                <Stack gap={0}>
+                  <Text fw={500} size="sm">
+                    {comm.subject ?? 'No Subject'}
+                  </Text>
+                  {comm.contact && (
+                    <Text size="xs" c="dimmed">
+                      To: {comm.contact.firstName} {comm.contact.lastName}
+                    </Text>
+                  )}
+                </Stack>
+                <Badge
+                  color={
+                    comm.status === 'SENT' ? 'green' :
+                    comm.status === 'FAILED' ? 'red' :
+                    'gray'
+                  }
+                  size="sm"
+                  variant="light"
+                >
+                  {comm.status}
+                </Badge>
+              </Group>
+
+              <Group gap="xs">
+                <Badge size="xs" variant="dot" color="blue">
+                  {comm.channel}
+                </Badge>
+                <Text size="xs" c="dimmed">
+                  {comm.sentAt ? new Date(comm.sentAt).toLocaleString() : new Date(comm.createdAt).toLocaleString()}
+                </Text>
+              </Group>
+            </Stack>
+          </Paper>
+        ))}
+      </Stack>
+    </Stack>
   );
 }
 
@@ -439,6 +577,8 @@ export default function SponsorKanbanBoard() {
             <Tabs.List>
               <Tabs.Tab value="general">General</Tabs.Tab>
               <Tabs.Tab value="timeline">Timeline</Tabs.Tab>
+              <Tabs.Tab value="events">Events</Tabs.Tab>
+              <Tabs.Tab value="communications">Communications</Tabs.Tab>
             </Tabs.List>
 
             <Tabs.Panel value="general" pt="md">
@@ -681,6 +821,14 @@ export default function SponsorKanbanBoard() {
                   </Timeline.Item>
                 </Timeline>
               </Stack>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="events" pt="md">
+              <EventsTab sponsorId={selectedSponsor.id} />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="communications" pt="md">
+              <CommunicationsTab sponsorId={selectedSponsor.id} />
             </Tabs.Panel>
           </Tabs>
         )}
