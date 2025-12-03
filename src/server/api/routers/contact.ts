@@ -1048,6 +1048,181 @@ export const contactRouter = createTRPCRouter({
       throw new Error(`Failed to import Telegram contacts: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }),
+
+  importTelegramMessagesForContact: protectedProcedure
+    .input(
+      z.object({
+        contactId: z.string().min(1, "Contact ID is required"),
+        eventId: z.string().min(1, "Event ID is required"),
+        maxMessages: z.number().min(1).max(500).default(100),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Get the contact to verify they have a Telegram username
+      const contact = await ctx.db.contact.findUnique({
+        where: { id: input.contactId },
+        select: { telegram: true, firstName: true, lastName: true },
+      });
+
+      if (!contact?.telegram) {
+        throw new Error("This contact does not have a Telegram username");
+      }
+
+      // Get the user's stored Telegram credentials
+      const userAuth = await ctx.db.telegramAuth.findUnique({
+        where: { userId: ctx.session.user.id },
+      });
+
+      if (!userAuth?.isActive) {
+        throw new Error("Please set up Telegram authentication first");
+      }
+
+      // Check if session is expired
+      if (new Date() > userAuth.expiresAt) {
+        await ctx.db.telegramAuth.update({
+          where: { userId: ctx.session.user.id },
+          data: { isActive: false },
+        });
+        throw new Error("Your Telegram authentication has expired");
+      }
+
+      try {
+        // Import decryption functions
+        const { decryptTelegramCredentials } = await import("~/server/utils/encryption");
+
+        // Decrypt user's credentials
+        const credentials = decryptTelegramCredentials(
+          {
+            encryptedSession: userAuth.encryptedSession,
+            encryptedApiId: userAuth.encryptedApiId,
+            encryptedApiHash: userAuth.encryptedApiHash,
+            salt: userAuth.salt,
+            iv: userAuth.iv,
+          },
+          ctx.session.user.id
+        );
+
+        const client = new TelegramClient(
+          new sessions.StringSession(credentials.sessionString),
+          parseInt(credentials.apiId),
+          credentials.apiHash,
+          {}
+        );
+
+        // Start client with existing session
+        await client.start({
+          phoneNumber: async () => {
+            throw new Error("Session expired. Please set up Telegram authentication again.");
+          },
+          password: async () => {
+            throw new Error("Session expired. Please set up Telegram authentication again.");
+          },
+          phoneCode: async () => {
+            throw new Error("Session expired. Please set up Telegram authentication again.");
+          },
+          onError: (err) => console.log(err),
+        });
+
+        let imported = 0;
+        let errors = 0;
+        const errorMessages: string[] = [];
+
+        try {
+          // Resolve the username to get the user entity
+          const result = await client.invoke(
+            new Api.contacts.ResolveUsername({
+              username: contact.telegram.replace('@', ''),
+            })
+          );
+
+          if (!result.users?.[0]) {
+            throw new Error(`Could not find Telegram user: @${contact.telegram}`);
+          }
+
+          const telegramUser = result.users[0];
+
+          // Get message history with this user
+          const messagesResult = await client.invoke(
+            new Api.messages.GetHistory({
+              peer: telegramUser.id,
+              limit: input.maxMessages,
+              offsetId: 0,
+              offsetDate: 0,
+              addOffset: 0,
+              maxId: 0,
+              minId: 0,
+              hash: bigInt(0),
+            })
+          );
+
+          if ('messages' in messagesResult && Array.isArray(messagesResult.messages)) {
+            for (const msg of messagesResult.messages) {
+              try {
+                // Only process text messages
+                if (!('message' in msg) || !msg.message) continue;
+
+                const messageText = String(msg.message);
+                const messageDate = 'date' in msg ? new Date(Number(msg.date) * 1000) : new Date();
+
+                // Determine if message is from us or from them
+                const isOutgoing = 'out' in msg ? Boolean(msg.out) : false;
+
+                // Save to Communication table
+                // Note: toTelegram is the contact, direction indicated by message prefix
+                await ctx.db.communication.create({
+                  data: {
+                    channel: 'TELEGRAM',
+                    type: 'GENERAL',
+                    status: 'SENT',
+                    toTelegram: contact.telegram,
+                    textContent: isOutgoing ? `[SENT] ${messageText}` : `[RECEIVED] ${messageText}`,
+                    sentAt: messageDate,
+                    eventId: input.eventId,
+                    createdBy: ctx.session.user.id,
+                  },
+                });
+
+                imported++;
+              } catch (error) {
+                errors++;
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                errorMessages.push(errorMessage);
+                console.error(`Failed to import message:`, error);
+              }
+            }
+          }
+        } finally {
+          await client.disconnect();
+        }
+
+        return {
+          imported,
+          errors,
+          errorMessages: errorMessages.slice(0, 10),
+        };
+      } catch (error) {
+        console.error('Telegram message import failed:', error);
+
+        // If session is invalid, mark as inactive
+        if (
+          error instanceof Error &&
+          (error.message.includes('SESSION_REVOKED') ||
+            error.message.includes('AUTH_KEY_INVALID') ||
+            error.message.includes('SESSION_EXPIRED'))
+        ) {
+          await ctx.db.telegramAuth.update({
+            where: { userId: ctx.session.user.id },
+            data: { isActive: false },
+          });
+          throw new Error('Your Telegram session has expired or been revoked');
+        }
+
+        throw new Error(
+          `Failed to import Telegram messages: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    }),
+
   matchEventApplicants: protectedProcedure.mutation(async ({ ctx }) => {
     // Get all applications with their responses and questions
     const applications = await ctx.db.application.findMany({

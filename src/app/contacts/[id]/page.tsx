@@ -1,16 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "~/trpc/react";
 import {
   Stack, Title, Text, Badge, Avatar, Group, Paper, Container,
-  Divider, Anchor, Button, Loader, Center, Alert, SimpleGrid
+  Divider, Anchor, Button, Loader, Center, Alert, SimpleGrid, Modal, Select
 } from "@mantine/core";
 import {
   IconMail, IconPhone, IconBrandTwitter, IconBrandGithub,
   IconBrandLinkedin, IconBrandTelegram, IconArrowLeft, IconAlertCircle,
-  IconBuilding, IconWorld, IconUser, IconClock, IconMessage, IconSend
+  IconBuilding, IconWorld, IconUser, IconClock, IconMessage, IconSend, IconDownload
 } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -19,16 +21,56 @@ export default function ContactDetailsPage() {
   const params = useParams();
   const { data: session, status } = useSession();
   const contactId = params.id as string;
+  const [importModalOpened, setImportModalOpened] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
 
   const { data: contact, isLoading, error } = api.contact.getContact.useQuery(
     { id: contactId },
     { enabled: !!contactId }
   );
 
-  const { data: communications } = api.contact.getContactCommunications.useQuery(
+  const { data: communications, refetch: refetchCommunications } = api.contact.getContactCommunications.useQuery(
     { contactId, limit: 10 },
     { enabled: !!contactId }
   );
+
+  const { data: events } = api.event.getEvents.useQuery();
+
+  const importTelegramMessages = api.contact.importTelegramMessagesForContact.useMutation({
+    onSuccess: (result) => {
+      notifications.show({
+        title: "Import Complete",
+        message: `Successfully imported ${result.imported} Telegram messages`,
+        color: "green",
+      });
+      setImportModalOpened(false);
+      void refetchCommunications();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Import Failed",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  const handleImportTelegram = () => {
+    if (!selectedEventId) {
+      notifications.show({
+        title: "Event Required",
+        message: "Please select an event to associate messages with",
+        color: "orange",
+      });
+      return;
+    }
+
+    importTelegramMessages.mutate({
+      contactId,
+      eventId: selectedEventId,
+      maxMessages: 100,
+    });
+  };
 
   // Handle authentication on client side
   if (status === "loading") {
@@ -133,6 +175,24 @@ export default function ContactDetailsPage() {
                       {skill}
                     </Badge>
                   ))}
+                </Group>
+              )}
+
+              {/* Import Telegram Messages Button */}
+              {contact.telegram && (
+                <Group gap="xs" mt="md">
+                  <Button
+                    leftSection={<IconDownload size={16} />}
+                    variant="light"
+                    color="blue"
+                    onClick={() => setImportModalOpened(true)}
+                    loading={importTelegramMessages.isPending}
+                  >
+                    Import Telegram Messages
+                  </Button>
+                  <Text size="sm" c="dimmed">
+                    Import chat history with @{contact.telegram}
+                  </Text>
                 </Group>
               )}
             </Stack>
@@ -423,6 +483,53 @@ export default function ContactDetailsPage() {
           </Stack>
         </Paper>
       </Stack>
+
+      {/* Import Telegram Messages Modal */}
+      <Modal
+        opened={importModalOpened}
+        onClose={() => setImportModalOpened(false)}
+        title="Import Telegram Messages"
+        size="md"
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Import chat history with <strong>@{contact.telegram}</strong> into the Communication table.
+          </Text>
+
+          <Select
+            label="Event"
+            placeholder="Select an event to associate messages with"
+            required
+            data={events?.map((event) => ({
+              value: event.id,
+              label: event.name,
+            })) ?? []}
+            value={selectedEventId}
+            onChange={(value) => setSelectedEventId(value ?? "")}
+          />
+
+          <Text size="sm" c="dimmed">
+            This will import up to 100 recent messages from your Telegram conversation.
+          </Text>
+
+          <Group justify="flex-end" gap="sm">
+            <Button
+              variant="subtle"
+              onClick={() => setImportModalOpened(false)}
+              disabled={importTelegramMessages.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImportTelegram}
+              loading={importTelegramMessages.isPending}
+              leftSection={<IconDownload size={16} />}
+            >
+              Import Messages
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Container>
   );
 }
