@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { api } from "~/trpc/react";
 import {
   Stack, Title, Text, Badge, Avatar, Group, Paper, Container,
-  Divider, Anchor, Button, Loader, Center, Alert, SimpleGrid, Modal, Select
+  Divider, Anchor, Button, Loader, Center, Alert, SimpleGrid, Modal, Select, NumberInput
 } from "@mantine/core";
 import {
   IconMail, IconPhone, IconBrandTwitter, IconBrandGithub,
@@ -25,6 +25,8 @@ export default function ContactDetailsPage() {
   const [importGmailModalOpened, setImportGmailModalOpened] = useState(false);
   const [selectedTelegramEventId, setSelectedTelegramEventId] = useState<string>("");
   const [selectedGmailEventId, setSelectedGmailEventId] = useState<string>("");
+  const [maxGmailMessages, setMaxGmailMessages] = useState<number>(100);
+  const [maxTelegramMessages, setMaxTelegramMessages] = useState<number>(100);
   const [reconnecting, setReconnecting] = useState(false);
 
   const { data: contact, isLoading, error } = api.contact.getContact.useQuery(
@@ -33,7 +35,7 @@ export default function ContactDetailsPage() {
   );
 
   const { data: communications, refetch: refetchCommunications } = api.contact.getContactCommunications.useQuery(
-    { contactId, limit: 10 },
+    { contactId, limit: 100 },
     { enabled: !!contactId }
   );
 
@@ -80,36 +82,18 @@ export default function ContactDetailsPage() {
   });
 
   const handleImportTelegram = () => {
-    if (!selectedTelegramEventId) {
-      notifications.show({
-        title: "Event Required",
-        message: "Please select an event to associate messages with",
-        color: "orange",
-      });
-      return;
-    }
-
     importTelegramMessages.mutate({
       contactId,
-      eventId: selectedTelegramEventId,
-      maxMessages: 100,
+      eventId: selectedTelegramEventId || undefined,
+      maxMessages: maxTelegramMessages,
     });
   };
 
   const handleImportGmail = () => {
-    if (!selectedGmailEventId) {
-      notifications.show({
-        title: "Event Required",
-        message: "Please select an event to associate messages with",
-        color: "orange",
-      });
-      return;
-    }
-
     importGmailMessages.mutate({
       contactId,
-      eventId: selectedGmailEventId,
-      maxMessages: 100,
+      eventId: selectedGmailEventId || undefined,
+      maxMessages: maxGmailMessages,
     });
   };
 
@@ -527,7 +511,7 @@ export default function ContactDetailsPage() {
                       <Paper key={comm.id} p="md" withBorder>
                         <Stack gap={8}>
                           <Group justify="space-between" align="flex-start">
-                            <Group gap="sm">
+                            <Group gap="sm" wrap="wrap">
                               <Badge size="sm" variant="light" color={comm.channel === 'TELEGRAM' ? 'blue' : 'gray'}>
                                 {comm.channel}
                               </Badge>
@@ -538,6 +522,16 @@ export default function ContactDetailsPage() {
                               }>
                                 {comm.status}
                               </Badge>
+                              {'event' in comm && comm.event && (
+                                <Badge size="sm" variant="light" color="indigo">
+                                  {comm.event.name}
+                                </Badge>
+                              )}
+                              {'event' in comm && !comm.event && (
+                                <Badge size="sm" variant="light" color="gray">
+                                  No Event
+                                </Badge>
+                              )}
                             </Group>
                             <Text size="xs" c="dimmed">
                               {comm.sentAt
@@ -558,14 +552,24 @@ export default function ContactDetailsPage() {
                             {comm.textContent}
                           </Text>
                           <Group gap="xs">
-                            {comm.toTelegram && (
+                            {'fromEmail' in comm && comm.fromEmail && (
                               <Text size="xs" c="dimmed">
-                                To: @{comm.toTelegram}
+                                From: {comm.fromEmail}
                               </Text>
                             )}
-                            {comm.toEmail && (
+                            {'toEmail' in comm && comm.toEmail && (
                               <Text size="xs" c="dimmed">
                                 To: {comm.toEmail}
+                              </Text>
+                            )}
+                            {'fromTelegram' in comm && comm.fromTelegram && (
+                              <Text size="xs" c="dimmed">
+                                From: @{comm.fromTelegram}
+                              </Text>
+                            )}
+                            {'toTelegram' in comm && comm.toTelegram && (
+                              <Text size="xs" c="dimmed">
+                                To: @{comm.toTelegram}
                               </Text>
                             )}
                           </Group>
@@ -604,19 +608,29 @@ export default function ContactDetailsPage() {
           </Text>
 
           <Select
-            label="Event"
-            placeholder="Select an event to associate messages with"
-            required
+            label="Event (Optional)"
+            placeholder="Select an event (optional)"
+            description="Leave empty if messages aren't specific to an event"
             data={events?.map((event) => ({
               value: event.id,
               label: event.name,
             })) ?? []}
             value={selectedTelegramEventId}
             onChange={(value) => setSelectedTelegramEventId(value ?? "")}
+            clearable
+          />
+
+          <NumberInput
+            label="Maximum Messages"
+            description="Number of recent messages to import (max 10,000)"
+            min={1}
+            max={10000}
+            value={maxTelegramMessages}
+            onChange={(value) => setMaxTelegramMessages(typeof value === 'number' ? value : 100)}
           />
 
           <Text size="sm" c="dimmed">
-            This will import up to 100 recent messages from your Telegram conversation.
+            This will import up to {maxTelegramMessages} recent messages from your Telegram conversation.
           </Text>
 
           <Group justify="flex-end" gap="sm">
@@ -651,19 +665,29 @@ export default function ContactDetailsPage() {
           </Text>
 
           <Select
-            label="Event"
-            placeholder="Select an event to associate messages with"
-            required
+            label="Event (Optional)"
+            placeholder="Select an event (optional)"
+            description="Leave empty if messages aren't specific to an event"
             data={events?.map((event) => ({
               value: event.id,
               label: event.name,
             })) ?? []}
             value={selectedGmailEventId}
             onChange={(value) => setSelectedGmailEventId(value ?? "")}
+            clearable
+          />
+
+          <NumberInput
+            label="Maximum Messages"
+            description="Number of recent emails to import (max 10,000)"
+            min={1}
+            max={10000}
+            value={maxGmailMessages}
+            onChange={(value) => setMaxGmailMessages(typeof value === 'number' ? value : 100)}
           />
 
           <Text size="sm" c="dimmed">
-            This will import up to 100 recent emails from or to this contact.
+            This will import up to {maxGmailMessages} recent emails from or to this contact.
           </Text>
 
           <Group justify="flex-end" gap="sm">

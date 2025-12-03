@@ -632,25 +632,26 @@ enum EmailType {
 
 model Communication {
   id            String      @id @default(cuid())
-  applicationId String?     // Optional: link to specific application  
-  eventId       String      // Required: link to event
+  applicationId String?     // Optional: link to specific application
+  eventId       String?     // Optional: link to event (communications can be event-agnostic)
   
+  // Channel-specific sender fields
+  fromEmail     String?     @default("james@fundingthecommons.io") // Email sender
+  fromTelegram  String?     // Telegram sender (@username or user_id)
+
   // Channel-specific recipient fields
   toEmail       String?     // For email communications
   toTelegram    String?     // For telegram (@username or user_id)
   toPhone       String?     // For SMS (future)
   toDiscord     String?     // For Discord (future)
-  
+
   // Channel identification
   channel       CommunicationType @default(EMAIL)
-  
+
   // Content fields (channel-agnostic)
   subject       String?     // Email subject OR Telegram summary
   htmlContent   String?     @db.Text // HTML email content
   textContent   String      @db.Text // Plain text (required for all channels)
-  
-  // Legacy email-specific fields for backward compatibility
-  fromEmail     String?     @default("james@fundingthecommons.io") // Email sender
   
   // Status and type (channel-agnostic)
   type          CommunicationContentType @default(MISSING_INFO)
@@ -682,15 +683,17 @@ model Communication {
   
   // Relations
   application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event         Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   contactInteractions ContactInteraction[] // Contact interactions linked to this communication
   
   // Indexes for performance
   @@index([applicationId])
-  @@index([eventId]) 
+  @@index([eventId])
   @@index([status])
-  @@index([toEmail])      // Email search
-  @@index([toTelegram])   // Telegram search
+  @@index([fromEmail])    // Email sender search
+  @@index([toEmail])      // Email recipient search
+  @@index([fromTelegram]) // Telegram sender search
+  @@index([toTelegram])   // Telegram recipient search
   @@index([channel])      // Filter by communication type
   @@index([type])         // Filter by content type
 }

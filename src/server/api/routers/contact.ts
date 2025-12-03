@@ -538,13 +538,15 @@ export const contactRouter = createTRPCRouter({
         return [];
       }
 
-      // Query communications by email or telegram username
+      // Query communications by email or telegram username (both sent TO and FROM contact)
       const whereConditions = [];
       if (contact.email) {
         whereConditions.push({ toEmail: contact.email });
+        whereConditions.push({ fromEmail: contact.email });
       }
       if (contact.telegram) {
         whereConditions.push({ toTelegram: contact.telegram });
+        whereConditions.push({ fromTelegram: contact.telegram });
       }
 
       if (whereConditions.length === 0) {
@@ -567,8 +569,17 @@ export const contactRouter = createTRPCRouter({
           sentAt: true,
           createdAt: true,
           createdBy: true,
+          fromEmail: true,
           toEmail: true,
+          fromTelegram: true,
           toTelegram: true,
+          eventId: true,
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       });
 
@@ -779,8 +790,8 @@ export const contactRouter = createTRPCRouter({
   importGmailMessages: protectedProcedure
     .input(
       z.object({
-        eventId: z.string().min(1, "Event ID is required"),
-        maxMessages: z.number().min(1).max(500).default(100),
+        eventId: z.string().optional(), // Optional: communications can be event-agnostic
+        maxMessages: z.number().min(1).max(10000).default(100),
         dateFilter: z
           .object({
             after: z.string().optional(), // Format: YYYY/MM/DD
@@ -884,7 +895,7 @@ export const contactRouter = createTRPCRouter({
                 textContent,
                 htmlContent: body.html ?? undefined,
                 sentAt: sentAt ?? undefined,
-                eventId: input.eventId,
+                ...(input.eventId && { eventId: input.eventId }),
                 createdBy: ctx.session.user.id,
               },
             });
@@ -1055,7 +1066,7 @@ export const contactRouter = createTRPCRouter({
     .input(
       z.object({
         contactId: z.string().min(1, "Contact ID is required"),
-        eventId: z.string().min(1, "Event ID is required"),
+        eventId: z.string().optional(), // Optional: communications can be event-agnostic
         maxMessages: z.number().min(1).max(500).default(100),
       })
     )
@@ -1179,7 +1190,7 @@ export const contactRouter = createTRPCRouter({
                     toTelegram: contact.telegram,
                     textContent: isOutgoing ? `[SENT] ${messageText}` : `[RECEIVED] ${messageText}`,
                     sentAt: messageDate,
-                    eventId: input.eventId,
+                    ...(input.eventId && { eventId: input.eventId }),
                     createdBy: ctx.session.user.id,
                   },
                 });
@@ -1418,8 +1429,8 @@ export const contactRouter = createTRPCRouter({
     .input(
       z.object({
         contactId: z.string().min(1, "Contact ID is required"),
-        eventId: z.string().min(1, "Event ID is required"),
-        maxMessages: z.number().min(1).max(500).default(100),
+        eventId: z.string().optional(), // Optional: communications can be event-agnostic
+        maxMessages: z.number().min(1).max(10000).default(100),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -1509,7 +1520,7 @@ export const contactRouter = createTRPCRouter({
                 textContent: body.text ?? (body.html ? convertHtmlToText(body.html) : ''),
                 htmlContent: body.html ?? undefined,
                 sentAt,
-                eventId: input.eventId,
+                ...(input.eventId && { eventId: input.eventId }),
                 createdBy: ctx.session.user.id,
               },
             });
