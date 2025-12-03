@@ -13,7 +13,7 @@ import {
   IconBrandTelegram, IconPhone, IconMail, IconCopy, IconCheck,
   IconBuilding, IconWorld, IconUser, IconAddressBook, IconMessage,
   IconSend, IconX, IconUsers, IconUsersGroup, IconPlus, IconSearch,
-  IconExternalLink
+  IconExternalLink, IconEdit
 } from "@tabler/icons-react";
 import { redirect } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -45,6 +45,20 @@ export default function ContactsPage() {
   const [drawerOpened, setDrawerOpened] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [activeTab, setActiveTab] = useState<string>("contacts");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    telegram: "",
+    twitter: "",
+    github: "",
+    linkedIn: "",
+    sponsorId: "",
+    about: "",
+    skills: [] as string[],
+  });
   
   // Messaging state
   const [selectedRecipients, setSelectedRecipients] = useState<Contact[]>([]);
@@ -105,16 +119,47 @@ export default function ContactsPage() {
   const createContactMutation = api.contact.createContact.useMutation();
   const createSponsorMutation = api.sponsor.createSponsor.useMutation();
   const mergeContactsMutation = api.contact.mergeContacts.useMutation();
+  const updateContactMutation = api.contact.updateContact.useMutation();
   const utils = api.useUtils();
 
-  const openDrawer = useCallback((contact: Contact) => {
+  const openDrawer = useCallback((contact: Contact, editMode = false) => {
     setSelectedContact(contact);
+    setIsEditMode(editMode);
+    if (editMode) {
+      setEditFormData({
+        firstName: contact.firstName,
+        lastName: contact.lastName,
+        email: contact.email ?? "",
+        phone: contact.phone ?? "",
+        telegram: contact.telegram ?? "",
+        twitter: contact.twitter ?? "",
+        github: contact.github ?? "",
+        linkedIn: contact.linkedIn ?? "",
+        sponsorId: contact.sponsor?.id ?? "",
+        about: contact.about ?? "",
+        skills: contact.skills ?? [],
+      });
+    }
     setDrawerOpened(true);
   }, []);
 
   const closeDrawer = useCallback(() => {
     setDrawerOpened(false);
     setSelectedContact(null);
+    setIsEditMode(false);
+    setEditFormData({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      telegram: "",
+      twitter: "",
+      github: "",
+      linkedIn: "",
+      sponsorId: "",
+      about: "",
+      skills: [],
+    });
   }, []);
 
   // Get contacts with Telegram usernames for messaging (memoized)
@@ -317,6 +362,44 @@ export default function ContactsPage() {
     setSponsorFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
+  // Edit form handlers
+  const updateEditFormField = useCallback((field: string, value: string | string[]) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleSaveContact = useCallback(async () => {
+    if (!selectedContact || !editFormData.firstName || !editFormData.lastName) {
+      return;
+    }
+
+    try {
+      await updateContactMutation.mutateAsync({
+        id: selectedContact.id,
+        firstName: editFormData.firstName,
+        lastName: editFormData.lastName,
+        email: editFormData.email || undefined,
+        phone: editFormData.phone || undefined,
+        telegram: editFormData.telegram || undefined,
+        twitter: editFormData.twitter || undefined,
+        github: editFormData.github || undefined,
+        linkedIn: editFormData.linkedIn || undefined,
+        sponsorId: editFormData.sponsorId || undefined,
+        about: editFormData.about || undefined,
+        skills: editFormData.skills.length > 0 ? editFormData.skills : undefined,
+      });
+
+      // Refresh contacts list
+      void utils.contact.getContacts.invalidate();
+
+      // Exit edit mode but keep drawer open to show updated data
+      setIsEditMode(false);
+
+      console.log("Contact updated successfully");
+    } catch (error) {
+      console.error("Failed to update contact:", error);
+    }
+  }, [selectedContact, editFormData, updateContactMutation, utils]);
+
   // Merge contacts handler
   const handleMergeContacts = useCallback(async () => {
     if (selectedContactIds.length < 2) {
@@ -470,9 +553,18 @@ export default function ContactsPage() {
           <ActionIcon
             variant="subtle"
             color="blue"
-            onClick={() => openDrawer(contact)}
+            onClick={() => openDrawer(contact, false)}
           >
             <IconEye size={16} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label="Edit contact">
+          <ActionIcon
+            variant="subtle"
+            color="orange"
+            onClick={() => openDrawer(contact, true)}
+          >
+            <IconEdit size={16} />
           </ActionIcon>
         </Tooltip>
         <Tooltip label="View full details">
@@ -929,7 +1021,7 @@ export default function ContactsPage() {
       <Drawer
         opened={drawerOpened}
         onClose={closeDrawer}
-        title="Contact Details"
+        title={isEditMode ? "Edit Contact" : "Contact Details"}
         position="right"
         size="md"
         overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
@@ -939,11 +1031,12 @@ export default function ContactsPage() {
             {/* Header Section */}
             <Group>
               <Avatar size="lg" color="blue">
-                {selectedContact.firstName?.[0]?.toUpperCase()}{selectedContact.lastName?.[0]?.toUpperCase()}
+                {(isEditMode ? editFormData.firstName : selectedContact.firstName)?.[0]?.toUpperCase()}
+                {(isEditMode ? editFormData.lastName : selectedContact.lastName)?.[0]?.toUpperCase()}
               </Avatar>
               <Stack gap={2}>
                 <Text fw={600} size="lg">
-                  {selectedContact.firstName} {selectedContact.lastName}
+                  {isEditMode ? `${editFormData.firstName} ${editFormData.lastName}` : `${selectedContact.firstName} ${selectedContact.lastName}`}
                 </Text>
                 <Text size="sm" c="dimmed">
                   Contact ID: {selectedContact.id}
@@ -954,71 +1047,147 @@ export default function ContactsPage() {
             <Divider />
 
             {/* Contact Information */}
-            <Stack gap="sm">
+            <Stack gap="md">
               <Text fw={500} size="md">
                 <IconUser size={16} style={{ marginRight: 8 }} />
                 Contact Information
               </Text>
-              
-              {/* Email */}
-              {selectedContact.email ? (
-                <Group justify="space-between">
-                  <Group gap="xs">
-                    <IconMail size={16} color="gray" />
-                    <Text size="sm">{selectedContact.email}</Text>
-                  </Group>
-                  <CopyButton value={selectedContact.email}>
-                    {({ copied, copy }) => (
-                      <Tooltip label={copied ? 'Copied' : 'Copy email'}>
-                        <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
-                          {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                        </ActionIcon>
-                      </Tooltip>
-                    )}
-                  </CopyButton>
-                </Group>
-              ) : (
-                <Group gap="xs">
-                  <IconMail size={16} color="gray" />
-                  <Text size="sm" c="dimmed">No email address</Text>
-                </Group>
-              )}
 
-              {/* Phone */}
-              {selectedContact.phone && (
-                <Group justify="space-between">
-                  <Group gap="xs">
-                    <IconPhone size={16} color="gray" />
-                    <Text size="sm" style={{ fontFamily: 'monospace' }}>
-                      {selectedContact.phone}
-                    </Text>
+              {isEditMode ? (
+                <>
+                  {/* Edit Mode - Form Fields */}
+                  <Group grow>
+                    <TextInput
+                      label="First Name"
+                      placeholder="Enter first name"
+                      required
+                      value={editFormData.firstName}
+                      onChange={(e) => updateEditFormField("firstName", e.target.value)}
+                    />
+                    <TextInput
+                      label="Last Name"
+                      placeholder="Enter last name"
+                      required
+                      value={editFormData.lastName}
+                      onChange={(e) => updateEditFormField("lastName", e.target.value)}
+                    />
                   </Group>
-                  <CopyButton value={selectedContact.phone}>
-                    {({ copied, copy }) => (
-                      <Tooltip label={copied ? 'Copied' : 'Copy phone'}>
-                        <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
-                          {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                        </ActionIcon>
-                      </Tooltip>
-                    )}
-                  </CopyButton>
-                </Group>
+
+                  <TextInput
+                    label="Email Address"
+                    placeholder="Enter email address"
+                    type="email"
+                    leftSection={<IconMail size={16} />}
+                    value={editFormData.email}
+                    onChange={(e) => updateEditFormField("email", e.target.value)}
+                  />
+
+                  <TextInput
+                    label="Phone Number"
+                    placeholder="Enter phone number"
+                    leftSection={<IconPhone size={16} />}
+                    value={editFormData.phone}
+                    onChange={(e) => updateEditFormField("phone", e.target.value)}
+                  />
+                </>
+              ) : (
+                <>
+                  {/* View Mode - Display Only */}
+                  {selectedContact.email ? (
+                    <Group justify="space-between">
+                      <Group gap="xs">
+                        <IconMail size={16} color="gray" />
+                        <Text size="sm">{selectedContact.email}</Text>
+                      </Group>
+                      <CopyButton value={selectedContact.email}>
+                        {({ copied, copy }) => (
+                          <Tooltip label={copied ? 'Copied' : 'Copy email'}>
+                            <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
+                              {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                      </CopyButton>
+                    </Group>
+                  ) : (
+                    <Group gap="xs">
+                      <IconMail size={16} color="gray" />
+                      <Text size="sm" c="dimmed">No email address</Text>
+                    </Group>
+                  )}
+
+                  {selectedContact.phone && (
+                    <Group justify="space-between">
+                      <Group gap="xs">
+                        <IconPhone size={16} color="gray" />
+                        <Text size="sm" style={{ fontFamily: 'monospace' }}>
+                          {selectedContact.phone}
+                        </Text>
+                      </Group>
+                      <CopyButton value={selectedContact.phone}>
+                        {({ copied, copy }) => (
+                          <Tooltip label={copied ? 'Copied' : 'Copy phone'}>
+                            <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
+                              {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                      </CopyButton>
+                    </Group>
+                  )}
+                </>
               )}
             </Stack>
 
-            {/* Social Media Links */}
-            {(selectedContact.twitter ?? selectedContact.github ?? selectedContact.linkedIn ?? selectedContact.telegram) && (
-              <>
-                <Divider />
-                <Stack gap="sm">
-                  <Text fw={500} size="md">Social Media</Text>
-                  
+            {/* Social Media Section */}
+            <Divider />
+            <Stack gap="md">
+              <Text fw={500} size="md">Social Media</Text>
+
+              {isEditMode ? (
+                <>
+                  {/* Edit Mode - Form Fields */}
+                  <TextInput
+                    label="Telegram Username"
+                    placeholder="username (without @)"
+                    leftSection={<IconBrandTelegram size={16} />}
+                    value={editFormData.telegram}
+                    onChange={(e) => updateEditFormField("telegram", e.target.value)}
+                  />
+
+                  <TextInput
+                    label="Twitter Handle"
+                    placeholder="username (without @)"
+                    leftSection={<IconBrandTwitter size={16} />}
+                    value={editFormData.twitter}
+                    onChange={(e) => updateEditFormField("twitter", e.target.value)}
+                  />
+
+                  <TextInput
+                    label="GitHub Username"
+                    placeholder="username (without @)"
+                    leftSection={<IconBrandGithub size={16} />}
+                    value={editFormData.github}
+                    onChange={(e) => updateEditFormField("github", e.target.value)}
+                  />
+
+                  <TextInput
+                    label="LinkedIn Profile"
+                    placeholder="LinkedIn URL or username"
+                    leftSection={<IconBrandLinkedin size={16} />}
+                    value={editFormData.linkedIn}
+                    onChange={(e) => updateEditFormField("linkedIn", e.target.value)}
+                  />
+                </>
+              ) : (
+                <>
+                  {/* View Mode - Display Only */}
                   {selectedContact.twitter && (
                     <Group gap="xs">
                       <IconBrandTwitter size={16} color="blue" />
-                      <Anchor 
-                        href={`https://twitter.com/${selectedContact.twitter}`} 
-                        target="_blank" 
+                      <Anchor
+                        href={`https://twitter.com/${selectedContact.twitter}`}
+                        target="_blank"
                         size="sm"
                       >
                         @{selectedContact.twitter}
@@ -1029,9 +1198,9 @@ export default function ContactsPage() {
                   {selectedContact.github && (
                     <Group gap="xs">
                       <IconBrandGithub size={16} />
-                      <Anchor 
-                        href={`https://github.com/${selectedContact.github}`} 
-                        target="_blank" 
+                      <Anchor
+                        href={`https://github.com/${selectedContact.github}`}
+                        target="_blank"
                         size="sm"
                       >
                         @{selectedContact.github}
@@ -1042,9 +1211,9 @@ export default function ContactsPage() {
                   {selectedContact.linkedIn && (
                     <Group gap="xs">
                       <IconBrandLinkedin size={16} color="blue" />
-                      <Anchor 
-                        href={selectedContact.linkedIn.startsWith('http') ? selectedContact.linkedIn : `https://linkedin.com/in/${selectedContact.linkedIn}`} 
-                        target="_blank" 
+                      <Anchor
+                        href={selectedContact.linkedIn.startsWith('http') ? selectedContact.linkedIn : `https://linkedin.com/in/${selectedContact.linkedIn}`}
+                        target="_blank"
                         size="sm"
                       >
                         {selectedContact.linkedIn.replace(/^https?:\/\/(www\.)?linkedin\.com\/(in\/)?/, '')}
@@ -1055,56 +1224,207 @@ export default function ContactsPage() {
                   {selectedContact.telegram && (
                     <Group gap="xs">
                       <IconBrandTelegram size={16} color="blue" />
-                      <Anchor 
-                        href={`https://t.me/${selectedContact.telegram}`} 
-                        target="_blank" 
+                      <Anchor
+                        href={`https://t.me/${selectedContact.telegram}`}
+                        target="_blank"
                         size="sm"
                       >
                         @{selectedContact.telegram}
                       </Anchor>
                     </Group>
                   )}
+
+                  {!selectedContact.twitter && !selectedContact.github && !selectedContact.linkedIn && !selectedContact.telegram && (
+                    <Text size="sm" c="dimmed">No social media links</Text>
+                  )}
+                </>
+              )}
+            </Stack>
+
+            {/* Sponsor Section */}
+            <Divider />
+            <Stack gap="md">
+              <Text fw={500} size="md">
+                <IconBuilding size={16} style={{ marginRight: 8 }} />
+                Associated Sponsor
+              </Text>
+
+              {isEditMode ? (
+                <>
+                  {/* Edit Mode - Form Field */}
+                  <Select
+                    label="Sponsor"
+                    placeholder="Choose a sponsor (optional)"
+                    data={[
+                      ...(sponsors?.map(sponsor => ({
+                        value: sponsor.id,
+                        label: sponsor.name,
+                      })) ?? []),
+                      { value: '__create_new__', label: '+ Create New Sponsor...' }
+                    ]}
+                    value={editFormData.sponsorId}
+                    onChange={(value) => {
+                      if (value === '__create_new__') {
+                        openSponsorModal();
+                      } else {
+                        updateEditFormField("sponsorId", value ?? "");
+                      }
+                    }}
+                    clearable
+                    searchable
+                  />
+                </>
+              ) : (
+                <>
+                  {/* View Mode - Display Only */}
+                  {selectedContact.sponsor ? (
+                    <Group gap="sm">
+                      <Avatar
+                        src={selectedContact.sponsor.logoUrl}
+                        size="md"
+                        radius="sm"
+                      >
+                        {selectedContact.sponsor.name[0]?.toUpperCase()}
+                      </Avatar>
+                      <Stack gap={2}>
+                        <Text fw={500} size="sm">
+                          {selectedContact.sponsor.name}
+                        </Text>
+                        {selectedContact.sponsor.websiteUrl && (
+                          <Group gap="xs">
+                            <IconWorld size={14} color="gray" />
+                            <Anchor
+                              href={selectedContact.sponsor.websiteUrl}
+                              target="_blank"
+                              size="xs"
+                            >
+                              {selectedContact.sponsor.websiteUrl.replace(/^https?:\/\//, "")}
+                            </Anchor>
+                          </Group>
+                        )}
+                      </Stack>
+                    </Group>
+                  ) : (
+                    <Text size="sm" c="dimmed">No associated sponsor</Text>
+                  )}
+                </>
+              )}
+            </Stack>
+
+            {/* Additional Information Section */}
+            {(isEditMode || !!selectedContact.about || (selectedContact.skills?.length ?? 0) > 0) && (
+              <>
+                <Divider />
+                <Stack gap="md">
+                  <Text fw={500} size="md">Additional Information</Text>
+
+                  {isEditMode ? (
+                    <>
+                      {/* Edit Mode - Form Fields */}
+                      <Textarea
+                        label="About"
+                        placeholder="Add notes about this contact..."
+                        value={editFormData.about}
+                        onChange={(e) => updateEditFormField("about", e.target.value)}
+                        minRows={3}
+                        autosize
+                      />
+
+                      <MultiSelect
+                        label="Skills"
+                        placeholder="Select or add skills..."
+                        data={(() => {
+                          if (!availableSkills) return [];
+
+                          // Group skills by category
+                          const grouped = availableSkills.reduce((acc, skill) => {
+                            const category = skill.category ?? "Other";
+                            acc[category] ??= [];
+                            acc[category].push({
+                              value: skill.name,
+                              label: skill.name,
+                            });
+                            return acc;
+                          }, {} as Record<string, Array<{ value: string; label: string }>>);
+
+                          // Convert to Mantine v8 grouped format
+                          return Object.entries(grouped).map(([group, items]) => ({
+                            group,
+                            items,
+                          }));
+                        })()}
+                        value={editFormData.skills}
+                        onChange={(values) => updateEditFormField("skills", values)}
+                        searchable
+                        clearable
+                        maxDropdownHeight={200}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      {/* View Mode - Display Only */}
+                      {selectedContact.about && (
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>About</Text>
+                          <Text size="sm" c="dimmed">{selectedContact.about}</Text>
+                        </Stack>
+                      )}
+
+                      {selectedContact.skills && selectedContact.skills.length > 0 && (
+                        <Stack gap="xs">
+                          <Text size="sm" fw={500}>Skills</Text>
+                          <Group gap="xs">
+                            {selectedContact.skills.map(skill => (
+                              <Badge key={skill} variant="light" color="blue">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </Group>
+                        </Stack>
+                      )}
+                    </>
+                  )}
                 </Stack>
               </>
             )}
 
-            {/* Sponsor Information */}
-            {selectedContact.sponsor && (
+            {/* Action Buttons */}
+            {isEditMode && (
               <>
                 <Divider />
-                <Stack gap="sm">
-                  <Text fw={500} size="md">
-                    <IconBuilding size={16} style={{ marginRight: 8 }} />
-                    Associated Sponsor
-                  </Text>
-                  <Group gap="sm">
-                    <Avatar 
-                      src={selectedContact.sponsor.logoUrl} 
-                      size="md" 
-                      radius="sm"
-                    >
-                      {selectedContact.sponsor.name[0]?.toUpperCase()}
-                    </Avatar>
-                    <Stack gap={2}>
-                      <Text fw={500} size="sm">
-                        {selectedContact.sponsor.name}
-                      </Text>
-                      {selectedContact.sponsor.websiteUrl && (
-                        <Group gap="xs">
-                          <IconWorld size={14} color="gray" />
-                          <Anchor 
-                            href={selectedContact.sponsor.websiteUrl} 
-                            target="_blank" 
-                            size="xs"
-                          >
-                            {selectedContact.sponsor.websiteUrl.replace(/^https?:\/\//, "")}
-                          </Anchor>
-                        </Group>
-                      )}
-                    </Stack>
-                  </Group>
-                </Stack>
+                <Group justify="flex-end" gap="sm">
+                  <Button
+                    variant="subtle"
+                    onClick={() => setIsEditMode(false)}
+                    disabled={updateContactMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveContact}
+                    loading={updateContactMutation.isPending}
+                    disabled={!editFormData.firstName || !editFormData.lastName}
+                    color="orange"
+                  >
+                    {updateContactMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </Group>
+
+                {/* Error Display */}
+                {updateContactMutation.error && (
+                  <Alert color="red" variant="light">
+                    <Text fw={500}>Failed to update contact</Text>
+                    <Text size="sm">{updateContactMutation.error.message}</Text>
+                  </Alert>
+                )}
               </>
+            )}
+
+            {/* Success Display */}
+            {updateContactMutation.isSuccess && !isEditMode && (
+              <Alert icon={<IconCheck size={16} />} color="green" variant="light">
+                <Text fw={500}>Contact updated successfully!</Text>
+              </Alert>
             )}
           </Stack>
         )}

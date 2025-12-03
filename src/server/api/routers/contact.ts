@@ -1321,6 +1321,74 @@ export const contactRouter = createTRPCRouter({
       return contact;
     }),
 
+  updateContact: protectedProcedure
+    .input(z.object({
+      id: z.string().min(1, "Contact ID is required"),
+      firstName: z.string().min(1, "First name is required"),
+      lastName: z.string().min(1, "Last name is required"),
+      email: z.string().email("Please enter a valid email address").optional(),
+      phone: z.string().optional(),
+      telegram: z.string().optional(),
+      twitter: z.string().optional(),
+      github: z.string().optional(),
+      linkedIn: z.string().optional(),
+      sponsorId: z.string().optional(),
+      about: z.string().optional(),
+      skills: z.array(z.string()).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Check if contact exists
+      const existingContact = await ctx.db.contact.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!existingContact) {
+        throw new Error("Contact not found");
+      }
+
+      // Check if email is being changed to an email that already exists
+      if (input.email && input.email !== existingContact.email) {
+        const emailInUse = await ctx.db.contact.findFirst({
+          where: {
+            email: input.email,
+            id: { not: input.id },
+          },
+        });
+
+        if (emailInUse) {
+          throw new Error("A contact with this email address already exists");
+        }
+      }
+
+      // Clean up social media handles and URLs
+      const cleanedInput = {
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: input.email ?? null,
+        phone: input.phone ?? null,
+        telegram: input.telegram ? input.telegram.replace(/^@/, '') : null,
+        twitter: input.twitter ? input.twitter.replace(/^@/, '') : null,
+        github: input.github ? input.github.replace(/^@/, '') : null,
+        linkedIn: input.linkedIn?.startsWith('http')
+          ? input.linkedIn
+          : input.linkedIn ? input.linkedIn.replace(/^@/, '') : null,
+        sponsorId: input.sponsorId ?? null,
+        about: input.about ?? null,
+        skills: input.skills ?? [],
+      };
+
+      // Update the contact
+      const contact = await ctx.db.contact.update({
+        where: { id: input.id },
+        data: cleanedInput,
+        include: {
+          sponsor: true,
+        },
+      });
+
+      return contact;
+    }),
+
   // Disconnect Google account to force fresh authentication
   disconnectGoogleAccount: protectedProcedure.mutation(async ({ ctx }) => {
     console.log(`[DEBUG] Disconnecting Google account for user: ${ctx.session.user.id}`);
