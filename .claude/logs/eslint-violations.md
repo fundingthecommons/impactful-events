@@ -269,6 +269,80 @@ void main()
 
 ---
 
+## 2025-01-12 - react/no-unescaped-entities & @typescript-eslint/no-unused-vars - Impact Report Page - [Project: impactful-events]
+
+**Problem**: Unescaped quotation marks in JSX text content and multiple unused icon imports
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/app/impact-reports/buenos-aires-2025/page.tsx:350-351,28-30,34
+
+**Code Context**:
+```typescript
+// ❌ INCORRECT - Unescaped quotation marks in JSX
+<Text size="md" fs="italic" style={{ lineHeight: 1.6 }}>
+  "If I did not go to an in-person event for one and a half years and I only read Twitter every day...
+  that would almost certainly lead me to rage quit and retire."
+</Text>
+
+// ❌ INCORRECT - Unused icon imports
+import {
+  IconUsers,
+  IconWorld,
+  IconSparkles,
+  IconVideo,
+  IconPhoto,
+  IconMicrophone,
+  IconBrandX,
+  IconBrandLinkedin,
+  IconPlayerPlay,
+  IconChartBar,        // Not used
+  IconTicket,          // Not used
+  IconCurrencyDollar,  // Not used
+  IconMapPin,
+  IconCalendar,
+  IconTrendingUp,
+  IconHeart,           // Not used
+} from "@tabler/icons-react";
+```
+
+**Fix Applied**:
+```typescript
+// ✅ CORRECT - Use HTML entities for typographic quotes
+<Text size="md" fs="italic" style={{ lineHeight: 1.6 }}>
+  &ldquo;If I did not go to an in-person event for one and a half years and I only read Twitter every day...
+  that would almost certainly lead me to rage quit and retire.&rdquo;
+</Text>
+
+// ✅ CORRECT - Removed unused icon imports
+import {
+  IconUsers,
+  IconWorld,
+  IconSparkles,
+  IconVideo,
+  IconPhoto,
+  IconMicrophone,
+  IconBrandX,
+  IconBrandLinkedin,
+  IconPlayerPlay,
+  IconMapPin,
+  IconCalendar,
+  IconTrendingUp,
+} from "@tabler/icons-react";
+```
+
+**Prevention**:
+1. **Quotation marks in JSX**: Always escape quotation marks in JSX text content
+   - Use `&ldquo;` for opening double quote (left)
+   - Use `&rdquo;` for closing double quote (right)
+   - Use `&lsquo;` for opening single quote (left)
+   - Use `&rsquo;` for closing single quote (right)
+   - Alternative: Use `&quot;` for neutral double quotes or `&apos;` for apostrophes
+   - Or wrap in curly braces: `{"This is a 'quote'"}`
+2. **Unused imports**: When creating new pages with icon imports, only import icons that are actually used in the component
+3. **Pre-flight check**: Always run `bun run check` after creating new pages to catch these issues before build
+4. **ESLint critical errors**: `react/no-unescaped-entities` is a critical error that will fail Vercel builds
+
+---
+
 ## Usage
 
 This log is referenced by CLAUDE.md to help Claude Code generate ESLint-compliant code on the first try by learning from actual mistakes made in this specific codebase.
