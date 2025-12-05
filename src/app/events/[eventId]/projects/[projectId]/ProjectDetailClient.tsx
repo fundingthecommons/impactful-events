@@ -161,8 +161,9 @@ export default function ProjectDetailClient({
   const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState<string>("overview");
 
-  // Check if current user can edit the project (owner or collaborator with edit permissions)
-  const canEdit = isOwner || project.collaborators.some(
+  // Check if current user can edit the project (owner, admin, or collaborator with edit permissions)
+  const isAdmin = session?.user?.role === "admin";
+  const canEdit = isOwner || isAdmin || project.collaborators.some(
     collab => collab.userId === userId && collab.canEdit
   );
   const [updateModalOpen, setUpdateModalOpen] = useState(false);

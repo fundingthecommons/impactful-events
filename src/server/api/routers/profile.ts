@@ -594,13 +594,16 @@ export const profileRouter = createTRPCRouter({
   deleteProject: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // Verify ownership
+      // Verify ownership or admin
       const project = await ctx.db.userProject.findUnique({
         where: { id: input.id },
         include: { profile: true },
       });
 
-      if (!project || project.profile.userId !== ctx.session.user.id) {
+      const isOwner = project?.profile.userId === ctx.session.user.id;
+      const isAdmin = ctx.session.user.role === "admin";
+
+      if (!project || (!isOwner && !isAdmin)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You can only delete your own projects",
