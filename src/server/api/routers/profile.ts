@@ -46,6 +46,7 @@ const projectCreateSchema = z.object({
   imageUrl: z.string().optional(), // Project logo
   bannerUrl: z.string().optional(), // Project banner
   technologies: z.array(z.string().max(30)).max(20),
+  focusAreas: z.array(z.string().max(50)).max(10).optional(),
   featured: z.boolean().optional().default(false),
 });
 
@@ -557,7 +558,7 @@ export const profileRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { id, ...updateData } = input;
 
-      // Verify ownership OR collaborator with edit permission
+      // Verify ownership OR collaborator with edit permission OR admin
       const project = await ctx.db.userProject.findUnique({
         where: { id },
         include: {
@@ -573,8 +574,9 @@ export const profileRouter = createTRPCRouter({
 
       const isOwner = project?.profile.userId === ctx.session.user.id;
       const isCollaborator = (project?.collaborators.length ?? 0) > 0;
+      const isAdmin = ctx.session.user.role === "admin";
 
-      if (!project || (!isOwner && !isCollaborator)) {
+      if (!project || (!isOwner && !isCollaborator && !isAdmin)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You can only update projects you own or collaborate on",

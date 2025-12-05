@@ -49,6 +49,7 @@ const projectSchema = z.object({
   liveUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
   imageUrl: z.string().url("Invalid image URL").optional().or(z.literal("")),
   technologies: z.array(z.string().max(30)).max(20),
+  focusAreas: z.array(z.string().max(50)).max(10).optional(),
   featured: z.boolean().optional().default(false),
 });
 
@@ -274,6 +275,7 @@ export function ProjectManager({ projects, onProjectsChange, eventId }: ProjectM
       liveUrl: "",
       imageUrl: "",
       technologies: [],
+      focusAreas: [],
       featured: false,
     },
   });
@@ -306,6 +308,7 @@ export function ProjectManager({ projects, onProjectsChange, eventId }: ProjectM
       liveUrl: project.liveUrl ?? "",
       imageUrl: project.imageUrl ?? "",
       technologies: project.technologies,
+      focusAreas: project.focusAreas,
       featured: project.featured,
     });
 
@@ -399,6 +402,15 @@ export function ProjectManager({ projects, onProjectsChange, eventId }: ProjectM
                           <Text size="sm" c="dimmed" mb="sm">
                             {project.description}
                           </Text>
+                        )}
+                        {project.focusAreas && project.focusAreas.length > 0 && (
+                          <Group gap={4} mb="xs">
+                            {project.focusAreas.map((area) => (
+                              <Badge key={area} size="sm" color="blue" variant="light">
+                                {area}
+                              </Badge>
+                            ))}
+                          </Group>
                         )}
                       </div>
 
@@ -542,6 +554,31 @@ export function ProjectManager({ projects, onProjectsChange, eventId }: ProjectM
               placeholder="React, TypeScript, Node.js, etc."
               description="Technologies and tools used in this project"
               {...form.getInputProps("technologies")}
+            />
+
+            <TagsInput
+              label="Focus Areas"
+              placeholder="Select or type focus areas"
+              description="Main areas your project focuses on (select up to 3)"
+              data={[
+                "AI & Machine Learning",
+                "Privacy & Cryptography",
+                "Trust Networks & Identity",
+                "Impact Evaluation & Metrics",
+                "Public Goods Funding",
+                "Governance & Coordination",
+                "Data & Analytics",
+                "Developer Tools & Infrastructure",
+                "Social Impact",
+                "Education & Learning",
+                "Climate & Environment",
+                "Scientific Research",
+                "Decentralized Systems",
+                "Digital Public Goods",
+                "Community Building",
+              ]}
+              maxTags={3}
+              {...form.getInputProps("focusAreas")}
             />
 
             <Switch

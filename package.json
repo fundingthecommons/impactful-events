@@ -46,10 +46,12 @@
     "typecheck:changed": "git diff HEAD --name-only --diff-filter=ACM | grep -E '\\.(ts|tsx)$' | xargs -r bunx tsc --noEmit --skipLibCheck"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.1",
     "@atproto/api": "^0.17.4",
     "@atproto/oauth-client-browser": "^0.3.34",
     "@atproto/oauth-client-node": "^0.3.10",
     "@auth/prisma-adapter": "^2.7.2",
+    "@mantine/charts": "^8.3.9",
     "@mantine/core": "8.1.1",
     "@mantine/dates": "^8.2.5",
     "@mantine/form": "^8.2.5",
@@ -57,6 +59,7 @@
     "@mantine/notifications": "^8.2.5",
     "@modelcontextprotocol/sdk": "^1.18.0",
     "@notionhq/client": "^4.0.0",
+    "@octokit/rest": "^22.0.1",
     "@prisma/client": "^6.5.0",
     "@react-email/components": "^0.5.1",
     "@react-email/render": "^1.2.1",

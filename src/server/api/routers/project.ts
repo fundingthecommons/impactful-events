@@ -271,6 +271,7 @@ export const projectRouter = createTRPCRouter({
                       liveUrl: true,
                       imageUrl: true,
                       technologies: true,
+                      focusAreas: true,
                       featured: true,
                       createdAt: true,
                       repositories: {
@@ -420,6 +421,7 @@ export const projectRouter = createTRPCRouter({
         imageUrl: project.imageUrl,
         bannerUrl: project.bannerUrl,
         technologies: project.technologies,
+        focusAreas: project.focusAreas,
         featured: project.featured,
         createdAt: project.createdAt,
         repositories: project.repositories,
@@ -1804,5 +1806,120 @@ export const projectRouter = createTRPCRouter({
       });
 
       return { success: true };
+    }),
+
+  // Public: Get focus areas distribution for an event
+  getFocusAreasDistribution: publicProcedure
+    .input(z.object({
+      eventId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Get all projects for accepted residents of this event
+      const projects = await ctx.db.userProject.findMany({
+        where: {
+          profile: {
+            user: {
+              applications: {
+                some: {
+                  eventId: input.eventId,
+                  status: "ACCEPTED",
+                  applicationType: "RESIDENT",
+                },
+              },
+            },
+          },
+        },
+        select: {
+          focusAreas: true,
+        },
+      });
+
+      // Count focus areas
+      const focusAreaCounts: Record<string, number> = {};
+      for (const project of projects) {
+        for (const area of project.focusAreas) {
+          focusAreaCounts[area] = (focusAreaCounts[area] ?? 0) + 1;
+        }
+      }
+
+      // Convert to array and sort by count
+      const distribution = Object.entries(focusAreaCounts)
+        .map(([area, count]) => ({ area, count }))
+        .sort((a, b) => b.count - a.count);
+
+      return {
+        distribution,
+        totalProjects: projects.length,
+        projectsWithFocusAreas: projects.filter(p => p.focusAreas.length > 0).length,
+      };
+    }),
+
+  // Public: Get event-wide GitHub activity stats
+  getEventActivityStats: publicProcedure
+    .input(z.object({
+      eventId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Get all repositories for accepted residents of this event
+      const repositories = await ctx.db.repository.findMany({
+        where: {
+          project: {
+            profile: {
+              user: {
+                applications: {
+                  some: {
+                    eventId: input.eventId,
+                    status: "ACCEPTED",
+                    applicationType: "RESIDENT",
+                  },
+                },
+              },
+            },
+          },
+        },
+        select: {
+          isActive: true,
+          weeksActive: true,
+          lastSyncedAt: true,
+        },
+      });
+
+      const activeProjects = repositories.filter(r => r.isActive).length;
+      const totalProjects = repositories.length;
+      const percentageActive = totalProjects > 0
+        ? (activeProjects / totalProjects) * 100
+        : 0;
+
+      const repositoriesWithWeeks = repositories.filter(r => r.weeksActive !== null);
+      const avgWeeksActive = repositoriesWithWeeks.length > 0
+        ? repositoriesWithWeeks.reduce((sum, r) => sum + (r.weeksActive ?? 0), 0) / repositoriesWithWeeks.length
+        : 0;
+
+      return {
+        percentageActive: percentageActive.toFixed(1),
+        avgWeeksActive: avgWeeksActive.toFixed(1),
+        lastSyncedAt: repositories[0]?.lastSyncedAt ?? null,
+        totalProjects,
+        activeProjects,
+      };
+    }),
+
+  // Public: Get repository metrics (lifetime + residency-specific)
+  getRepositoryMetrics: publicProcedure
+    .input(z.object({
+      repositoryId: z.string(),
+      eventId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const repo = await ctx.db.repository.findUnique({
+        where: { id: input.repositoryId },
+        include: {
+          residencyMetrics: input.eventId
+            ? { where: { eventId: input.eventId } }
+            : true,
+        },
+      });
+
+      return repo;
     }),
 });

@@ -203,6 +203,7 @@ model Event {
   asksOffers  AskOffer[]  @relation("EventAsksOffers")  // Asks and Offers for this event
   praises     Praise[]    @relation("EventPraises")  // Praise messages for this event
   metricMeasurements MetricMeasurement[] // Measurements during this event
+  repositoryMetrics RepositoryResidencyMetrics[] @relation("RepositoryMetrics") // GitHub metrics for this residency
 }
 
 model Role {
@@ -1111,6 +1112,7 @@ model UserProject {
   imageUrl      String?     // Project logo (small icon/thumbnail)
   bannerUrl     String?     // Project banner (large header image)
   technologies  String[]    // Tech stack used
+  focusAreas    String[]    // Focus areas/categories (e.g., "AI", "Privacy", "Trust Networks")
   featured      Boolean     @default(false)
   order         Int         @default(0)
 
@@ -1140,12 +1142,49 @@ model Repository {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
+  // GitHub Activity Tracking - Lifetime Metrics
+  lastCommitDate    DateTime?
+  firstCommitDate   DateTime?
+  totalCommits      Int       @default(0)
+  lastSyncedAt      DateTime?
+  isActive          Boolean   @default(false) // Active if commit in last 30 days
+  weeksActive       Float?    // Duration from first to last commit
+  commitsData       Json?     // Full lifetime commit timeline
+
   // Relations
-  project     UserProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId   String
+  project          UserProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId        String
+  residencyMetrics RepositoryResidencyMetrics[]
 
   @@index([projectId])
   @@index([isPrimary])
+  @@index([isActive])
+}
+
+// Junction table for tracking residency-specific GitHub metrics
+// Allows projects to participate in multiple residencies over time
+model RepositoryResidencyMetrics {
+  id                String   @id @default(cuid())
+  repositoryId      String
+  eventId           String
+
+  // Residency-specific metrics
+  commitsData       Json?      // Commit timeline for THIS residency period
+  residencyCommits  Int        @default(0)
+  residencyStartDate DateTime?
+  residencyEndDate  DateTime?
+  lastSyncedAt      DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  repository        Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  event             Event @relation("RepositoryMetrics", fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([repositoryId, eventId])
+  @@index([repositoryId])
+  @@index([eventId])
 }
 
 model ProjectCollaborator {

@@ -51,6 +51,11 @@ export default function FundingCommonsResidency2025Report() {
     eventId: "funding-commons-residency-2025",
   });
 
+  // Fetch GitHub activity stats
+  const { data: activityStats, isLoading: loadingActivityStats } = api.project.getEventActivityStats.useQuery({
+    eventId: "funding-commons-residency-2025",
+  });
+
   // Real data from database
   const stats = [
     { value: "33", label: "Residents", subtitle: "Accepted to residency", icon: IconUsers, color: "violet" },
@@ -62,8 +67,20 @@ export default function FundingCommonsResidency2025Report() {
   const additionalStats = [
     { value: "18", label: "Projects with Metrics", subtitle: "Tracking impact", icon: IconChartBar, color: "cyan" },
     { value: "92", label: "Total Metrics", subtitle: "Data points tracked", icon: IconTrendingUp, color: "grape" },
-    { value: "TBD", label: "Projects Still Active", subtitle: "% with recent GitHub activity", icon: IconGitBranch, color: "green" },
-    { value: "TBD", label: "Avg. Weeks Active", subtitle: "GitHub activity duration", icon: IconClock, color: "blue" },
+    {
+      value: loadingActivityStats ? "—" : `${activityStats?.percentageActive ?? "—"}%`,
+      label: "Projects Still Active",
+      subtitle: "% with recent GitHub activity",
+      icon: IconGitBranch,
+      color: "green"
+    },
+    {
+      value: loadingActivityStats ? "—" : (activityStats?.avgWeeksActive ?? "—"),
+      label: "Avg. Weeks Active",
+      subtitle: "GitHub activity duration",
+      icon: IconClock,
+      color: "blue"
+    },
   ];
 
   const programHighlights = [

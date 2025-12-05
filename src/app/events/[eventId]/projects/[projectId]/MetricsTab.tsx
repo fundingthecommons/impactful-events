@@ -33,14 +33,18 @@ import {
   IconSparkles,
   IconInfoCircle,
   IconCheck,
+  IconGitCommit,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
 import { type MetricType, type CollectionMethod } from "@prisma/client";
+import { CommitsTimelineChart } from "~/app/_components/CommitsTimelineChart";
 
 interface MetricsTabProps {
   projectId: string;
   canEdit: boolean;
+  eventId?: string;
+  repositoryId?: string;
 }
 
 // Modal for searching and adding metrics from the metrics garden
@@ -744,7 +748,7 @@ function SuggestMetricsModal({
   );
 }
 
-export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
+export default function MetricsTab({ projectId, canEdit, eventId, repositoryId }: MetricsTabProps) {
   const [addModalOpened, setAddModalOpened] = useState(false);
   const [createModalOpened, setCreateModalOpened] = useState(false);
   const [suggestModalOpened, setSuggestModalOpened] = useState(false);
@@ -848,13 +852,51 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
 
   return (
     <Stack gap="lg">
+      {/* Standard Metrics Section */}
+      {repositoryId && eventId && (
+        <Paper p="xl" radius="md" withBorder>
+          <Stack gap="md">
+            <Group gap="xs">
+              <IconGitCommit size={24} />
+              <Title order={2}>Standard Metrics</Title>
+            </Group>
+            <Text c="dimmed" size="sm" mb="md">
+              Automated metrics tracked for all projects
+            </Text>
+
+            <Accordion variant="separated">
+              <Accordion.Item value="commits">
+                <Accordion.Control>
+                  <Group>
+                    <IconGitCommit size={20} />
+                    <Box>
+                      <Text fw={600}>GitHub Commits</Text>
+                      <Text size="sm" c="dimmed">
+                        Commit activity over time
+                      </Text>
+                    </Box>
+                  </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <CommitsTimelineChart
+                    repositoryId={repositoryId}
+                    eventId={eventId}
+                  />
+                </Accordion.Panel>
+              </Accordion.Item>
+            </Accordion>
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Selected Metrics Section */}
       <Paper p="xl" radius="md" withBorder>
         <Stack gap="lg">
           <Group justify="space-between" align="flex-start">
             <Box>
               <Group gap="xs" mb="xs">
                 <IconChartLine size={24} />
-                <Title order={2}>Project Metrics</Title>
+                <Title order={2}>Selected Metrics</Title>
               </Group>
               <Text c="dimmed" size="sm">
                 Browse and add metrics from the Metrics Garden ({allMetrics?.total ?? 92} available)

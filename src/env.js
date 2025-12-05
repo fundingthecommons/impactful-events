@@ -29,6 +29,7 @@ export const env = createEnv({
     ADMIN_EMAIL: z.string().email(),
     MASTRA_API_KEY: z.string(),
     OPENAI_API_KEY: z.string().optional(),
+    ANTHROPIC_API_KEY: z.string().optional(),
     SENTRY_DSN: z.string().optional(),
     SENTRY_AUTH_TOKEN: z.string().optional(),
     TELEGRAM_BOT_TOKEN: z.string().optional(),
@@ -38,6 +39,7 @@ export const env = createEnv({
     TELEGRAM_UPDATES_TOPIC_ID: z.string().optional(),
     ATPROTO_PDS_URL: z.string().url().optional().default("https://bsky.social"),
     ATPROTO_ENCRYPTION_KEY: z.string().min(32).optional(),
+    GITHUB_API_TOKEN: z.string().optional(),
   },
 
   /**
@@ -71,6 +73,7 @@ export const env = createEnv({
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,
     MASTRA_API_KEY: process.env.MASTRA_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? undefined,
     SENTRY_DSN: process.env.SENTRY_DSN,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
@@ -80,6 +83,7 @@ export const env = createEnv({
     TELEGRAM_UPDATES_TOPIC_ID: process.env.TELEGRAM_UPDATES_TOPIC_ID,
     ATPROTO_PDS_URL: process.env.ATPROTO_PDS_URL,
     ATPROTO_ENCRYPTION_KEY: process.env.ATPROTO_ENCRYPTION_KEY,
+    GITHUB_API_TOKEN: process.env.GITHUB_API_TOKEN,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   },
   /**
