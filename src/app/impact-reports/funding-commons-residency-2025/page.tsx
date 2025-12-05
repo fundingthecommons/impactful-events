@@ -37,6 +37,8 @@ import {
   IconFileTypePdf,
   IconGitBranch,
   IconClock,
+  IconRocket,
+  IconRefresh,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -80,6 +82,20 @@ export default function FundingCommonsResidency2025Report() {
       subtitle: "GitHub activity duration",
       icon: IconClock,
       color: "blue"
+    },
+    {
+      value: "TBD",
+      label: "New Projects",
+      subtitle: "Initiated during residency",
+      icon: IconRocket,
+      color: "violet"
+    },
+    {
+      value: "TBD",
+      label: "Existing Projects",
+      subtitle: "Continued from before",
+      icon: IconRefresh,
+      color: "indigo"
     },
   ];
 
@@ -272,7 +288,7 @@ export default function FundingCommonsResidency2025Report() {
             Program Metrics
           </Title>
 
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg" className="stats-grid">
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" className="stats-grid">
             {additionalStats.map((stat, index) => (
               <Paper
                 key={index}

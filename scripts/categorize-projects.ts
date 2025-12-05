@@ -192,7 +192,8 @@ Respond in JSON format:
       message.content[0]?.type === "text" ? message.content[0].text : "";
 
     // Parse JSON response (handle potential markdown code blocks)
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const jsonRegex = /\{[\s\S]*\}/;
+    const jsonMatch = jsonRegex.exec(responseText);
     if (!jsonMatch) {
       throw new Error("No JSON found in response");
     }
@@ -340,7 +341,7 @@ async function main() {
   console.log("=".repeat(80));
 
   const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY!,
+    apiKey: process.env.ANTHROPIC_API_KEY,
   });
 
   try {
