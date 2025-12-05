@@ -17,6 +17,8 @@ import {
   Progress,
   Button,
   Tooltip,
+  Loader,
+  Center,
 } from "@mantine/core";
 import {
   IconUsers,
@@ -24,9 +26,7 @@ import {
   IconActivity,
   IconThumbUp,
   IconSparkles,
-  IconMail,
   IconChartBar,
-  IconQuestionMark,
   IconCalendar,
   IconMapPin,
   IconTrendingUp,
@@ -35,13 +35,21 @@ import {
   IconCode,
   IconDownload,
   IconFileTypePdf,
+  IconGitBranch,
+  IconClock,
 } from "@tabler/icons-react";
 import Link from "next/link";
+import { api } from "~/trpc/react";
 
 export default function FundingCommonsResidency2025Report() {
   const handleDownloadPDF = () => {
     window.print();
   };
+
+  // Fetch focus areas distribution
+  const { data: focusAreasData, isLoading: loadingFocusAreas } = api.project.getFocusAreasDistribution.useQuery({
+    eventId: "funding-commons-residency-2025",
+  });
 
   // Real data from database
   const stats = [
@@ -54,8 +62,8 @@ export default function FundingCommonsResidency2025Report() {
   const additionalStats = [
     { value: "18", label: "Projects with Metrics", subtitle: "Tracking impact", icon: IconChartBar, color: "cyan" },
     { value: "92", label: "Total Metrics", subtitle: "Data points tracked", icon: IconTrendingUp, color: "grape" },
-    { value: "21", label: "Asks & Offers", subtitle: "Community requests", icon: IconQuestionMark, color: "orange" },
-    { value: "476", label: "Communications", subtitle: "Emails & updates sent", icon: IconMail, color: "indigo" },
+    { value: "TBD", label: "Projects Still Active", subtitle: "% with recent GitHub activity", icon: IconGitBranch, color: "green" },
+    { value: "TBD", label: "Avg. Weeks Active", subtitle: "GitHub activity duration", icon: IconClock, color: "blue" },
   ];
 
   const programHighlights = [
@@ -65,13 +73,11 @@ export default function FundingCommonsResidency2025Report() {
     "Hands-on project development and mentorship",
   ];
 
-  const projectCategories = [
-    { category: "Web3 Infrastructure", count: "?" },
-    { category: "Public Goods Funding", count: "?" },
-    { category: "Privacy & Security", count: "?" },
-    { category: "DeFi & Financial Tools", count: "?" },
-    { category: "Social Impact", count: "?" },
-  ];
+  // Project categories will be populated from API data
+  const projectCategories = focusAreasData?.distribution.map(d => ({
+    category: d.area,
+    count: d.count,
+  })) ?? [];
 
   const sponsors = [
     { name: "Protocol Labs", url: "https://protocol.ai", tier: "Lead Sponsor" },
@@ -318,44 +324,53 @@ export default function FundingCommonsResidency2025Report() {
           </SimpleGrid>
         </Stack>
 
-        {/* Project Categories */}
+        {/* Focus Areas */}
         <Stack gap="xl" mb={60}>
           <Title order={2} size={32} fw={700}>
-            Project Categories
+            Focus Areas
           </Title>
 
           <Paper p="xl" radius="lg" withBorder>
-            <Text size="sm" c="dimmed" mb="xl">
-              Distribution of projects across different focus areas (detailed categorization in progress)
-            </Text>
-            <Stack gap="lg">
-              {projectCategories.map((cat, index) => (
-                <Box key={index}>
-                  <Group justify="space-between" mb="xs">
-                    <Text size="sm" fw={500}>
-                      {cat.category}
-                    </Text>
-                    <Badge variant="light" color="blue">
-                      {cat.count} projects
-                    </Badge>
-                  </Group>
-                  <Progress
-                    value={0}
-                    size="lg"
-                    radius="md"
-                    striped
-                    animated
-                    color="blue"
-                    styles={{
-                      root: { backgroundColor: "var(--mantine-color-gray-2)" },
-                    }}
-                  />
-                </Box>
-              ))}
-            </Stack>
-            <Text size="xs" c="dimmed" mt="md" fs="italic">
-              * Project categorization and detailed metrics collection ongoing
-            </Text>
+            {loadingFocusAreas ? (
+              <Center py="xl">
+                <Loader size="lg" />
+              </Center>
+            ) : projectCategories.length === 0 ? (
+              <Text size="sm" c="dimmed" ta="center" py="xl">
+                No focus areas data available yet. Run the categorization script to populate this section.
+              </Text>
+            ) : (
+              <>
+                <Text size="sm" c="dimmed" mb="xl">
+                  Distribution of {focusAreasData?.projectsWithFocusAreas ?? 0} projects across {projectCategories.length} focus areas
+                </Text>
+                <Stack gap="lg">
+                  {projectCategories.map((cat, index) => (
+                    <Box key={index}>
+                      <Group justify="space-between" mb="xs">
+                        <Text size="sm" fw={500}>
+                          {cat.category}
+                        </Text>
+                        <Badge variant="light" color="blue">
+                          {cat.count} {cat.count === 1 ? 'project' : 'projects'}
+                        </Badge>
+                      </Group>
+                      <Progress
+                        value={(cat.count / (focusAreasData?.totalProjects ?? 1)) * 100}
+                        size="lg"
+                        radius="md"
+                        striped
+                        animated
+                        color="blue"
+                        styles={{
+                          root: { backgroundColor: "var(--mantine-color-gray-2)" },
+                        }}
+                      />
+                    </Box>
+                  ))}
+                </Stack>
+              </>
+            )}
           </Paper>
         </Stack>
 
