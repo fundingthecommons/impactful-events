@@ -266,18 +266,18 @@ export default function FundingCommonsResidency2025Report() {
                 p="xl"
                 radius="lg"
                 style={{
-                  background: `linear-gradient(135deg, var(--mantine-color-blue-${index}) 0%, var(--mantine-color-violet-${index}) 100%)`,
-                  border: "2px solid var(--mantine-color-blue-2)",
+                  background: `linear-gradient(135deg, var(--mantine-color-blue-${6 + index}) 0%, var(--mantine-color-violet-${6 + index}) 100%)`,
+                  border: "2px solid var(--mantine-color-blue-5)",
                 }}
               >
                 <Stack gap="md">
-                  <Badge size="lg" variant="filled" color="blue">
+                  <Badge size="lg" variant="filled" color="cyan">
                     {phase.phase}
                   </Badge>
                   <Text size="md" fw={600} c="white">
                     {phase.description}
                   </Text>
-                  <Divider color="rgba(255,255,255,0.2)" />
+                  <Divider color="rgba(255,255,255,0.3)" />
                   <List spacing="xs" size="sm" c="white">
                     {phase.activities.map((activity, actIndex) => (
                       <List.Item key={actIndex}>{activity}</List.Item>
