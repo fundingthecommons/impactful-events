@@ -156,7 +156,7 @@ export default function FundingCommonsResidency2025Report() {
           </Group>
 
           {/* Key Stats Grid */}
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg" className="stats-grid">
             {stats.map((stat, index) => (
               <Paper
                 key={index}
@@ -208,7 +208,7 @@ export default function FundingCommonsResidency2025Report() {
             Program Highlights
           </Title>
 
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl">
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl" className="highlights-grid">
             <Paper p="xl" radius="lg" withBorder>
               <Group mb="lg">
                 <ThemeIcon size={48} radius="md" variant="light" color="blue">
@@ -249,7 +249,7 @@ export default function FundingCommonsResidency2025Report() {
             Program Metrics
           </Title>
 
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg" className="stats-grid">
             {additionalStats.map((stat, index) => (
               <Paper
                 key={index}
@@ -288,7 +288,7 @@ export default function FundingCommonsResidency2025Report() {
             Program Structure
           </Title>
 
-          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg" className="program-grid">
             {programStructure.map((phase, index) => (
               <Paper
                 key={index}
@@ -365,7 +365,7 @@ export default function FundingCommonsResidency2025Report() {
             Impact & Engagement
           </Title>
 
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl">
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl" className="highlights-grid">
             <Paper
               p="xl"
               radius="lg"
@@ -466,7 +466,7 @@ export default function FundingCommonsResidency2025Report() {
             Participant Profile
           </Title>
 
-          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="xl">
+          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="xl" className="program-grid">
             <Paper p="xl" radius="lg" withBorder>
               <Group mb="lg">
                 <ThemeIcon size={48} radius="md" variant="light" color="blue">
@@ -552,7 +552,7 @@ export default function FundingCommonsResidency2025Report() {
             <Text size="sm" c="dimmed" mb="xl">
               7 sponsors made this residency possible
             </Text>
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg" className="program-grid">
               {sponsors.map((sponsor, index) => (
                 <Paper key={index} p="lg" radius="md" withBorder className="hover-lift">
                   <Stack gap="sm">
@@ -647,6 +647,40 @@ export default function FundingCommonsResidency2025Report() {
             :global(.hover-lift) {
               box-shadow: none !important;
               transform: none !important;
+            }
+
+            /* Force grid layouts to maintain structure in print */
+            :global(.stats-grid) {
+              display: grid !important;
+              grid-template-columns: repeat(4, 1fr) !important;
+              gap: 1rem !important;
+            }
+
+            :global(.program-grid) {
+              display: grid !important;
+              grid-template-columns: repeat(3, 1fr) !important;
+              gap: 1rem !important;
+            }
+
+            :global(.highlights-grid) {
+              display: grid !important;
+              grid-template-columns: repeat(2, 1fr) !important;
+              gap: 1.5rem !important;
+            }
+
+            /* Prevent page breaks inside cards */
+            :global(.hover-lift),
+            :global([class*="Paper"]) {
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+
+            /* Optimize page layout */
+            :global(h1),
+            :global(h2),
+            :global(h3) {
+              page-break-after: avoid;
+              break-after: avoid;
             }
           }
         `}</style>

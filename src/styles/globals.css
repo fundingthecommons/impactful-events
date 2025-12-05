@@ -81,3 +81,43 @@
     display: none;
   }
 }
+
+/* Print styles for PDF export */
+@media print {
+  /* Hide navigation and interactive elements */
+  header,
+  nav,
+  [role="navigation"] {
+    display: none !important;
+  }
+
+  /* Hide specific UI elements */
+  .theme-toggle,
+  .github-corner,
+  button:not(.no-print-keep) {
+    display: none !important;
+  }
+
+  /* Optimize page layout for PDF */
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Page sizing and margins */
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+
+  /* Prevent orphaned headings */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Ensure links show URLs in print */
+  a[href]:after {
+    content: none; /* Don't show URLs in this design */
+  }
+}
