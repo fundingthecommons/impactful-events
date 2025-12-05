@@ -15,6 +15,8 @@ import {
   Anchor,
   List,
   Progress,
+  Button,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconUsers,
@@ -31,10 +33,16 @@ import {
   IconMessage,
   IconWorld,
   IconCode,
+  IconDownload,
+  IconFileTypePdf,
 } from "@tabler/icons-react";
 import Link from "next/link";
 
 export default function FundingCommonsResidency2025Report() {
+  const handleDownloadPDF = () => {
+    window.print();
+  };
+
   // Real data from database
   const stats = [
     { value: "33", label: "Residents", subtitle: "Accepted to residency", icon: IconUsers, color: "violet" },
@@ -106,25 +114,46 @@ export default function FundingCommonsResidency2025Report() {
       <Container size="xl" py={60}>
         {/* Header Section */}
         <Stack gap="xl" mb={60}>
-          <Box>
-            <Text size="sm" tt="uppercase" fw={700} c="dimmed" mb="xs">
-              Impact Report
-            </Text>
-            <Title order={1} size={56} fw={900} mb="md" style={{ lineHeight: 1.1 }}>
-              Funding the Commons
-            </Title>
-            <Group gap="md" align="center" mb="md">
-              <Title order={2} size={32} fw={600} c="dimmed">
-                Residency 2025
+          <Group justify="space-between" align="flex-start">
+            <Box>
+              <Text size="sm" tt="uppercase" fw={700} c="dimmed" mb="xs">
+                Impact Report
+              </Text>
+              <Title order={1} size={56} fw={900} mb="md" style={{ lineHeight: 1.1 }}>
+                Funding the Commons
               </Title>
-              <Badge size="lg" variant="light" color="blue" leftSection={<IconMapPin size={14} />}>
-                Buenos Aires
-              </Badge>
-              <Badge size="lg" variant="light" color="violet" leftSection={<IconCalendar size={14} />}>
-                Oct 24 - Nov 14
-              </Badge>
-            </Group>
-          </Box>
+              <Group gap="md" align="center" mb="md">
+                <Title order={2} size={32} fw={600} c="dimmed">
+                  Residency 2025
+                </Title>
+                <Badge size="lg" variant="light" color="blue" leftSection={<IconMapPin size={14} />}>
+                  Buenos Aires
+                </Badge>
+                <Badge size="lg" variant="light" color="violet" leftSection={<IconCalendar size={14} />}>
+                  Oct 24 - Nov 14
+                </Badge>
+              </Group>
+            </Box>
+
+            {/* PDF Download Button */}
+            <Box className="no-print">
+              <Tooltip label="Download as PDF" position="left">
+                <Button
+                  leftSection={<IconFileTypePdf size={20} />}
+                  rightSection={<IconDownload size={16} />}
+                  variant="filled"
+                  color="blue"
+                  size="lg"
+                  onClick={handleDownloadPDF}
+                  style={{
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                  }}
+                >
+                  Download PDF
+                </Button>
+              </Tooltip>
+            </Box>
+          </Group>
 
           {/* Key Stats Grid */}
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
@@ -604,6 +633,21 @@ export default function FundingCommonsResidency2025Report() {
           :global(.hover-lift:hover) {
             transform: translateY(-4px);
             box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+          }
+
+          /* Print Styles for PDF Export */
+          @media print {
+            :global(.no-print) {
+              display: none !important;
+            }
+            :global(body) {
+              print-color-adjust: exact;
+              -webkit-print-color-adjust: exact;
+            }
+            :global(.hover-lift) {
+              box-shadow: none !important;
+              transform: none !important;
+            }
           }
         `}</style>
       </Container>
