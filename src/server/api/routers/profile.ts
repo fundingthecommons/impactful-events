@@ -1985,8 +1985,9 @@ export const profileRouter = createTRPCRouter({
 
       const isOwner = project?.profile.userId === ctx.session.user.id;
       const isCollaborator = (project?.collaborators.length ?? 0) > 0;
+      const isAdmin = ctx.session.user.role === "admin";
 
-      if (!project || (!isOwner && !isCollaborator)) {
+      if (!project || (!isOwner && !isCollaborator && !isAdmin)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You can only add repositories to projects you own or collaborate on",
@@ -2045,8 +2046,9 @@ export const profileRouter = createTRPCRouter({
 
       const isOwner = repository.project.profile.userId === ctx.session.user.id;
       const isCollaborator = (repository.project.collaborators.length ?? 0) > 0;
+      const isAdmin = ctx.session.user.role === "admin";
 
-      if (!isOwner && !isCollaborator) {
+      if (!isOwner && !isCollaborator && !isAdmin) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You can only update repositories for projects you own or collaborate on",
@@ -2105,8 +2107,9 @@ export const profileRouter = createTRPCRouter({
 
       const isOwner = repository.project.profile.userId === ctx.session.user.id;
       const isCollaborator = (repository.project.collaborators.length ?? 0) > 0;
+      const isAdmin = ctx.session.user.role === "admin";
 
-      if (!isOwner && !isCollaborator) {
+      if (!isOwner && !isCollaborator && !isAdmin) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You can only remove repositories from projects you own or collaborate on",
