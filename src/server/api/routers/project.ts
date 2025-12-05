@@ -1922,4 +1922,83 @@ export const projectRouter = createTRPCRouter({
 
       return repo;
     }),
+
+  // Public: Get all projects for an event with residency commit data
+  getEventProjectsWithCommits: publicProcedure
+    .input(z.object({
+      eventId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Get all accepted residents for this event
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+          applicationType: "RESIDENT",
+        },
+        select: {
+          user: {
+            select: {
+              profile: {
+                select: {
+                  projects: {
+                    select: {
+                      id: true,
+                      title: true,
+                      repositories: {
+                        select: {
+                          id: true,
+                          url: true,
+                          isPrimary: true,
+                          residencyMetrics: {
+                            where: {
+                              eventId: input.eventId,
+                            },
+                            select: {
+                              residencyCommits: true,
+                            },
+                          },
+                        },
+                        orderBy: [
+                          { isPrimary: "desc" },
+                          { order: "asc" },
+                        ],
+                      },
+                    },
+                    orderBy: { createdAt: "desc" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Flatten projects and calculate total commits
+      const projects = acceptedApplications
+        .filter((app) => app.user?.profile?.projects?.length)
+        .flatMap((app) => app.user!.profile!.projects)
+        .map((project) => {
+          const primaryRepo = project.repositories.find((r) => r.isPrimary) ?? project.repositories[0];
+          const totalCommits = project.repositories.reduce(
+            (sum, repo) => sum + (repo.residencyMetrics[0]?.residencyCommits ?? 0),
+            0
+          );
+
+          return {
+            id: project.id,
+            title: project.title,
+            totalCommits,
+            primaryRepoUrl: primaryRepo?.url ?? null,
+          };
+        })
+        // Remove duplicates (same user might have multiple accepted applications)
+        .filter((project, index, self) =>
+          index === self.findIndex((p) => p.id === project.id)
+        )
+        // Sort by commits descending
+        .sort((a, b) => b.totalCommits - a.totalCommits);
+
+      return projects;
+    }),
 });

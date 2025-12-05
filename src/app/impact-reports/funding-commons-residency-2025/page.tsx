@@ -39,6 +39,8 @@ import {
   IconClock,
   IconRocket,
   IconRefresh,
+  IconBrandGithub,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -55,6 +57,11 @@ export default function FundingCommonsResidency2025Report() {
 
   // Fetch GitHub activity stats
   const { data: activityStats, isLoading: loadingActivityStats } = api.project.getEventActivityStats.useQuery({
+    eventId: "funding-commons-residency-2025",
+  });
+
+  // Fetch all projects with commit counts
+  const { data: projectsWithCommits, isLoading: loadingProjects } = api.project.getEventProjectsWithCommits.useQuery({
     eventId: "funding-commons-residency-2025",
   });
 
@@ -587,6 +594,60 @@ export default function FundingCommonsResidency2025Report() {
               </Stack>
             </Paper>
           </SimpleGrid>
+        </Stack>
+
+        {/* Residency Projects */}
+        <Stack gap="xl" mb={60}>
+          <Title order={2} size={32} fw={700}>
+            Residency Projects
+          </Title>
+
+          <Paper p="xl" radius="lg" withBorder>
+            {loadingProjects ? (
+              <Center py="xl">
+                <Loader size="md" />
+              </Center>
+            ) : (
+              <>
+                <Text size="sm" c="dimmed" mb="xl">
+                  {projectsWithCommits?.length ?? 0} projects from the residency
+                </Text>
+                <Stack gap="md">
+                  {projectsWithCommits?.map((project) => (
+                    <Paper key={project.id} p="md" radius="md" withBorder className="hover-lift">
+                      <Group justify="space-between" wrap="wrap">
+                        <Text size="md" fw={600}>
+                          {project.title}
+                        </Text>
+                        <Group gap="md">
+                          <Badge variant="light" color="blue">
+                            {project.totalCommits} {project.totalCommits === 1 ? 'commit' : 'commits'}
+                          </Badge>
+                          {project.primaryRepoUrl && (
+                            <Anchor
+                              href={project.primaryRepoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              c="dimmed"
+                            >
+                              <IconBrandGithub size={18} />
+                            </Anchor>
+                          )}
+                          <Anchor
+                            component={Link}
+                            href={`/events/funding-commons-residency-2025/projects/${project.id}`}
+                            c="dimmed"
+                          >
+                            <IconExternalLink size={18} />
+                          </Anchor>
+                        </Group>
+                      </Group>
+                    </Paper>
+                  ))}
+                </Stack>
+              </>
+            )}
+          </Paper>
         </Stack>
 
         {/* Sponsors Section */}
