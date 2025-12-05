@@ -101,7 +101,6 @@ export default function FundingCommonsResidency2025Report() {
 
   const programHighlights = [
     "3-week intensive residency program",
-    "Focused on public goods funding and web3 infrastructure",
     "Buenos Aires, Argentina (October 24 - November 14, 2025)",
     "Hands-on project development and mentorship",
   ];
@@ -282,6 +281,56 @@ export default function FundingCommonsResidency2025Report() {
           </SimpleGrid>
         </Stack>
 
+        {/* Focus Areas */}
+        <Stack gap="xl" mb={60}>
+          <Title order={2} size={32} fw={700}>
+            Focus Areas
+          </Title>
+
+          <Paper p="xl" radius="lg" withBorder>
+            {loadingFocusAreas ? (
+              <Center py="xl">
+                <Loader size="lg" />
+              </Center>
+            ) : projectCategories.length === 0 ? (
+              <Text size="sm" c="dimmed" ta="center" py="xl">
+                No focus areas data available yet. Run the categorization script to populate this section.
+              </Text>
+            ) : (
+              <>
+                <Text size="sm" c="dimmed" mb="xl">
+                  Distribution of {focusAreasData?.projectsWithFocusAreas ?? 0} projects across {projectCategories.length} focus areas
+                </Text>
+                <Stack gap="lg">
+                  {projectCategories.map((cat, index) => (
+                    <Box key={index}>
+                      <Group justify="space-between" mb="xs">
+                        <Text size="sm" fw={500}>
+                          {cat.category}
+                        </Text>
+                        <Badge variant="light" color="blue">
+                          {cat.count} {cat.count === 1 ? 'project' : 'projects'}
+                        </Badge>
+                      </Group>
+                      <Progress
+                        value={(cat.count / (focusAreasData?.totalProjects ?? 1)) * 100}
+                        size="lg"
+                        radius="md"
+                        striped
+                        animated
+                        color="blue"
+                        styles={{
+                          root: { backgroundColor: "var(--mantine-color-gray-2)" },
+                        }}
+                      />
+                    </Box>
+                  ))}
+                </Stack>
+              </>
+            )}
+          </Paper>
+        </Stack>
+
         {/* Additional Stats */}
         <Stack gap="xl" mb={60}>
           <Title order={2} size={32} fw={700}>
@@ -355,56 +404,6 @@ export default function FundingCommonsResidency2025Report() {
               </Paper>
             ))}
           </SimpleGrid>
-        </Stack>
-
-        {/* Focus Areas */}
-        <Stack gap="xl" mb={60}>
-          <Title order={2} size={32} fw={700}>
-            Focus Areas
-          </Title>
-
-          <Paper p="xl" radius="lg" withBorder>
-            {loadingFocusAreas ? (
-              <Center py="xl">
-                <Loader size="lg" />
-              </Center>
-            ) : projectCategories.length === 0 ? (
-              <Text size="sm" c="dimmed" ta="center" py="xl">
-                No focus areas data available yet. Run the categorization script to populate this section.
-              </Text>
-            ) : (
-              <>
-                <Text size="sm" c="dimmed" mb="xl">
-                  Distribution of {focusAreasData?.projectsWithFocusAreas ?? 0} projects across {projectCategories.length} focus areas
-                </Text>
-                <Stack gap="lg">
-                  {projectCategories.map((cat, index) => (
-                    <Box key={index}>
-                      <Group justify="space-between" mb="xs">
-                        <Text size="sm" fw={500}>
-                          {cat.category}
-                        </Text>
-                        <Badge variant="light" color="blue">
-                          {cat.count} {cat.count === 1 ? 'project' : 'projects'}
-                        </Badge>
-                      </Group>
-                      <Progress
-                        value={(cat.count / (focusAreasData?.totalProjects ?? 1)) * 100}
-                        size="lg"
-                        radius="md"
-                        striped
-                        animated
-                        color="blue"
-                        styles={{
-                          root: { backgroundColor: "var(--mantine-color-gray-2)" },
-                        }}
-                      />
-                    </Box>
-                  ))}
-                </Stack>
-              </>
-            )}
-          </Paper>
         </Stack>
 
         {/* Impact Metrics Detail */}
