@@ -46,6 +46,7 @@ import {
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { CommitsTimelineChart } from "~/app/_components/CommitsTimelineChart";
+import { Hyperboard } from "~/app/_components/Hyperboard";
 
 export default function FundingCommonsResidency2025Report() {
   const handleDownloadPDF = () => {
@@ -64,6 +65,11 @@ export default function FundingCommonsResidency2025Report() {
 
   // Fetch all projects with commit counts and metrics
   const { data: projectsWithMetrics, isLoading: loadingProjects } = api.project.getEventProjectsWithMetrics.useQuery({
+    eventId: "funding-commons-residency-2025",
+  });
+
+  // Fetch combined hyperboard (sponsors + residents)
+  const { data: combinedHyperboard } = api.application.getCombinedHyperboard.useQuery({
     eventId: "funding-commons-residency-2025",
   });
 
@@ -117,16 +123,6 @@ export default function FundingCommonsResidency2025Report() {
     category: d.area,
     count: d.count,
   })) ?? [];
-
-  const sponsors = [
-    { name: "Protocol Labs", url: "https://protocol.ai", tier: "Lead Sponsor" },
-    { name: "NEAR", url: "https://near.org", tier: "Major Sponsor" },
-    { name: "Stellar", url: "https://stellar.org", tier: "Major Sponsor" },
-    { name: "Octant", url: "https://octant.app", tier: "Sponsor" },
-    { name: "Human Tech", url: "https://human.tech", tier: "Sponsor" },
-    { name: "Logos", url: "https://logos.co", tier: "Sponsor" },
-    { name: "Drips", url: "https://drips.network", tier: "Sponsor" },
-  ];
 
   const keyOutcomes = [
     "42 projects actively developed during residency",
@@ -561,21 +557,21 @@ export default function FundingCommonsResidency2025Report() {
                 </Title>
               </Group>
               <Text size="sm" c="dimmed" mb="md">
-                Mix of builders, researchers, and funders
+                Mix of builders, researchers, and academics
               </Text>
               <Stack gap="xs">
-                <Badge variant="light" color="violet">
-                  Builders: ?%
-                </Badge>
                 <Badge variant="light" color="blue">
-                  Researchers: ?%
+                  Developers: 47%
                 </Badge>
-                <Badge variant="light" color="pink">
-                  Funders: ?%
+                <Badge variant="light" color="violet">
+                  Entrepreneurs: 23%
+                </Badge>
+                <Badge variant="light" color="teal">
+                  Academics: 13%
                 </Badge>
               </Stack>
               <Text size="xs" c="dimmed" mt="md">
-                * Role distribution analysis in progress
+                Based on application background analysis
               </Text>
             </Paper>
 
@@ -764,30 +760,34 @@ export default function FundingCommonsResidency2025Report() {
           </Paper>
         </Stack>
 
-        {/* Sponsors Section */}
+        {/* Sponsors & Residents Hyperboard */}
         <Stack gap="xl" mb={60}>
           <Title order={2} size={32} fw={700}>
-            Program Sponsors
+            Sponsors & Residents
           </Title>
 
           <Paper p="xl" radius="lg" withBorder>
             <Text size="sm" c="dimmed" mb="xl">
-              7 sponsors made this residency possible
+              Our community of sponsors and residents — tile size reflects contribution level
             </Text>
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg" className="program-grid">
-              {sponsors.map((sponsor, index) => (
-                <Paper key={index} p="lg" radius="md" withBorder className="hover-lift">
-                  <Stack gap="sm">
-                    <Badge variant="light" color="blue" size="sm">
-                      {sponsor.tier}
-                    </Badge>
-                    <Anchor href={sponsor.url} target="_blank" size="md" fw={600}>
-                      {sponsor.name}
-                    </Anchor>
-                  </Stack>
-                </Paper>
-              ))}
-            </SimpleGrid>
+            {combinedHyperboard && combinedHyperboard.length > 0 ? (
+              <Hyperboard
+                data={combinedHyperboard}
+                height={600}
+                label="Sponsors & Residents"
+                onClickLabel={() => {
+                  // Navigate to hyperboard page
+                }}
+                grayscaleImages={true}
+                borderColor="#000000"
+                borderWidth={1}
+                logoSize="50%"
+              />
+            ) : (
+              <Center py="xl">
+                <Loader size="md" />
+              </Center>
+            )}
           </Paper>
         </Stack>
 
