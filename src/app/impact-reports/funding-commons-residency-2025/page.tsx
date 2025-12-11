@@ -19,6 +19,7 @@ import {
   Tooltip,
   Loader,
   Center,
+  Accordion,
 } from "@mantine/core";
 import {
   IconUsers,
@@ -41,9 +42,12 @@ import {
   IconRefresh,
   IconBrandGithub,
   IconExternalLink,
+  IconChartLine,
+  IconGitCommit,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import { CommitsTimelineChart } from "~/app/_components/CommitsTimelineChart";
 
 export default function FundingCommonsResidency2025Report() {
   const handleDownloadPDF = () => {
@@ -60,8 +64,8 @@ export default function FundingCommonsResidency2025Report() {
     eventId: "funding-commons-residency-2025",
   });
 
-  // Fetch all projects with commit counts
-  const { data: projectsWithCommits, isLoading: loadingProjects } = api.project.getEventProjectsWithCommits.useQuery({
+  // Fetch all projects with commit counts and metrics
+  const { data: projectsWithMetrics, isLoading: loadingProjects } = api.project.getEventProjectsWithMetrics.useQuery({
     eventId: "funding-commons-residency-2025",
   });
 
@@ -610,41 +614,145 @@ export default function FundingCommonsResidency2025Report() {
             ) : (
               <>
                 <Text size="sm" c="dimmed" mb="xl">
-                  {projectsWithCommits?.length ?? 0} projects from the residency
+                  {projectsWithMetrics?.length ?? 0} projects from the residency — click to view metrics
                 </Text>
-                <Stack gap="md">
-                  {projectsWithCommits?.map((project) => (
-                    <Paper key={project.id} p="md" radius="md" withBorder className="hover-lift">
-                      <Group justify="space-between" wrap="wrap">
-                        <Text size="md" fw={600}>
-                          {project.title}
-                        </Text>
-                        <Group gap="md">
-                          <Badge variant="light" color="blue">
-                            {project.totalCommits} {project.totalCommits === 1 ? 'commit' : 'commits'}
-                          </Badge>
-                          {project.primaryRepoUrl && (
+                <Accordion variant="separated" radius="md">
+                  {projectsWithMetrics?.map((project) => (
+                    <Accordion.Item key={project.id} value={project.id}>
+                      <Accordion.Control>
+                        <Group justify="space-between" wrap="wrap" pr="md">
+                          <Text size="md" fw={600}>
+                            {project.title}
+                          </Text>
+                          <Group gap="md">
+                            <Badge variant="light" color="blue">
+                              {project.totalCommits} {project.totalCommits === 1 ? 'commit' : 'commits'}
+                            </Badge>
+                            {project.metrics.length > 0 && (
+                              <Badge variant="light" color="grape" leftSection={<IconChartLine size={12} />}>
+                                {project.metrics.length} {project.metrics.length === 1 ? 'metric' : 'metrics'}
+                              </Badge>
+                            )}
+                          </Group>
+                        </Group>
+                      </Accordion.Control>
+                      <Accordion.Panel>
+                        <Stack gap="md">
+                          {/* Links Row */}
+                          <Group gap="md">
+                            {project.primaryRepoUrl && (
+                              <Anchor
+                                href={project.primaryRepoUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                size="sm"
+                                c="dimmed"
+                              >
+                                <Group gap="xs">
+                                  <IconBrandGithub size={16} />
+                                  <Text size="sm">GitHub</Text>
+                                </Group>
+                              </Anchor>
+                            )}
                             <Anchor
-                              href={project.primaryRepoUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              component={Link}
+                              href={`/events/funding-commons-residency-2025/projects/${project.id}`}
+                              size="sm"
                               c="dimmed"
                             >
-                              <IconBrandGithub size={18} />
+                              <Group gap="xs">
+                                <IconExternalLink size={16} />
+                                <Text size="sm">View Project</Text>
+                              </Group>
                             </Anchor>
+                          </Group>
+
+                          {/* Standard Metrics - GitHub Commits */}
+                          {project.primaryRepoId && (
+                            <>
+                              <Divider />
+                              <Box>
+                                <Group gap="xs" mb="sm">
+                                  <IconGitCommit size={18} />
+                                  <Text size="sm" fw={500}>Standard Metrics</Text>
+                                  <Badge size="xs" variant="light" color="green">
+                                    automated
+                                  </Badge>
+                                </Group>
+                                <Accordion variant="contained" radius="sm">
+                                  <Accordion.Item value="commits">
+                                    <Accordion.Control>
+                                      <Group gap="xs">
+                                        <IconGitCommit size={16} />
+                                        <Text size="sm" fw={500}>GitHub Commits</Text>
+                                      </Group>
+                                    </Accordion.Control>
+                                    <Accordion.Panel>
+                                      <CommitsTimelineChart
+                                        repositoryId={project.primaryRepoId}
+                                        eventId="funding-commons-residency-2025"
+                                      />
+                                    </Accordion.Panel>
+                                  </Accordion.Item>
+                                </Accordion>
+                              </Box>
+                            </>
                           )}
-                          <Anchor
-                            component={Link}
-                            href={`/events/funding-commons-residency-2025/projects/${project.id}`}
-                            c="dimmed"
-                          >
-                            <IconExternalLink size={18} />
-                          </Anchor>
-                        </Group>
-                      </Group>
-                    </Paper>
+
+                          {/* Custom Tracked Metrics */}
+                          {project.metrics.length > 0 && (
+                            <>
+                              <Divider />
+                              <Text size="sm" fw={500} c="dimmed">
+                                Custom Tracked Metrics
+                              </Text>
+                              <Stack gap="xs">
+                                {project.metrics.map((metric: { id: string; name: string; description: string | null; metricType: string[]; unitOfMetric: string | null; targetValue: number | null }) => (
+                                  <Paper key={metric.id} p="sm" withBorder radius="sm" bg="gray.0">
+                                    <Group justify="space-between" wrap="nowrap">
+                                      <Box style={{ flex: 1, minWidth: 0 }}>
+                                        <Text size="sm" fw={500} lineClamp={1}>
+                                          {metric.name}
+                                        </Text>
+                                        {metric.description && (
+                                          <Text size="xs" c="dimmed" lineClamp={2}>
+                                            {metric.description}
+                                          </Text>
+                                        )}
+                                      </Box>
+                                      <Group gap="xs" wrap="nowrap">
+                                        {metric.metricType.slice(0, 2).map((type: string) => (
+                                          <Badge key={type} size="xs" variant="light">
+                                            {type.toLowerCase()}
+                                          </Badge>
+                                        ))}
+                                        {metric.unitOfMetric && (
+                                          <Text size="xs" c="dimmed">
+                                            {metric.unitOfMetric}
+                                          </Text>
+                                        )}
+                                      </Group>
+                                    </Group>
+                                  </Paper>
+                                ))}
+                              </Stack>
+                            </>
+                          )}
+
+                          {/* Show message if no metrics at all */}
+                          {!project.primaryRepoId && project.metrics.length === 0 && (
+                            <>
+                              <Divider />
+                              <Text size="sm" c="dimmed" fs="italic">
+                                No metrics tracked for this project yet.
+                              </Text>
+                            </>
+                          )}
+                        </Stack>
+                      </Accordion.Panel>
+                    </Accordion.Item>
                   ))}
-                </Stack>
+                </Accordion>
               </>
             )}
           </Paper>

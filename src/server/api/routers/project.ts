@@ -2001,4 +2001,114 @@ export const projectRouter = createTRPCRouter({
 
       return projects;
     }),
+
+  // Public: Get all projects for an event with residency commit data AND metrics
+  getEventProjectsWithMetrics: publicProcedure
+    .input(z.object({
+      eventId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Get all accepted residents for this event
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+          applicationType: "RESIDENT",
+          userId: { not: null },
+        },
+        select: {
+          id: true,
+          user: {
+            select: {
+              profile: {
+                select: {
+                  projects: {
+                    select: {
+                      id: true,
+                      title: true,
+                      repositories: {
+                        select: {
+                          id: true,
+                          url: true,
+                          isPrimary: true,
+                          residencyMetrics: {
+                            where: {
+                              eventId: input.eventId,
+                            },
+                            select: {
+                              residencyCommits: true,
+                            },
+                          },
+                        },
+                        orderBy: [
+                          { isPrimary: "desc" },
+                          { order: "asc" },
+                        ],
+                      },
+                      metrics: {
+                        where: {
+                          isTracking: true,
+                        },
+                        select: {
+                          id: true,
+                          targetValue: true,
+                          metric: {
+                            select: {
+                              id: true,
+                              name: true,
+                              description: true,
+                              metricType: true,
+                              unitOfMetric: true,
+                              collectionMethod: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                    orderBy: { createdAt: "desc" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Flatten projects and calculate total commits
+      const projects = acceptedApplications
+        .filter((app) => app.user?.profile?.projects?.length)
+        .flatMap((app) => app.user!.profile!.projects)
+        .map((project) => {
+          const primaryRepo = project.repositories.find((r: { isPrimary: boolean }) => r.isPrimary) ?? project.repositories[0];
+          const totalCommits = project.repositories.reduce(
+            (sum: number, repo: { residencyMetrics: Array<{ residencyCommits: number | null }> }) => sum + (repo.residencyMetrics[0]?.residencyCommits ?? 0),
+            0
+          );
+
+          return {
+            id: project.id,
+            title: project.title,
+            totalCommits,
+            primaryRepoId: primaryRepo?.id ?? null,
+            primaryRepoUrl: primaryRepo?.url ?? null,
+            metrics: project.metrics.map((pm: { id: string; targetValue: number | null; metric: { id: string; name: string; description: string | null; metricType: string[]; unitOfMetric: string | null; collectionMethod: string | null } }) => ({
+              id: pm.id,
+              name: pm.metric.name,
+              description: pm.metric.description,
+              metricType: pm.metric.metricType,
+              unitOfMetric: pm.metric.unitOfMetric,
+              collectionMethod: pm.metric.collectionMethod,
+              targetValue: pm.targetValue,
+            })),
+          };
+        })
+        // Remove duplicates (same user might have multiple accepted applications)
+        .filter((project, index, self) =>
+          index === self.findIndex((p) => p.id === project.id)
+        )
+        // Sort by commits descending
+        .sort((a, b) => b.totalCommits - a.totalCommits);
+
+      return projects;
+    }),
 });
