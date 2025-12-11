@@ -2111,4 +2111,115 @@ export const projectRouter = createTRPCRouter({
 
       return projects;
     }),
+
+  // Public: Get all metrics tracked across an event with their associated projects
+  getEventMetricsWithProjects: publicProcedure
+    .input(z.object({
+      eventId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Get all accepted residents for this event
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          eventId: input.eventId,
+          status: "ACCEPTED",
+          applicationType: "RESIDENT",
+          userId: { not: null },
+        },
+        select: {
+          user: {
+            select: {
+              profile: {
+                select: {
+                  projects: {
+                    select: {
+                      id: true,
+                      title: true,
+                      metrics: {
+                        where: {
+                          isTracking: true,
+                        },
+                        select: {
+                          id: true,
+                          targetValue: true,
+                          metric: {
+                            select: {
+                              id: true,
+                              name: true,
+                              description: true,
+                              metricType: true,
+                              unitOfMetric: true,
+                              collectionMethod: true,
+                              category: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Build a map of metrics to projects
+      const metricsMap = new Map<string, {
+        id: string;
+        name: string;
+        description: string | null;
+        metricType: string[];
+        unitOfMetric: string | null;
+        collectionMethod: string;
+        category: string | null;
+        projects: Array<{
+          id: string;
+          title: string;
+          targetValue: number | null;
+        }>;
+      }>();
+
+      // Process all projects and their metrics
+      const seenProjects = new Set<string>();
+      for (const app of acceptedApplications) {
+        const projects = app.user?.profile?.projects ?? [];
+        for (const project of projects) {
+          // Skip duplicate projects (user might have multiple accepted applications)
+          if (seenProjects.has(project.id)) continue;
+          seenProjects.add(project.id);
+
+          for (const pm of project.metrics) {
+            const metric = pm.metric;
+            if (!metricsMap.has(metric.id)) {
+              metricsMap.set(metric.id, {
+                id: metric.id,
+                name: metric.name,
+                description: metric.description,
+                metricType: metric.metricType,
+                unitOfMetric: metric.unitOfMetric,
+                collectionMethod: metric.collectionMethod,
+                category: metric.category,
+                projects: [],
+              });
+            }
+            metricsMap.get(metric.id)!.projects.push({
+              id: project.id,
+              title: project.title,
+              targetValue: pm.targetValue,
+            });
+          }
+        }
+      }
+
+      // Convert map to array and sort by number of projects tracking the metric
+      const metrics = Array.from(metricsMap.values())
+        .sort((a, b) => b.projects.length - a.projects.length);
+
+      return {
+        metrics,
+        totalMetrics: metrics.length,
+        totalProjectsWithMetrics: seenProjects.size,
+      };
+    }),
 });
