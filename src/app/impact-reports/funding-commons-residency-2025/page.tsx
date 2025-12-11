@@ -24,8 +24,6 @@ import {
 import {
   IconUsers,
   IconBriefcase,
-  IconActivity,
-  IconThumbUp,
   IconSparkles,
   IconChartBar,
   IconCalendar,
@@ -73,8 +71,6 @@ export default function FundingCommonsResidency2025Report() {
   const stats = [
     { value: "33", label: "Residents", subtitle: "Accepted to residency", icon: IconUsers, color: "violet" },
     { value: "42", label: "Projects", subtitle: "Active projects", icon: IconBriefcase, color: "blue" },
-    { value: "119", label: "Updates", subtitle: "Project updates shared", icon: IconActivity, color: "teal" },
-    { value: "77", label: "Likes", subtitle: "Community engagement", icon: IconThumbUp, color: "pink" },
   ];
 
   const additionalStats = [
@@ -537,11 +533,21 @@ export default function FundingCommonsResidency2025Report() {
               <Text size="sm" c="dimmed" mb="md">
                 Residents from diverse regions globally
               </Text>
-              <Badge size="xl" variant="light" color="blue">
-                ? Countries
+              <Badge size="xl" variant="light" color="blue" mb="sm">
+                18 Countries
               </Badge>
+              <Stack gap="xs">
+                <Group gap="xs">
+                  <Badge variant="light" color="green">
+                    27% LATAM
+                  </Badge>
+                  <Badge variant="light" color="gray">
+                    73% Global
+                  </Badge>
+                </Group>
+              </Stack>
               <Text size="xs" c="dimmed" mt="md">
-                * Detailed geographic data being compiled
+                Top countries: USA (4), Ireland (2), Argentina (2), Bolivia (2)
               </Text>
             </Paper>
 
