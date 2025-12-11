@@ -1319,6 +1319,8 @@ export default function ProjectDetailClient({
               <MetricsTab
                 projectId={project.id}
                 canEdit={canEdit}
+                projectTitle={project.title}
+                projectImageUrl={project.imageUrl}
               />
             </Tabs.Panel>
 

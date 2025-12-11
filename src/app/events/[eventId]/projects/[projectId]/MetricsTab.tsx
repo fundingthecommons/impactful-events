@@ -23,6 +23,7 @@ import {
   Checkbox,
   Accordion,
   Alert,
+  Image,
 } from "@mantine/core";
 import {
   IconPlus,
@@ -41,6 +42,8 @@ import { type MetricType, type CollectionMethod } from "@prisma/client";
 interface MetricsTabProps {
   projectId: string;
   canEdit: boolean;
+  projectTitle?: string;
+  projectImageUrl?: string | null;
 }
 
 // Modal for searching and adding metrics from the metrics garden
@@ -744,7 +747,7 @@ function SuggestMetricsModal({
   );
 }
 
-export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
+export default function MetricsTab({ projectId, canEdit, projectTitle, projectImageUrl }: MetricsTabProps) {
   const [addModalOpened, setAddModalOpened] = useState(false);
   const [createModalOpened, setCreateModalOpened] = useState(false);
   const [suggestModalOpened, setSuggestModalOpened] = useState(false);
@@ -848,6 +851,46 @@ export default function MetricsTab({ projectId, canEdit }: MetricsTabProps) {
 
   return (
     <Stack gap="lg">
+      {/* Project Header with Logo */}
+      {(projectImageUrl ?? projectTitle) && (
+        <Paper p="xl" radius="md" withBorder>
+          <Group gap="md" align="center">
+            {projectImageUrl && (
+              <Box
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  border: '1px solid var(--mantine-color-gray-3)',
+                }}
+              >
+                <Image
+                  src={projectImageUrl}
+                  alt={projectTitle ?? 'Project logo'}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                  }}
+                />
+              </Box>
+            )}
+            <Box>
+              {projectTitle && (
+                <Title order={2} size="h3">
+                  {projectTitle}
+                </Title>
+              )}
+              <Text size="sm" c="dimmed">
+                Metrics tracking and impact measurement
+              </Text>
+            </Box>
+          </Group>
+        </Paper>
+      )}
+
       {/* Selected Metrics Section */}
       <Paper p="xl" radius="md" withBorder>
         <Stack gap="lg">
