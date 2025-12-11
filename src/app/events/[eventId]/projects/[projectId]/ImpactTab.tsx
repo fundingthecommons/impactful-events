@@ -10,16 +10,20 @@ import {
   Loader,
   Center,
   Box,
+  Accordion,
 } from "@mantine/core";
-import { IconChartLine } from "@tabler/icons-react";
+import { IconChartLine, IconGitCommit } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { type MetricType, type CollectionMethod } from "@prisma/client";
+import { CommitsTimelineChart } from "~/app/_components/CommitsTimelineChart";
 
 interface ImpactTabProps {
   projectId: string;
+  eventId?: string;
+  repositoryId?: string;
 }
 
-export default function ImpactTab({ projectId }: ImpactTabProps) {
+export default function ImpactTab({ projectId, eventId, repositoryId }: ImpactTabProps) {
   const { data: projectMetrics, isLoading } = api.metric.getProjectMetrics.useQuery({
     projectId,
   });
@@ -57,6 +61,46 @@ export default function ImpactTab({ projectId }: ImpactTabProps) {
 
   return (
     <Stack gap="lg">
+      {/* Standard Metrics Section */}
+      {repositoryId && eventId && (
+        <Paper p="xl" radius="md" withBorder>
+          <Stack gap="md">
+            <Group gap="xs">
+              <IconGitCommit size={24} />
+              <Title order={2}>Standard Metrics</Title>
+              <Badge color="green" variant="light" size="sm">
+                automated
+              </Badge>
+            </Group>
+            <Text c="dimmed" size="sm" mb="md">
+              Automated metrics tracked for all projects
+            </Text>
+
+            <Accordion variant="separated">
+              <Accordion.Item value="commits">
+                <Accordion.Control>
+                  <Group>
+                    <IconGitCommit size={20} />
+                    <Box>
+                      <Text fw={600}>GitHub Commits</Text>
+                      <Text size="sm" c="dimmed">
+                        Commit activity over time
+                      </Text>
+                    </Box>
+                  </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <CommitsTimelineChart
+                    repositoryId={repositoryId}
+                    eventId={eventId}
+                  />
+                </Accordion.Panel>
+              </Accordion.Item>
+            </Accordion>
+          </Stack>
+        </Paper>
+      )}
+
       <Paper p="xl" radius="md" withBorder>
         <Stack gap="lg">
           <Box>

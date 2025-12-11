@@ -1308,15 +1308,17 @@ export default function ProjectDetailClient({
             </Tabs.Panel>
 
             <Tabs.Panel value="impact" mt="md">
-              <ImpactTab projectId={project.id} />
+              <ImpactTab
+                projectId={project.id}
+                eventId={_eventId}
+                repositoryId={project.repositories?.find(r => r.isPrimary)?.id ?? project.repositories?.[0]?.id}
+              />
             </Tabs.Panel>
 
             <Tabs.Panel value="metrics" mt="md">
               <MetricsTab
                 projectId={project.id}
                 canEdit={canEdit}
-                eventId={_eventId}
-                repositoryId={project.repositories?.find(r => r.isPrimary)?.id ?? project.repositories?.[0]?.id}
               />
             </Tabs.Panel>
 
