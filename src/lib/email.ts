@@ -3,19 +3,38 @@ import { env } from "~/env";
 
 // Email environment configuration
 const EMAIL_MODE: "development" | "staging" | "production" = env.EMAIL_MODE;
-const TEST_EMAIL: string = env.TEST_EMAIL_OVERRIDE;
+const TEST_EMAIL: string | undefined = env.TEST_EMAIL_OVERRIDE;
+
+// Check if email is configured (Postmark token available)
+const isEmailConfigured = (): boolean => {
+  return !!(env.POSTMARK_SERVER_TOKEN ?? env.POSTMARK_SANDBOX_TOKEN);
+};
 
 // Create appropriate Postmark client based on environment
-const getPostmarkClient = () => {
+// Returns null if no token is configured (preview/test environments)
+const getPostmarkClient = (): ServerClient | null => {
+  const serverToken = env.POSTMARK_SERVER_TOKEN;
+  const sandboxToken = env.POSTMARK_SANDBOX_TOKEN;
+
+  // No tokens configured - email is disabled
+  if (!serverToken && !sandboxToken) {
+    console.log("📧 Email disabled: No Postmark tokens configured");
+    return null;
+  }
+
   switch (EMAIL_MODE) {
     case "development":
       // Use sandbox token if available, otherwise live token with redirection
-      return new ServerClient(env.POSTMARK_SANDBOX_TOKEN ?? env.POSTMARK_SERVER_TOKEN);
+      return new ServerClient(sandboxToken ?? serverToken!);
     case "staging":
     case "production":
-      return new ServerClient(env.POSTMARK_SERVER_TOKEN);
+      if (!serverToken) {
+        console.log("📧 Email disabled: POSTMARK_SERVER_TOKEN required for staging/production");
+        return null;
+      }
+      return new ServerClient(serverToken);
     default:
-      return new ServerClient(env.POSTMARK_SANDBOX_TOKEN ?? env.POSTMARK_SERVER_TOKEN);
+      return new ServerClient(sandboxToken ?? serverToken!);
   }
 };
 
@@ -50,10 +69,23 @@ export interface SendEmailResult {
  * Staging: Redirects all emails to test email with clear labeling  
  * Production: Sends to actual recipients with safety checks
  */
-export async function sendEmail(params: SendEmailParams & { 
+export async function sendEmail(params: SendEmailParams & {
   bypassSafety?: boolean; // Admin override for production
 }): Promise<SendEmailResult> {
   try {
+    // Check if email is configured
+    if (!postmarkClient) {
+      console.log("📧 Email skipped (not configured):", {
+        to: params.to,
+        subject: params.subject,
+        reason: "No Postmark token available - likely preview/test environment"
+      });
+      return {
+        success: true, // Return success to not break application flow
+        messageId: "email-disabled-no-postmark-token",
+      };
+    }
+
     const emailMode: "development" | "staging" | "production" = EMAIL_MODE;
     const recipient = params.to;
     
@@ -71,23 +103,43 @@ export async function sendEmail(params: SendEmailParams & {
           subjectPrefix = "[DEV-SANDBOX]";
           shouldAddWarningBanner = false; // No need since it won't be delivered
           warningType = "sandbox";
-        } else {
+        } else if (TEST_EMAIL) {
           // Redirect to test email
           finalRecipient = TEST_EMAIL;
           subjectPrefix = "[DEV]";
           shouldAddWarningBanner = true;
           warningType = "development";
+        } else {
+          // No test email configured - skip sending
+          console.log("📧 Email skipped (dev mode, no TEST_EMAIL_OVERRIDE):", {
+            to: params.to,
+            subject: params.subject
+          });
+          return {
+            success: true,
+            messageId: "email-disabled-no-test-email",
+          };
         }
         break;
-        
+
       case "staging":
         // Always redirect to test email in staging
+        if (!TEST_EMAIL) {
+          console.log("📧 Email skipped (staging mode, no TEST_EMAIL_OVERRIDE):", {
+            to: params.to,
+            subject: params.subject
+          });
+          return {
+            success: true,
+            messageId: "email-disabled-no-test-email",
+          };
+        }
         finalRecipient = TEST_EMAIL;
         subjectPrefix = "[STAGING]";
         shouldAddWarningBanner = true;
         warningType = "staging";
         break;
-        
+
       case "production":
         // Postmark account is now approved - send directly to all recipients
         finalRecipient = recipient;
@@ -95,9 +147,19 @@ export async function sendEmail(params: SendEmailParams & {
         shouldAddWarningBanner = false;
         warningType = "none";
         break;
-        
+
       default:
-        // Fallback to safe mode
+        // Fallback to safe mode - skip if no test email
+        if (!TEST_EMAIL) {
+          console.log("📧 Email skipped (unknown mode, no TEST_EMAIL_OVERRIDE):", {
+            to: params.to,
+            subject: params.subject
+          });
+          return {
+            success: true,
+            messageId: "email-disabled-no-test-email",
+          };
+        }
         finalRecipient = TEST_EMAIL;
         subjectPrefix = "[UNKNOWN-MODE]";
         shouldAddWarningBanner = true;
@@ -228,37 +290,62 @@ function stripHtml(html: string): string {
 }
 
 /**
+ * Check if email sending is enabled (Postmark is configured)
+ */
+export function isEmailEnabled(): boolean {
+  return isEmailConfigured();
+}
+
+/**
  * Check if email sending is safe for the current environment
  */
-export function isEmailSendingSafe(): { safe: boolean; reason: string; mode: string } {
+export function isEmailSendingSafe(): { safe: boolean; reason: string; mode: string; enabled: boolean } {
   const mode: "development" | "staging" | "production" = EMAIL_MODE;
-  
+  const enabled = isEmailConfigured();
+
+  if (!enabled) {
+    return {
+      safe: true,
+      reason: "Email disabled - no Postmark token configured",
+      mode,
+      enabled: false
+    };
+  }
+
   switch (mode) {
     case "development":
-      return { 
-        safe: true, 
-        reason: EMAIL_SAFETY_CONFIG.useSandboxInDev 
-          ? "Using Postmark sandbox server (black-hole)" 
-          : "Redirecting to test email",
-        mode: "development"
+      return {
+        safe: true,
+        reason: EMAIL_SAFETY_CONFIG.useSandboxInDev
+          ? "Using Postmark sandbox server (black-hole)"
+          : TEST_EMAIL
+            ? "Redirecting to test email"
+            : "Email disabled - no test email configured",
+        mode: "development",
+        enabled
       };
     case "staging":
-      return { 
-        safe: true, 
-        reason: "All emails redirected to test address", 
-        mode: "staging" 
+      return {
+        safe: true,
+        reason: TEST_EMAIL
+          ? "All emails redirected to test address"
+          : "Email disabled - no test email configured",
+        mode: "staging",
+        enabled
       };
     case "production":
-      return { 
-        safe: false, 
-        reason: "Production mode - emails go to real recipients", 
-        mode: "production" 
+      return {
+        safe: false,
+        reason: "Production mode - emails go to real recipients",
+        mode: "production",
+        enabled
       };
     default:
-      return { 
-        safe: true, 
-        reason: "Unknown mode - defaulting to safe redirection", 
-        mode: "unknown" 
+      return {
+        safe: true,
+        reason: "Unknown mode - defaulting to safe redirection",
+        mode: "unknown",
+        enabled
       };
   }
 }
