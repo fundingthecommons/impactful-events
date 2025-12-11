@@ -104,15 +104,17 @@ export const authConfig = {
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       allowDangerousEmailAccountLinking: true,
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-          // Include contacts and Gmail scopes for Google Contacts sync and Gmail import functionality
-          scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/gmail.readonly",
-        },
-      },
+      // Using default scopes (openid, email, profile) to avoid Google verification requirements.
+      // To enable Google Contacts sync and Gmail import, uncomment the authorization block below
+      // and complete Google's verification process (sensitive/restricted scope review).
+      // authorization: {
+      //   params: {
+      //     prompt: "consent",
+      //     access_type: "offline",
+      //     response_type: "code",
+      //     scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/gmail.readonly",
+      //   },
+      // },
     }),
     /**
      * ...add more providers here.
