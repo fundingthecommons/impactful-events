@@ -340,7 +340,7 @@ export default function UpdatesFeedClient({ eventId }: UpdatesFeedClientProps) {
                       </Text>
                       <Text
                         component={Link}
-                        href={`/events/${eventId}/projects/${update.project.id}`}
+                        href={`/projects/${update.project.id}`}
                         c="blue"
                         size="sm"
                         style={PROJECT_TITLE_STYLE}

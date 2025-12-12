@@ -283,7 +283,7 @@ export default function UpdateDetailClient({
               {/* Project Link */}
               <Button
                 component="a"
-                href={`/events/${eventId}/projects/${displayUpdate.project.id}`}
+                href={`/projects/${displayUpdate.project.id}`}
                 variant="light"
                 size="sm"
               >

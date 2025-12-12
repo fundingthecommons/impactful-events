@@ -56,10 +56,6 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
   const { data: profileData, isLoading, error } = api.profile.getProfile.useQuery({ userId });
   const { data: projectUpdates = [] } = api.project.getUserProjectUpdates.useQuery({ userId });
 
-  // Use default event for project links
-  // TODO: Could enhance this to look up user's actual event participation
-  const defaultEventId = "funding-commons-residency-2025";
-
   const getRelativeTime = (date: Date) => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -283,7 +279,7 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
                     p="sm"
                     withBorder
                     component={Link}
-                    href={`/events/${defaultEventId}/projects/${project.id}`}
+                    href={`/projects/${project.id}`}
                     style={{
                       textDecoration: 'none',
                       color: 'inherit',
@@ -366,7 +362,7 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
                                 size="xs"
                                 c="blue"
                                 component={Link}
-                                href={`/events/funding-commons-residency-2025/projects/${update.project.id}`}
+                                href={`/projects/${update.project.id}`}
                                 style={{ textDecoration: 'none', cursor: 'pointer' }}
                                 onMouseEnter={(e) => {
                                   e.currentTarget.style.textDecoration = 'underline';

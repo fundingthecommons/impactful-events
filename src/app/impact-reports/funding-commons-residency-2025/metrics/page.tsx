@@ -181,7 +181,7 @@ export default function MetricsPage() {
                                     )}
                                     <Anchor
                                       component={Link}
-                                      href={`/events/funding-commons-residency-2025/projects/${project.id}`}
+                                      href={`/projects/${project.id}`}
                                       size="xs"
                                       c="dimmed"
                                     >

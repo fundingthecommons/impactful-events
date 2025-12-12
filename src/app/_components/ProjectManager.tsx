@@ -488,7 +488,7 @@ export function ProjectManager({ projects, onProjectsChange, eventId }: ProjectM
                     withBorder
                     radius="md"
                     component={Link}
-                    href={`/events/${eventId}/projects/${project.id}`}
+                    href={`/projects/${project.id}`}
                     style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
                   >
                     {content}

@@ -104,7 +104,7 @@ export default function ProjectsPage({ params }: ProjectsPageProps) {
                     withBorder
                     h="100%"
                     component={Link}
-                    href={`/events/${eventId}/projects/${project.id}`}
+                    href={`/projects/${project.id}`}
                     style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
                   >
                     <Stack gap="xs">

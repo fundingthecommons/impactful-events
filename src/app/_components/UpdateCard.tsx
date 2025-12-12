@@ -67,7 +67,6 @@ interface UpdateCardProps {
       };
     }>;
   };
-  eventId: string;
   userId: string | undefined;
   userMetrics?: Record<string, { kudos: number; updates: number; projects: number; praiseReceived: number }>;
   commentInput: string;
@@ -83,7 +82,6 @@ interface UpdateCardProps {
 
 function UpdateCardComponent({
   update,
-  eventId,
   userId,
   userMetrics,
   commentInput,
@@ -152,7 +150,7 @@ function UpdateCardComponent({
                 </Text>
                 <Text
                   component={Link}
-                  href={`/events/${eventId}/projects/${update.project.id}`}
+                  href={`/projects/${update.project.id}`}
                   c="blue"
                   size="sm"
                   style={{

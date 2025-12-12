@@ -349,16 +349,19 @@ export const projectRouter = createTRPCRouter({
   getProjectDetails: publicProcedure
     .input(z.object({
       projectId: z.string(),
-      eventId: z.string()
+      eventId: z.string().optional()
     }))
     .query(async ({ ctx, input }) => {
-      // Resolve eventId (could be slug or ID)
-      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
-      if (!resolvedEventId) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Event not found",
-        });
+      // Resolve eventId if provided (could be slug or ID)
+      let resolvedEventId: string | null = null;
+      if (input.eventId) {
+        resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+        if (!resolvedEventId) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Event not found",
+          });
+        }
       }
 
       // Get project from UserProject model (not the hackathon Project model)
@@ -386,13 +389,13 @@ export const projectRouter = createTRPCRouter({
                   id: true,
                   name: true,
                   image: true,
-                  applications: {
+                  applications: resolvedEventId ? {
                     where: {
                       eventId: resolvedEventId,
                       status: "ACCEPTED",
                     },
                     take: 1,
-                  }
+                  } : false
                 }
               }
             }
@@ -434,8 +437,8 @@ export const projectRouter = createTRPCRouter({
         });
       }
 
-      // Verify the project owner is an accepted participant of this event
-      if (!project.profile.user.applications.length) {
+      // Verify the project owner is an accepted participant of this event (only if eventId provided)
+      if (resolvedEventId && project.profile.user.applications && !project.profile.user.applications.length) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Project not found for this event",

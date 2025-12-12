@@ -658,7 +658,7 @@ export default function FundingCommonsResidency2025Report() {
                             )}
                             <Anchor
                               component={Link}
-                              href={`/events/funding-commons-residency-2025/projects/${project.id}`}
+                              href={`/projects/${project.id}`}
                               size="sm"
                               c="dimmed"
                             >

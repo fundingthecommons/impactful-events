@@ -154,7 +154,7 @@ export function ProjectsClient() {
                       withBorder
                       h="100%"
                       component={Link}
-                      href={`/profiles/${project.profile.user.id}`}
+                      href={`/projects/${project.id}`}
                       style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
                     >
                       <Stack gap="xs">

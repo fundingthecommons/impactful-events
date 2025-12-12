@@ -673,7 +673,7 @@ export default function EventDetailClient({
                             e.currentTarget.style.boxShadow = '';
                           }}
                           onClick={() => {
-                            window.location.href = `/events/${event.id}/projects/${project.id}`;
+                            window.location.href = `/projects/${project.id}`;
                           }}
                         >
                           <Stack gap="md">

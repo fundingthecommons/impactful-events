@@ -205,7 +205,6 @@ export default function ResidentDashboard({
               <Tabs.Panel value="projects" pt="lg">
                 <ProjectsTab
                   residentProjects={residentProjects}
-                  eventId={eventId}
                 />
               </Tabs.Panel>
 
@@ -483,10 +482,9 @@ interface ProjectsTabProps {
       } | null;
     };
   }> | undefined;
-  eventId: string;
 }
 
-function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
+function ProjectsTab({ residentProjects }: ProjectsTabProps) {
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder>
       <Group justify="space-between" mb="md">
@@ -509,7 +507,7 @@ function ProjectsTab({ residentProjects, eventId }: ProjectsTabProps) {
                 withBorder 
                 h="100%"
                 component={Link}
-                href={`/events/${eventId}/projects/${project.id}`}
+                href={`/projects/${project.id}`}
                 style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
               >
                 <Stack gap="xs">
