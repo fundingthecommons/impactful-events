@@ -29,11 +29,23 @@ interface ImpactReport {
 
 const impactReports: ImpactReport[] = [
   {
-    slug: "funding-commons-residency-2025",
-    title: "Funding the Commons Residency",
-    subtitle: "8-week residency program for public goods builders",
-    date: "January - March 2025",
+    slug: "ftc-residency-chiang-mai",
+    title: "FtC Residency Chiang Mai",
+    subtitle: "Intensive residency program for public goods builders",
+    date: "TBD 2025",
     location: "Chiang Mai, Thailand",
+    stats: [
+      { label: "Residents", value: "TBD" },
+      { label: "Projects", value: "TBD" },
+    ],
+    color: "teal",
+  },
+  {
+    slug: "funding-commons-residency-2025",
+    title: "Funding the Commons Residency 2025",
+    subtitle: "3-week residency program for public goods builders",
+    date: "Oct 24 - Nov 14, 2025",
+    location: "Buenos Aires, Argentina",
     stats: [
       { label: "Residents", value: "33" },
       { label: "Projects", value: "42" },
