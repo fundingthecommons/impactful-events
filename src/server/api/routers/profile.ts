@@ -4,16 +4,36 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
+// URL validation that accepts URLs with or without protocol, normalizes to https://
+const lenientUrlSchema = z.string()
+  .refine(
+    (val) => {
+      if (!val || val === "") return true;
+      // Accept URLs with or without protocol
+      const urlPattern = /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}(\/\S*)?$/i;
+      return urlPattern.test(val);
+    },
+    { message: "Invalid URL" }
+  )
+  .transform((val) => {
+    if (!val || val === "") return val;
+    // Prepend https:// if no protocol present
+    if (!val.startsWith("http://") && !val.startsWith("https://")) {
+      return `https://${val}`;
+    }
+    return val;
+  });
+
 // Input validation schemas
 const profileUpdateSchema = z.object({
   bio: z.string().max(1000).optional(),
   jobTitle: z.string().max(100).optional(),
   company: z.string().max(100).optional(),
   location: z.string().max(100).optional(),
-  website: z.string().url().optional().or(z.literal("")),
-  githubUrl: z.string().url().optional().or(z.literal("")),
-  linkedinUrl: z.string().url().optional().or(z.literal("")),
-  twitterUrl: z.string().url().optional().or(z.literal("")),
+  website: lenientUrlSchema.optional().or(z.literal("")),
+  githubUrl: lenientUrlSchema.optional().or(z.literal("")),
+  linkedinUrl: lenientUrlSchema.optional().or(z.literal("")),
+  twitterUrl: lenientUrlSchema.optional().or(z.literal("")),
   skills: z.array(z.string().max(50)).max(20).optional(),
   interests: z.array(z.string().max(50)).max(20).optional(),
   availableForMentoring: z.boolean().optional(),
@@ -26,7 +46,7 @@ const profileUpdateSchema = z.object({
   telegramHandle: z.string().max(100).optional(),
   discordHandle: z.string().max(100).optional(),
   // Profile image
-  avatarUrl: z.string().url().optional().or(z.literal("")),
+  avatarUrl: lenientUrlSchema.optional().or(z.literal("")),
   // Mentor-specific fields
   phoneNumber: z.string().max(50).optional(),
   mentorshipStyle: z.string().max(1000).optional(),
@@ -40,9 +60,9 @@ const profileUpdateSchema = z.object({
 
 const projectCreateSchema = z.object({
   title: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  githubUrl: z.string().url().optional(),
-  liveUrl: z.string().url().optional(),
+  description: z.string().max(2000).optional(),
+  githubUrl: lenientUrlSchema.optional(),
+  liveUrl: lenientUrlSchema.optional(),
   imageUrl: z.string().optional(), // Project logo
   bannerUrl: z.string().optional(), // Project banner
   technologies: z.array(z.string().max(30)).max(20),
@@ -56,7 +76,7 @@ const projectUpdateSchema = projectCreateSchema.partial().extend({
 
 const repositoryCreateSchema = z.object({
   projectId: z.string(),
-  url: z.string().url(),
+  url: lenientUrlSchema,
   name: z.string().max(100).optional(),
   description: z.string().max(500).optional(),
   isPrimary: z.boolean().default(false),
@@ -65,7 +85,7 @@ const repositoryCreateSchema = z.object({
 
 const repositoryUpdateSchema = z.object({
   id: z.string(),
-  url: z.string().url().optional(),
+  url: lenientUrlSchema.optional(),
   name: z.string().max(100).optional(),
   description: z.string().max(500).optional(),
   isPrimary: z.boolean().optional(),
@@ -723,13 +743,14 @@ export const profileRouter = createTRPCRouter({
         });
       }
 
-      // Check if user is owner or collaborator
+      // Check if user is owner, collaborator, or admin
       const isOwner = project.profile.userId === ctx.session.user.id;
       const isCollaborator = project.collaborators.some(
         (c) => c.userId === ctx.session.user.id,
       );
+      const isAdmin = ctx.session.user.role === "admin";
 
-      if (!isOwner && !isCollaborator) {
+      if (!isOwner && !isCollaborator && !isAdmin) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "You can only view collaborators for projects you own or collaborate on",

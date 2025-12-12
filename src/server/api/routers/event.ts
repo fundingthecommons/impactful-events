@@ -431,12 +431,10 @@ export const eventRouter = createTRPCRouter({
         });
 
         // If not found by ID, try treating it as a slug (for backward compatibility)
-        if (!event) {
-          event = await ctx.db.event.findUnique({
-            where: { slug: input.id },
-            include: includeClause,
-          });
-        }
+        event ??= await ctx.db.event.findUnique({
+          where: { slug: input.id },
+          include: includeClause,
+        });
 
         return event;
       }

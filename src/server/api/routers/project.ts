@@ -3,6 +3,27 @@ import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/
 import { TRPCError } from "@trpc/server";
 import { type EmailResult } from "~/server/email/emailService";
 import { env } from "~/env";
+import { type PrismaClient } from "@prisma/client";
+
+/**
+ * Resolve event identifier - accepts both CUID and slug.
+ * Returns the actual event ID or null if not found.
+ */
+async function resolveEventId(db: PrismaClient, identifier: string): Promise<string | null> {
+  // Try by ID first
+  const eventById = await db.event.findUnique({
+    where: { id: identifier },
+    select: { id: true },
+  });
+  if (eventById) return eventById.id;
+
+  // Try by slug
+  const eventBySlug = await db.event.findUnique({
+    where: { slug: identifier },
+    select: { id: true },
+  });
+  return eventBySlug?.id ?? null;
+}
 
 // Helper function to send project update notifications to Telegram channel
 async function sendProjectUpdateNotification(params: {
@@ -326,11 +347,20 @@ export const projectRouter = createTRPCRouter({
 
   // Public: Get detailed project information
   getProjectDetails: publicProcedure
-    .input(z.object({ 
+    .input(z.object({
       projectId: z.string(),
-      eventId: z.string() 
+      eventId: z.string()
     }))
     .query(async ({ ctx, input }) => {
+      // Resolve eventId (could be slug or ID)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
+      }
+
       // Get project from UserProject model (not the hackathon Project model)
       const project = await ctx.db.userProject.findUnique({
         where: { id: input.projectId },
@@ -358,7 +388,7 @@ export const projectRouter = createTRPCRouter({
                   image: true,
                   applications: {
                     where: {
-                      eventId: input.eventId,
+                      eventId: resolvedEventId,
                       status: "ACCEPTED",
                     },
                     take: 1,

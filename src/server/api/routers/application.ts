@@ -1715,14 +1715,20 @@ export const applicationRouter = createTRPCRouter({
 
   // Get accepted residents for an event
   getAcceptedResidents: publicProcedure
-    .input(z.object({ 
+    .input(z.object({
       eventId: z.string(),
       minProfileCompletion: z.number().min(0).max(100).optional().default(70),
     }))
     .query(async ({ ctx, input }) => {
+      // Resolve eventId (could be slug or ID)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        return { residents: [], totalAccepted: 0, visibleResidents: 0, hiddenCount: 0 };
+      }
+
       const acceptedApplications = await ctx.db.application.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           status: "ACCEPTED",
         },
         include: {
@@ -1802,9 +1808,15 @@ export const applicationRouter = createTRPCRouter({
   getResidentProjects: publicProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Resolve eventId (could be slug or ID)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        return [];
+      }
+
       const acceptedApplications = await ctx.db.application.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           status: "ACCEPTED",
         },
         include: {
@@ -1873,13 +1885,19 @@ export const applicationRouter = createTRPCRouter({
       return projects;
     }),
 
-  // Public: Get accepted participants for an event  
+  // Public: Get accepted participants for an event
   getEventParticipants: publicProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Resolve eventId (could be slug or ID)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        return [];
+      }
+
       const participants = await ctx.db.application.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           status: "ACCEPTED",
           applicationType: "RESIDENT", // Only show residents, not mentors for privacy
         },
@@ -2164,9 +2182,15 @@ export const applicationRouter = createTRPCRouter({
   getResidentsForHyperboard: publicProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Resolve eventId (could be slug or ID)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        return [];
+      }
+
       const acceptedApplications = await ctx.db.application.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           status: "ACCEPTED",
         },
         include: {
@@ -2210,9 +2234,15 @@ export const applicationRouter = createTRPCRouter({
   getResidentsForKudosboard: publicProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Resolve eventId (could be slug or ID)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        return [];
+      }
+
       const acceptedApplications = await ctx.db.application.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           status: "ACCEPTED",
         },
         include: {
@@ -2257,9 +2287,15 @@ export const applicationRouter = createTRPCRouter({
   getProjectsForHyperboard: publicProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Resolve eventId (could be slug or ID)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        return [];
+      }
+
       const acceptedApplications = await ctx.db.application.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           status: "ACCEPTED",
         },
         include: {
@@ -2302,10 +2338,16 @@ export const applicationRouter = createTRPCRouter({
   getCombinedHyperboard: publicProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
+      // Resolve eventId (could be slug or ID)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        return [];
+      }
+
       // Fetch sponsors
       const eventSponsors = await ctx.db.eventSponsor.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
         },
         include: {
           sponsor: {
@@ -2330,7 +2372,7 @@ export const applicationRouter = createTRPCRouter({
       // Fetch accepted residents
       const acceptedApplications = await ctx.db.application.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           status: "ACCEPTED",
         },
         include: {

@@ -114,6 +114,6 @@ void main()
     console.error("Fatal error:", error);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
+  .finally(() => {
+    void prisma.$disconnect();
   });

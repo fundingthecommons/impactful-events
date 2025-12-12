@@ -62,11 +62,22 @@ import ImpactTab from "./ImpactTab";
 import SDSTab from "./SDSTab";
 import HypercertsTab from "./HypercertsTab";
 
+// URL validation that accepts URLs with or without protocol
+const urlSchema = z.string().refine(
+  (val) => {
+    if (!val || val === "") return true;
+    // Accept URLs with or without protocol
+    const urlPattern = /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}(\/\S*)?$/i;
+    return urlPattern.test(val);
+  },
+  { message: "Invalid URL" }
+);
+
 const projectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
-  description: z.string().max(500).optional(),
-  githubUrl: z.string().url("Invalid GitHub URL").optional().or(z.literal("")),
-  liveUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+  description: z.string().max(2000).optional(),
+  githubUrl: urlSchema.optional().or(z.literal("")),
+  liveUrl: urlSchema.optional().or(z.literal("")),
   imageUrl: z.string().optional().or(z.literal("")), // Logo
   bannerUrl: z.string().optional().or(z.literal("")), // Banner
   technologies: z.array(z.string().max(30)).max(20),

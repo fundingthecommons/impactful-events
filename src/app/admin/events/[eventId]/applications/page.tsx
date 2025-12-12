@@ -38,19 +38,17 @@ export default async function AdminApplicationsPage({ params }: AdminApplication
   });
 
   // If not found by ID, try by slug
-  if (!event) {
-    event = await db.event.findUnique({
-      where: { slug: eventId },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        type: true,
-        startDate: true,
-        endDate: true,
-      },
-    });
-  }
+  event ??= await db.event.findUnique({
+    where: { slug: eventId },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      type: true,
+      startDate: true,
+      endDate: true,
+    },
+  });
 
   if (!event) {
     notFound();

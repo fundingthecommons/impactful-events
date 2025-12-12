@@ -30,15 +30,13 @@ export default async function AdminSponsorsPage({ params }: AdminSponsorsPagePro
   });
 
   // If not found by ID, try by slug
-  if (!event) {
-    event = await db.event.findUnique({
-      where: { slug: eventId },
-      select: {
-        id: true,
-        name: true,
-      },
-    });
-  }
+  event ??= await db.event.findUnique({
+    where: { slug: eventId },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
 
   if (!event) {
     notFound();
