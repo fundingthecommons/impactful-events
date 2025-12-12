@@ -16,6 +16,7 @@ import {
   Tooltip,
   Loader,
   Center,
+  Image,
 } from "@mantine/core";
 import {
   IconExternalLink,
@@ -107,10 +108,34 @@ export default function ProjectsPage({ params }: ProjectsPageProps) {
                     style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
                   >
                     <Stack gap="xs">
-                      <Group justify="space-between" align="flex-start">
-                        <Text fw={500} size="sm" lineClamp={1}>
-                          {project.title}
-                        </Text>
+                      <Group justify="space-between" align="flex-start" wrap="nowrap">
+                        <Group gap="xs" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                          {project.imageUrl ? (
+                            <Image
+                              src={project.imageUrl}
+                              alt={project.title}
+                              w={24}
+                              h={24}
+                              radius="sm"
+                              fit="contain"
+                              style={{ flexShrink: 0 }}
+                            />
+                          ) : (
+                            <Avatar
+                              size={24}
+                              radius="sm"
+                              color={["blue", "cyan", "grape", "green", "indigo", "orange", "pink", "teal", "violet"][
+                                project.id.charCodeAt(0) % 9
+                              ]}
+                              style={{ flexShrink: 0 }}
+                            >
+                              {project.title.charAt(0).toUpperCase()}
+                            </Avatar>
+                          )}
+                          <Text fw={500} size="sm" lineClamp={1} style={{ minWidth: 0 }}>
+                            {project.title}
+                          </Text>
+                        </Group>
                         <Group gap="xs">
                           {project.liveUrl && (
                             <Tooltip label="View Demo">
