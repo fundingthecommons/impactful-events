@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, Menu } from "@mantine/core";
-import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconMapPin, IconMailOpened, IconUserCircle, IconHeart, IconNews, IconBulb, IconSparkles } from "@tabler/icons-react";
+import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconMapPin, IconMailOpened, IconUserCircle, IconHeart, IconNews, IconBulb, IconSparkles, IconChartBar } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -23,6 +23,7 @@ export default function AdminNavigation() {
     if (pathname.startsWith("/admin/users")) return "users";
     if (pathname.startsWith("/admin/invitations")) return "invitations";
     if (pathname.startsWith("/crm")) return "crm";
+    if (pathname.startsWith("/impact-reports")) return "impact-reports";
     // User navigation tabs
     if (pathname.startsWith("/events/funding-commons-residency-2025/praise")) return "praise";
     if (pathname.startsWith("/events/funding-commons-residency-2025/impact")) return "impact";
@@ -126,6 +127,16 @@ export default function AdminNavigation() {
           style={{ textDecoration: 'none' }}
         >
           CRM
+        </TabsTab>
+
+        <TabsTab
+          value="impact-reports"
+          leftSection={<IconChartBar size={16} />}
+          component={Link}
+          href="/impact-reports"
+          style={{ textDecoration: 'none' }}
+        >
+          Impact Reports
         </TabsTab>
 
         {/* User Navigation Items */}
