@@ -25,7 +25,6 @@ import {
   IconSearch,
   IconBrandGithub,
   IconExternalLink,
-  IconUser,
   IconPlus,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
@@ -84,46 +83,6 @@ export function ProjectsClient() {
     });
   };
 
-  const getProjectLinks = (project: typeof allProjects[0]) => {
-    const links = [];
-    
-    if (project.liveUrl) {
-      links.push(
-        <Tooltip key="live" label="View Live Demo">
-          <ActionIcon
-            component="a"
-            href={project.liveUrl}
-            target="_blank"
-            variant="light"
-            size="sm"
-            color="blue"
-          >
-            <IconExternalLink size={16} />
-          </ActionIcon>
-        </Tooltip>
-      );
-    }
-
-    const primaryRepoUrl = getPrimaryRepoUrl(project);
-    if (primaryRepoUrl) {
-      links.push(
-        <Tooltip key="github" label="View Source Code">
-          <ActionIcon
-            component="a"
-            href={primaryRepoUrl}
-            target="_blank"
-            variant="light"
-            size="sm"
-            color="dark"
-          >
-            <IconBrandGithub size={16} />
-          </ActionIcon>
-        </Tooltip>
-      );
-    }
-
-    return links;
-  };
 
   return (
     <Container size="xl" py="xl">
@@ -187,85 +146,112 @@ export function ProjectsClient() {
               
               <Grid>
                 {allProjects.map((project) => (
-                  <Grid.Col key={project.id} span={{ base: 12, sm: 6, lg: 4 }}>
-                    <Card 
-                      shadow="sm" 
-                      padding="lg" 
-                      radius="md" 
-                      withBorder 
+                  <Grid.Col key={project.id} span={{ base: 12, sm: 6, md: 4 }}>
+                    <Card
+                      shadow="xs"
+                      padding="md"
+                      radius="md"
+                      withBorder
                       h="100%"
+                      component={Link}
+                      href={`/profiles/${project.profile.user.id}`}
+                      style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
                     >
-                      {/* Project Image */}
-                      {project.imageUrl && (
-                        <Card.Section>
-                          <Image
-                            src={project.imageUrl}
-                            height={160}
-                            alt={project.title}
-                            fallbackSrc="https://placehold.co/400x160?text=Project"
-                          />
-                        </Card.Section>
-                      )}
-
-                      <Card.Section p="lg" pb="xs">
-                        <Group justify="space-between" align="flex-start" mb="xs">
-                          <Title order={4} lineClamp={2}>
-                            {project.title}
-                          </Title>
+                      <Stack gap="xs">
+                        <Group justify="space-between" align="flex-start" wrap="nowrap">
+                          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                            {project.imageUrl ? (
+                              <Image
+                                src={project.imageUrl}
+                                alt={project.title}
+                                w={24}
+                                h={24}
+                                radius="sm"
+                                fit="contain"
+                                style={{ flexShrink: 0 }}
+                              />
+                            ) : (
+                              <Avatar
+                                size={24}
+                                radius="sm"
+                                color={["blue", "cyan", "grape", "green", "indigo", "orange", "pink", "teal", "violet"][
+                                  project.id.charCodeAt(0) % 9
+                                ]}
+                                style={{ flexShrink: 0 }}
+                              >
+                                {project.title.charAt(0).toUpperCase()}
+                              </Avatar>
+                            )}
+                            <Text fw={500} size="sm" lineClamp={1} style={{ minWidth: 0 }}>
+                              {project.title}
+                            </Text>
+                          </Group>
                           <Group gap="xs">
-                            {getProjectLinks(project)}
+                            {project.liveUrl && (
+                              <Tooltip label="View Demo">
+                                <ActionIcon
+                                  variant="light"
+                                  size="xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    window.open(project.liveUrl!, '_blank');
+                                  }}
+                                >
+                                  <IconExternalLink size={12} />
+                                </ActionIcon>
+                              </Tooltip>
+                            )}
+                            {getPrimaryRepoUrl(project) && (
+                              <Tooltip label="View Source">
+                                <ActionIcon
+                                  variant="light"
+                                  size="xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    window.open(getPrimaryRepoUrl(project)!, '_blank');
+                                  }}
+                                >
+                                  <IconBrandGithub size={12} />
+                                </ActionIcon>
+                              </Tooltip>
+                            )}
                           </Group>
                         </Group>
 
                         {project.description && (
-                          <Text size="sm" c="dimmed" lineClamp={3} mb="md">
+                          <Text size="xs" c="dimmed" lineClamp={2}>
                             {project.description}
                           </Text>
                         )}
 
-                        {/* Technologies */}
                         {project.technologies.length > 0 && (
-                          <Group gap="xs" mb="md">
-                            {project.technologies.slice(0, 3).map((tech) => (
-                              <Badge key={tech} variant="light" size="sm">
+                          <Group gap="xs">
+                            {project.technologies.slice(0, 2).map((tech) => (
+                              <Badge key={tech} size="xs" variant="outline">
                                 {tech}
                               </Badge>
                             ))}
-                            {project.technologies.length > 3 && (
-                              <Badge variant="outline" size="sm">
-                                +{project.technologies.length - 3}
+                            {project.technologies.length > 2 && (
+                              <Badge size="xs" variant="outline" color="gray">
+                                +{project.technologies.length - 2}
                               </Badge>
                             )}
                           </Group>
                         )}
 
-                        {/* Creator Info */}
-                        <Paper p="xs" radius="sm" bg="gray.0" withBorder>
-                          <Group gap="xs">
-                            <Avatar
-                              src={project.profile.user.image}
-                              size="sm"
-                              radius="xl"
-                            />
-                            <div style={{ flex: 1 }}>
-                              <Text size="sm" fw={500}>
-                                {getDisplayName(project.profile.user, "Anonymous")}
-                              </Text>
-                            </div>
-                            <Tooltip label="View Creator Profile">
-                              <ActionIcon
-                                component={Link}
-                                href={`/profiles/${project.profile.user.id}`}
-                                variant="light"
-                                size="sm"
-                                color="blue"
-                              >
-                                <IconUser size={14} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
-                        </Paper>
-                      </Card.Section>
+                        <Group gap="xs" mt="auto">
+                          <Avatar
+                            src={project.profile.user.image}
+                            size="xs"
+                            radius="xl"
+                          />
+                          <Text size="xs" c="dimmed">
+                            {getDisplayName(project.profile.user, "Anonymous")}
+                          </Text>
+                        </Group>
+                      </Stack>
                     </Card>
                   </Grid.Col>
                 ))}

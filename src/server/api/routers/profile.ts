@@ -849,6 +849,7 @@ export const profileRouter = createTRPCRouter({
               },
             },
           },
+          repositories: true,
         },
         orderBy: [
           { featured: "desc" },
