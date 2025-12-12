@@ -53,6 +53,7 @@ function getMantineGradient(eventType: string) {
 interface EventCardProps {
   event: {
     id: string;
+    slug: string | null;
     name: string;
     description: string | null;
     type: string;
@@ -70,6 +71,8 @@ interface EventCardProps {
 function EventCard({ event }: EventCardProps) {
   const Icon = getEventIcon(event.type as EventType) ?? IconCalendarEvent;
   const gradient = getMantineGradient(event.type);
+  // Use slug if available, otherwise fall back to id
+  const eventIdentifier = event.slug ?? event.id;
   
   return (
     <Card shadow="lg" padding="xl" radius="md" withBorder h="100%">
@@ -120,7 +123,7 @@ function EventCard({ event }: EventCardProps) {
                 {event._count?.applications ?? 0} Applications
               </Text>
             </Group>
-            <Link href={`/admin/events/${event.id}/applications`} style={{ textDecoration: 'none' }}>
+            <Link href={`/admin/events/${eventIdentifier}/applications`} style={{ textDecoration: 'none' }}>
               <Badge variant="outline" color="blue" style={{ cursor: 'pointer' }}>
                 Manage
               </Badge>
@@ -136,7 +139,7 @@ function EventCard({ event }: EventCardProps) {
                 {event._count?.sponsors ?? 0} Sponsors
               </Text>
             </Group>
-            <Link href={`/admin/events/${event.id}/sponsors`} style={{ textDecoration: 'none' }}>
+            <Link href={`/admin/events/${eventIdentifier}/sponsors`} style={{ textDecoration: 'none' }}>
               <Badge variant="outline" color="orange" style={{ cursor: 'pointer' }}>
                 View
               </Badge>
@@ -152,7 +155,7 @@ function EventCard({ event }: EventCardProps) {
                 Mentors
               </Text>
             </Group>
-            <Link href={`/admin/events/${event.id}/mentors`} style={{ textDecoration: 'none' }}>
+            <Link href={`/admin/events/${eventIdentifier}/mentors`} style={{ textDecoration: 'none' }}>
               <Badge variant="outline" color="green" style={{ cursor: 'pointer' }}>
                 Manage
               </Badge>
@@ -168,7 +171,7 @@ function EventCard({ event }: EventCardProps) {
                 Selection Rubric
               </Text>
             </Group>
-            <Link href={`/admin/events/${event.id}/select-rubric`} style={{ textDecoration: 'none' }}>
+            <Link href={`/admin/events/${eventIdentifier}/select-rubric`} style={{ textDecoration: 'none' }}>
               <Badge variant="outline" color="purple" style={{ cursor: 'pointer' }}>
                 View
               </Badge>
@@ -182,6 +185,7 @@ function EventCard({ event }: EventCardProps) {
 
 type EventWithCounts = {
   id: string;
+  slug: string | null;
   name: string;
   description: string | null;
   type: string;

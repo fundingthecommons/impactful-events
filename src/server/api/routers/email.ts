@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { type PrismaClient } from "@prisma/client";
 
 import {
   createTRPCRouter,
@@ -7,6 +8,26 @@ import {
 } from "~/server/api/trpc";
 
 import { sendEmail, generateMissingInfoEmail, isEmailSendingSafe } from "~/lib/email";
+
+/**
+ * Resolve event identifier (ID or slug) to actual event ID.
+ * Tries ID first, then slug for backward compatibility.
+ */
+async function resolveEventId(db: PrismaClient, identifier: string): Promise<string | null> {
+  // Try by ID first
+  const eventById = await db.event.findUnique({
+    where: { id: identifier },
+    select: { id: true },
+  });
+  if (eventById) return eventById.id;
+
+  // Try by slug
+  const eventBySlug = await db.event.findUnique({
+    where: { slug: identifier },
+    select: { id: true },
+  });
+  return eventBySlug?.id ?? null;
+}
 
 // Input schemas
 const CheckMissingInfoSchema = z.object({
@@ -532,13 +553,19 @@ export const emailRouter = createTRPCRouter({
 
   // Get emails for a specific event
   getEventEmails: protectedProcedure
-    .input(GetEventEmailsSchema)
+    .input(GetEventEmailsSchema) // eventId can be ID or slug
     .query(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);
 
+      // Resolve eventId (supports both ID and slug)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        return [];
+      }
+
       const emails = await ctx.db.email.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           ...(input.status && { status: input.status }),
         },
         include: {

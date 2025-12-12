@@ -179,6 +179,7 @@ enum EventStatus {
 
 model Event {
   id          String      @id @default(cuid())
+  slug        String?     @unique  // URL-friendly identifier, auto-generated from name
   name        String
   description String?
   startDate   DateTime
@@ -204,6 +205,8 @@ model Event {
   praises     Praise[]    @relation("EventPraises")  // Praise messages for this event
   metricMeasurements MetricMeasurement[] // Measurements during this event
   repositoryMetrics RepositoryResidencyMetrics[] @relation("RepositoryMetrics") // GitHub metrics for this residency
+
+  @@index([slug])
 }
 
 model Role {

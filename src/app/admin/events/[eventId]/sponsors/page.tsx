@@ -20,13 +20,25 @@ export default async function AdminSponsorsPage({ params }: AdminSponsorsPagePro
     redirect("/unauthorized");
   }
 
-  const event = await db.event.findUnique({
+  // Try by ID first, then by slug for backward compatibility
+  let event = await db.event.findUnique({
     where: { id: eventId },
     select: {
       id: true,
       name: true,
     },
   });
+
+  // If not found by ID, try by slug
+  if (!event) {
+    event = await db.event.findUnique({
+      where: { slug: eventId },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+  }
 
   if (!event) {
     notFound();

@@ -24,8 +24,8 @@ export default async function EventOnboardingPage({ params }: EventOnboardingPag
     redirect("/unauthorized");
   }
 
-  // Fetch event details to ensure it exists
-  const event = await db.event.findUnique({
+  // Fetch event details - try by ID first, then by slug for backward compatibility
+  let event = await db.event.findUnique({
     where: { id: eventId },
     select: {
       id: true,
@@ -37,6 +37,21 @@ export default async function EventOnboardingPage({ params }: EventOnboardingPag
     },
   });
 
+  // If not found by ID, try by slug
+  if (!event) {
+    event = await db.event.findUnique({
+      where: { slug: eventId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        startDate: true,
+        endDate: true,
+      },
+    });
+  }
+
   if (!event) {
     notFound();
   }
@@ -45,7 +60,7 @@ export default async function EventOnboardingPage({ params }: EventOnboardingPag
   const onboardingData = await db.applicationOnboarding.findMany({
     where: {
       application: {
-        eventId: eventId, // Filter by specific event
+        eventId: event.id, // Filter by specific event (use resolved ID)
       },
     },
     include: {

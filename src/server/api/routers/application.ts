@@ -1,18 +1,38 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { type Prisma } from "@prisma/client";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 import {
   createTRPCRouter,
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
-import { 
-  checkApplicationCompleteness, 
+import {
+  checkApplicationCompleteness,
   updateApplicationCompletionStatus,
-  sendSubmissionNotification 
+  sendSubmissionNotification
 } from "~/server/api/utils/applicationCompletion";
 import { captureApiError, captureEmailError } from "~/utils/errorCapture";
+
+/**
+ * Resolve event identifier (ID or slug) to actual event ID.
+ * Tries ID first, then slug for backward compatibility.
+ */
+async function resolveEventId(db: PrismaClient, identifier: string): Promise<string | null> {
+  // Try by ID first
+  const eventById = await db.event.findUnique({
+    where: { id: identifier },
+    select: { id: true },
+  });
+  if (eventById) return eventById.id;
+
+  // Try by slug
+  const eventBySlug = await db.event.findUnique({
+    where: { slug: identifier },
+    select: { id: true },
+  });
+  return eventBySlug?.id ?? null;
+}
 
 // Input schemas
 const CreateApplicationInputSchema = z.object({
@@ -623,10 +643,16 @@ export const applicationRouter = createTRPCRouter({
 
   // Get questions for an event
   getEventQuestions: publicProcedure
-    .input(z.object({ eventId: z.string() }))
+    .input(z.object({ eventId: z.string() })) // Can be ID or slug
     .query(async ({ ctx, input }) => {
+      // Resolve eventId (supports both ID and slug)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        return [];
+      }
+
       const questions = await ctx.db.applicationQuestion.findMany({
-        where: { eventId: input.eventId },
+        where: { eventId: resolvedEventId },
         orderBy: { order: "asc" },
       });
       return questions;
@@ -634,17 +660,23 @@ export const applicationRouter = createTRPCRouter({
 
   // Admin: Get all applications for an event
   getEventApplications: protectedProcedure
-    .input(z.object({ 
-      eventId: z.string(),
+    .input(z.object({
+      eventId: z.string(), // Can be ID or slug
       status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]).optional(),
       applicationType: z.enum(["RESIDENT", "MENTOR"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);
 
+      // Resolve eventId (supports both ID and slug)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+      }
+
       const applications = await ctx.db.application.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           ...(input.status && { status: input.status }),
           ...(input.applicationType && { applicationType: input.applicationType }),
         },
@@ -693,15 +725,21 @@ export const applicationRouter = createTRPCRouter({
 
   // Admin: Get consensus applications (applications with evaluations and scores)
   getConsensusApplications: protectedProcedure
-    .input(z.object({ 
-      eventId: z.string(),
+    .input(z.object({
+      eventId: z.string(), // Can be ID or slug
     }))
     .query(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);
 
+      // Resolve eventId (supports both ID and slug)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+      }
+
       const applications = await ctx.db.application.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           evaluations: {
             some: {
               overallScore: {
@@ -1396,12 +1434,18 @@ export const applicationRouter = createTRPCRouter({
 
   // Admin: Get application statistics for demographics
   getApplicationStats: protectedProcedure
-    .input(z.object({ 
-      eventId: z.string(),
+    .input(z.object({
+      eventId: z.string(), // Can be ID or slug
       status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);
+
+      // Resolve eventId (supports both ID and slug)
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+      }
 
       // Import demographics utilities
       const { isLatamCountry, normalizeGender, calculatePercentage } = await import("~/utils/demographics");
@@ -1409,7 +1453,7 @@ export const applicationRouter = createTRPCRouter({
       // Get applications with their responses, filtering by status if provided
       const applications = await ctx.db.application.findMany({
         where: {
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           ...(input.status && { status: input.status }),
         },
         include: {

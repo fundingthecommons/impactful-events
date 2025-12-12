@@ -86,6 +86,7 @@ async function main() {
     where: { id: 'realfi-hackathon-2025' },
     update: {
       name: 'RealFi Hackathon',
+      slug: 'realfi-hackathon-2025',
       description: 'A hackathon focused on real-world financial applications using blockchain technology',
       type: 'HACKATHON',
       isOnline: false,
@@ -93,6 +94,7 @@ async function main() {
     },
     create: {
       id: 'realfi-hackathon-2025',
+      slug: 'realfi-hackathon-2025',
       name: 'RealFi Hackathon',
       description: 'A hackathon focused on real-world financial applications using blockchain technology',
       startDate: new Date('2025-09-15T09:00:00Z'),
@@ -138,6 +140,7 @@ async function main() {
     where: { id: 'funding-commons-residency-2025' },
     update: {
       name: 'Funding the Commons Residency',
+      slug: 'funding-commons-residency-2025',
       description: 'Intensive residency program for selected participants to work on projects and build connections in the public goods and climate funding ecosystem.',
       type: 'residency',
       isOnline: false,
@@ -145,6 +148,7 @@ async function main() {
     },
     create: {
       id: 'funding-commons-residency-2025',
+      slug: 'funding-commons-residency-2025',
       name: 'Funding the Commons Residency',
       description: 'Intensive residency program for selected participants to work on projects and build connections in the public goods and climate funding ecosystem.',
       startDate: new Date('2025-10-24T09:00:00Z'),

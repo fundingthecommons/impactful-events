@@ -41,6 +41,7 @@ interface ApplicationQuestion {
 
 interface EventFormValues {
   name: string;
+  slug: string; // Optional custom URL slug
   type: string;
   startDate: Date | null;
   endDate: Date | null;
@@ -110,6 +111,7 @@ export function CreateEventModal({
   const form = useForm<EventFormValues>({
     initialValues: {
       name: "",
+      slug: "",
       type: "RESIDENCY",
       startDate: null,
       endDate: null,
@@ -225,6 +227,7 @@ export function CreateEventModal({
 
     createEvent.mutate({
       name: values.name,
+      slug: values.slug.trim() || undefined, // Use custom slug if provided
       type: values.type,
       startDate,
       endDate,
@@ -289,6 +292,13 @@ export function CreateEventModal({
               placeholder="e.g., FtC Residency 2025"
               required
               {...form.getInputProps("name")}
+            />
+
+            <TextInput
+              label="URL Slug (optional)"
+              placeholder="e.g., ftc-residency-2025"
+              description="Leave empty to auto-generate from event name. Used in URLs like /events/ftc-residency-2025"
+              {...form.getInputProps("slug")}
             />
 
             <Select

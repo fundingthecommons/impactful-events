@@ -24,8 +24,8 @@ export default async function AdminApplicationsPage({ params }: AdminApplication
     redirect("/unauthorized");
   }
 
-  // Fetch event details to ensure it exists
-  const event = await db.event.findUnique({
+  // Fetch event details - try by ID first, then by slug for backward compatibility
+  let event = await db.event.findUnique({
     where: { id: eventId },
     select: {
       id: true,
@@ -36,6 +36,21 @@ export default async function AdminApplicationsPage({ params }: AdminApplication
       endDate: true,
     },
   });
+
+  // If not found by ID, try by slug
+  if (!event) {
+    event = await db.event.findUnique({
+      where: { slug: eventId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        type: true,
+        startDate: true,
+        endDate: true,
+      },
+    });
+  }
 
   if (!event) {
     notFound();

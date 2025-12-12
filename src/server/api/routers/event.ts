@@ -7,6 +7,7 @@ import {
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
+import { getEventSlugService } from "~/server/services/eventSlugService";
 
 // Calculate profile completion percentage
 function calculateProfileCompletion(profile: unknown): number {
@@ -389,24 +390,58 @@ async function syncUsersToNotion(events: EventData[]): Promise<{
 }
 
 export const eventRouter = createTRPCRouter({
+  // Get event by ID or slug (supports both for backward compatibility)
   getEvent: publicProcedure
-    .input(z.object({ id: z.string() }))
+    .input(
+      z
+        .object({
+          id: z.string().optional(),
+          slug: z.string().optional(),
+        })
+        .refine((data) => data.id ?? data.slug, {
+          message: "Either id or slug must be provided",
+        })
+    )
     .query(async ({ ctx, input }) => {
-      const event = await ctx.db.event.findUnique({
-        where: { id: input.id },
-        include: {
-          sponsors: {
-            include: {
-              sponsor: {
-                include: {
-                  contacts: true,
-                },
+      const includeClause = {
+        sponsors: {
+          include: {
+            sponsor: {
+              include: {
+                contacts: true,
               },
             },
           },
         },
-      });
-      return event;
+      };
+
+      // If slug is explicitly provided, use it
+      if (input.slug) {
+        return ctx.db.event.findUnique({
+          where: { slug: input.slug },
+          include: includeClause,
+        });
+      }
+
+      // If id is provided, try by ID first
+      if (input.id) {
+        let event = await ctx.db.event.findUnique({
+          where: { id: input.id },
+          include: includeClause,
+        });
+
+        // If not found by ID, try treating it as a slug (for backward compatibility)
+        if (!event) {
+          event = await ctx.db.event.findUnique({
+            where: { slug: input.id },
+            include: includeClause,
+          });
+        }
+
+        return event;
+      }
+
+      return null;
     }),
 
   getEvents: publicProcedure.query(async ({ ctx }) => {
@@ -915,6 +950,7 @@ export const eventRouter = createTRPCRouter({
     .input(
       z.object({
         name: z.string().min(1, "Event name is required"),
+        slug: z.string().optional(), // Optional manual slug override
         type: z.string().min(1, "Event type is required"),
         startDate: z.date(),
         endDate: z.date(),
@@ -959,17 +995,24 @@ export const eventRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { questions, roles, ...eventData } = input;
+      const { questions, roles, slug: manualSlug, ...eventData } = input;
 
       // Validate dates
       if (eventData.endDate <= eventData.startDate) {
         throw new Error("End date must be after start date");
       }
 
+      // Generate unique slug from name (or use manual slug if provided)
+      const slugService = getEventSlugService(ctx.db);
+      const slug = manualSlug
+        ? await slugService.generateUniqueSlug(manualSlug)
+        : await slugService.generateUniqueSlug(eventData.name);
+
       // Create event with related data in a transaction
       const event = await ctx.db.event.create({
         data: {
           ...eventData,
+          slug,
           createdById: ctx.session.user.id,
 
           // Create application questions if provided
@@ -1036,6 +1079,7 @@ export const eventRouter = createTRPCRouter({
       z.object({
         id: z.string(),
         name: z.string().min(1).optional(),
+        slug: z.string().optional(), // Optional manual slug override
         type: z.string().optional(),
         startDate: z.date().optional(),
         endDate: z.date().optional(),
@@ -1045,7 +1089,7 @@ export const eventRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...updateData } = input;
+      const { id, slug: newSlug, name, ...updateData } = input;
 
       // Verify user is the creator or has organizer role
       const event = await ctx.db.event.findUnique({
@@ -1082,9 +1126,25 @@ export const eventRouter = createTRPCRouter({
         }
       }
 
+      // Handle slug generation on name change or manual slug update
+      let slug: string | undefined;
+      if (newSlug) {
+        // Manual slug provided - validate uniqueness
+        const slugService = getEventSlugService(ctx.db);
+        slug = await slugService.generateUniqueSlug(newSlug, id);
+      } else if (name) {
+        // Name changed but no manual slug - regenerate from name
+        const slugService = getEventSlugService(ctx.db);
+        slug = await slugService.generateUniqueSlug(name, id);
+      }
+
       const updatedEvent = await ctx.db.event.update({
         where: { id },
-        data: updateData,
+        data: {
+          ...(name && { name }),
+          ...(slug && { slug }),
+          ...updateData,
+        },
         include: {
           applicationQuestions: {
             orderBy: { order: "asc" },
