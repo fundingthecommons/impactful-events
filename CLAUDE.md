@@ -556,6 +556,73 @@ SKIP_ENV_VALIDATION=1 bun run check  # Validate code quality
 3. **Test Early**: Switch themes during development, not just at the end
 4. **Component Consistency**: Keep theming approach consistent within components
 
+### 📁 Feature-Specific CSS Files
+
+When creating CSS for a new feature area (like CRM, Admin, etc.), create a dedicated CSS file that follows the theme system:
+
+#### Structure Example: `src/app/crm/crm.css`
+```css
+/* Feature-specific styles */
+
+/* ============================================
+   THEME VARIABLES
+
+   CRITICAL: Define ALL colors in BOTH theme blocks.
+   Never use hardcoded hex values in the styles below.
+   ============================================ */
+
+:root,
+[data-theme="light"] {
+  /* Light theme colors */
+  --feature-bg: #f8fafc;
+  --feature-text: #64748b;
+  --feature-text-active: #0f172a;
+  --feature-border: #e2e8f0;
+  --feature-hover: #f1f5f9;
+}
+
+[data-theme="dark"] {
+  /* Dark theme colors */
+  --feature-bg: #0a0a0a;
+  --feature-text: #a3a3a3;
+  --feature-text-active: #ffffff;
+  --feature-border: rgba(255, 255, 255, 0.1);
+  --feature-hover: rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================
+   STYLES - Use only CSS variables, never hex values
+   ============================================ */
+
+.feature-container {
+  background: var(--feature-bg);
+  color: var(--feature-text);
+  border: 1px solid var(--feature-border);
+}
+
+.feature-container:hover {
+  background: var(--feature-hover);
+  color: var(--feature-text-active);
+}
+```
+
+#### Import in Layout
+```tsx
+// src/app/feature/layout.tsx
+import "./feature.css";
+
+export default function FeatureLayout({ children }) {
+  return <div className="feature-container">{children}</div>;
+}
+```
+
+#### Key Rules for Feature CSS Files:
+1. **Define variables in BOTH theme blocks** - Light AND dark
+2. **Never use hex values in style rules** - Only CSS variables
+3. **Keep semantic icon colors** - Brand/status colors can stay hardcoded
+4. **Import CSS in the feature layout** - Scopes styles to that route
+5. **Comment sections clearly** - Makes maintenance easier
+
 This theme system ensures a seamless user experience across light and dark modes while maintaining visual consistency and developer productivity.
 
 ## Form Development & Testing Standards

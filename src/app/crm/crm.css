@@ -1,0 +1,459 @@
+/* CRM-specific styles */
+
+/* ============================================
+   CRM THEME VARIABLES
+
+   These follow the app's dark mode system:
+   - Light mode: [data-theme="light"] or :root
+   - Dark mode: [data-theme="dark"]
+
+   All colors MUST be defined in BOTH blocks.
+   Never use hardcoded hex values in components.
+   ============================================ */
+
+:root,
+[data-theme="light"] {
+  /* Layout */
+  --crm-bg: #f8fafc;
+  --crm-sidebar-width: 260px;
+
+  /* Sidebar - Light theme */
+  --crm-sidebar-bg: #ffffff;
+  --crm-sidebar-text: #374151;
+  --crm-sidebar-text-active: #111827;
+  --crm-sidebar-hover: #f3f4f6;
+  --crm-sidebar-active: #e5e7eb;
+  --crm-sidebar-border: #e5e7eb;
+  --crm-sidebar-section-text: #6b7280;
+  --crm-sidebar-badge-bg: #3b82f6;
+  --crm-sidebar-badge-text: #ffffff;
+  --crm-sidebar-disabled: #9ca3af;
+  --crm-sidebar-icon: #6b7280;
+
+  /* Workspace avatar */
+  --crm-sidebar-workspace-bg: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+
+  /* Quick actions */
+  --crm-sidebar-quick-bg: #f1f5f9;
+  --crm-sidebar-quick-hover: #e2e8f0;
+  --crm-sidebar-shortcut-bg: #e2e8f0;
+
+  /* Footer */
+  --crm-sidebar-trial-color: #16a34a;
+  --crm-sidebar-button-border: #e2e8f0;
+  --crm-sidebar-button-text: #64748b;
+}
+
+[data-theme="dark"] {
+  /* Layout */
+  --crm-bg: #0a0a0a;
+  --crm-sidebar-width: 260px;
+
+  /* Sidebar - Dark theme */
+  --crm-sidebar-bg: #1a1a1a;
+  --crm-sidebar-text: #d1d5db;
+  --crm-sidebar-text-active: #f9fafb;
+  --crm-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --crm-sidebar-active: rgba(255, 255, 255, 0.12);
+  --crm-sidebar-border: rgba(255, 255, 255, 0.1);
+  --crm-sidebar-section-text: #9ca3af;
+  --crm-sidebar-badge-bg: #3b82f6;
+  --crm-sidebar-badge-text: #ffffff;
+  --crm-sidebar-disabled: #6b7280;
+  --crm-sidebar-icon: #9ca3af;
+
+  /* Workspace avatar */
+  --crm-sidebar-workspace-bg: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+
+  /* Quick actions */
+  --crm-sidebar-quick-bg: rgba(255, 255, 255, 0.05);
+  --crm-sidebar-quick-hover: rgba(255, 255, 255, 0.1);
+  --crm-sidebar-shortcut-bg: rgba(255, 255, 255, 0.1);
+
+  /* Footer */
+  --crm-sidebar-trial-color: #22c55e;
+  --crm-sidebar-button-border: rgba(255, 255, 255, 0.1);
+  --crm-sidebar-button-text: #a3a3a3;
+}
+
+/* ============================================
+   CRM LAYOUT STYLES
+   ============================================ */
+
+.crm-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--crm-bg);
+}
+
+.crm-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+/* ============================================
+   SIDEBAR CONTAINER
+   ============================================ */
+
+.crm-sidebar {
+  width: var(--crm-sidebar-width);
+  background: var(--crm-sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  border-right: 1px solid var(--crm-sidebar-border);
+}
+
+/* ============================================
+   SIDEBAR HEADER
+   ============================================ */
+
+.crm-sidebar-header {
+  padding: 12px 12px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.crm-sidebar-workspace {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.crm-sidebar-workspace:hover {
+  background: var(--crm-sidebar-hover);
+}
+
+.crm-sidebar-workspace-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--crm-sidebar-workspace-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.crm-sidebar-workspace-name {
+  color: var(--crm-sidebar-text-active);
+  font-weight: 500;
+  font-size: 14px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crm-sidebar-workspace-chevron {
+  color: var(--crm-sidebar-text);
+  opacity: 0.6;
+}
+
+.crm-sidebar-toggle {
+  padding: 6px;
+  border-radius: 6px;
+  color: var(--crm-sidebar-text);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crm-sidebar-toggle:hover {
+  background: var(--crm-sidebar-hover);
+}
+
+/* ============================================
+   QUICK ACTIONS
+   ============================================ */
+
+.crm-sidebar-quick-actions {
+  margin: 4px 12px 8px;
+  padding: 8px 10px;
+  background: var(--crm-sidebar-quick-bg);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.crm-sidebar-quick-actions:hover {
+  background: var(--crm-sidebar-quick-hover);
+}
+
+.crm-sidebar-quick-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--crm-sidebar-text);
+  font-size: 13px;
+}
+
+.crm-sidebar-quick-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.crm-sidebar-shortcut {
+  background: var(--crm-sidebar-shortcut-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--crm-sidebar-text);
+  font-family: monospace;
+}
+
+.crm-sidebar-search-icon {
+  color: var(--crm-sidebar-text);
+  opacity: 0.6;
+}
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+
+.crm-sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px;
+}
+
+/* ============================================
+   MENU ITEMS
+   ============================================ */
+
+.crm-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: var(--crm-sidebar-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  position: relative;
+}
+
+.crm-sidebar-item:hover:not(.crm-sidebar-item-disabled) {
+  background: var(--crm-sidebar-hover);
+  color: var(--crm-sidebar-text-active);
+}
+
+.crm-sidebar-item-active {
+  background: var(--crm-sidebar-active);
+  color: var(--crm-sidebar-text-active);
+}
+
+.crm-sidebar-item-disabled {
+  color: var(--crm-sidebar-disabled);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.crm-sidebar-item-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--crm-sidebar-icon);
+}
+
+.crm-sidebar-item-active .crm-sidebar-item-icon {
+  color: var(--crm-sidebar-text-active);
+}
+
+.crm-sidebar-item-label {
+  flex: 1;
+}
+
+.crm-sidebar-item-badge {
+  background: var(--crm-sidebar-badge-bg);
+  color: var(--crm-sidebar-badge-text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.crm-sidebar-item-chevron {
+  color: var(--crm-sidebar-text);
+  opacity: 0.5;
+}
+
+/* ============================================
+   SECTIONS
+   ============================================ */
+
+.crm-sidebar-section {
+  margin-top: 8px;
+}
+
+.crm-sidebar-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 4px;
+  color: var(--crm-sidebar-section-text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.crm-sidebar-section-header:hover {
+  color: var(--crm-sidebar-text);
+}
+
+.crm-sidebar-section-chevron {
+  transition: transform 0.2s ease;
+}
+
+.crm-sidebar-section-collapsed .crm-sidebar-section-chevron {
+  transform: rotate(-90deg);
+}
+
+.crm-sidebar-section-content {
+  padding-left: 0;
+}
+
+.crm-sidebar-section-empty {
+  padding: 4px 12px 8px 40px;
+  color: var(--crm-sidebar-disabled);
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+
+.crm-sidebar-footer {
+  padding: 12px;
+  border-top: 1px solid var(--crm-sidebar-border);
+}
+
+.crm-sidebar-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: var(--crm-sidebar-disabled);
+  font-size: 13px;
+  cursor: not-allowed;
+}
+
+.crm-sidebar-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--crm-sidebar-hover);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.crm-sidebar-progress-fill {
+  height: 100%;
+  background: var(--crm-sidebar-badge-bg);
+  border-radius: 2px;
+}
+
+.crm-sidebar-invite {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  color: var(--crm-sidebar-disabled);
+  font-size: 13px;
+  cursor: not-allowed;
+}
+
+.crm-sidebar-trial {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-top: 4px;
+}
+
+.crm-sidebar-trial-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--crm-sidebar-trial-color);
+  font-size: 13px;
+}
+
+.crm-sidebar-trial-button {
+  background: transparent;
+  border: 1px solid var(--crm-sidebar-button-border);
+  color: var(--crm-sidebar-button-text);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ============================================
+   RECORD TYPE ICON COLORS
+   These are semantic and stay consistent across themes
+   ============================================ */
+
+.crm-sidebar-item[data-type="organizations"] .crm-sidebar-item-icon {
+  color: #f59e0b;
+}
+
+.crm-sidebar-item[data-type="contacts"] .crm-sidebar-item-icon {
+  color: #3b82f6;
+}
+
+.crm-sidebar-item[data-type="deals"] .crm-sidebar-item-icon {
+  color: #10b981;
+}
+
+.crm-sidebar-item[data-type="users"] .crm-sidebar-item-icon {
+  color: #8b5cf6;
+}
+
+.crm-sidebar-item[data-type="workspaces"] .crm-sidebar-item-icon {
+  color: #ec4899;
+}
+
+.crm-sidebar-item[data-type="list"] .crm-sidebar-item-icon {
+  color: #f59e0b;
+}
+
+.crm-sidebar-item[data-type="list-search"] .crm-sidebar-item-icon {
+  color: #eab308;
+}
+
+/* ============================================
+   MESSAGE ROW STYLES (Emails & Telegram)
+   ============================================ */
+
+.crm-message-row {
+  transition: background 0.15s ease;
+}
+
+.crm-message-row:hover {
+  background: var(--crm-sidebar-hover);
+}

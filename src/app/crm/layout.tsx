@@ -1,5 +1,5 @@
-import { Container, Stack } from "@mantine/core";
-import CRMNavigation from "~/app/_components/CRMNavigation";
+import "./crm.css";
+import CRMSidebar from "./CRMSidebar";
 
 export default function CRMLayout({
   children,
@@ -7,11 +7,9 @@ export default function CRMLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Container size="xl" py="md">
-      <Stack gap="md">
-        <CRMNavigation />
-        {children}
-      </Stack>
-    </Container>
+    <div className="crm-layout">
+      <CRMSidebar />
+      <main className="crm-content">{children}</main>
+    </div>
   );
 }

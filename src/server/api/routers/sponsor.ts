@@ -114,6 +114,8 @@ export const sponsorRouter = createTRPCRouter({
           createdBy: true,
           toEmail: true,
           toTelegram: true,
+          fromEmail: true,
+          fromTelegram: true,
         },
       });
 

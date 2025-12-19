@@ -42,6 +42,7 @@ import {
   IconExternalLink,
   IconCopy,
   IconLink,
+  IconBrandTelegram,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -152,6 +153,7 @@ export default function OrganizationDetailsPage() {
   }
 
   const emailCount = communications?.filter(c => c.channel === "EMAIL").length ?? 0;
+  const telegramCount = communications?.filter(c => c.channel === "TELEGRAM").length ?? 0;
   const callCount = 0; // Placeholder - could be from calls table
 
   // Build activity items from communications and events
@@ -331,6 +333,14 @@ export default function OrganizationDetailsPage() {
                   Emails
                   <Badge size="xs" variant="light">
                     {emailCount}
+                  </Badge>
+                </Group>
+              </Tabs.Tab>
+              <Tabs.Tab value="telegram">
+                <Group gap={6}>
+                  Telegram
+                  <Badge size="xs" variant="light">
+                    {telegramCount}
                   </Badge>
                 </Group>
               </Tabs.Tab>
@@ -860,43 +870,51 @@ export default function OrganizationDetailsPage() {
             )}
 
             {activeTab === "emails" && (
-              <Stack gap="md">
+              <Stack gap={0}>
                 {communications
                   ?.filter(c => c.channel === "EMAIL")
                   .map(email => (
-                    <Paper
+                    <Box
                       key={email.id}
                       p="md"
-                      radius="md"
                       style={{
-                        background: "var(--theme-crm-card)",
-                        border: "1px solid var(--theme-crm-card-border)",
+                        borderBottom: "1px solid var(--theme-crm-border)",
+                        cursor: "pointer",
                       }}
+                      className="crm-message-row"
                     >
-                      <Group justify="space-between" align="flex-start">
-                        <Group gap="sm" align="flex-start">
-                          <Avatar size="md" color="blue">
-                            {email.contact?.firstName?.[0] ?? "?"}
-                          </Avatar>
-                          <Stack gap={4}>
-                            <Text size="sm" fw={500}>
-                              {email.contact
-                                ? `${email.contact.firstName} ${email.contact.lastName}`
-                                : "Unknown"}
-                            </Text>
-                            <Text size="sm">
+                      <Group gap="md" align="flex-start" wrap="nowrap">
+                        <Avatar size={40} color="gray" radius="xl">
+                          {email.contact?.firstName?.[0]?.toUpperCase() ?? "?"}
+                        </Avatar>
+                        <Box style={{ flex: 1, minWidth: 0 }}>
+                          <Group justify="space-between" align="flex-start" wrap="nowrap" mb={4}>
+                            <Text size="sm" fw={600} lineClamp={1} style={{ flex: 1 }}>
                               {email.subject ?? "No subject"}
                             </Text>
-                            <Text size="sm" c="dimmed" lineClamp={2}>
-                              {email.textContent}
+                            <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                              {email.sentAt
+                                ? new Date(email.sentAt).toLocaleDateString("en-US", {
+                                    day: "numeric",
+                                    month: "short",
+                                  })
+                                : new Date(email.createdAt).toLocaleDateString("en-US", {
+                                    day: "numeric",
+                                    month: "short",
+                                  })}
                             </Text>
-                          </Stack>
-                        </Group>
-                        <Text size="xs" c="dimmed">
-                          {getRelativeTime(email.sentAt ?? email.createdAt)}
-                        </Text>
+                          </Group>
+                          <Text size="sm" c="dimmed" lineClamp={1}>
+                            {email.contact
+                              ? `${email.contact.firstName} ${email.contact.lastName}`
+                              : email.fromEmail ?? "Unknown"}
+                          </Text>
+                          <Text size="sm" c="dimmed" lineClamp={2} mt={4}>
+                            {email.textContent}
+                          </Text>
+                        </Box>
                       </Group>
-                    </Paper>
+                    </Box>
                   ))}
                 {emailCount === 0 && (
                   <Paper
@@ -910,6 +928,77 @@ export default function OrganizationDetailsPage() {
                     <Stack align="center" gap="md">
                       <IconMail size={48} style={{ opacity: 0.5 }} />
                       <Text c="dimmed">No emails yet</Text>
+                    </Stack>
+                  </Paper>
+                )}
+              </Stack>
+            )}
+
+            {activeTab === "telegram" && (
+              <Stack gap={0}>
+                {communications
+                  ?.filter(c => c.channel === "TELEGRAM")
+                  .map(message => (
+                    <Box
+                      key={message.id}
+                      p="md"
+                      style={{
+                        borderBottom: "1px solid var(--theme-crm-border)",
+                        cursor: "pointer",
+                      }}
+                      className="crm-message-row"
+                    >
+                      <Group gap="md" align="flex-start" wrap="nowrap">
+                        <Avatar size={40} color="gray" radius="xl">
+                          {message.contact?.firstName?.[0]?.toUpperCase() ?? "?"}
+                        </Avatar>
+                        <Box style={{ flex: 1, minWidth: 0 }}>
+                          <Group justify="space-between" align="flex-start" wrap="nowrap" mb={4}>
+                            <Text size="sm" fw={600} lineClamp={1} style={{ flex: 1 }}>
+                              {message.contact
+                                ? `${message.contact.firstName} ${message.contact.lastName}`
+                                : message.fromTelegram
+                                ? `@${message.fromTelegram}`
+                                : "Unknown"}
+                            </Text>
+                            <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                              {message.sentAt
+                                ? new Date(message.sentAt).toLocaleDateString("en-US", {
+                                    day: "numeric",
+                                    month: "short",
+                                  })
+                                : new Date(message.createdAt).toLocaleDateString("en-US", {
+                                    day: "numeric",
+                                    month: "short",
+                                  })}
+                            </Text>
+                          </Group>
+                          <Text size="sm" c="dimmed" lineClamp={1}>
+                            {message.fromTelegram && message.toTelegram && (
+                              <Text span size="sm" c="dimmed">
+                                @{message.fromTelegram} → @{message.toTelegram}
+                              </Text>
+                            )}
+                          </Text>
+                          <Text size="sm" c="dimmed" lineClamp={2} mt={4}>
+                            {message.textContent}
+                          </Text>
+                        </Box>
+                      </Group>
+                    </Box>
+                  ))}
+                {telegramCount === 0 && (
+                  <Paper
+                    p="xl"
+                    radius="md"
+                    style={{
+                      background: "var(--theme-crm-card)",
+                      border: "1px solid var(--theme-crm-card-border)",
+                    }}
+                  >
+                    <Stack align="center" gap="md">
+                      <IconBrandTelegram size={48} style={{ opacity: 0.5 }} />
+                      <Text c="dimmed">No Telegram messages yet</Text>
                     </Stack>
                   </Paper>
                 )}
