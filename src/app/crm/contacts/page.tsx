@@ -13,6 +13,11 @@ import {
   Box,
   Loader,
   Center,
+  Modal,
+  TextInput,
+  Stack,
+  Select,
+  Badge,
 } from "@mantine/core";
 import {
   IconChevronDown,
@@ -22,6 +27,13 @@ import {
   IconPlus,
   IconFilter,
   IconArrowsSort,
+  IconListDetails,
+  IconMail,
+  IconSearch,
+  IconChevronLeft,
+  IconUser,
+  IconFolder,
+  IconX,
 } from "@tabler/icons-react";
 import { redirect } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -97,6 +109,11 @@ function ConnectionStrengthBadge({ strength }: { strength: ConnectionStrength })
 export default function ContactsPage() {
   const { data: session, status } = useSession();
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [addToListModalOpened, setAddToListModalOpened] = useState(false);
+  const [createListView, setCreateListView] = useState(false);
+  const [listSearchQuery, setListSearchQuery] = useState("");
+  const [newListName, setNewListName] = useState("");
+  const [newListObjectType, setNewListObjectType] = useState<string | null>("people");
 
   const { data: contacts, isLoading } = api.contact.getContacts.useQuery();
 
@@ -509,6 +526,195 @@ export default function ContactsPage() {
           </Group>
         </Group>
       </Box>
+
+      {/* Floating Selection Bar */}
+      {selectedContactIds.length > 0 && (
+        <Box
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--crm-sidebar-bg)",
+            border: "1px solid var(--crm-sidebar-border)",
+            borderRadius: 8,
+            padding: "8px 16px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            zIndex: 100,
+          }}
+        >
+          <Group gap="md">
+            <Group gap="xs">
+              <Text size="sm" fw={500} style={{ color: "var(--crm-sidebar-text-active)" }}>
+                {selectedContactIds.length} selected
+              </Text>
+              <ActionIcon
+                variant="subtle"
+                size="xs"
+                color="gray"
+                onClick={() => setSelectedContactIds([])}
+              >
+                <IconX size={12} />
+              </ActionIcon>
+            </Group>
+            <Box
+              style={{
+                width: 1,
+                height: 20,
+                background: "var(--crm-sidebar-border)",
+              }}
+            />
+            <Button
+              variant="subtle"
+              color="gray"
+              size="xs"
+              leftSection={<IconListDetails size={14} />}
+              onClick={() => setAddToListModalOpened(true)}
+              styles={{
+                root: {
+                  color: "var(--crm-sidebar-text)",
+                },
+              }}
+            >
+              Add to list
+            </Button>
+            <Button
+              variant="subtle"
+              color="gray"
+              size="xs"
+              leftSection={<IconMail size={14} />}
+              styles={{
+                root: {
+                  color: "var(--crm-sidebar-text)",
+                },
+              }}
+            >
+              Send email
+            </Button>
+          </Group>
+        </Box>
+      )}
+
+      {/* Add to List Modal */}
+      <Modal
+        opened={addToListModalOpened}
+        onClose={() => {
+          setAddToListModalOpened(false);
+          setCreateListView(false);
+          setListSearchQuery("");
+          setNewListName("");
+        }}
+        title={createListView ? "Start from scratch" : "Choose list"}
+        size="md"
+        centered
+      >
+        {createListView ? (
+          /* Create New List View */
+          <Stack gap="md">
+            <Select
+              label="Object"
+              value={newListObjectType}
+              onChange={setNewListObjectType}
+              data={[
+                { value: "people", label: "People" },
+                { value: "organizations", label: "Organizations" },
+                { value: "deals", label: "Deals" },
+              ]}
+              leftSection={<IconUser size={14} />}
+            />
+            <TextInput
+              label="List name"
+              placeholder="Enter list name..."
+              value={newListName}
+              onChange={(e) => setNewListName(e.currentTarget.value)}
+            />
+            <Group justify="flex-end" gap="sm" mt="md">
+              <Button
+                variant="subtle"
+                color="gray"
+                onClick={() => setCreateListView(false)}
+              >
+                Back
+              </Button>
+              <Button
+                disabled={!newListName.trim()}
+                onClick={() => {
+                  // TODO: Create list in database
+                  setCreateListView(false);
+                  setNewListName("");
+                }}
+              >
+                Create list
+              </Button>
+            </Group>
+          </Stack>
+        ) : (
+          /* Choose List View */
+          <Stack gap="md">
+            <TextInput
+              placeholder="Search lists..."
+              leftSection={<IconSearch size={14} />}
+              value={listSearchQuery}
+              onChange={(e) => setListSearchQuery(e.currentTarget.value)}
+              rightSection={
+                listSearchQuery ? (
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    size="xs"
+                    onClick={() => setListSearchQuery("")}
+                  >
+                    <IconX size={12} />
+                  </ActionIcon>
+                ) : null
+              }
+            />
+
+            {/* Empty State */}
+            <Box
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "40px 20px",
+                textAlign: "center",
+              }}
+            >
+              <Box
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 8,
+                  background: "var(--crm-sidebar-hover)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <IconFolder size={24} style={{ color: "var(--crm-sidebar-text)", opacity: 0.5 }} />
+              </Box>
+              <Text size="sm" c="dimmed">
+                No lists found
+              </Text>
+              <Text size="xs" c="dimmed" mt={4}>
+                Create a new list to organize your contacts
+              </Text>
+            </Box>
+
+            {/* Create New List Button */}
+            <Button
+              variant="light"
+              leftSection={<IconPlus size={14} />}
+              onClick={() => setCreateListView(true)}
+              fullWidth
+            >
+              Create new list
+            </Button>
+          </Stack>
+        )}
+      </Modal>
     </Box>
   );
 }
