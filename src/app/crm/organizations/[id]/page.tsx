@@ -1,23 +1,83 @@
 "use client";
 
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "~/trpc/react";
 import {
-  Stack, Title, Text, Badge, Avatar, Group, Paper, Container,
-  Divider, Anchor, Button, Loader, Center, Alert
+  Stack,
+  Title,
+  Text,
+  Badge,
+  Avatar,
+  Group,
+  Paper,
+  Tabs,
+  Anchor,
+  Button,
+  Loader,
+  Center,
+  Alert,
+  ActionIcon,
+  Tooltip,
+  Box,
+  Divider,
 } from "@mantine/core";
 import {
-  IconWorld, IconBuilding, IconUsers, IconCalendar, IconArrowLeft,
-  IconAlertCircle, IconSend
+  IconWorld,
+  IconBuilding,
+  IconUsers,
+  IconCalendar,
+  IconChevronLeft,
+  IconChevronRight,
+  IconAlertCircle,
+  IconMail,
+  IconPhone,
+  IconNotes,
+  IconChecklist,
+  IconFolder,
+  IconActivity,
+  IconStar,
+  IconPlus,
+  IconDots,
+  IconExternalLink,
+  IconCopy,
+  IconLink,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
+// Helper function to get relative time
+function getRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - new Date(date).getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+  if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffDays === 1) return "1 day ago";
+  if (diffDays < 30) return `${diffDays} days ago`;
+  return new Date(date).toLocaleDateString();
+}
+
+// Helper function to get days until future date
+function getDaysUntil(date: Date): string {
+  const now = new Date();
+  const diffMs = new Date(date).getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return `${Math.abs(diffDays)} days ago`;
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  return `in ${diffDays} days`;
+}
+
 export default function OrganizationDetailsPage() {
   const params = useParams();
   const { data: session, status } = useSession();
   const organizationId = params.id as string;
+  const [activeTab, setActiveTab] = useState<string | null>("overview");
 
   const { data: organization, isLoading, error } = api.sponsor.getSponsor.useQuery(
     { id: organizationId },
@@ -50,25 +110,31 @@ export default function OrganizationDetailsPage() {
 
   if (isLoading) {
     return (
-      <Container size="xl" py="xl">
-        <Center h="50vh">
-          <Stack align="center" gap="md">
-            <Loader size="lg" />
-            <Text c="dimmed">Loading organization details...</Text>
-          </Stack>
-        </Center>
-      </Container>
+      <Box
+        style={{
+          height: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--theme-crm-bg)",
+        }}
+      >
+        <Stack align="center" gap="md">
+          <Loader size="lg" />
+          <Text c="dimmed">Loading organization details...</Text>
+        </Stack>
+      </Box>
     );
   }
 
   if (error ?? !organization) {
     return (
-      <Container size="xl" py="xl">
+      <Box p="xl" style={{ background: "var(--theme-crm-bg)", minHeight: "100vh" }}>
         <Stack gap="lg">
           <Button
             component={Link}
             href="/crm/organizations"
-            leftSection={<IconArrowLeft size={16} />}
+            leftSection={<IconChevronLeft size={16} />}
             variant="subtle"
           >
             Back to Organizations
@@ -81,264 +147,1011 @@ export default function OrganizationDetailsPage() {
             </Text>
           </Alert>
         </Stack>
-      </Container>
+      </Box>
     );
   }
 
+  const emailCount = communications?.filter(c => c.channel === "EMAIL").length ?? 0;
+  const callCount = 0; // Placeholder - could be from calls table
+
+  // Build activity items from communications and events
+  const activityItems: Array<{
+    id: string;
+    type: "email" | "meeting" | "system" | "created";
+    description: string;
+    actor: string;
+    timestamp: Date;
+  }> = [];
+
+  // Add communications as activity
+  communications?.forEach(comm => {
+    activityItems.push({
+      id: comm.id,
+      type: "email",
+      description: comm.subject ?? "Sent a message",
+      actor: comm.contact ? `${comm.contact.firstName} ${comm.contact.lastName}` : "System",
+      timestamp: comm.sentAt ?? comm.createdAt,
+    });
+  });
+
+  // Add events as activity
+  organization.events.forEach(evt => {
+    activityItems.push({
+      id: evt.id,
+      type: "meeting",
+      description: `Event sponsorship: ${evt.eventId}`,
+      actor: "System",
+      timestamp: new Date(),
+    });
+  });
+
+  // Sort by timestamp descending
+  activityItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  // Get domain from website URL
+  const getDomain = (url: string | null): string | null => {
+    if (!url) return null;
+    try {
+      const domain = new URL(url).hostname.replace("www.", "");
+      return domain;
+    } catch {
+      return url;
+    }
+  };
+
+  const domain = getDomain(organization.websiteUrl);
+
   return (
-    <Container size="xl" py="xl">
-      <Stack gap="lg">
-        {/* Header with Back Button */}
+    <Box
+      style={{
+        minHeight: "100vh",
+        background: "var(--theme-crm-bg)",
+      }}
+    >
+      {/* Top Navigation Bar */}
+      <Box
+        px="md"
+        py="xs"
+        style={{
+          borderBottom: "1px solid var(--theme-crm-border)",
+          background: "var(--theme-crm-surface)",
+        }}
+      >
         <Group justify="space-between">
-          <Button
-            component={Link}
-            href="/crm/organizations"
-            leftSection={<IconArrowLeft size={16} />}
-            variant="subtle"
-          >
-            Back to Organizations
-          </Button>
-        </Group>
-
-        {/* Organization Header */}
-        <Paper shadow="sm" p="xl" radius="md" withBorder>
-          <Group align="flex-start" gap="xl">
-            {/* Logo */}
-            {organization.logoUrl ? (
-              <Avatar src={organization.logoUrl} size={120} radius="md">
-                {organization.name[0]?.toUpperCase()}
-              </Avatar>
-            ) : (
-              <Avatar size={120} color="blue" radius="md">
-                <IconBuilding size={60} />
-              </Avatar>
-            )}
-
-            {/* Info */}
-            <Stack gap="md" style={{ flex: 1 }}>
-              <div>
-                <Title order={1}>{organization.name}</Title>
-                {organization.websiteUrl && (
-                  <Anchor href={organization.websiteUrl} target="_blank" size="lg" mt="xs">
-                    <Group gap={6}>
-                      <IconWorld size={18} />
-                      Visit Website
-                    </Group>
-                  </Anchor>
-                )}
-              </div>
-
-              {/* Statistics Cards */}
-              <Group gap="md">
-                <Paper p="md" withBorder bg="blue.0" style={{ minWidth: 150 }}>
-                  <Stack gap={8} align="center">
-                    <IconUsers size={32} color="var(--mantine-color-blue-6)" />
-                    <Text size="xl" fw={700}>{organization.contacts.length}</Text>
-                    <Text size="sm" c="dimmed">Contacts</Text>
-                  </Stack>
-                </Paper>
-                <Paper p="md" withBorder bg="green.0" style={{ minWidth: 150 }}>
-                  <Stack gap={8} align="center">
-                    <IconCalendar size={32} color="var(--mantine-color-green-6)" />
-                    <Text size="xl" fw={700}>{organization.events.length}</Text>
-                    <Text size="sm" c="dimmed">Events</Text>
-                  </Stack>
-                </Paper>
-              </Group>
-            </Stack>
+          <Group gap="xs">
+            <ActionIcon
+              variant="subtle"
+              size="sm"
+              component={Link}
+              href="/crm/organizations"
+            >
+              <IconChevronLeft size={16} />
+            </ActionIcon>
+            <ActionIcon variant="subtle" size="sm" disabled>
+              <IconChevronLeft size={14} />
+            </ActionIcon>
+            <ActionIcon variant="subtle" size="sm" disabled>
+              <IconChevronRight size={14} />
+            </ActionIcon>
+            <Text size="sm" c="dimmed">
+              Organization in All Companies
+            </Text>
           </Group>
-        </Paper>
-
-        {/* Main Content Grid */}
-        <Group align="flex-start" gap="lg" grow>
-          {/* Left Column */}
-          <Stack gap="lg">
-            {/* Contacts Section */}
-            {organization.contacts.length > 0 ? (
-              <Paper shadow="xs" p="md" radius="md" withBorder>
-                <Stack gap="md">
-                  <Title order={3}>
-                    <Group gap="sm">
-                      <IconUsers size={24} />
-                      Contacts ({organization.contacts.length})
-                    </Group>
-                  </Title>
-                  <Stack gap="xs">
-                    {organization.contacts.map(contact => (
-                      <Paper
-                        key={contact.id}
-                        p="md"
-                        withBorder
-                        component={Link}
-                        href={`/crm/contacts/${contact.id}`}
-                        style={{ cursor: 'pointer', textDecoration: 'none', color: 'inherit' }}
-                      >
-                        <Group gap="md">
-                          <Avatar size="md" color="blue">
-                            {contact.firstName[0]?.toUpperCase()}{contact.lastName[0]?.toUpperCase()}
-                          </Avatar>
-                          <Stack gap={2}>
-                            <Text fw={500}>
-                              {contact.firstName} {contact.lastName}
-                            </Text>
-                            {contact.email && (
-                              <Text size="sm" c="dimmed">{contact.email}</Text>
-                            )}
-                          </Stack>
-                        </Group>
-                      </Paper>
-                    ))}
-                  </Stack>
-                </Stack>
-              </Paper>
-            ) : (
-              <Paper shadow="xs" p="md" radius="md" withBorder>
-                <Stack gap="md" align="center" py="xl">
-                  <IconUsers size={48} color="var(--mantine-color-dimmed)" />
-                  <Text c="dimmed" ta="center">No contacts associated with this organization</Text>
-                </Stack>
-              </Paper>
-            )}
-          </Stack>
-
-          {/* Right Column */}
-          <Stack gap="lg">
-            {/* Events Section */}
-            {organization.events.length > 0 ? (
-              <Paper shadow="xs" p="md" radius="md" withBorder>
-                <Stack gap="md">
-                  <Title order={3}>
-                    <Group gap="sm">
-                      <IconCalendar size={24} />
-                      Events ({organization.events.length})
-                    </Group>
-                  </Title>
-                  <Stack gap="xs">
-                    {organization.events.map(eventSponsor => (
-                      <Paper key={eventSponsor.id} p="md" withBorder>
-                        <Group justify="space-between" align="flex-start">
-                          <Stack gap={4}>
-                            <Group gap="sm">
-                              <IconCalendar size={16} />
-                              <Text fw={500} size="sm">Event ID: {eventSponsor.eventId}</Text>
-                            </Group>
-                            <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }}>
-                              ID: {eventSponsor.id}
-                            </Text>
-                          </Stack>
-                          {eventSponsor.qualified && (
-                            <Badge color="green">Qualified</Badge>
-                          )}
-                        </Group>
-                      </Paper>
-                    ))}
-                  </Stack>
-                </Stack>
-              </Paper>
-            ) : (
-              <Paper shadow="xs" p="md" radius="md" withBorder>
-                <Stack gap="md" align="center" py="xl">
-                  <IconCalendar size={48} color="var(--mantine-color-dimmed)" />
-                  <Text c="dimmed" ta="center">No events associated with this organization</Text>
-                </Stack>
-              </Paper>
-            )}
-          </Stack>
+          <Group gap="xs">
+            <Button
+              variant="subtle"
+              size="xs"
+              leftSection={<IconMail size={14} />}
+            >
+              Compose email
+            </Button>
+            <ActionIcon variant="subtle" size="sm">
+              <IconExternalLink size={16} />
+            </ActionIcon>
+            <ActionIcon variant="subtle" size="sm">
+              <IconLink size={16} />
+            </ActionIcon>
+            <ActionIcon variant="subtle" size="sm">
+              <IconDots size={16} />
+            </ActionIcon>
+          </Group>
         </Group>
+      </Box>
 
-        {/* Communications History */}
-        {communications && communications.length > 0 && (
-          <Paper shadow="xs" p="md" radius="md" withBorder>
-            <Stack gap="md">
-              <Title order={3}>
-                <Group gap="sm">
-                  <IconSend size={24} />
-                  Communications ({communications.length})
+      {/* Company Header */}
+      <Box
+        px="md"
+        py="sm"
+        style={{
+          borderBottom: "1px solid var(--theme-crm-border)",
+          background: "var(--theme-crm-surface)",
+        }}
+      >
+        <Group gap="md">
+          {organization.logoUrl ? (
+            <Avatar src={organization.logoUrl} size={36} radius="sm">
+              {organization.name[0]?.toUpperCase()}
+            </Avatar>
+          ) : (
+            <Avatar size={36} radius="sm">
+              <IconBuilding size={20} />
+            </Avatar>
+          )}
+          <Title order={3} fw={500}>
+            {organization.name}
+          </Title>
+          <ActionIcon variant="subtle" size="xs">
+            <IconStar size={16} />
+          </ActionIcon>
+        </Group>
+      </Box>
+
+      {/* Main Content Area */}
+      <Box style={{ display: "flex" }}>
+        {/* Left Content */}
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          {/* Tabs */}
+          <Tabs
+            value={activeTab}
+            onChange={setActiveTab}
+            variant="unstyled"
+            styles={{
+              root: {
+                borderBottom: "1px solid var(--theme-crm-border)",
+                background: "var(--theme-crm-surface)",
+              },
+              list: {
+                gap: 0,
+              },
+              tab: {
+                padding: "12px 16px",
+                color: "var(--mantine-color-dimmed)",
+                fontWeight: 500,
+                fontSize: "14px",
+                borderBottom: "2px solid transparent",
+                "&[data-active]": {
+                  color: "var(--mantine-color-text)",
+                  borderBottomColor: "var(--mantine-color-text)",
+                },
+                "&:hover": {
+                  background: "var(--theme-crm-surface-hover)",
+                },
+              },
+            }}
+          >
+            <Tabs.List px="md">
+              <Tabs.Tab value="overview">Overview</Tabs.Tab>
+              <Tabs.Tab value="activity">
+                <Group gap={6}>
+                  Activity
                 </Group>
-              </Title>
-              <Stack gap="xs">
-                {communications.map(comm => (
-                  <Paper key={comm.id} p="md" withBorder>
-                    <Stack gap={8}>
-                      <Group justify="space-between" align="flex-start">
-                        <Group gap="sm">
-                          <Badge size="sm" variant="light" color={comm.channel === 'TELEGRAM' ? 'blue' : 'gray'}>
-                            {comm.channel}
-                          </Badge>
-                          <Badge size="sm" variant="light" color={
-                            comm.status === 'SENT' ? 'green' :
-                            comm.status === 'FAILED' ? 'red' :
-                            'gray'
-                          }>
-                            {comm.status}
-                          </Badge>
-                          {comm.contact && (
-                            <Anchor component={Link} href={`/crm/contacts/${comm.contact.id}`} size="sm">
-                              To: {comm.contact.firstName} {comm.contact.lastName}
-                            </Anchor>
-                          )}
+              </Tabs.Tab>
+              <Tabs.Tab value="emails">
+                <Group gap={6}>
+                  Emails
+                  <Badge size="xs" variant="light">
+                    {emailCount}
+                  </Badge>
+                </Group>
+              </Tabs.Tab>
+              <Tabs.Tab value="calls">
+                <Group gap={6}>
+                  Calls
+                  <Badge size="xs" variant="light">
+                    {callCount}
+                  </Badge>
+                </Group>
+              </Tabs.Tab>
+              <Tabs.Tab value="team">
+                <Group gap={6}>
+                  Team
+                  <Badge size="xs" variant="light">
+                    {organization.contacts.length}
+                  </Badge>
+                </Group>
+              </Tabs.Tab>
+              <Tabs.Tab value="notes">
+                <Group gap={6}>
+                  Notes
+                  <Badge size="xs" variant="light">
+                    0
+                  </Badge>
+                </Group>
+              </Tabs.Tab>
+              <Tabs.Tab value="tasks">
+                <Group gap={6}>
+                  Tasks
+                  <Badge size="xs" variant="light">
+                    0
+                  </Badge>
+                </Group>
+              </Tabs.Tab>
+              <Tabs.Tab value="files">Files</Tabs.Tab>
+            </Tabs.List>
+          </Tabs>
+
+          {/* Tab Content */}
+          <Box p="md">
+            {activeTab === "overview" && (
+              <Stack gap="lg">
+                {/* Highlights Section */}
+                <Box>
+                  <Group gap="xs" mb="sm">
+                    <IconActivity size={16} />
+                    <Text size="sm" fw={600} c="dimmed">
+                      Highlights
+                    </Text>
+                  </Group>
+
+                  {/* Highlights Grid */}
+                  <Box
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(3, 1fr)",
+                      gap: "12px",
+                    }}
+                  >
+                    {/* Connection Strength */}
+                    <Paper
+                      p="md"
+                      radius="md"
+                      style={{
+                        background: "var(--theme-crm-card)",
+                        border: "1px solid var(--theme-crm-card-border)",
+                      }}
+                    >
+                      <Stack gap="xs">
+                        <Group justify="space-between">
+                          <Text size="xs" c="dimmed">
+                            Connection strength
+                          </Text>
+                          <ActionIcon variant="subtle" size="xs">
+                            <IconStar size={12} />
+                          </ActionIcon>
                         </Group>
-                        <Text size="xs" c="dimmed">
-                          {comm.sentAt
-                            ? new Date(comm.sentAt).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })
-                            : new Date(comm.createdAt).toLocaleDateString()}
+                        <Group gap="xs">
+                          <Box
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: "50%",
+                              background: "var(--mantine-color-green-6)",
+                            }}
+                          />
+                          <Text size="sm" fw={500}>
+                            Very strong
+                          </Text>
+                        </Group>
+                        {organization.contacts[0] && (
+                          <Text size="xs" c="dimmed">
+                            {organization.contacts[0].firstName} {organization.contacts[0].lastName}
+                          </Text>
+                        )}
+                      </Stack>
+                    </Paper>
+
+                    {/* Next Calendar Interaction */}
+                    <Paper
+                      p="md"
+                      radius="md"
+                      style={{
+                        background: "var(--theme-crm-card)",
+                        border: "1px solid var(--theme-crm-card-border)",
+                      }}
+                    >
+                      <Stack gap="xs">
+                        <Group justify="space-between">
+                          <Text size="xs" c="dimmed">
+                            Next calendar interaction
+                          </Text>
+                          <ActionIcon variant="subtle" size="xs">
+                            <IconCopy size={12} />
+                          </ActionIcon>
+                        </Group>
+                        {organization.events[0] ? (
+                          <>
+                            <Text size="sm" fw={500} lineClamp={1}>
+                              Event: {organization.events[0].eventId}
+                            </Text>
+                            <Group gap="xs">
+                              <Text size="xs" c="dimmed">
+                                {getDaysUntil(new Date())}
+                              </Text>
+                              <Avatar.Group spacing="xs">
+                                {organization.contacts.slice(0, 2).map(contact => (
+                                  <Avatar key={contact.id} size="xs" color="blue">
+                                    {contact.firstName[0]}
+                                  </Avatar>
+                                ))}
+                                {organization.contacts.length > 2 && (
+                                  <Avatar size="xs">
+                                    +{organization.contacts.length - 2}
+                                  </Avatar>
+                                )}
+                              </Avatar.Group>
+                            </Group>
+                          </>
+                        ) : (
+                          <Text size="sm" c="dimmed">
+                            No upcoming events
+                          </Text>
+                        )}
+                      </Stack>
+                    </Paper>
+
+                    {/* Team */}
+                    <Paper
+                      p="md"
+                      radius="md"
+                      style={{
+                        background: "var(--theme-crm-card)",
+                        border: "1px solid var(--theme-crm-card-border)",
+                      }}
+                    >
+                      <Stack gap="xs">
+                        <Group justify="space-between">
+                          <Text size="xs" c="dimmed">
+                            Team
+                          </Text>
+                          <ActionIcon variant="subtle" size="xs">
+                            <IconUsers size={12} />
+                          </ActionIcon>
+                        </Group>
+                        <Avatar.Group spacing="sm">
+                          {organization.contacts.slice(0, 3).map(contact => (
+                            <Tooltip
+                              key={contact.id}
+                              label={`${contact.firstName} ${contact.lastName}`}
+                            >
+                              <Avatar size="sm" color="blue">
+                                {contact.firstName[0]}
+                              </Avatar>
+                            </Tooltip>
+                          ))}
+                          {organization.contacts.length > 3 && (
+                            <Avatar size="sm">
+                              +{organization.contacts.length - 3}
+                            </Avatar>
+                          )}
+                        </Avatar.Group>
+                      </Stack>
+                    </Paper>
+
+                    {/* Event Count */}
+                    <Paper
+                      p="md"
+                      radius="md"
+                      style={{
+                        background: "var(--theme-crm-card)",
+                        border: "1px solid var(--theme-crm-card-border)",
+                      }}
+                    >
+                      <Stack gap="xs">
+                        <Group justify="space-between">
+                          <Text size="xs" c="dimmed">
+                            Events
+                          </Text>
+                          <ActionIcon variant="subtle" size="xs">
+                            <IconCalendar size={12} />
+                          </ActionIcon>
+                        </Group>
+                        <Text size="sm" fw={500}>
+                          {organization.events.length}
                         </Text>
-                      </Group>
-                      {comm.subject && (
-                        <Text size="sm" fw={500}>{comm.subject}</Text>
-                      )}
-                      <Text size="sm" c="dimmed" lineClamp={3}>
-                        {comm.textContent}
+                      </Stack>
+                    </Paper>
+
+                    {/* Contacts */}
+                    <Paper
+                      p="md"
+                      radius="md"
+                      style={{
+                        background: "var(--theme-crm-card)",
+                        border: "1px solid var(--theme-crm-card-border)",
+                      }}
+                    >
+                      <Stack gap="xs">
+                        <Group justify="space-between">
+                          <Text size="xs" c="dimmed">
+                            Contacts
+                          </Text>
+                          <ActionIcon variant="subtle" size="xs">
+                            <IconUsers size={12} />
+                          </ActionIcon>
+                        </Group>
+                        <Text size="sm" fw={500}>
+                          {organization.contacts.length}
+                        </Text>
+                      </Stack>
+                    </Paper>
+
+                    {/* Communications */}
+                    <Paper
+                      p="md"
+                      radius="md"
+                      style={{
+                        background: "var(--theme-crm-card)",
+                        border: "1px solid var(--theme-crm-card-border)",
+                      }}
+                    >
+                      <Stack gap="xs">
+                        <Group justify="space-between">
+                          <Text size="xs" c="dimmed">
+                            Communications
+                          </Text>
+                          <ActionIcon variant="subtle" size="xs">
+                            <IconMail size={12} />
+                          </ActionIcon>
+                        </Group>
+                        <Text size="sm" fw={500}>
+                          {communications?.length ?? 0}
+                        </Text>
+                      </Stack>
+                    </Paper>
+                  </Box>
+                </Box>
+
+                {/* Activity Section */}
+                <Box>
+                  <Group gap="xs" mb="sm" justify="space-between">
+                    <Group gap="xs">
+                      <IconActivity size={16} />
+                      <Text size="sm" fw={600} c="dimmed">
+                        Activity
                       </Text>
-                      <Group gap="xs">
-                        {comm.toTelegram && (
+                    </Group>
+                    <Anchor size="xs" c="dimmed">
+                      View all &gt;
+                    </Anchor>
+                  </Group>
+
+                  <Stack gap="xs">
+                    {activityItems.slice(0, 5).map(item => (
+                      <Paper
+                        key={item.id}
+                        p="sm"
+                        radius="md"
+                        style={{
+                          background: "var(--theme-crm-card)",
+                          border: "1px solid var(--theme-crm-card-border)",
+                        }}
+                      >
+                        <Group justify="space-between" align="flex-start">
+                          <Group gap="sm" align="flex-start">
+                            <Box
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                background:
+                                  item.type === "email"
+                                    ? "var(--mantine-color-blue-6)"
+                                    : item.type === "meeting"
+                                    ? "var(--mantine-color-green-6)"
+                                    : "var(--mantine-color-gray-6)",
+                                marginTop: 6,
+                              }}
+                            />
+                            <Stack gap={2}>
+                              <Group gap="xs">
+                                <Text size="sm" fw={500}>
+                                  {item.actor}
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                  {item.type === "email"
+                                    ? "sent"
+                                    : item.type === "meeting"
+                                    ? "scheduled"
+                                    : ""}
+                                </Text>
+                                <Text size="sm">
+                                  {item.description}
+                                </Text>
+                              </Group>
+                            </Stack>
+                          </Group>
                           <Text size="xs" c="dimmed">
-                            To: @{comm.toTelegram}
+                            {getRelativeTime(item.timestamp)}
+                          </Text>
+                        </Group>
+                      </Paper>
+                    ))}
+                    {activityItems.length === 0 && (
+                      <Paper
+                        p="xl"
+                        radius="md"
+                        style={{
+                          background: "var(--theme-crm-card)",
+                          border: "1px solid var(--theme-crm-card-border)",
+                        }}
+                      >
+                        <Text size="sm" c="dimmed" ta="center">
+                          No activity yet
+                        </Text>
+                      </Paper>
+                    )}
+                  </Stack>
+                </Box>
+
+                {/* Emails Section */}
+                <Box>
+                  <Group gap="xs" mb="sm" justify="space-between">
+                    <Group gap="xs">
+                      <IconMail size={16} />
+                      <Text size="sm" fw={600} c="dimmed">
+                        Emails
+                      </Text>
+                      <Badge size="xs" variant="light">
+                        {emailCount}
+                      </Badge>
+                    </Group>
+                    <ActionIcon variant="subtle" size="xs">
+                      <IconPlus size={14} />
+                    </ActionIcon>
+                  </Group>
+
+                  <Stack gap="xs">
+                    {communications
+                      ?.filter(c => c.channel === "EMAIL")
+                      .slice(0, 5)
+                      .map(email => (
+                        <Paper
+                          key={email.id}
+                          p="sm"
+                          radius="md"
+                          style={{
+                            background: "var(--theme-crm-card)",
+                            border: "1px solid var(--theme-crm-card-border)",
+                          }}
+                        >
+                          <Group justify="space-between" align="flex-start">
+                            <Group gap="sm" align="flex-start">
+                              <Avatar size="sm" color="blue">
+                                {email.contact?.firstName?.[0] ?? "?"}
+                              </Avatar>
+                              <Stack gap={2}>
+                                <Text size="sm" fw={500}>
+                                  {email.contact
+                                    ? `${email.contact.firstName} ${email.contact.lastName}`
+                                    : "Unknown"}
+                                </Text>
+                                <Text size="sm" c="dimmed" lineClamp={1}>
+                                  {email.subject ?? "No subject"}
+                                </Text>
+                              </Stack>
+                            </Group>
+                            <Text size="xs" c="dimmed">
+                              {getRelativeTime(email.sentAt ?? email.createdAt)}
+                            </Text>
+                          </Group>
+                        </Paper>
+                      ))}
+                    {emailCount === 0 && (
+                      <Paper
+                        p="xl"
+                        radius="md"
+                        style={{
+                          background: "var(--theme-crm-card)",
+                          border: "1px solid var(--theme-crm-card-border)",
+                        }}
+                      >
+                        <Text size="sm" c="dimmed" ta="center">
+                          No emails yet
+                        </Text>
+                      </Paper>
+                    )}
+                  </Stack>
+                </Box>
+              </Stack>
+            )}
+
+            {activeTab === "team" && (
+              <Stack gap="md">
+                {organization.contacts.map(contact => (
+                  <Paper
+                    key={contact.id}
+                    p="md"
+                    radius="md"
+                    component={Link}
+                    href={`/crm/contacts/${contact.id}`}
+                    style={{
+                      background: "var(--theme-crm-card)",
+                      border: "1px solid var(--theme-crm-card-border)",
+                      cursor: "pointer",
+                      textDecoration: "none",
+                    }}
+                  >
+                    <Group gap="md">
+                      <Avatar size="lg" color="blue">
+                        {contact.firstName[0]?.toUpperCase()}
+                        {contact.lastName[0]?.toUpperCase()}
+                      </Avatar>
+                      <Stack gap={2}>
+                        <Text fw={500}>
+                          {contact.firstName} {contact.lastName}
+                        </Text>
+                        {contact.email && (
+                          <Text size="sm" c="dimmed">
+                            {contact.email}
                           </Text>
                         )}
-                        {comm.toEmail && (
-                          <Text size="xs" c="dimmed">
-                            To: {comm.toEmail}
-                          </Text>
-                        )}
-                      </Group>
-                    </Stack>
+                      </Stack>
+                    </Group>
                   </Paper>
                 ))}
+                {organization.contacts.length === 0 && (
+                  <Paper
+                    p="xl"
+                    radius="md"
+                    style={{
+                      background: "var(--theme-crm-card)",
+                      border: "1px solid var(--theme-crm-card-border)",
+                    }}
+                  >
+                    <Stack align="center" gap="md">
+                      <IconUsers size={48} style={{ opacity: 0.5 }} />
+                      <Text c="dimmed">No contacts associated with this organization</Text>
+                    </Stack>
+                  </Paper>
+                )}
               </Stack>
-            </Stack>
-          </Paper>
-        )}
+            )}
 
-        <Divider />
+            {activeTab === "activity" && (
+              <Stack gap="md">
+                {activityItems.map(item => (
+                  <Paper
+                    key={item.id}
+                    p="md"
+                    radius="md"
+                    style={{
+                      background: "var(--theme-crm-card)",
+                      border: "1px solid var(--theme-crm-card-border)",
+                    }}
+                  >
+                    <Group justify="space-between" align="flex-start">
+                      <Group gap="sm" align="flex-start">
+                        <Box
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background:
+                              item.type === "email"
+                                ? "var(--mantine-color-blue-6)"
+                                : item.type === "meeting"
+                                ? "var(--mantine-color-green-6)"
+                                : "var(--mantine-color-gray-6)",
+                            marginTop: 6,
+                          }}
+                        />
+                        <Stack gap={2}>
+                          <Group gap="xs">
+                            <Text size="sm" fw={500}>
+                              {item.actor}
+                            </Text>
+                            <Text size="sm" c="dimmed">
+                              {item.description}
+                            </Text>
+                          </Group>
+                        </Stack>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        {getRelativeTime(item.timestamp)}
+                      </Text>
+                    </Group>
+                  </Paper>
+                ))}
+                {activityItems.length === 0 && (
+                  <Paper
+                    p="xl"
+                    radius="md"
+                    style={{
+                      background: "var(--theme-crm-card)",
+                      border: "1px solid var(--theme-crm-card-border)",
+                    }}
+                  >
+                    <Text c="dimmed" ta="center">
+                      No activity yet
+                    </Text>
+                  </Paper>
+                )}
+              </Stack>
+            )}
 
-        {/* Footer Info */}
-        <Paper p="md" withBorder bg="gray.0">
-          <Stack gap="xs">
-            <Text size="sm" fw={500} c="dimmed">Organization Information</Text>
-            <Group gap="xl">
-              <div>
-                <Text size="xs" c="dimmed">Organization ID</Text>
-                <Text size="sm" style={{ fontFamily: 'monospace' }}>{organization.id}</Text>
-              </div>
-              {organization.websiteUrl && (
-                <div>
-                  <Text size="xs" c="dimmed">Website</Text>
-                  <Anchor href={organization.websiteUrl} target="_blank" size="sm">
-                    {organization.websiteUrl}
-                  </Anchor>
-                </div>
-              )}
-            </Group>
-          </Stack>
-        </Paper>
-      </Stack>
-    </Container>
+            {activeTab === "emails" && (
+              <Stack gap="md">
+                {communications
+                  ?.filter(c => c.channel === "EMAIL")
+                  .map(email => (
+                    <Paper
+                      key={email.id}
+                      p="md"
+                      radius="md"
+                      style={{
+                        background: "var(--theme-crm-card)",
+                        border: "1px solid var(--theme-crm-card-border)",
+                      }}
+                    >
+                      <Group justify="space-between" align="flex-start">
+                        <Group gap="sm" align="flex-start">
+                          <Avatar size="md" color="blue">
+                            {email.contact?.firstName?.[0] ?? "?"}
+                          </Avatar>
+                          <Stack gap={4}>
+                            <Text size="sm" fw={500}>
+                              {email.contact
+                                ? `${email.contact.firstName} ${email.contact.lastName}`
+                                : "Unknown"}
+                            </Text>
+                            <Text size="sm">
+                              {email.subject ?? "No subject"}
+                            </Text>
+                            <Text size="sm" c="dimmed" lineClamp={2}>
+                              {email.textContent}
+                            </Text>
+                          </Stack>
+                        </Group>
+                        <Text size="xs" c="dimmed">
+                          {getRelativeTime(email.sentAt ?? email.createdAt)}
+                        </Text>
+                      </Group>
+                    </Paper>
+                  ))}
+                {emailCount === 0 && (
+                  <Paper
+                    p="xl"
+                    radius="md"
+                    style={{
+                      background: "var(--theme-crm-card)",
+                      border: "1px solid var(--theme-crm-card-border)",
+                    }}
+                  >
+                    <Stack align="center" gap="md">
+                      <IconMail size={48} style={{ opacity: 0.5 }} />
+                      <Text c="dimmed">No emails yet</Text>
+                    </Stack>
+                  </Paper>
+                )}
+              </Stack>
+            )}
+
+            {(activeTab === "calls" ||
+              activeTab === "notes" ||
+              activeTab === "tasks" ||
+              activeTab === "files") && (
+              <Paper
+                p="xl"
+                radius="md"
+                style={{
+                  background: "var(--theme-crm-card)",
+                  border: "1px solid var(--theme-crm-card-border)",
+                }}
+              >
+                <Stack align="center" gap="md">
+                  {activeTab === "calls" && (
+                    <IconPhone size={48} style={{ opacity: 0.5 }} />
+                  )}
+                  {activeTab === "notes" && (
+                    <IconNotes size={48} style={{ opacity: 0.5 }} />
+                  )}
+                  {activeTab === "tasks" && (
+                    <IconChecklist size={48} style={{ opacity: 0.5 }} />
+                  )}
+                  {activeTab === "files" && (
+                    <IconFolder size={48} style={{ opacity: 0.5 }} />
+                  )}
+                  <Text c="dimmed">No {activeTab} yet</Text>
+                </Stack>
+              </Paper>
+            )}
+          </Box>
+        </Box>
+
+        {/* Right Sidebar - Details */}
+        <Box
+          style={{
+            width: 360,
+            borderLeft: "1px solid var(--theme-crm-border)",
+            background: "var(--theme-crm-surface)",
+          }}
+        >
+          {/* Sidebar Tabs */}
+          <Tabs
+            defaultValue="details"
+            variant="unstyled"
+            styles={{
+              root: {
+                borderBottom: "1px solid var(--theme-crm-border)",
+              },
+              tab: {
+                padding: "12px 16px",
+                color: "var(--mantine-color-dimmed)",
+                fontWeight: 500,
+                fontSize: "14px",
+                borderBottom: "2px solid transparent",
+                "&[data-active]": {
+                  color: "var(--mantine-color-text)",
+                  borderBottomColor: "var(--mantine-color-text)",
+                },
+              },
+            }}
+          >
+            <Tabs.List px="md">
+              <Tabs.Tab value="details">Details</Tabs.Tab>
+              <Tabs.Tab value="comments">
+                <Group gap={6}>
+                  Comments
+                  <Badge size="xs" variant="light">
+                    0
+                  </Badge>
+                </Group>
+              </Tabs.Tab>
+            </Tabs.List>
+
+            <Tabs.Panel value="details">
+              <Box p="md">
+                <Stack gap="lg">
+                  {/* Record Details */}
+                  <Box>
+                    <Group gap="xs" mb="md">
+                      <Text size="xs" c="dimmed" fw={500}>
+                        ▾ Record Details
+                      </Text>
+                    </Group>
+
+                    <Stack gap="md">
+                      {/* Domain */}
+                      <Group gap="md" align="flex-start">
+                        <Box style={{ width: 100 }}>
+                          <Group gap={6}>
+                            <IconWorld size={14} style={{ opacity: 0.5 }} />
+                            <Text size="xs" c="dimmed">
+                              Domains
+                            </Text>
+                          </Group>
+                        </Box>
+                        <Box style={{ flex: 1 }}>
+                          {domain ? (
+                            <Anchor
+                              href={organization.websiteUrl ?? "#"}
+                              target="_blank"
+                              size="sm"
+                            >
+                              {domain}
+                            </Anchor>
+                          ) : (
+                            <Text size="sm" c="dimmed">
+                              —
+                            </Text>
+                          )}
+                        </Box>
+                      </Group>
+
+                      {/* Name */}
+                      <Group gap="md" align="flex-start">
+                        <Box style={{ width: 100 }}>
+                          <Group gap={6}>
+                            <IconBuilding size={14} style={{ opacity: 0.5 }} />
+                            <Text size="xs" c="dimmed">
+                              Name
+                            </Text>
+                          </Group>
+                        </Box>
+                        <Box style={{ flex: 1 }}>
+                          <Text size="sm">
+                            {organization.name}
+                          </Text>
+                        </Box>
+                      </Group>
+
+                      {/* Description */}
+                      <Group gap="md" align="flex-start">
+                        <Box style={{ width: 100 }}>
+                          <Group gap={6}>
+                            <IconNotes size={14} style={{ opacity: 0.5 }} />
+                            <Text size="xs" c="dimmed">
+                              Description
+                            </Text>
+                          </Group>
+                        </Box>
+                        <Box style={{ flex: 1 }}>
+                          <Text size="sm" c="dimmed" lineClamp={3}>
+                            {organization.name} organization profile.
+                          </Text>
+                        </Box>
+                      </Group>
+
+                      {/* Team */}
+                      <Group gap="md" align="flex-start">
+                        <Box style={{ width: 100 }}>
+                          <Group gap={6}>
+                            <IconUsers size={14} style={{ opacity: 0.5 }} />
+                            <Text size="xs" c="dimmed">
+                              Team
+                            </Text>
+                          </Group>
+                        </Box>
+                        <Box style={{ flex: 1 }}>
+                          <Group gap="xs">
+                            {organization.contacts.slice(0, 2).map(contact => (
+                              <Tooltip
+                                key={contact.id}
+                                label={`${contact.firstName} ${contact.lastName}`}
+                              >
+                                <Avatar size="sm" color="blue">
+                                  {contact.firstName[0]}
+                                </Avatar>
+                              </Tooltip>
+                            ))}
+                            {organization.contacts.length > 2 && (
+                              <Text size="xs" c="dimmed">
+                                +{organization.contacts.length - 2}
+                              </Text>
+                            )}
+                          </Group>
+                        </Box>
+                      </Group>
+
+                      {/* Categories */}
+                      <Group gap="md" align="flex-start">
+                        <Box style={{ width: 100 }}>
+                          <Group gap={6}>
+                            <IconFolder size={14} style={{ opacity: 0.5 }} />
+                            <Text size="xs" c="dimmed">
+                              Categories
+                            </Text>
+                          </Group>
+                        </Box>
+                        <Box style={{ flex: 1 }}>
+                          <Group gap={6}>
+                            <Badge size="sm" color="teal" variant="filled">
+                              Sponsor
+                            </Badge>
+                            {organization.events.length > 0 && (
+                              <Badge size="sm" color="blue" variant="filled">
+                                Event Partner
+                              </Badge>
+                            )}
+                          </Group>
+                        </Box>
+                      </Group>
+                    </Stack>
+                  </Box>
+
+                  <Divider />
+
+                  {/* Lists Section */}
+                  <Box>
+                    <Group justify="space-between" mb="md">
+                      <Group gap="xs">
+                        <Text size="xs" c="dimmed" fw={500}>
+                          ▾ Lists
+                        </Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        Add to list
+                      </Text>
+                    </Group>
+
+                    <Text size="sm" c="dimmed">
+                      This record has not been added to any lists
+                    </Text>
+                  </Box>
+                </Stack>
+              </Box>
+            </Tabs.Panel>
+
+            <Tabs.Panel value="comments">
+              <Box p="md">
+                <Text size="sm" c="dimmed" ta="center">
+                  No comments yet
+                </Text>
+              </Box>
+            </Tabs.Panel>
+          </Tabs>
+        </Box>
+      </Box>
+    </Box>
   );
 }
