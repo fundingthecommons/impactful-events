@@ -3,21 +3,28 @@
 import { useState, useMemo, useCallback } from "react";
 import { api } from "~/trpc/react";
 import {
-  Table, Stack, Title, Text, Badge, Avatar, Group, Paper, Container,
-  Drawer, ActionIcon, Divider, Anchor, CopyButton, Tooltip, Tabs,
-  MultiSelect, Textarea, Button, Alert, Select, Loader, TextInput, Checkbox,
-  Modal
+  Text,
+  Avatar,
+  Group,
+  ActionIcon,
+  Checkbox,
+  Menu,
+  Button,
+  Box,
+  Loader,
+  Center,
 } from "@mantine/core";
 import {
-  IconEye, IconBrandTwitter, IconBrandGithub, IconBrandLinkedin,
-  IconBrandTelegram, IconPhone, IconMail, IconCopy, IconCheck,
-  IconBuilding, IconWorld, IconUser, IconAddressBook, IconMessage,
-  IconSend, IconX, IconUsers, IconUsersGroup, IconPlus, IconSearch,
-  IconExternalLink, IconEdit
+  IconChevronDown,
+  IconSettings,
+  IconDownload,
+  IconUpload,
+  IconPlus,
+  IconFilter,
+  IconArrowsSort,
 } from "@tabler/icons-react";
 import { redirect } from "next/navigation";
 import { useSession } from "next-auth/react";
-import ContactsClient from "./ContactsClient";
 import Link from "next/link";
 
 interface Contact {
@@ -40,406 +47,68 @@ interface Contact {
   } | null;
 }
 
+// Connection strength calculation based on communication history
+type ConnectionStrength = "very_strong" | "strong" | "good" | "weak" | "very_weak";
+
+function getConnectionStrength(contact: Contact): ConnectionStrength {
+  // Simple heuristic based on available data
+  let score = 0;
+  if (contact.email) score += 1;
+  if (contact.phone) score += 1;
+  if (contact.telegram) score += 2;
+  if (contact.linkedIn) score += 1;
+  if (contact.twitter) score += 1;
+  if (contact.github) score += 1;
+  if (contact.sponsor) score += 1;
+
+  if (score >= 6) return "very_strong";
+  if (score >= 4) return "strong";
+  if (score >= 3) return "good";
+  if (score >= 2) return "weak";
+  return "very_weak";
+}
+
+function ConnectionStrengthBadge({ strength }: { strength: ConnectionStrength }) {
+  const config = {
+    very_strong: { color: "#22c55e", label: "Very strong" },
+    strong: { color: "#3b82f6", label: "Strong" },
+    good: { color: "#22c55e", label: "Good" },
+    weak: { color: "#f59e0b", label: "Weak" },
+    very_weak: { color: "#ef4444", label: "Very weak" },
+  };
+
+  const { color, label } = config[strength];
+
+  return (
+    <Group gap={6}>
+      <Box
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          backgroundColor: color,
+        }}
+      />
+      <Text size="sm" c="dimmed">{label}</Text>
+    </Group>
+  );
+}
+
 export default function ContactsPage() {
   const { data: session, status } = useSession();
-  const [drawerOpened, setDrawerOpened] = useState(false);
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("contacts");
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editFormData, setEditFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    telegram: "",
-    twitter: "",
-    github: "",
-    linkedIn: "",
-    sponsorId: "",
-    about: "",
-    skills: [] as string[],
-  });
-  
-  // Messaging state
-  const [selectedRecipients, setSelectedRecipients] = useState<Contact[]>([]);
-  const [messageText, setMessageText] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [selectedSmartList, setSelectedSmartList] = useState<string | null>(null);
-  const [messagingMode, setMessagingMode] = useState<'manual' | 'smartlist'>('manual');
-  const [addSalutation, setAddSalutation] = useState(false);
-  
-  // Contact filtering state
-  const [selectedContactFilter, setSelectedContactFilter] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  // Contact merging state
   const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
-  const [mergeModalOpened, setMergeModalOpened] = useState(false);
 
-  // Create contact state
-  const [createDrawerOpened, setCreateDrawerOpened] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [createFormData, setCreateFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    telegram: "",
-    twitter: "",
-    github: "",
-    linkedIn: "",
-    sponsorId: "",
-    about: "",
-    skills: [] as string[],
-  });
-
-  // Create sponsor state
-  const [sponsorModalOpened, setSponsorModalOpened] = useState(false);
-  const [sponsorFormData, setSponsorFormData] = useState({
-    name: "",
-    websiteUrl: "",
-    logoUrl: "",
-  });
-  
   const { data: contacts, isLoading } = api.contact.getContacts.useQuery();
-  const { data: telegramAuthStatus } = api.telegramAuth.getAuthStatus.useQuery();
-  const { data: smartLists, isLoading: smartListsLoading } = api.telegramAuth.getSmartLists.useQuery();
-  const { data: sponsors } = api.sponsor.getSponsors.useQuery();
-  const { data: availableSkills } = api.skills.getAvailableSkills.useQuery();
-  const { data: smartListContacts, isLoading: smartListContactsLoading } = api.telegramAuth.getSmartListContacts.useQuery(
-    { listId: selectedSmartList! },
-    { enabled: !!selectedSmartList }
-  );
-  const { data: filteredContactsList, isLoading: filteredContactsLoading } = api.telegramAuth.getSmartListContacts.useQuery(
-    { listId: selectedContactFilter! },
-    { enabled: !!selectedContactFilter }
-  );
-  const sendBulkMessage = api.telegramAuth.sendBulkMessage.useMutation();
-  const sendBulkMessageToList = api.telegramAuth.sendBulkMessageToList.useMutation();
-  const createContactMutation = api.contact.createContact.useMutation();
-  const createSponsorMutation = api.sponsor.createSponsor.useMutation();
-  const mergeContactsMutation = api.contact.mergeContacts.useMutation();
-  const updateContactMutation = api.contact.updateContact.useMutation();
-  const utils = api.useUtils();
 
-  const openDrawer = useCallback((contact: Contact, editMode = false) => {
-    setSelectedContact(contact);
-    setIsEditMode(editMode);
-    if (editMode) {
-      setEditFormData({
-        firstName: contact.firstName,
-        lastName: contact.lastName,
-        email: contact.email ?? "",
-        phone: contact.phone ?? "",
-        telegram: contact.telegram ?? "",
-        twitter: contact.twitter ?? "",
-        github: contact.github ?? "",
-        linkedIn: contact.linkedIn ?? "",
-        sponsorId: contact.sponsor?.id ?? "",
-        about: contact.about ?? "",
-        skills: contact.skills ?? [],
-      });
-    }
-    setDrawerOpened(true);
-  }, []);
-
-  const closeDrawer = useCallback(() => {
-    setDrawerOpened(false);
-    setSelectedContact(null);
-    setIsEditMode(false);
-    setEditFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      telegram: "",
-      twitter: "",
-      github: "",
-      linkedIn: "",
-      sponsorId: "",
-      about: "",
-      skills: [],
+  // Sort contacts alphabetically by name
+  const sortedContacts = useMemo(() => {
+    if (!contacts) return [];
+    return [...contacts].sort((a, b) => {
+      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+      return nameA.localeCompare(nameB);
     });
-  }, []);
-
-  // Get contacts with Telegram usernames for messaging (memoized)
-  const telegramContacts = useMemo(() => 
-    contacts?.filter(contact => contact.telegram) ?? [], 
-    [contacts]
-  );
-
-  // Contact selector data for MultiSelect (memoized)
-  const contactSelectData = useMemo(() => 
-    telegramContacts.map(contact => ({
-      value: contact.id,
-      label: `${contact.firstName} ${contact.lastName} (@${contact.telegram})`,
-      contact: contact,
-    })), 
-    [telegramContacts]
-  );
-
-  // Filtered contacts for display (memoized)
-  const displayContacts = useMemo(() => {
-    let filtered = contacts;
-
-    // First, apply smart list filter if selected
-    if (selectedContactFilter && filteredContactsList) {
-      const smartListEmails = new Set(filteredContactsList.map(c => c.email).filter(Boolean));
-      filtered = contacts?.filter(contact => contact.email && smartListEmails.has(contact.email)) ?? [];
-    }
-
-    // Then apply search query filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered?.filter(contact => {
-        const fullName = `${contact.firstName} ${contact.lastName}`.toLowerCase();
-        const email = contact.email?.toLowerCase() ?? "";
-        const phone = contact.phone?.toLowerCase() ?? "";
-        const telegram = contact.telegram?.toLowerCase() ?? "";
-        const sponsorName = contact.sponsor?.name.toLowerCase() ?? "";
-
-        return (
-          fullName.includes(query) ||
-          email.includes(query) ||
-          phone.includes(query) ||
-          telegram.includes(query) ||
-          sponsorName.includes(query)
-        );
-      }) ?? [];
-    }
-
-    return filtered;
-  }, [contacts, selectedContactFilter, filteredContactsList, searchQuery]);
-
-  // Get selected smart list info for display (memoized)
-  const selectedListInfo = useMemo(() => 
-    smartLists?.find(list => list.id === selectedContactFilter), 
-    [smartLists, selectedContactFilter]
-  );
-
-  const handleSendMessage = useCallback(async () => {
-    if (!messageText.trim()) return;
-
-    if (messagingMode === 'manual' && !selectedRecipients.length) return;
-    if (messagingMode === 'smartlist' && !selectedSmartList) return;
-
-    setIsSending(true);
-    try {
-      let result;
-      if (messagingMode === 'smartlist') {
-        result = await sendBulkMessageToList.mutateAsync({
-          listId: selectedSmartList!,
-          message: messageText.trim(),
-          addSalutation,
-        });
-      } else {
-        result = await sendBulkMessage.mutateAsync({
-          contactIds: selectedRecipients.map(c => c.id),
-          message: messageText.trim(),
-          addSalutation,
-        });
-      }
-
-      // Reset form on success
-      setSelectedRecipients([]);
-      setSelectedSmartList(null);
-      setMessageText("");
-      setAddSalutation(false);
-      console.log(`Messages sent: ${result.successCount} successful, ${result.failureCount} failed`);
-    } catch (error) {
-      console.error("Failed to send messages:", error);
-    } finally {
-      setIsSending(false);
-    }
-  }, [messageText, messagingMode, selectedRecipients, selectedSmartList, sendBulkMessageToList, sendBulkMessage, addSalutation]);
-
-  const removeRecipient = useCallback((contactId: string) => {
-    setSelectedRecipients(prev => prev.filter(c => c.id !== contactId));
-  }, []);
-
-  // Create contact handlers
-  const openCreateDrawer = useCallback(() => {
-    setCreateDrawerOpened(true);
-  }, []);
-
-  const closeCreateDrawer = useCallback(() => {
-    setCreateDrawerOpened(false);
-    setCreateFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      telegram: "",
-      twitter: "",
-      github: "",
-      linkedIn: "",
-      sponsorId: "",
-      about: "",
-      skills: [],
-    });
-  }, []);
-
-  const handleCreateContact = useCallback(async () => {
-    if (!createFormData.firstName || !createFormData.lastName) {
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      await createContactMutation.mutateAsync({
-        firstName: createFormData.firstName,
-        lastName: createFormData.lastName,
-        email: createFormData.email || undefined,
-        phone: createFormData.phone || undefined,
-        telegram: createFormData.telegram || undefined,
-        twitter: createFormData.twitter || undefined,
-        github: createFormData.github || undefined,
-        linkedIn: createFormData.linkedIn || undefined,
-        sponsorId: createFormData.sponsorId || undefined,
-        about: createFormData.about || undefined,
-        skills: createFormData.skills.length > 0 ? createFormData.skills : undefined,
-      });
-
-      // Refresh contacts list
-      void utils.contact.getContacts.invalidate();
-      
-      // Close drawer and reset form
-      closeCreateDrawer();
-      
-      console.log("Contact created successfully");
-    } catch (error) {
-      console.error("Failed to create contact:", error);
-    } finally {
-      setIsCreating(false);
-    }
-  }, [createFormData, createContactMutation, utils, closeCreateDrawer]);
-
-  const updateCreateFormField = useCallback((field: string, value: string | string[]) => {
-    setCreateFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
-
-  // Sponsor creation handlers
-  const openSponsorModal = useCallback(() => {
-    setSponsorModalOpened(true);
-  }, []);
-
-  const closeSponsorModal = useCallback(() => {
-    setSponsorModalOpened(false);
-    setSponsorFormData({
-      name: "",
-      websiteUrl: "",
-      logoUrl: "",
-    });
-    createSponsorMutation.reset();
-  }, [createSponsorMutation]);
-
-  const handleCreateSponsor = useCallback(async () => {
-    if (!sponsorFormData.name.trim()) {
-      return;
-    }
-
-    try {
-      const newSponsor = await createSponsorMutation.mutateAsync({
-        name: sponsorFormData.name.trim(),
-        websiteUrl: sponsorFormData.websiteUrl || undefined,
-        logoUrl: sponsorFormData.logoUrl || undefined,
-      });
-
-      // Refresh sponsors list
-      void utils.sponsor.getSponsors.invalidate();
-
-      // Auto-select the newly created sponsor
-      setCreateFormData(prev => ({ ...prev, sponsorId: newSponsor.id }));
-
-      // Close modal and reset form
-      closeSponsorModal();
-    } catch (error) {
-      console.error("Failed to create sponsor:", error);
-    }
-  }, [sponsorFormData, createSponsorMutation, utils, closeSponsorModal]);
-
-  const updateSponsorFormField = useCallback((field: string, value: string) => {
-    setSponsorFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
-
-  // Edit form handlers
-  const updateEditFormField = useCallback((field: string, value: string | string[]) => {
-    setEditFormData(prev => ({ ...prev, [field]: value }));
-  }, []);
-
-  const handleSaveContact = useCallback(async () => {
-    if (!selectedContact || !editFormData.firstName || !editFormData.lastName) {
-      return;
-    }
-
-    try {
-      await updateContactMutation.mutateAsync({
-        id: selectedContact.id,
-        firstName: editFormData.firstName,
-        lastName: editFormData.lastName,
-        email: editFormData.email || undefined,
-        phone: editFormData.phone || undefined,
-        telegram: editFormData.telegram || undefined,
-        twitter: editFormData.twitter || undefined,
-        github: editFormData.github || undefined,
-        linkedIn: editFormData.linkedIn || undefined,
-        sponsorId: editFormData.sponsorId || undefined,
-        about: editFormData.about || undefined,
-        skills: editFormData.skills.length > 0 ? editFormData.skills : undefined,
-      });
-
-      // Refresh contacts list
-      void utils.contact.getContacts.invalidate();
-
-      // Exit edit mode but keep drawer open to show updated data
-      setIsEditMode(false);
-
-      console.log("Contact updated successfully");
-    } catch (error) {
-      console.error("Failed to update contact:", error);
-    }
-  }, [selectedContact, editFormData, updateContactMutation, utils]);
-
-  // Merge contacts handler
-  const handleMergeContacts = useCallback(async () => {
-    if (selectedContactIds.length < 2) {
-      return;
-    }
-
-    try {
-      const result = await mergeContactsMutation.mutateAsync({
-        contactIds: selectedContactIds,
-      });
-
-      // Refresh contacts list
-      void utils.contact.getContacts.invalidate();
-
-      // Clear selections and close modal
-      setSelectedContactIds([]);
-      setMergeModalOpened(false);
-
-      console.log(`Successfully merged ${result.mergedCount} contacts into ${result.mergedContactId}`);
-    } catch (error) {
-      console.error("Failed to merge contacts:", error);
-    }
-  }, [selectedContactIds, mergeContactsMutation, utils]);
-
-  // Helper to get recipient count for current mode (memoized)
-  const getRecipientCount = useCallback(() => {
-    if (messagingMode === 'smartlist') {
-      const selectedList = smartLists?.find(list => list.id === selectedSmartList);
-      return selectedList?.contactCount ?? 0;
-    }
-    return selectedRecipients.length;
-  }, [messagingMode, smartLists, selectedSmartList, selectedRecipients.length]);
-
-  // Helper to check if send is enabled (memoized)
-  const canSend = useCallback(() => {
-    if (!messageText.trim()) return false;
-    if (messagingMode === 'manual') return selectedRecipients.length > 0;
-    if (messagingMode === 'smartlist') return !!selectedSmartList;
-    return false;
-  }, [messageText, messagingMode, selectedRecipients.length, selectedSmartList]);
+  }, [contacts]);
 
   // Checkbox handlers
   const handleSelectContact = useCallback((contactId: string, checked: boolean) => {
@@ -451,1365 +120,395 @@ export default function ContactsPage() {
   }, []);
 
   const handleSelectAll = useCallback((checked: boolean) => {
-    setSelectedContactIds(checked ? (displayContacts?.map(c => c.id) ?? []) : []);
-  }, [displayContacts]);
+    setSelectedContactIds(checked ? (sortedContacts?.map(c => c.id) ?? []) : []);
+  }, [sortedContacts]);
 
   const isAllSelected = useMemo(() =>
-    displayContacts && displayContacts.length > 0 && selectedContactIds.length === displayContacts.length,
-    [displayContacts, selectedContactIds]
+    sortedContacts && sortedContacts.length > 0 && selectedContactIds.length === sortedContacts.length,
+    [sortedContacts, selectedContactIds]
   );
-
-  // Transform contacts into table data format for Mantine Table (memoized)
-  const tableData = useMemo(() => displayContacts ? {
-    head: [
-      <Checkbox
-        key="select-all"
-        checked={isAllSelected}
-        onChange={(e) => handleSelectAll(e.currentTarget.checked)}
-        aria-label="Select all contacts"
-      />,
-      'Contact',
-      'Phone & Telegram',
-      'Email',
-      'Associated Sponsor',
-      'ID',
-      'Actions'
-    ],
-    body: displayContacts.map((contact) => [
-      // Checkbox column
-      <Checkbox
-        key={`checkbox-${contact.id}`}
-        checked={selectedContactIds.includes(contact.id)}
-        onChange={(e) => handleSelectContact(contact.id, e.currentTarget.checked)}
-        aria-label={`Select ${contact.firstName} ${contact.lastName}`}
-      />,
-      // Contact column with avatar and name
-      <Group gap="sm" key={`contact-${contact.id}`}>
-        <Avatar size="sm" color="blue">
-          {contact.firstName?.[0]?.toUpperCase()}{contact.lastName?.[0]?.toUpperCase()}
-        </Avatar>
-        <Stack gap={0}>
-          <Text fw={500} size="sm">
-            {contact.firstName} {contact.lastName}
-          </Text>
-          <Text size="xs" c="dimmed">
-            {contact.email ?? "No email"}
-          </Text>
-        </Stack>
-      </Group>,
-      // Phone & Telegram column
-      <Stack gap={2} key={`contact-info-${contact.id}`}>
-        {contact.phone && (
-          <Group gap="xs">
-            <Text size="xs" c="dimmed">📞</Text>
-            <Text size="xs" style={{ fontFamily: 'monospace' }}>
-              {contact.phone}
-            </Text>
-          </Group>
-        )}
-        {contact.telegram && (
-          <Group gap="xs">
-            <Text size="xs" c="dimmed">📱</Text>
-            <Text size="xs" c="blue">
-              @{contact.telegram}
-            </Text>
-          </Group>
-        )}
-        {!contact.phone && !contact.telegram && (
-          <Text size="xs" c="dimmed">-</Text>
-        )}
-      </Stack>,
-      // Email column
-      contact.email ?? "No email",
-      // Sponsor column
-      contact.sponsor ? (
-        <Group gap="xs" key={`sponsor-${contact.id}`}>
-          <Avatar src={contact.sponsor.logoUrl} size="xs" radius="xl">
-            {contact.sponsor.name[0]?.toUpperCase()}
-          </Avatar>
-          <Stack gap={0}>
-            <Text size="sm" fw={500}>
-              {contact.sponsor.name}
-            </Text>
-            {contact.sponsor.websiteUrl && (
-              <Text size="xs" c="dimmed">
-                {contact.sponsor.websiteUrl.replace(/^https?:\/\//, "")}
-              </Text>
-            )}
-          </Stack>
-        </Group>
-      ) : (
-        <Badge variant="light" color="gray" size="sm" key={`no-sponsor-${contact.id}`}>
-          No sponsor
-        </Badge>
-      ),
-      // ID column  
-      <Text size="xs" c="dimmed" style={{ fontFamily: 'monospace' }} key={`id-${contact.id}`}>
-        {contact.id}
-      </Text>,
-      // Actions column
-      <Group gap="xs" key={`actions-${contact.id}`}>
-        <Tooltip label="Quick view">
-          <ActionIcon
-            variant="subtle"
-            color="blue"
-            onClick={() => openDrawer(contact, false)}
-          >
-            <IconEye size={16} />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label="Edit contact">
-          <ActionIcon
-            variant="subtle"
-            color="orange"
-            onClick={() => openDrawer(contact, true)}
-          >
-            <IconEdit size={16} />
-          </ActionIcon>
-        </Tooltip>
-        <Tooltip label="View full details">
-          <ActionIcon
-            component={Link}
-            href={`/contacts/${contact.id}`}
-            variant="subtle"
-            color="blue"
-          >
-            <IconExternalLink size={16} />
-          </ActionIcon>
-        </Tooltip>
-      </Group>
-    ])
-  } : null, [displayContacts, openDrawer, selectedContactIds, isAllSelected, handleSelectAll, handleSelectContact]);
 
   // Handle authentication on client side
   if (status === "loading") {
-    return <div>Loading...</div>;
+    return (
+      <Center h="100vh">
+        <Loader size="lg" />
+      </Center>
+    );
   }
 
   if (!session?.user) {
-    redirect("/signin?callbackUrl=/contacts");
+    redirect("/signin?callbackUrl=/crm/contacts");
     return null;
   }
 
   if (session.user.role !== "staff" && session.user.role !== "admin") {
-    redirect("/unauthorized");  
+    redirect("/unauthorized");
     return null;
   }
 
   if (isLoading) {
-    return <div>Loading contacts...</div>;
+    return (
+      <Center h="100vh">
+        <Loader size="lg" />
+      </Center>
+    );
   }
 
   return (
-    <>
-      <Container size="xl" py="xl">
-        <Stack gap="lg">
-          <Title order={2}>Contacts & Communications</Title>
-          
-          <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? "contacts")} color="blue">
-            <Tabs.List>
-              <Tabs.Tab 
-                value="contacts" 
-                leftSection={<IconAddressBook size={16} />}
-              >
-                Contacts
-              </Tabs.Tab>
-              <Tabs.Tab 
-                value="communications" 
-                leftSection={<IconMessage size={16} />}
-              >
-                Communications
-              </Tabs.Tab>
-            </Tabs.List>
-
-            <Tabs.Panel value="contacts" pt="md">
-              <Stack gap="lg">
-                {/* Smart List Filter Section */}
-                <Paper shadow="xs" p="md" radius="md" withBorder>
-                  <Stack gap="md">
-                    <Group justify="space-between" align="center">
-                      <Text fw={500} size="lg">
-                        <IconUsersGroup size={20} style={{ marginRight: 8 }} />
-                        Filter Contacts
-                      </Text>
-                      {selectedContactFilter && (
-                        <Button 
-                          variant="light" 
-                          size="xs" 
-                          onClick={() => setSelectedContactFilter(null)}
-                          leftSection={<IconX size={14} />}
-                        >
-                          Clear Filter
-                        </Button>
-                      )}
-                    </Group>
-
-                    <Stack gap="sm">
-                      {smartListsLoading ? (
-                        <Group gap="sm">
-                          <Loader size="sm" />
-                          <Text size="sm" c="dimmed">Loading smart lists...</Text>
-                        </Group>
-                      ) : (
-                        <Select
-                          placeholder="Choose a contact filter..."
-                          data={smartLists?.map(list => ({
-                            value: list.id,
-                            label: `${list.name} (${list.contactCount} contacts)`,
-                            description: list.description,
-                          })) ?? []}
-                          value={selectedContactFilter}
-                          onChange={setSelectedContactFilter}
-                          clearable
-                          searchable
-                          renderOption={({ option }) => {
-                            const list = smartLists?.find(l => l.id === option.value);
-                            if (!list) return null;
-                            
-                            return (
-                              <Stack gap={2}>
-                                <Group justify="space-between">
-                                  <Text size="sm" fw={500}>{list.name}</Text>
-                                  <Badge size="xs" variant="light" color="blue">
-                                    {list.contactCount} contacts
-                                  </Badge>
-                                </Group>
-                                <Text size="xs" c="dimmed">{list.description}</Text>
-                              </Stack>
-                            );
-                          }}
-                        />
-                      )}
-
-                      {/* Filter Status */}
-                      {selectedContactFilter && selectedListInfo && (
-                        <Paper p="xs" withBorder radius="sm" bg="blue.0">
-                          <Group gap="xs">
-                            <IconUsers size={14} />
-                            <Text size="xs" fw={500}>
-                              Filtered by: {selectedListInfo.name}
-                            </Text>
-                            {filteredContactsLoading ? (
-                              <Loader size="xs" />
-                            ) : (
-                              <Badge size="xs" variant="light" color="blue">
-                                {displayContacts?.length ?? 0} contacts
-                              </Badge>
-                            )}
-                          </Group>
-                        </Paper>
-                      )}
-                    </Stack>
-                  </Stack>
-                </Paper>
-                
-                <Paper shadow="xs" p="md" radius="md" withBorder>
-                  <Stack gap="md">
-                    <Group justify="space-between" align="center">
-                      <Text fw={500} size="lg">
-                        {selectedContactFilter && selectedListInfo 
-                          ? `${selectedListInfo.name} (${displayContacts?.length ?? 0} contacts)`
-                          : `All Contacts (${contacts?.length ?? 0})`
-                        }
-                      </Text>
-                      <Group gap="sm">
-                        {selectedContactFilter && (
-                          <Text size="sm" c="dimmed">
-                            Filtered from {contacts?.length ?? 0} total contacts
-                          </Text>
-                        )}
-                        {selectedContactIds.length >= 2 && (
-                          <Button
-                            leftSection={<IconUsers size={16} />}
-                            onClick={() => setMergeModalOpened(true)}
-                            variant="light"
-                            color="orange"
-                          >
-                            Merge {selectedContactIds.length} Contacts
-                          </Button>
-                        )}
-                        <Button
-                          leftSection={<IconPlus size={16} />}
-                          onClick={openCreateDrawer}
-                          variant="filled"
-                          color="blue"
-                        >
-                          Create New Contact
-                        </Button>
-                      </Group>
-                    </Group>
-
-                    {/* Search Box */}
-                    <TextInput
-                      placeholder="Search by name, email, phone, telegram, or sponsor..."
-                      leftSection={<IconSearch size={16} />}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      rightSection={
-                        searchQuery ? (
-                          <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            onClick={() => setSearchQuery("")}
-                          >
-                            <IconX size={14} />
-                          </ActionIcon>
-                        ) : null
-                      }
-                    />
-
-                    {tableData && tableData.body.length > 0 ? (
-                      <Table 
-                        data={tableData} 
-                        striped 
-                        highlightOnHover 
-                        withTableBorder 
-                        withColumnBorders
-                      />
-                    ) : (
-                      <Text ta="center" c="dimmed" py="xl">
-                        {searchQuery
-                          ? `No contacts match "${searchQuery}". Try a different search term.`
-                          : "No contacts found. Try syncing with Google Contacts below."}
-                      </Text>
-                    )}
-                  </Stack>
-                </Paper>
-                
-                <ContactsClient />
-              </Stack>
-            </Tabs.Panel>
-
-            <Tabs.Panel value="communications" pt="md">
-              <Stack gap="lg">
-                <Paper shadow="xs" p="md" radius="md" withBorder>
-                  <Stack gap="md">
-                    <Group justify="space-between" align="center">
-                      <Text fw={500} size="lg">
-                        <IconBrandTelegram size={20} style={{ marginRight: 8 }} />
-                        Send Telegram Messages
-                      </Text>
-                      <Text size="sm" c="dimmed">
-                        {telegramContacts.length} contacts with Telegram
-                      </Text>
-                    </Group>
-
-                    {!telegramAuthStatus?.isAuthenticated ? (
-                      <Alert icon={<IconBrandTelegram size={16} />} color="orange" variant="light">
-                        <Text fw={500}>Telegram Authentication Required</Text>
-                        <Text size="sm">
-                          Please set up Telegram authentication in the Contacts tab to send messages.
-                        </Text>
-                      </Alert>
-                    ) : (
-                      <Stack gap="md">
-                        {/* Messaging Mode Selector */}
-                        <Stack gap="sm">
-                          <Text fw={500} size="sm">Send to:</Text>
-                          <Tabs value={messagingMode} onChange={(value) => {
-                            setMessagingMode(value as 'manual' | 'smartlist');
-                            // Clear selections when switching modes
-                            setSelectedRecipients([]);
-                            setSelectedSmartList(null);
-                          }}>
-                            <Tabs.List>
-                              <Tabs.Tab value="manual" leftSection={<IconUsers size={16} />}>
-                                Select Contacts
-                              </Tabs.Tab>
-                              <Tabs.Tab value="smartlist" leftSection={<IconUsersGroup size={16} />}>
-                                Smart Lists
-                              </Tabs.Tab>
-                            </Tabs.List>
-                          </Tabs>
-                        </Stack>
-
-                        {/* Manual Contact Selection */}
-                        {messagingMode === 'manual' && (
-                          <Stack gap="sm">
-                            <MultiSelect
-                              placeholder="Search contacts by name..."
-                              data={contactSelectData}
-                              value={selectedRecipients.map(c => c.id)}
-                              onChange={(values) => {
-                                const newRecipients = values.map(value => 
-                                  telegramContacts.find(c => c.id === value)!
-                                ).filter(Boolean);
-                                setSelectedRecipients(newRecipients);
-                              }}
-                              searchable
-                              clearable
-                              maxDropdownHeight={200}
-                              renderOption={({ option }) => {
-                                const data = contactSelectData.find(item => item.value === option.value);
-                                if (!data) return null;
-                                
-                                return (
-                                  <Group gap="sm">
-                                    <Avatar size="sm" color="blue">
-                                      {data.contact.firstName[0]}{data.contact.lastName[0]}
-                                    </Avatar>
-                                    <Stack gap={0}>
-                                      <Text size="sm">
-                                        {data.contact.firstName} {data.contact.lastName}
-                                      </Text>
-                                      <Text size="xs" c="dimmed">
-                                        @{data.contact.telegram}
-                                      </Text>
-                                    </Stack>
-                                  </Group>
-                                );
-                              }}
-                            />
-                            
-                            {/* Selected Recipients Pills */}
-                            {selectedRecipients.length > 0 && (
-                              <Group gap="xs">
-                                {selectedRecipients.map(contact => (
-                                  <Badge
-                                    key={contact.id}
-                                    variant="light"
-                                    color="blue"
-                                    rightSection={
-                                      <ActionIcon 
-                                        size="xs" 
-                                        color="blue" 
-                                        radius="xl" 
-                                        variant="transparent"
-                                        onClick={() => removeRecipient(contact.id)}
-                                      >
-                                        <IconX size={10} />
-                                      </ActionIcon>
-                                    }
-                                  >
-                                    {contact.firstName} {contact.lastName}
-                                  </Badge>
-                                ))}
-                              </Group>
-                            )}
-                          </Stack>
-                        )}
-
-                        {/* Smart List Selection */}
-                        {messagingMode === 'smartlist' && (
-                          <Stack gap="sm">
-                            {smartListsLoading ? (
-                              <Group gap="sm">
-                                <Loader size="sm" />
-                                <Text size="sm" c="dimmed">Loading smart lists...</Text>
-                              </Group>
-                            ) : (
-                              <Select
-                                placeholder="Choose a contact list..."
-                                data={smartLists?.map(list => ({
-                                  value: list.id,
-                                  label: `${list.name} (${list.contactCount} contacts)`,
-                                  description: list.description,
-                                })) ?? []}
-                                value={selectedSmartList}
-                                onChange={setSelectedSmartList}
-                                clearable
-                                searchable
-                                renderOption={({ option }) => {
-                                  const list = smartLists?.find(l => l.id === option.value);
-                                  if (!list) return null;
-                                  
-                                  return (
-                                    <Stack gap={2}>
-                                      <Group justify="space-between">
-                                        <Text size="sm" fw={500}>{list.name}</Text>
-                                        <Badge size="xs" variant="light" color="blue">
-                                          {list.contactCount} contacts
-                                        </Badge>
-                                      </Group>
-                                      <Text size="xs" c="dimmed">{list.description}</Text>
-                                    </Stack>
-                                  );
-                                }}
-                              />
-                            )}
-
-                            {/* Smart List Preview */}
-                            {selectedSmartList && smartListContacts && (
-                              <Paper p="xs" withBorder radius="sm" bg="gray.0">
-                                <Stack gap="xs">
-                                  <Group gap="xs">
-                                    <IconUsers size={14} />
-                                    <Text size="xs" fw={500}>
-                                      Preview: {smartListContacts.length} contacts
-                                    </Text>
-                                  </Group>
-                                  {smartListContactsLoading ? (
-                                    <Group gap="xs">
-                                      <Loader size="xs" />
-                                      <Text size="xs" c="dimmed">Loading contacts...</Text>
-                                    </Group>
-                                  ) : (
-                                    <Text size="xs" c="dimmed">
-                                      {smartListContacts.slice(0, 3).map(c => `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim()).join(', ')}
-                                      {smartListContacts.length > 3 && ` and ${smartListContacts.length - 3} more...`}
-                                    </Text>
-                                  )}
-                                </Stack>
-                              </Paper>
-                            )}
-                          </Stack>
-                        )}
-
-                        {/* Message Form */}
-                        <Stack gap="sm">
-                          <Text fw={500} size="sm">Message:</Text>
-                          <Textarea
-                            placeholder="Type your message here..."
-                            value={messageText}
-                            onChange={(e) => setMessageText(e.target.value)}
-                            minRows={4}
-                            maxRows={8}
-                            autosize
-                          />
-                          <Checkbox
-                            label="Add salutation"
-                            description='Prepend "Hey [firstName], " to each message'
-                            checked={addSalutation}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddSalutation(e.currentTarget.checked)}
-                          />
-                          <Group justify="space-between">
-                            <Text size="xs" c="dimmed">
-                              {messageText.length}/4096 characters
-                            </Text>
-                            <Button
-                              leftSection={<IconSend size={16} />}
-                              onClick={handleSendMessage}
-                              disabled={!canSend() || isSending}
-                              loading={isSending}
-                            >
-                              {isSending ? "Sending..." : `Send to ${getRecipientCount()} recipient${getRecipientCount() !== 1 ? 's' : ''}`}
-                            </Button>
-                          </Group>
-                        </Stack>
-
-                        {/* Send Results */}
-                        {(sendBulkMessage.isSuccess || sendBulkMessageToList.isSuccess) && (
-                          <Alert icon={<IconCheck size={16} />} color="green" variant="light">
-                            <Text fw={500}>Messages Sent Successfully!</Text>
-                            {(sendBulkMessage.data ?? sendBulkMessageToList.data) && (
-                              <Text size="sm" mt="xs">
-                                Delivered to {(sendBulkMessage.data?.successCount ?? sendBulkMessageToList.data?.successCount)} recipient(s)
-                                {((sendBulkMessage.data?.failureCount ?? sendBulkMessageToList.data?.failureCount ?? 0) > 0) && 
-                                  `, ${sendBulkMessage.data?.failureCount ?? sendBulkMessageToList.data?.failureCount} failed`}
-                              </Text>
-                            )}
-                          </Alert>
-                        )}
-
-                        {(sendBulkMessage.error ?? sendBulkMessageToList.error) && (
-                          <Alert icon={<IconX size={16} />} color="red" variant="light">
-                            <Text fw={500}>Failed to Send Messages</Text>
-                            <Text size="sm">{sendBulkMessage.error?.message ?? sendBulkMessageToList.error?.message}</Text>
-                          </Alert>
-                        )}
-                      </Stack>
-                    )}
-                  </Stack>
-                </Paper>
-              </Stack>
-            </Tabs.Panel>
-          </Tabs>
-        </Stack>
-      </Container>
-
-      {/* Contact Details Drawer */}
-      <Drawer
-        opened={drawerOpened}
-        onClose={closeDrawer}
-        title={isEditMode ? "Edit Contact" : "Contact Details"}
-        position="right"
-        size="md"
-        overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
+    <Box
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        background: "var(--crm-bg)",
+      }}
+    >
+      {/* Header Bar */}
+      <Box
+        px="md"
+        py="sm"
+        style={{
+          borderBottom: "1px solid var(--crm-sidebar-border)",
+          background: "var(--crm-sidebar-bg)",
+        }}
       >
-        {selectedContact && (
-          <Stack gap="lg">
-            {/* Header Section */}
-            <Group>
-              <Avatar size="lg" color="blue">
-                {(isEditMode ? editFormData.firstName : selectedContact.firstName)?.[0]?.toUpperCase()}
-                {(isEditMode ? editFormData.lastName : selectedContact.lastName)?.[0]?.toUpperCase()}
-              </Avatar>
-              <Stack gap={2}>
-                <Text fw={600} size="lg">
-                  {isEditMode ? `${editFormData.firstName} ${editFormData.lastName}` : `${selectedContact.firstName} ${selectedContact.lastName}`}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  Contact ID: {selectedContact.id}
-                </Text>
-              </Stack>
-            </Group>
-
-            <Divider />
-
-            {/* Contact Information */}
-            <Stack gap="md">
-              <Text fw={500} size="md">
-                <IconUser size={16} style={{ marginRight: 8 }} />
-                Contact Information
-              </Text>
-
-              {isEditMode ? (
-                <>
-                  {/* Edit Mode - Form Fields */}
-                  <Group grow>
-                    <TextInput
-                      label="First Name"
-                      placeholder="Enter first name"
-                      required
-                      value={editFormData.firstName}
-                      onChange={(e) => updateEditFormField("firstName", e.target.value)}
+        <Group justify="space-between">
+          <Group gap="md">
+            <Menu shadow="md" width={200}>
+              <Menu.Target>
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  leftSection={
+                    <Box
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: 4,
+                        background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                      }}
                     />
-                    <TextInput
-                      label="Last Name"
-                      placeholder="Enter last name"
-                      required
-                      value={editFormData.lastName}
-                      onChange={(e) => updateEditFormField("lastName", e.target.value)}
-                    />
-                  </Group>
+                  }
+                  rightSection={<IconChevronDown size={14} />}
+                  styles={{
+                    root: {
+                      color: "var(--crm-sidebar-text-active)",
+                      fontWeight: 500,
+                    },
+                  }}
+                >
+                  Recently Contacted People
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item>All People</Menu.Item>
+                <Menu.Item>Recently Contacted People</Menu.Item>
+                <Menu.Item>Recently Created</Menu.Item>
+                <Menu.Divider />
+                <Menu.Item>Create new list...</Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
 
-                  <TextInput
-                    label="Email Address"
-                    placeholder="Enter email address"
-                    type="email"
-                    leftSection={<IconMail size={16} />}
-                    value={editFormData.email}
-                    onChange={(e) => updateEditFormField("email", e.target.value)}
-                  />
-
-                  <TextInput
-                    label="Phone Number"
-                    placeholder="Enter phone number"
-                    leftSection={<IconPhone size={16} />}
-                    value={editFormData.phone}
-                    onChange={(e) => updateEditFormField("phone", e.target.value)}
-                  />
-                </>
-              ) : (
-                <>
-                  {/* View Mode - Display Only */}
-                  {selectedContact.email ? (
-                    <Group justify="space-between">
-                      <Group gap="xs">
-                        <IconMail size={16} color="gray" />
-                        <Text size="sm">{selectedContact.email}</Text>
-                      </Group>
-                      <CopyButton value={selectedContact.email}>
-                        {({ copied, copy }) => (
-                          <Tooltip label={copied ? 'Copied' : 'Copy email'}>
-                            <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
-                              {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                            </ActionIcon>
-                          </Tooltip>
-                        )}
-                      </CopyButton>
-                    </Group>
-                  ) : (
-                    <Group gap="xs">
-                      <IconMail size={16} color="gray" />
-                      <Text size="sm" c="dimmed">No email address</Text>
-                    </Group>
-                  )}
-
-                  {selectedContact.phone && (
-                    <Group justify="space-between">
-                      <Group gap="xs">
-                        <IconPhone size={16} color="gray" />
-                        <Text size="sm" style={{ fontFamily: 'monospace' }}>
-                          {selectedContact.phone}
-                        </Text>
-                      </Group>
-                      <CopyButton value={selectedContact.phone}>
-                        {({ copied, copy }) => (
-                          <Tooltip label={copied ? 'Copied' : 'Copy phone'}>
-                            <ActionIcon color={copied ? 'teal' : 'gray'} variant="subtle" onClick={copy}>
-                              {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                            </ActionIcon>
-                          </Tooltip>
-                        )}
-                      </CopyButton>
-                    </Group>
-                  )}
-                </>
-              )}
-            </Stack>
-
-            {/* Social Media Section */}
-            <Divider />
-            <Stack gap="md">
-              <Text fw={500} size="md">Social Media</Text>
-
-              {isEditMode ? (
-                <>
-                  {/* Edit Mode - Form Fields */}
-                  <TextInput
-                    label="Telegram Username"
-                    placeholder="username (without @)"
-                    leftSection={<IconBrandTelegram size={16} />}
-                    value={editFormData.telegram}
-                    onChange={(e) => updateEditFormField("telegram", e.target.value)}
-                  />
-
-                  <TextInput
-                    label="Twitter Handle"
-                    placeholder="username (without @)"
-                    leftSection={<IconBrandTwitter size={16} />}
-                    value={editFormData.twitter}
-                    onChange={(e) => updateEditFormField("twitter", e.target.value)}
-                  />
-
-                  <TextInput
-                    label="GitHub Username"
-                    placeholder="username (without @)"
-                    leftSection={<IconBrandGithub size={16} />}
-                    value={editFormData.github}
-                    onChange={(e) => updateEditFormField("github", e.target.value)}
-                  />
-
-                  <TextInput
-                    label="LinkedIn Profile"
-                    placeholder="LinkedIn URL or username"
-                    leftSection={<IconBrandLinkedin size={16} />}
-                    value={editFormData.linkedIn}
-                    onChange={(e) => updateEditFormField("linkedIn", e.target.value)}
-                  />
-                </>
-              ) : (
-                <>
-                  {/* View Mode - Display Only */}
-                  {selectedContact.twitter && (
-                    <Group gap="xs">
-                      <IconBrandTwitter size={16} color="blue" />
-                      <Anchor
-                        href={`https://twitter.com/${selectedContact.twitter}`}
-                        target="_blank"
-                        size="sm"
-                      >
-                        @{selectedContact.twitter}
-                      </Anchor>
-                    </Group>
-                  )}
-
-                  {selectedContact.github && (
-                    <Group gap="xs">
-                      <IconBrandGithub size={16} />
-                      <Anchor
-                        href={`https://github.com/${selectedContact.github}`}
-                        target="_blank"
-                        size="sm"
-                      >
-                        @{selectedContact.github}
-                      </Anchor>
-                    </Group>
-                  )}
-
-                  {selectedContact.linkedIn && (
-                    <Group gap="xs">
-                      <IconBrandLinkedin size={16} color="blue" />
-                      <Anchor
-                        href={selectedContact.linkedIn.startsWith('http') ? selectedContact.linkedIn : `https://linkedin.com/in/${selectedContact.linkedIn}`}
-                        target="_blank"
-                        size="sm"
-                      >
-                        {selectedContact.linkedIn.replace(/^https?:\/\/(www\.)?linkedin\.com\/(in\/)?/, '')}
-                      </Anchor>
-                    </Group>
-                  )}
-
-                  {selectedContact.telegram && (
-                    <Group gap="xs">
-                      <IconBrandTelegram size={16} color="blue" />
-                      <Anchor
-                        href={`https://t.me/${selectedContact.telegram}`}
-                        target="_blank"
-                        size="sm"
-                      >
-                        @{selectedContact.telegram}
-                      </Anchor>
-                    </Group>
-                  )}
-
-                  {!selectedContact.twitter && !selectedContact.github && !selectedContact.linkedIn && !selectedContact.telegram && (
-                    <Text size="sm" c="dimmed">No social media links</Text>
-                  )}
-                </>
-              )}
-            </Stack>
-
-            {/* Sponsor Section */}
-            <Divider />
-            <Stack gap="md">
-              <Text fw={500} size="md">
-                <IconBuilding size={16} style={{ marginRight: 8 }} />
-                Associated Sponsor
-              </Text>
-
-              {isEditMode ? (
-                <>
-                  {/* Edit Mode - Form Field */}
-                  <Select
-                    label="Sponsor"
-                    placeholder="Choose a sponsor (optional)"
-                    data={[
-                      ...(sponsors?.map(sponsor => ({
-                        value: sponsor.id,
-                        label: sponsor.name,
-                      })) ?? []),
-                      { value: '__create_new__', label: '+ Create New Sponsor...' }
-                    ]}
-                    value={editFormData.sponsorId}
-                    onChange={(value) => {
-                      if (value === '__create_new__') {
-                        openSponsorModal();
-                      } else {
-                        updateEditFormField("sponsorId", value ?? "");
-                      }
-                    }}
-                    clearable
-                    searchable
-                  />
-                </>
-              ) : (
-                <>
-                  {/* View Mode - Display Only */}
-                  {selectedContact.sponsor ? (
-                    <Group gap="sm">
-                      <Avatar
-                        src={selectedContact.sponsor.logoUrl}
-                        size="md"
-                        radius="sm"
-                      >
-                        {selectedContact.sponsor.name[0]?.toUpperCase()}
-                      </Avatar>
-                      <Stack gap={2}>
-                        <Text fw={500} size="sm">
-                          {selectedContact.sponsor.name}
-                        </Text>
-                        {selectedContact.sponsor.websiteUrl && (
-                          <Group gap="xs">
-                            <IconWorld size={14} color="gray" />
-                            <Anchor
-                              href={selectedContact.sponsor.websiteUrl}
-                              target="_blank"
-                              size="xs"
-                            >
-                              {selectedContact.sponsor.websiteUrl.replace(/^https?:\/\//, "")}
-                            </Anchor>
-                          </Group>
-                        )}
-                      </Stack>
-                    </Group>
-                  ) : (
-                    <Text size="sm" c="dimmed">No associated sponsor</Text>
-                  )}
-                </>
-              )}
-            </Stack>
-
-            {/* Additional Information Section */}
-            {(isEditMode || !!selectedContact.about || (selectedContact.skills?.length ?? 0) > 0) && (
-              <>
-                <Divider />
-                <Stack gap="md">
-                  <Text fw={500} size="md">Additional Information</Text>
-
-                  {isEditMode ? (
-                    <>
-                      {/* Edit Mode - Form Fields */}
-                      <Textarea
-                        label="About"
-                        placeholder="Add notes about this contact..."
-                        value={editFormData.about}
-                        onChange={(e) => updateEditFormField("about", e.target.value)}
-                        minRows={3}
-                        autosize
-                      />
-
-                      <MultiSelect
-                        label="Skills"
-                        placeholder="Select or add skills..."
-                        data={(() => {
-                          if (!availableSkills) return [];
-
-                          // Group skills by category
-                          const grouped = availableSkills.reduce((acc, skill) => {
-                            const category = skill.category ?? "Other";
-                            acc[category] ??= [];
-                            acc[category].push({
-                              value: skill.name,
-                              label: skill.name,
-                            });
-                            return acc;
-                          }, {} as Record<string, Array<{ value: string; label: string }>>);
-
-                          // Convert to Mantine v8 grouped format
-                          return Object.entries(grouped).map(([group, items]) => ({
-                            group,
-                            items,
-                          }));
-                        })()}
-                        value={editFormData.skills}
-                        onChange={(values) => updateEditFormField("skills", values)}
-                        searchable
-                        clearable
-                        maxDropdownHeight={200}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      {/* View Mode - Display Only */}
-                      {selectedContact.about && (
-                        <Stack gap="xs">
-                          <Text size="sm" fw={500}>About</Text>
-                          <Text size="sm" c="dimmed">{selectedContact.about}</Text>
-                        </Stack>
-                      )}
-
-                      {selectedContact.skills && selectedContact.skills.length > 0 && (
-                        <Stack gap="xs">
-                          <Text size="sm" fw={500}>Skills</Text>
-                          <Group gap="xs">
-                            {selectedContact.skills.map(skill => (
-                              <Badge key={skill} variant="light" color="blue">
-                                {skill}
-                              </Badge>
-                            ))}
-                          </Group>
-                        </Stack>
-                      )}
-                    </>
-                  )}
-                </Stack>
-              </>
-            )}
-
-            {/* Action Buttons */}
-            {isEditMode && (
-              <>
-                <Divider />
-                <Group justify="flex-end" gap="sm">
-                  <Button
-                    variant="subtle"
-                    onClick={() => setIsEditMode(false)}
-                    disabled={updateContactMutation.isPending}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSaveContact}
-                    loading={updateContactMutation.isPending}
-                    disabled={!editFormData.firstName || !editFormData.lastName}
-                    color="orange"
-                  >
-                    {updateContactMutation.isPending ? "Saving..." : "Save Changes"}
-                  </Button>
-                </Group>
-
-                {/* Error Display */}
-                {updateContactMutation.error && (
-                  <Alert color="red" variant="light">
-                    <Text fw={500}>Failed to update contact</Text>
-                    <Text size="sm">{updateContactMutation.error.message}</Text>
-                  </Alert>
-                )}
-              </>
-            )}
-
-            {/* Success Display */}
-            {updateContactMutation.isSuccess && !isEditMode && (
-              <Alert icon={<IconCheck size={16} />} color="green" variant="light">
-                <Text fw={500}>Contact updated successfully!</Text>
-              </Alert>
-            )}
-          </Stack>
-        )}
-      </Drawer>
-
-      {/* Create Contact Drawer */}
-      <Drawer
-        opened={createDrawerOpened}
-        onClose={closeCreateDrawer}
-        title="Create New Contact"
-        position="right"
-        size="md"
-        overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
-      >
-        <Stack gap="lg">
-          {/* Form Fields */}
-          <Stack gap="md">
-            <Text fw={500} size="md">Contact Information</Text>
-            
-            {/* Required Fields */}
-            <Group grow>
-              <TextInput
-                label="First Name"
-                placeholder="Enter first name"
-                required
-                value={createFormData.firstName}
-                onChange={(e) => updateCreateFormField("firstName", e.target.value)}
-              />
-              <TextInput
-                label="Last Name"
-                placeholder="Enter last name"
-                required
-                value={createFormData.lastName}
-                onChange={(e) => updateCreateFormField("lastName", e.target.value)}
-              />
-            </Group>
-
-            <TextInput
-              label="Email Address"
-              placeholder="Enter email address (optional)"
-              type="email"
-              value={createFormData.email}
-              onChange={(e) => updateCreateFormField("email", e.target.value)}
-            />
-
-            {/* Optional Fields */}
-            <TextInput
-              label="Phone Number"
-              placeholder="Enter phone number (optional)"
-              value={createFormData.phone}
-              onChange={(e) => updateCreateFormField("phone", e.target.value)}
-            />
-
-            <Select
-              label="Associated Sponsor"
-              placeholder="Choose a sponsor (optional)"
-              data={[
-                ...(sponsors?.map(sponsor => ({
-                  value: sponsor.id,
-                  label: sponsor.name,
-                })) ?? []),
-                { value: '__create_new__', label: '+ Create New Sponsor...' }
-              ]}
-              value={createFormData.sponsorId}
-              onChange={(value) => {
-                if (value === '__create_new__') {
-                  openSponsorModal();
-                } else {
-                  updateCreateFormField("sponsorId", value ?? "");
-                }
+            <Button
+              variant="subtle"
+              color="gray"
+              size="sm"
+              leftSection={<IconSettings size={14} />}
+              rightSection={<IconChevronDown size={14} />}
+              styles={{
+                root: {
+                  color: "var(--crm-sidebar-text)",
+                },
               }}
-              clearable
-              searchable
-            />
-          </Stack>
-
-          <Divider />
-
-          {/* Social Media Fields */}
-          <Stack gap="md">
-            <Text fw={500} size="md">Social Media (Optional)</Text>
-            
-            <TextInput
-              label="Telegram Username"
-              placeholder="username (without @)"
-              value={createFormData.telegram}
-              onChange={(e) => updateCreateFormField("telegram", e.target.value)}
-              leftSection={<IconBrandTelegram size={16} />}
-            />
-
-            <TextInput
-              label="Twitter Handle"
-              placeholder="username (without @)"
-              value={createFormData.twitter}
-              onChange={(e) => updateCreateFormField("twitter", e.target.value)}
-              leftSection={<IconBrandTwitter size={16} />}
-            />
-
-            <TextInput
-              label="GitHub Username"
-              placeholder="username (without @)"
-              value={createFormData.github}
-              onChange={(e) => updateCreateFormField("github", e.target.value)}
-              leftSection={<IconBrandGithub size={16} />}
-            />
-
-            <TextInput
-              label="LinkedIn Profile"
-              placeholder="LinkedIn URL or username"
-              value={createFormData.linkedIn}
-              onChange={(e) => updateCreateFormField("linkedIn", e.target.value)}
-              leftSection={<IconBrandLinkedin size={16} />}
-            />
-          </Stack>
-
-          <Divider />
-
-          {/* Additional Information */}
-          <Stack gap="md">
-            <Text fw={500} size="md">Additional Information (Optional)</Text>
-            
-            <Textarea
-              label="About"
-              placeholder="Add notes about this contact..."
-              value={createFormData.about ?? ""}
-              onChange={(e) => updateCreateFormField("about", e.target.value)}
-              minRows={3}
-              autosize
-            />
-
-            <MultiSelect
-              label="Skills"
-              placeholder="Select or add skills..."
-              data={(() => {
-                if (!availableSkills) return [];
-
-                // Group skills by category
-                const grouped = availableSkills.reduce((acc, skill) => {
-                  const category = skill.category ?? "Other";
-                  acc[category] ??= [];
-                  acc[category].push({
-                    value: skill.name,
-                    label: skill.name,
-                  });
-                  return acc;
-                }, {} as Record<string, Array<{ value: string; label: string }>>);
-
-                // Convert to Mantine v8 grouped format
-                return Object.entries(grouped).map(([group, items]) => ({
-                  group,
-                  items,
-                }));
-              })()}
-              value={createFormData.skills}
-              onChange={(values) => updateCreateFormField("skills", values)}
-              searchable
-              clearable
-              maxDropdownHeight={200}
-            />
-          </Stack>
-
-          <Divider />
-
-          {/* Action Buttons */}
-          <Group justify="flex-end" gap="sm">
-            <Button
-              variant="subtle"
-              onClick={closeCreateDrawer}
-              disabled={isCreating}
             >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateContact}
-              loading={isCreating}
-              disabled={!createFormData.firstName || !createFormData.lastName}
-              leftSection={<IconPlus size={16} />}
-            >
-              {isCreating ? "Creating..." : "Create Contact"}
+              View settings
             </Button>
           </Group>
 
-          {/* Error Display */}
-          {createContactMutation.error && (
-            <Alert color="red" variant="light">
-              <Text fw={500}>Failed to create contact</Text>
-              <Text size="sm">{createContactMutation.error.message}</Text>
-            </Alert>
-          )}
+          <Group gap="sm">
+            <Menu shadow="md" width={160}>
+              <Menu.Target>
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  leftSection={<IconDownload size={14} />}
+                  rightSection={<IconChevronDown size={14} />}
+                  styles={{
+                    root: {
+                      color: "var(--crm-sidebar-text)",
+                    },
+                  }}
+                >
+                  Import / Export
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item leftSection={<IconUpload size={14} />}>
+                  Import contacts
+                </Menu.Item>
+                <Menu.Item leftSection={<IconDownload size={14} />}>
+                  Export contacts
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
 
-          {/* Success Display */}
-          {createContactMutation.isSuccess && (
-            <Alert icon={<IconCheck size={16} />} color="green" variant="light">
-              <Text fw={500}>Contact created successfully!</Text>
-            </Alert>
-          )}
-        </Stack>
-      </Drawer>
-
-      {/* Create Sponsor Modal */}
-      <Modal
-        opened={sponsorModalOpened}
-        onClose={closeSponsorModal}
-        title="Create New Sponsor"
-        size="md"
-      >
-        <Stack gap="md">
-          <TextInput
-            label="Sponsor Name"
-            placeholder="Enter sponsor name"
-            required
-            value={sponsorFormData.name}
-            onChange={(e) => updateSponsorFormField("name", e.target.value)}
-            error={createSponsorMutation.error?.message}
-          />
-
-          <TextInput
-            label="Website URL"
-            placeholder="https://example.com (optional)"
-            value={sponsorFormData.websiteUrl}
-            onChange={(e) => updateSponsorFormField("websiteUrl", e.target.value)}
-            leftSection={<IconWorld size={16} />}
-          />
-
-          <TextInput
-            label="Logo URL"
-            placeholder="https://example.com/logo.png (optional)"
-            value={sponsorFormData.logoUrl}
-            onChange={(e) => updateSponsorFormField("logoUrl", e.target.value)}
-            leftSection={<IconBuilding size={16} />}
-          />
-
-          <Group justify="flex-end" gap="sm" mt="md">
             <Button
-              variant="subtle"
-              onClick={closeSponsorModal}
-              disabled={createSponsorMutation.isPending}
+              component={Link}
+              href="/crm/contacts/new"
+              size="sm"
+              leftSection={<IconPlus size={14} />}
             >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateSponsor}
-              loading={createSponsorMutation.isPending}
-              disabled={!sponsorFormData.name.trim()}
-            >
-              Create Sponsor
+              New Person
             </Button>
           </Group>
+        </Group>
+      </Box>
 
-          {createSponsorMutation.isSuccess && (
-            <Alert icon={<IconCheck size={16} />} color="green" variant="light">
-              <Text fw={500}>Sponsor created successfully!</Text>
-            </Alert>
-          )}
-        </Stack>
-      </Modal>
-
-      {/* Merge Contacts Modal */}
-      <Modal
-        opened={mergeModalOpened}
-        onClose={() => setMergeModalOpened(false)}
-        title="Merge Contacts"
-        size="lg"
+      {/* Toolbar */}
+      <Box
+        px="md"
+        py="xs"
+        style={{
+          borderBottom: "1px solid var(--crm-sidebar-border)",
+          background: "var(--crm-sidebar-bg)",
+        }}
       >
-        <Stack gap="md">
-          <Alert icon={<IconUsers size={16} />} color="orange" variant="light">
-            <Text fw={500}>You are about to merge {selectedContactIds.length} contacts</Text>
-            <Text size="sm" mt="xs">
-              This action will combine all selected contacts into one contact using intelligent merge rules.
+        <Group gap="md">
+          <Group gap={6}>
+            <IconArrowsSort size={14} style={{ color: "var(--crm-sidebar-text)" }} />
+            <Text size="sm" c="dimmed">Sorted by</Text>
+            <Text size="sm" fw={500} style={{ color: "var(--crm-sidebar-text-active)" }}>
+              Last email interaction
             </Text>
-          </Alert>
+          </Group>
 
-          {/* Show preview of contacts to be merged */}
-          <Stack gap="xs">
-            <Text fw={500} size="sm">Selected contacts:</Text>
-            {selectedContactIds.map((contactId) => {
-              const contact = contacts?.find(c => c.id === contactId);
-              if (!contact) return null;
+          <Button
+            variant="subtle"
+            color="gray"
+            size="xs"
+            leftSection={<IconFilter size={14} />}
+            styles={{
+              root: {
+                color: "var(--crm-sidebar-text)",
+              },
+            }}
+          >
+            Filter
+          </Button>
+        </Group>
+      </Box>
+
+      {/* Table */}
+      <Box style={{ flex: 1, overflow: "auto" }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: "14px",
+          }}
+        >
+          <thead>
+            <tr
+              style={{
+                borderBottom: "1px solid var(--crm-sidebar-border)",
+                background: "var(--crm-sidebar-bg)",
+              }}
+            >
+              <th style={{ padding: "10px 16px", width: 40, textAlign: "left" }}>
+                <Checkbox
+                  checked={isAllSelected}
+                  onChange={(e) => handleSelectAll(e.currentTarget.checked)}
+                  aria-label="Select all contacts"
+                  size="sm"
+                />
+              </th>
+              <th style={{ padding: "10px 16px", textAlign: "left" }}>
+                <Group gap={4}>
+                  <Text size="sm" fw={500} c="dimmed">Person</Text>
+                  <ActionIcon variant="subtle" size="xs" color="gray">
+                    <IconPlus size={12} />
+                  </ActionIcon>
+                </Group>
+              </th>
+              <th style={{ padding: "10px 16px", textAlign: "left" }}>
+                <Group gap={4}>
+                  <Box
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      border: "2px solid var(--crm-sidebar-text)",
+                      opacity: 0.5,
+                    }}
+                  />
+                  <Text size="sm" fw={500} c="dimmed">Connection stren...</Text>
+                </Group>
+              </th>
+              <th style={{ padding: "10px 16px", textAlign: "left" }}>
+                <Group gap={4}>
+                  <Box
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: 2,
+                      border: "1px solid var(--crm-sidebar-text)",
+                      opacity: 0.5,
+                    }}
+                  />
+                  <Text size="sm" fw={500} c="dimmed">Last email interaction</Text>
+                </Group>
+              </th>
+              <th style={{ padding: "10px 16px", textAlign: "left" }}>
+                <Group gap={4}>
+                  <Box
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: 2,
+                      border: "1px solid var(--crm-sidebar-text)",
+                      opacity: 0.5,
+                    }}
+                  />
+                  <Text size="sm" fw={500} c="dimmed">Last calendar interaction</Text>
+                </Group>
+              </th>
+              <th style={{ padding: "10px 16px", textAlign: "left" }}>
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  size="xs"
+                  leftSection={<IconPlus size={12} />}
+                  styles={{
+                    root: {
+                      color: "var(--crm-sidebar-text)",
+                      fontWeight: 400,
+                    },
+                  }}
+                >
+                  Add column
+                </Button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedContacts.map((contact) => {
+              const connectionStrength = getConnectionStrength(contact);
 
               return (
-                <Paper key={contactId} p="sm" withBorder>
-                  <Group gap="sm">
-                    <Avatar size="sm" color="blue">
-                      {contact.firstName?.[0]?.toUpperCase()}{contact.lastName?.[0]?.toUpperCase()}
-                    </Avatar>
-                    <Stack gap={0}>
-                      <Text size="sm" fw={500}>
+                <tr
+                  key={contact.id}
+                  className="crm-table-row"
+                  style={{
+                    borderBottom: "1px solid var(--crm-sidebar-border)",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    window.location.href = `/crm/contacts/${contact.id}`;
+                  }}
+                >
+                  <td
+                    style={{ padding: "10px 16px" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Checkbox
+                      checked={selectedContactIds.includes(contact.id)}
+                      onChange={(e) => handleSelectContact(contact.id, e.currentTarget.checked)}
+                      aria-label={`Select ${contact.firstName} ${contact.lastName}`}
+                      size="sm"
+                    />
+                  </td>
+                  <td style={{ padding: "10px 16px" }}>
+                    <Group gap="sm">
+                      <Avatar size="sm" color="blue" radius="xl">
+                        {contact.firstName?.[0]?.toUpperCase()}
+                      </Avatar>
+                      <Text size="sm" style={{ color: "var(--crm-sidebar-text-active)" }}>
                         {contact.firstName} {contact.lastName}
                       </Text>
-                      <Group gap="xs">
-                        {contact.email && (
-                          <Text size="xs" c="dimmed">
-                            {contact.email}
-                          </Text>
-                        )}
-                        {contact.telegram && (
-                          <Badge size="xs" variant="light" color="blue">
-                            @{contact.telegram}
-                          </Badge>
-                        )}
-                        {contact.email?.endsWith("telegram.placeholder") && (
-                          <Badge size="xs" variant="light" color="orange">
-                            Telegram Import
-                          </Badge>
-                        )}
-                      </Group>
-                    </Stack>
-                  </Group>
-                </Paper>
+                    </Group>
+                  </td>
+                  <td style={{ padding: "10px 16px" }}>
+                    <ConnectionStrengthBadge strength={connectionStrength} />
+                  </td>
+                  <td style={{ padding: "10px 16px" }}>
+                    <Text size="sm" c="dimmed">
+                      about 1 month ago
+                    </Text>
+                  </td>
+                  <td style={{ padding: "10px 16px" }}>
+                    <Text size="sm" c="dimmed">
+                      No contact
+                    </Text>
+                  </td>
+                  <td style={{ padding: "10px 16px" }}></td>
+                </tr>
               );
             })}
-          </Stack>
+          </tbody>
+        </table>
+      </Box>
 
-          <Divider />
-
-          {/* Merge Rules Explanation */}
-          <Stack gap="xs">
-            <Text fw={500} size="sm">Merge Rules:</Text>
-            <Stack gap={4}>
-              <Group gap="xs">
-                <Text size="xs" c="dimmed">•</Text>
-                <Text size="xs" c="dimmed">
-                  Telegram contacts (with telegram.placeholder email) are canonical for phone & telegram fields
-                </Text>
-              </Group>
-              <Group gap="xs">
-                <Text size="xs" c="dimmed">•</Text>
-                <Text size="xs" c="dimmed">
-                  Non-telegram email will overwrite telegram.placeholder email
-                </Text>
-              </Group>
-              <Group gap="xs">
-                <Text size="xs" c="dimmed">•</Text>
-                <Text size="xs" c="dimmed">
-                  Conflicting fields will be concatenated with &apos; - &apos;
-                </Text>
-              </Group>
-              <Group gap="xs">
-                <Text size="xs" c="dimmed">•</Text>
-                <Text size="xs" c="dimmed">
-                  One contact will be kept, others will be deleted
-                </Text>
-              </Group>
-            </Stack>
-          </Stack>
-
-          {/* Action Buttons */}
-          <Group justify="flex-end" gap="sm" mt="md">
+      {/* Footer */}
+      <Box
+        px="md"
+        py="sm"
+        style={{
+          borderTop: "1px solid var(--crm-sidebar-border)",
+          background: "var(--crm-sidebar-bg)",
+        }}
+      >
+        <Group justify="space-between">
+          <Text size="sm" c="dimmed">
+            {sortedContacts.length.toLocaleString()} count
+          </Text>
+          <Group gap="xl">
             <Button
               variant="subtle"
-              onClick={() => setMergeModalOpened(false)}
-              disabled={mergeContactsMutation.isPending}
+              color="gray"
+              size="xs"
+              leftSection={<IconPlus size={12} />}
+              styles={{
+                root: {
+                  color: "var(--crm-sidebar-text)",
+                  fontWeight: 400,
+                },
+              }}
             >
-              Cancel
+              Add calculation
             </Button>
             <Button
-              color="orange"
-              onClick={handleMergeContacts}
-              loading={mergeContactsMutation.isPending}
-              leftSection={<IconUsers size={16} />}
+              variant="subtle"
+              color="gray"
+              size="xs"
+              leftSection={<IconPlus size={12} />}
+              styles={{
+                root: {
+                  color: "var(--crm-sidebar-text)",
+                  fontWeight: 400,
+                },
+              }}
             >
-              {mergeContactsMutation.isPending ? "Merging..." : "Merge Contacts"}
+              Add calculation
+            </Button>
+            <Button
+              variant="subtle"
+              color="gray"
+              size="xs"
+              leftSection={<IconPlus size={12} />}
+              styles={{
+                root: {
+                  color: "var(--crm-sidebar-text)",
+                  fontWeight: 400,
+                },
+              }}
+            >
+              Add calculation
             </Button>
           </Group>
-
-          {/* Error Display */}
-          {mergeContactsMutation.error && (
-            <Alert icon={<IconX size={16} />} color="red" variant="light">
-              <Text fw={500}>Failed to merge contacts</Text>
-              <Text size="sm">{mergeContactsMutation.error.message}</Text>
-            </Alert>
-          )}
-
-          {/* Success Display */}
-          {mergeContactsMutation.isSuccess && (
-            <Alert icon={<IconCheck size={16} />} color="green" variant="light">
-              <Text fw={500}>Contacts merged successfully!</Text>
-              <Text size="sm">
-                {mergeContactsMutation.data.mergedCount} contacts merged into one.
-              </Text>
-            </Alert>
-          )}
-        </Stack>
-      </Modal>
-
-  </>
+        </Group>
+      </Box>
+    </Box>
   );
 }

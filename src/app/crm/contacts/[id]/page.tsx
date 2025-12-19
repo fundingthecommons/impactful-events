@@ -23,6 +23,7 @@ import {
   Modal,
   Select,
   NumberInput,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconBuilding,
@@ -122,6 +123,24 @@ export default function ContactDetailsPage() {
   );
 
   const { data: events } = api.event.getEvents.useQuery();
+
+  // Fetch all contacts for prev/next navigation
+  const { data: allContacts } = api.contact.getContacts.useQuery();
+
+  // Calculate prev/next contact IDs (sorted alphabetically by name)
+  const sortedContacts = allContacts
+    ? [...allContacts].sort((a, b) => {
+        const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+        const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      })
+    : [];
+  const currentIndex = sortedContacts.findIndex(c => c.id === contactId);
+  const prevContact = currentIndex > 0 ? sortedContacts[currentIndex - 1] : null;
+  const nextContact = currentIndex >= 0 && currentIndex < sortedContacts.length - 1
+    ? sortedContacts[currentIndex + 1]
+    : null;
+  const totalContacts = sortedContacts.length;
 
   const importTelegramMessages = api.contact.importTelegramMessagesForContact.useMutation({
     onSuccess: (result) => {
@@ -361,14 +380,48 @@ export default function ContactDetailsPage() {
             >
               <IconChevronLeft size={16} />
             </ActionIcon>
-            <ActionIcon variant="subtle" size="sm" disabled>
-              <IconChevronLeft size={14} />
-            </ActionIcon>
-            <ActionIcon variant="subtle" size="sm" disabled>
-              <IconChevronRight size={14} />
-            </ActionIcon>
+            <Tooltip label={prevContact ? `Previous: ${prevContact.firstName} ${prevContact.lastName}` : "No previous contact"}>
+              {prevContact ? (
+                <ActionIcon
+                  variant="subtle"
+                  size="sm"
+                  component={Link}
+                  href={`/crm/contacts/${prevContact.id}`}
+                >
+                  <IconChevronLeft size={14} />
+                </ActionIcon>
+              ) : (
+                <ActionIcon
+                  variant="subtle"
+                  size="sm"
+                  disabled
+                >
+                  <IconChevronLeft size={14} />
+                </ActionIcon>
+              )}
+            </Tooltip>
+            <Tooltip label={nextContact ? `Next: ${nextContact.firstName} ${nextContact.lastName}` : "No next contact"}>
+              {nextContact ? (
+                <ActionIcon
+                  variant="subtle"
+                  size="sm"
+                  component={Link}
+                  href={`/crm/contacts/${nextContact.id}`}
+                >
+                  <IconChevronRight size={14} />
+                </ActionIcon>
+              ) : (
+                <ActionIcon
+                  variant="subtle"
+                  size="sm"
+                  disabled
+                >
+                  <IconChevronRight size={14} />
+                </ActionIcon>
+              )}
+            </Tooltip>
             <Text size="sm" c="dimmed">
-              Contact in All People
+              {currentIndex >= 0 ? `${currentIndex + 1} of ${totalContacts} in` : "Contact in"} All People
             </Text>
           </Group>
           <Group gap="xs">

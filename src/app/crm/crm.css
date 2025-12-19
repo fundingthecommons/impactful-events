@@ -457,3 +457,15 @@
 .crm-message-row:hover {
   background: var(--crm-sidebar-hover);
 }
+
+/* ============================================
+   TABLE ROW STYLES
+   ============================================ */
+
+.crm-table-row {
+  transition: background 0.15s ease;
+}
+
+.crm-table-row:hover {
+  background: var(--crm-sidebar-hover);
+}

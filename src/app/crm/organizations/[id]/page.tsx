@@ -119,6 +119,17 @@ export default function OrganizationDetailsPage() {
     { enabled: !!organizationId }
   );
 
+  // Fetch all organizations for prev/next navigation
+  const { data: allOrganizations } = api.sponsor.getSponsors.useQuery();
+
+  // Calculate prev/next organization IDs
+  const currentIndex = allOrganizations?.findIndex(org => org.id === organizationId) ?? -1;
+  const prevOrganization = currentIndex > 0 ? allOrganizations?.[currentIndex - 1] : null;
+  const nextOrganization = currentIndex >= 0 && currentIndex < (allOrganizations?.length ?? 0) - 1
+    ? allOrganizations?.[currentIndex + 1]
+    : null;
+  const totalOrganizations = allOrganizations?.length ?? 0;
+
   // Handle authentication on client side
   if (status === "loading") {
     return (
@@ -296,14 +307,48 @@ export default function OrganizationDetailsPage() {
             >
               <IconChevronLeft size={16} />
             </ActionIcon>
-            <ActionIcon variant="subtle" size="sm" disabled>
-              <IconChevronLeft size={14} />
-            </ActionIcon>
-            <ActionIcon variant="subtle" size="sm" disabled>
-              <IconChevronRight size={14} />
-            </ActionIcon>
+            <Tooltip label={prevOrganization ? `Previous: ${prevOrganization.name}` : "No previous organization"}>
+              {prevOrganization ? (
+                <ActionIcon
+                  variant="subtle"
+                  size="sm"
+                  component={Link}
+                  href={`/crm/organizations/${prevOrganization.id}`}
+                >
+                  <IconChevronLeft size={14} />
+                </ActionIcon>
+              ) : (
+                <ActionIcon
+                  variant="subtle"
+                  size="sm"
+                  disabled
+                >
+                  <IconChevronLeft size={14} />
+                </ActionIcon>
+              )}
+            </Tooltip>
+            <Tooltip label={nextOrganization ? `Next: ${nextOrganization.name}` : "No next organization"}>
+              {nextOrganization ? (
+                <ActionIcon
+                  variant="subtle"
+                  size="sm"
+                  component={Link}
+                  href={`/crm/organizations/${nextOrganization.id}`}
+                >
+                  <IconChevronRight size={14} />
+                </ActionIcon>
+              ) : (
+                <ActionIcon
+                  variant="subtle"
+                  size="sm"
+                  disabled
+                >
+                  <IconChevronRight size={14} />
+                </ActionIcon>
+              )}
+            </Tooltip>
             <Text size="sm" c="dimmed">
-              Organization in All Companies
+              {currentIndex >= 0 ? `${currentIndex + 1} of ${totalOrganizations} in` : "Organization in"} All Companies
             </Text>
           </Group>
           <Group gap="xs">
