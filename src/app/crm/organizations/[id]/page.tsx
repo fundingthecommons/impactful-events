@@ -29,6 +29,7 @@ import {
   IconCalendar,
   IconChevronLeft,
   IconChevronRight,
+  IconChevronDown,
   IconAlertCircle,
   IconMail,
   IconPhone,
@@ -47,6 +48,7 @@ import {
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import MessageViewerModal from "../../components/MessageViewerModal";
 
 // Helper function to get relative time
 function getRelativeTime(date: Date): string {
@@ -74,11 +76,38 @@ function getDaysUntil(date: Date): string {
   return `in ${diffDays} days`;
 }
 
+// Type for communication message
+type CommunicationMessage = {
+  id: string;
+  channel: string;
+  subject?: string | null;
+  textContent?: string | null;
+  htmlContent?: string | null;
+  fromEmail?: string | null;
+  toEmail?: string | null;
+  fromTelegram?: string | null;
+  toTelegram?: string | null;
+  sentAt?: Date | null;
+  createdAt: Date;
+  contact?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+};
+
 export default function OrganizationDetailsPage() {
   const params = useParams();
   const { data: session, status } = useSession();
   const organizationId = params.id as string;
   const [activeTab, setActiveTab] = useState<string | null>("overview");
+  const [selectedMessage, setSelectedMessage] = useState<CommunicationMessage | null>(null);
+  const [messageModalOpened, setMessageModalOpened] = useState(false);
+
+  const handleOpenMessage = (message: CommunicationMessage) => {
+    setSelectedMessage(message);
+    setMessageModalOpened(true);
+  };
 
   const { data: organization, isLoading, error } = api.sponsor.getSponsor.useQuery(
     { id: organizationId },
@@ -159,20 +188,25 @@ export default function OrganizationDetailsPage() {
   // Build activity items from communications and events
   const activityItems: Array<{
     id: string;
-    type: "email" | "meeting" | "system" | "created";
+    type: "email" | "telegram" | "meeting" | "system" | "created";
     description: string;
     actor: string;
     timestamp: Date;
+    subject?: string;
+    channel?: string;
   }> = [];
 
   // Add communications as activity
   communications?.forEach(comm => {
+    const isTelegram = comm.channel === "TELEGRAM";
     activityItems.push({
       id: comm.id,
-      type: "email",
-      description: comm.subject ?? "Sent a message",
+      type: isTelegram ? "telegram" : "email",
+      description: isTelegram ? "sent a message" : "sent an email",
       actor: comm.contact ? `${comm.contact.firstName} ${comm.contact.lastName}` : "System",
       timestamp: comm.sentAt ?? comm.createdAt,
+      subject: comm.subject ?? (comm.textContent?.slice(0, 60) ?? ""),
+      channel: comm.channel,
     });
   });
 
@@ -189,6 +223,39 @@ export default function OrganizationDetailsPage() {
 
   // Sort by timestamp descending
   activityItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  // Group activities by time period
+  const groupActivitiesByPeriod = (items: typeof activityItems) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const thisWeekStart = new Date(today);
+    thisWeekStart.setDate(today.getDate() - today.getDay());
+
+    const groups: Record<string, typeof activityItems> = {};
+
+    items.forEach(item => {
+      const itemDate = new Date(item.timestamp);
+      let period: string;
+
+      if (itemDate > now) {
+        period = "Upcoming";
+      } else if (itemDate >= thisWeekStart) {
+        period = "This week";
+      } else if (itemDate.getFullYear() === now.getFullYear()) {
+        period = itemDate.toLocaleDateString("en-US", { month: "long" });
+      } else {
+        period = itemDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      }
+
+      const periodItems = groups[period] ?? [];
+      periodItems.push(item);
+      groups[period] = periodItems;
+    });
+
+    return groups;
+  };
+
+  const groupedActivities = groupActivitiesByPeriod(activityItems);
 
   // Get domain from website URL
   const getDomain = (url: string | null): string | null => {
@@ -808,50 +875,108 @@ export default function OrganizationDetailsPage() {
             )}
 
             {activeTab === "activity" && (
-              <Stack gap="md">
-                {activityItems.map(item => (
-                  <Paper
-                    key={item.id}
-                    p="md"
-                    radius="md"
-                    style={{
-                      background: "var(--theme-crm-card)",
-                      border: "1px solid var(--theme-crm-card-border)",
-                    }}
+              <Stack gap="lg">
+                {/* Activity Header */}
+                <Group justify="space-between" align="center">
+                  <Title order={4}>Activity</Title>
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    leftSection={<IconPlus size={16} />}
+                    disabled
                   >
-                    <Group justify="space-between" align="flex-start">
-                      <Group gap="sm" align="flex-start">
-                        <Box
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            background:
-                              item.type === "email"
-                                ? "var(--mantine-color-blue-6)"
-                                : item.type === "meeting"
-                                ? "var(--mantine-color-green-6)"
-                                : "var(--mantine-color-gray-6)",
-                            marginTop: 6,
-                          }}
-                        />
-                        <Stack gap={2}>
-                          <Group gap="xs">
-                            <Text size="sm" fw={500}>
-                              {item.actor}
-                            </Text>
-                            <Text size="sm" c="dimmed">
-                              {item.description}
-                            </Text>
-                          </Group>
-                        </Stack>
-                      </Group>
-                      <Text size="xs" c="dimmed">
-                        {getRelativeTime(item.timestamp)}
-                      </Text>
+                    Add meeting
+                  </Button>
+                </Group>
+
+                {/* Grouped Activities */}
+                {Object.entries(groupedActivities).map(([period, items]) => (
+                  <Box key={period}>
+                    {/* Period Header */}
+                    <Group gap="md" mb="md" align="center">
+                      <Badge
+                        variant="light"
+                        color="gray"
+                        size="sm"
+                        radius="sm"
+                        style={{ textTransform: "none", fontWeight: 500 }}
+                      >
+                        {period}
+                      </Badge>
+                      <Box
+                        style={{
+                          flex: 1,
+                          height: 1,
+                          background: "var(--theme-crm-border)",
+                        }}
+                      />
+                      <ActionIcon variant="subtle" size="sm">
+                        <IconChevronDown size={14} />
+                      </ActionIcon>
                     </Group>
-                  </Paper>
+
+                    {/* Activity Items */}
+                    <Stack gap="md" pl="xs">
+                      {items.map(item => (
+                        <Box key={item.id}>
+                          {/* Activity Row */}
+                          <Group gap="md" align="flex-start" wrap="nowrap">
+                            <Avatar size={28} radius="xl" color={
+                              item.type === "email" ? "blue" :
+                              item.type === "telegram" ? "cyan" :
+                              item.type === "meeting" ? "teal" :
+                              "gray"
+                            }>
+                              {item.actor[0]?.toUpperCase() ?? "?"}
+                            </Avatar>
+                            <Box style={{ flex: 1, minWidth: 0 }}>
+                              <Group justify="space-between" align="flex-start" wrap="nowrap">
+                                <Text size="sm" lineClamp={1}>
+                                  <Text span fw={600}>{item.actor}</Text>
+                                  {" "}
+                                  <Text span c="dimmed">{item.description}</Text>
+                                </Text>
+                                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                                  {getRelativeTime(item.timestamp)}
+                                </Text>
+                              </Group>
+
+                              {/* Embedded Card for messages/meetings */}
+                              {item.subject && (
+                                <Box
+                                  mt="xs"
+                                  p="sm"
+                                  style={{
+                                    borderLeft: `3px solid ${
+                                      item.type === "email" ? "var(--mantine-color-blue-6)" :
+                                      item.type === "telegram" ? "var(--mantine-color-cyan-6)" :
+                                      "var(--mantine-color-orange-6)"
+                                    }`,
+                                    background: "var(--theme-crm-card)",
+                                    borderRadius: "0 6px 6px 0",
+                                  }}
+                                >
+                                  <Text size="sm" fw={500} lineClamp={1}>
+                                    {item.subject}
+                                  </Text>
+                                  <Text size="xs" c="dimmed" mt={4}>
+                                    {new Date(item.timestamp).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                      hour: "numeric",
+                                      minute: "2-digit",
+                                    })}
+                                  </Text>
+                                </Box>
+                              )}
+                            </Box>
+                          </Group>
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Box>
                 ))}
+
                 {activityItems.length === 0 && (
                   <Paper
                     p="xl"
@@ -861,9 +986,10 @@ export default function OrganizationDetailsPage() {
                       border: "1px solid var(--theme-crm-card-border)",
                     }}
                   >
-                    <Text c="dimmed" ta="center">
-                      No activity yet
-                    </Text>
+                    <Stack align="center" gap="md">
+                      <IconActivity size={48} style={{ opacity: 0.5 }} />
+                      <Text c="dimmed">No activity yet</Text>
+                    </Stack>
                   </Paper>
                 )}
               </Stack>
@@ -882,6 +1008,7 @@ export default function OrganizationDetailsPage() {
                         cursor: "pointer",
                       }}
                       className="crm-message-row"
+                      onClick={() => handleOpenMessage(email)}
                     >
                       <Group gap="md" align="flex-start" wrap="nowrap">
                         <Avatar size={40} color="gray" radius="xl">
@@ -947,6 +1074,7 @@ export default function OrganizationDetailsPage() {
                         cursor: "pointer",
                       }}
                       className="crm-message-row"
+                      onClick={() => handleOpenMessage(message)}
                     >
                       <Group gap="md" align="flex-start" wrap="nowrap">
                         <Avatar size={40} color="gray" radius="xl">
@@ -1241,6 +1369,16 @@ export default function OrganizationDetailsPage() {
           </Tabs>
         </Box>
       </Box>
+
+      {/* Message Viewer Modal */}
+      <MessageViewerModal
+        opened={messageModalOpened}
+        onClose={() => {
+          setMessageModalOpened(false);
+          setSelectedMessage(null);
+        }}
+        message={selectedMessage}
+      />
     </Box>
   );
 }
