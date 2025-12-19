@@ -95,9 +95,16 @@ export default function OrganizationsPage() {
             <IconBuilding size={16} />
           </Avatar>
         )}
-        <Text fw={500} size="sm">
+        <Anchor
+          component={Link}
+          href={`/crm/organizations/${org.id}`}
+          fw={500}
+          size="sm"
+          c="inherit"
+          underline="hover"
+        >
           {org.name}
-        </Text>
+        </Anchor>
       </Group>,
       // Website column
       <Group gap="xs" key={`website-${org.id}`}>
@@ -155,7 +162,7 @@ export default function OrganizationsPage() {
         <Tooltip label="View full details">
           <ActionIcon
             component={Link}
-            href={`/organizations/${org.id}`}
+            href={`/crm/organizations/${org.id}`}
             variant="subtle"
             color="blue"
           >
