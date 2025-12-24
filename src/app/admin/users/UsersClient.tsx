@@ -54,10 +54,13 @@ export default function UsersClient() {
   const [debouncedSearch] = useDebouncedValue(searchTerm, 300);
 
   // API queries
-  const { data: users, refetch: refetchUsers, isLoading: loadingUsers } = api.role.getAllUsersWithEventRoles.useQuery({
+  const { data: users, refetch: refetchUsers, isLoading: loadingUsers, isFetching } = api.role.getAllUsersWithEventRoles.useQuery({
     search: debouncedSearch || undefined,
     eventId: filterEventId || undefined,
     roleId: filterRoleId || undefined,
+  }, {
+    // Keep previous data while fetching new results to prevent UI flash
+    placeholderData: (previousData) => previousData,
   });
 
   const { data: userStats } = api.role.getUserStats.useQuery();
@@ -164,7 +167,8 @@ export default function UsersClient() {
     }
   };
 
-  if (loadingUsers) {
+  // Only show full-page loader on initial load (no data yet)
+  if (loadingUsers && !users) {
     return (
       <Container size="xl" py="xl">
         <Group justify="center">
@@ -239,6 +243,7 @@ export default function UsersClient() {
           <TextInput
             placeholder="Search users..."
             leftSection={<IconSearch size={16} />}
+            rightSection={isFetching ? <Loader size={14} /> : null}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.currentTarget.value)}
             style={{ flex: 1 }}
@@ -400,53 +405,93 @@ export default function UsersClient() {
       <Modal
         opened={assignRoleModalOpen}
         onClose={() => setAssignRoleModalOpen(false)}
-        title="Assign Event Role"
+        title="Assign Role"
         size="md"
       >
-        <form onSubmit={assignRoleForm.onSubmit(handleAssignRole)}>
-          <Stack>
-            <Select
-              label="User"
-              placeholder="Select a user"
-              data={users?.map(user => ({
-                value: user.id,
-                label: `${getDisplayName(user)} (${user.email})`
-              })) ?? []}
-              {...assignRoleForm.getInputProps("userId")}
-              required
-              searchable
-            />
-            
-            <Select
-              label="Event"
-              placeholder="Select an event"
-              data={events?.map(event => ({ value: event.id, label: event.name })) ?? []}
-              {...assignRoleForm.getInputProps("eventId")}
-              required
-            />
-            
-            <Select
-              label="Role"
-              placeholder="Select a role"
-              data={roles?.map(role => ({ value: role.id, label: role.name })) ?? []}
-              {...assignRoleForm.getInputProps("roleId")}
-              required
-            />
-            
-            <Group justify="flex-end">
-              <Button variant="light" onClick={() => setAssignRoleModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                loading={assignEventRole.isPending}
-                leftSection={<IconUserPlus size={16} />}
-              >
-                Assign Role
-              </Button>
+        <Stack>
+          <Select
+            label="User"
+            placeholder="Select a user"
+            data={users?.map(user => ({
+              value: user.id,
+              label: `${getDisplayName(user)} (${user.email})`
+            })) ?? []}
+            value={assignRoleForm.values.userId}
+            onChange={(value) => assignRoleForm.setFieldValue("userId", value ?? "")}
+            searchable
+          />
+
+          {/* Global Role Section */}
+          <Paper withBorder p="md" radius="md">
+            <Text fw={500} mb="sm">Global Role</Text>
+            <Text size="sm" c="dimmed" mb="md">
+              Set the user&apos;s platform-wide permissions
+            </Text>
+            <Group>
+              {(["user", "staff", "admin"] as const).map((role) => {
+                const selectedUser = users?.find(u => u.id === assignRoleForm.values.userId);
+                const isCurrentRole = selectedUser?.role === role;
+                return (
+                  <Button
+                    key={role}
+                    variant={isCurrentRole ? "filled" : "light"}
+                    color={role === "admin" ? "red" : role === "staff" ? "orange" : "blue"}
+                    size="sm"
+                    disabled={!assignRoleForm.values.userId || isCurrentRole}
+                    loading={updateGlobalRole.isPending}
+                    onClick={() => {
+                      if (assignRoleForm.values.userId) {
+                        handleUpdateGlobalRole(assignRoleForm.values.userId, role);
+                      }
+                    }}
+                  >
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </Button>
+                );
+              })}
             </Group>
-          </Stack>
-        </form>
+          </Paper>
+
+          {/* Event Role Section */}
+          <Paper withBorder p="md" radius="md">
+            <Text fw={500} mb="sm">Event Role</Text>
+            <Text size="sm" c="dimmed" mb="md">
+              Assign a role for a specific event
+            </Text>
+            <form onSubmit={assignRoleForm.onSubmit(handleAssignRole)}>
+              <Stack>
+                <Select
+                  label="Event"
+                  placeholder="Select an event"
+                  data={events?.map(event => ({ value: event.id, label: event.name })) ?? []}
+                  {...assignRoleForm.getInputProps("eventId")}
+                />
+
+                <Select
+                  label="Role"
+                  placeholder="Select a role"
+                  data={roles?.map(role => ({ value: role.id, label: role.name })) ?? []}
+                  {...assignRoleForm.getInputProps("roleId")}
+                />
+
+                <Button
+                  type="submit"
+                  loading={assignEventRole.isPending}
+                  leftSection={<IconUserPlus size={16} />}
+                  disabled={!assignRoleForm.values.userId || !assignRoleForm.values.eventId || !assignRoleForm.values.roleId}
+                >
+                  Assign Event Role
+                </Button>
+              </Stack>
+            </form>
+          </Paper>
+
+          <Group justify="flex-end">
+            <Button variant="light" onClick={() => setAssignRoleModalOpen(false)}>
+              Close
+            </Button>
+          </Group>
+        </Stack>
       </Modal>
 
       {/* User Detail Modal */}
