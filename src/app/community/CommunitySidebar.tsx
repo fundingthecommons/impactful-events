@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconHandStop, IconNews } from "@tabler/icons-react";
+import { IconHandStop, IconNews, IconMessages } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 
 interface SidebarItemProps {
@@ -82,6 +82,12 @@ export default function CommunitySidebar() {
           href="/community/updates"
           badge={updatesCount}
           active={isActive("/community/updates")}
+        />
+        <SidebarItem
+          icon={<IconMessages size={20} />}
+          label="Forum"
+          href="/community/forum"
+          active={isActive("/community/forum")}
         />
       </nav>
     </aside>

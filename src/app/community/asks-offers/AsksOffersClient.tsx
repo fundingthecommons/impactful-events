@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Stack,
   Text,
@@ -15,12 +16,16 @@ import {
   Avatar,
   ActionIcon,
   Tooltip,
+  Button,
+  Modal,
+  Select,
 } from "@mantine/core";
 import {
   IconHandStop,
   IconGift,
   IconCheck,
   IconTrash,
+  IconPlus,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
@@ -30,10 +35,20 @@ import Link from "next/link";
 import { notifications } from "@mantine/notifications";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { getDisplayName } from "~/utils/userDisplay";
+import { CreateAskOfferModal } from "~/app/events/[eventId]/CreateAskOfferModal";
 
 export default function AsksOffersClient() {
   const { data: session } = useSession();
   const utils = api.useUtils();
+
+  // Modal state
+  const [eventSelectModalOpen, setEventSelectModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [createType, setCreateType] = useState<"ASK" | "OFFER">("ASK");
+
+  // Fetch available events for the dropdown
+  const { data: availableEvents, isLoading: loadingEvents } = api.event.getAvailableEvents.useQuery();
 
   // Fetch all asks and offers
   const { data: asksData = [], isLoading: asksLoading } = api.askOffer.getAllAsksOffers.useQuery({
@@ -223,6 +238,36 @@ export default function AsksOffersClient() {
 
   const isLoading = asksLoading || offersLoading;
 
+  // Handlers for create flow
+  const handleOpenCreateModal = (type: "ASK" | "OFFER") => {
+    setCreateType(type);
+    setSelectedEventId(null);
+    setEventSelectModalOpen(true);
+  };
+
+  const handleEventSelect = (eventId: string | null) => {
+    if (eventId) {
+      setSelectedEventId(eventId);
+      setEventSelectModalOpen(false);
+      setCreateModalOpen(true);
+    }
+  };
+
+  const handleCreateModalClose = () => {
+    setCreateModalOpen(false);
+    setSelectedEventId(null);
+  };
+
+  const handleCreateSuccess = () => {
+    void utils.askOffer.getAllAsksOffers.invalidate();
+  };
+
+  // Format events for the select dropdown
+  const eventOptions = availableEvents?.map((event) => ({
+    value: event.id,
+    label: event.name,
+  })) ?? [];
+
   if (isLoading) {
     return (
       <Container size="xl" py="xl">
@@ -237,12 +282,32 @@ export default function AsksOffersClient() {
     <Container size="xl" py="xl">
       <Stack gap="xl">
         {/* Header */}
-        <Stack gap="xs">
-          <Title order={2}>Asks & Offers</Title>
-          <Text c="dimmed">
-            Browse asks and offers from across all events
-          </Text>
-        </Stack>
+        <Group justify="space-between" align="flex-start">
+          <Stack gap="xs">
+            <Title order={2}>Asks & Offers</Title>
+            <Text c="dimmed">
+              Browse asks and offers from across all events
+            </Text>
+          </Stack>
+          <Group gap="sm">
+            <Button
+              leftSection={<IconPlus size={16} />}
+              variant="light"
+              color="orange"
+              onClick={() => handleOpenCreateModal("ASK")}
+            >
+              Create Ask
+            </Button>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              variant="light"
+              color="blue"
+              onClick={() => handleOpenCreateModal("OFFER")}
+            >
+              Create Offer
+            </Button>
+          </Group>
+        </Group>
 
         {/* Tabs for filtering */}
         <Tabs defaultValue="all">
@@ -317,6 +382,46 @@ export default function AsksOffersClient() {
           </Tabs.Panel>
         </Tabs>
       </Stack>
+
+      {/* Event Selection Modal */}
+      <Modal
+        opened={eventSelectModalOpen}
+        onClose={() => setEventSelectModalOpen(false)}
+        title={`Select Event for ${createType === "ASK" ? "Ask" : "Offer"}`}
+        size="md"
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Choose which event to associate this {createType.toLowerCase()} with:
+          </Text>
+          <Select
+            label="Event"
+            placeholder="Select an event"
+            data={eventOptions}
+            value={selectedEventId}
+            onChange={handleEventSelect}
+            searchable
+            disabled={loadingEvents}
+            nothingFoundMessage="No events available"
+          />
+          {eventOptions.length === 0 && !loadingEvents && (
+            <Text size="sm" c="dimmed" ta="center">
+              You need to be a participant in an event to create asks or offers.
+            </Text>
+          )}
+        </Stack>
+      </Modal>
+
+      {/* Create Ask/Offer Modal */}
+      {selectedEventId && (
+        <CreateAskOfferModal
+          eventId={selectedEventId}
+          isOpen={createModalOpen}
+          onClose={handleCreateModalClose}
+          initialType={createType}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
     </Container>
   );
 }
