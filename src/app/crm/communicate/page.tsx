@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "~/trpc/react";
 import {
@@ -47,6 +47,20 @@ interface Contact {
 }
 
 export default function CommunicatePage() {
+  return (
+    <Suspense
+      fallback={
+        <Center h="100vh">
+          <Loader size="lg" />
+        </Center>
+      }
+    >
+      <CommunicatePageContent />
+    </Suspense>
+  );
+}
+
+function CommunicatePageContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
 
