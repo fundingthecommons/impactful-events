@@ -23,6 +23,7 @@ import {
   IconUserPlus,
   IconCircleArrowUp,
   IconCommand,
+  IconBrandTelegram,
 } from "@tabler/icons-react";
 
 interface SidebarItemProps {
@@ -114,6 +115,12 @@ export default function CRMSidebar() {
         <SidebarItem icon={<IconCheckbox size={18} />} label="Tasks" badge={3} disabled />
         <SidebarItem icon={<IconNote size={18} />} label="Notes" disabled />
         <SidebarItem icon={<IconMail size={18} />} label="Emails" disabled />
+        <SidebarItem
+          icon={<IconBrandTelegram size={18} />}
+          label="Telegram"
+          href="/crm/communicate"
+          active={isActive("/crm/communicate")}
+        />
         <SidebarItem icon={<IconPhone size={18} />} label="Calls" disabled />
         <SidebarItem icon={<IconChartBar size={18} />} label="Reports" disabled />
         <SidebarItem icon={<IconPlayerPlay size={18} />} label="Automations" hasChevron disabled />

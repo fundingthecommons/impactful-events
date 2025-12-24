@@ -32,6 +32,7 @@ import {
   IconUser,
   IconFolder,
   IconX,
+  IconBrandTelegram,
 } from "@tabler/icons-react";
 import { redirect } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -588,6 +589,21 @@ export default function ContactsPage() {
               }}
             >
               Send email
+            </Button>
+            <Button
+              component={Link}
+              href={`/crm/communicate?contacts=${selectedContactIds.join(",")}`}
+              variant="subtle"
+              color="gray"
+              size="xs"
+              leftSection={<IconBrandTelegram size={14} />}
+              styles={{
+                root: {
+                  color: "var(--crm-sidebar-text)",
+                },
+              }}
+            >
+              Send Telegram
             </Button>
           </Group>
         </Box>
