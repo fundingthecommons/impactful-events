@@ -52,6 +52,11 @@ export default function CommunitySidebar() {
     staleTime: 30000,
   });
 
+  const { data: forumCount = 0 } = api.forum.getThreadCount.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+  });
+
   const asksOffersCount = asksData.length + offersData.length;
   const updatesCount = updates?.length ?? 0;
 
@@ -87,6 +92,7 @@ export default function CommunitySidebar() {
           icon={<IconMessages size={20} />}
           label="Forum"
           href="/community/forum"
+          badge={forumCount}
           active={isActive("/community/forum")}
         />
       </nav>

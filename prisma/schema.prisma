@@ -145,6 +145,12 @@ model User {
 
   // Wallet addresses relation
   walletAddresses       WalletAddress[]     @relation("UserWalletAddresses")
+
+  // Forum system relations
+  forumThreads          ForumThread[]       @relation("UserForumThreads")
+  forumComments         ForumComment[]      @relation("UserForumComments")
+  forumThreadLikes      ForumThreadLike[]   @relation("ForumThreadLikes")
+  forumCommentLikes     ForumCommentLike[]  @relation("ForumCommentLikes")
 }
 
 model VerificationToken {
@@ -1871,4 +1877,89 @@ model WalletAddress {
   @@index([address])
   @@index([chain])
   @@index([isPrimary])
+}
+
+// Forum System Models
+model ForumThread {
+  id          String   @id @default(cuid())
+  userId      String   // User who created the thread
+  title       String   // Thread title
+  content     String   @db.Text // Markdown content
+  tags        String[] // Tags for categorization
+  isActive    Boolean  @default(true) // Can be archived/hidden
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user        User             @relation("UserForumThreads", fields: [userId], references: [id], onDelete: Cascade)
+  comments    ForumComment[]
+  likes       ForumThreadLike[]
+
+  @@index([userId])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model ForumComment {
+  id          String   @id @default(cuid())
+  threadId    String   // Thread this comment belongs to
+  userId      String   // User who created the comment
+  parentId    String?  // Parent comment for nested replies
+  content     String   @db.Text // Markdown content
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  thread      ForumThread        @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user        User               @relation("UserForumComments", fields: [userId], references: [id], onDelete: Cascade)
+  parent      ForumComment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     ForumComment[]     @relation("CommentReplies")
+  likes       ForumCommentLike[]
+
+  @@index([threadId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model ForumThreadLike {
+  id               String   @id @default(cuid())
+  threadId         String   // Thread being liked
+  userId           String   // User who liked
+
+  // Kudos transfer system
+  kudosTransferred Float?   // Amount of kudos transferred (2% of liker's kudos)
+  likerKudosAtTime Float?   // Liker's total kudos balance when they liked
+
+  createdAt        DateTime @default(now())
+
+  // Relations
+  thread    ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user      User        @relation("ForumThreadLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+  @@index([threadId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ForumCommentLike {
+  id               String   @id @default(cuid())
+  commentId        String   // Comment being liked
+  userId           String   // User who liked
+
+  // Kudos transfer system
+  kudosTransferred Float?   // Amount of kudos transferred (2% of liker's kudos)
+  likerKudosAtTime Float?   // Liker's total kudos balance when they liked
+
+  createdAt        DateTime @default(now())
+
+  // Relations
+  comment   ForumComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User         @relation("ForumCommentLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
+  @@index([createdAt])
 }
