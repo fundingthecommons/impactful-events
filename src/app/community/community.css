@@ -1,0 +1,175 @@
+/* Community-specific styles */
+
+/* ============================================
+   COMMUNITY THEME VARIABLES
+
+   These follow the app's dark mode system:
+   - Light mode: [data-theme="light"] or :root
+   - Dark mode: [data-theme="dark"]
+
+   All colors MUST be defined in BOTH blocks.
+   Never use hardcoded hex values in components.
+   ============================================ */
+
+:root,
+[data-theme="light"] {
+  /* Layout */
+  --community-bg: #f8fafc;
+  --community-sidebar-width: 240px;
+
+  /* Sidebar - Light theme */
+  --community-sidebar-bg: #ffffff;
+  --community-sidebar-text: #64748b;
+  --community-sidebar-text-active: #0f172a;
+  --community-sidebar-hover: #f1f5f9;
+  --community-sidebar-active: #e0f2fe;
+  --community-sidebar-border: #e2e8f0;
+  --community-sidebar-icon: #94a3b8;
+  --community-sidebar-icon-active: #0ea5e9;
+
+  /* Header */
+  --community-header-border: #e2e8f0;
+}
+
+[data-theme="dark"] {
+  /* Layout */
+  --community-bg: #0a0a0a;
+  --community-sidebar-width: 240px;
+
+  /* Sidebar - Dark theme */
+  --community-sidebar-bg: #1a1a1a;
+  --community-sidebar-text: #a3a3a3;
+  --community-sidebar-text-active: #ffffff;
+  --community-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --community-sidebar-active: rgba(14, 165, 233, 0.15);
+  --community-sidebar-border: rgba(255, 255, 255, 0.1);
+  --community-sidebar-icon: #6b7280;
+  --community-sidebar-icon-active: #0ea5e9;
+
+  /* Header */
+  --community-header-border: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   COMMUNITY LAYOUT STYLES
+   ============================================ */
+
+.community-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--community-bg);
+}
+
+.community-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+/* ============================================
+   SIDEBAR CONTAINER
+   ============================================ */
+
+.community-sidebar {
+  width: var(--community-sidebar-width);
+  background: var(--community-sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  border-right: 1px solid var(--community-sidebar-border);
+}
+
+/* ============================================
+   SIDEBAR HEADER
+   ============================================ */
+
+.community-sidebar-header {
+  padding: 20px 16px;
+  border-bottom: 1px solid var(--community-header-border);
+}
+
+.community-sidebar-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--community-sidebar-text-active);
+  margin: 0;
+}
+
+.community-sidebar-subtitle {
+  font-size: 13px;
+  color: var(--community-sidebar-text);
+  margin-top: 4px;
+}
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+
+.community-sidebar-nav {
+  flex: 1;
+  padding: 12px 8px;
+}
+
+/* ============================================
+   MENU ITEMS
+   ============================================ */
+
+.community-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--community-sidebar-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  margin-bottom: 4px;
+}
+
+.community-sidebar-item:hover:not(.community-sidebar-item-disabled) {
+  background: var(--community-sidebar-hover);
+  color: var(--community-sidebar-text-active);
+}
+
+.community-sidebar-item-active {
+  background: var(--community-sidebar-active);
+  color: var(--community-sidebar-text-active);
+}
+
+.community-sidebar-item-active .community-sidebar-item-icon {
+  color: var(--community-sidebar-icon-active);
+}
+
+.community-sidebar-item-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--community-sidebar-icon);
+  transition: color 0.15s ease;
+}
+
+.community-sidebar-item:hover .community-sidebar-item-icon {
+  color: var(--community-sidebar-text-active);
+}
+
+.community-sidebar-item-label {
+  flex: 1;
+}
+
+.community-sidebar-item-badge {
+  background: var(--community-sidebar-icon-active);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}

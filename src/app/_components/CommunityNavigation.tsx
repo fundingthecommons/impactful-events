@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs } from "@mantine/core";
-import { IconHome, IconUsers, IconBulb } from "@tabler/icons-react";
+import { IconHome, IconUsers, IconBulb, IconHeartHandshake } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -17,6 +17,7 @@ export default function CommunityNavigation() {
   // Determine active tab based on current path
   const getActiveTab = () => {
     if (pathname === "/") return "home";
+    if (pathname.startsWith("/community")) return "community";
     if (pathname.startsWith("/profiles")) return "profiles";
     if (pathname.startsWith("/projects")) return "projects";
     return null;
@@ -35,6 +36,16 @@ export default function CommunityNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Home
+        </TabsTab>
+
+        <TabsTab
+          value="community"
+          leftSection={<IconHeartHandshake size={16} />}
+          component={Link}
+          href="/community"
+          style={{ textDecoration: 'none' }}
+        >
+          Community
         </TabsTab>
 
         <TabsTab
