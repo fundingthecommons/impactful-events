@@ -17,7 +17,6 @@ import {
   TextInput,
   Stack,
   Select,
-  Badge,
 } from "@mantine/core";
 import {
   IconChevronDown,
@@ -30,7 +29,6 @@ import {
   IconListDetails,
   IconMail,
   IconSearch,
-  IconChevronLeft,
   IconUser,
   IconFolder,
   IconX,

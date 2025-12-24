@@ -41,7 +41,7 @@ export default function PublicHomepage() {
           </Stack>
 
           {/* Single CTA Button */}
-          <Link href="https://platform.fundingthecommons.io" style={{ textDecoration: 'none' }}>
+          <Link href="/latest" style={{ textDecoration: 'none' }}>
             <Button
               size="xl"
               radius="xl"

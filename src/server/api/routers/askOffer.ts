@@ -515,4 +515,62 @@ ${tags.length > 0 ? `🏷️ Tags: ${tags.join(", ")}` : ""}
           : false,
       };
     }),
+
+  // Protected: Get all asks/offers across all events (for /latest page)
+  getAllAsksOffers: protectedProcedure
+    .input(z.object({
+      type: z.enum(["ASK", "OFFER", "ALL"]).default("ALL"),
+      onlyActive: z.boolean().default(true),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { type, onlyActive } = input;
+
+      const where: { type?: "ASK" | "OFFER"; isActive?: boolean } = {};
+
+      if (type !== "ALL") {
+        where.type = type;
+      }
+
+      if (onlyActive) {
+        where.isActive = true;
+      }
+
+      const asksOffers = await ctx.db.askOffer.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              email: true,
+              profile: {
+                select: {
+                  jobTitle: true,
+                  company: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          likes: {
+            select: {
+              userId: true,
+              id: true,
+              createdAt: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 50, // Limit to most recent 50
+      });
+
+      return asksOffers;
+    }),
 });

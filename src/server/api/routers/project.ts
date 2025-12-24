@@ -2255,4 +2255,203 @@ export const projectRouter = createTRPCRouter({
         totalProjectsWithMetrics: seenProjects.size,
       };
     }),
+
+  // Protected: Get all project updates across all events (for /latest page)
+  getAllUpdates: protectedProcedure
+    .query(async ({ ctx }) => {
+      // Get all accepted resident applications
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          status: "ACCEPTED",
+          applicationType: "RESIDENT",
+        },
+        select: {
+          eventId: true,
+          user: {
+            select: {
+              id: true,
+              profile: {
+                select: {
+                  projects: {
+                    select: {
+                      id: true,
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Get all project IDs from accepted residents
+      const projectIds = acceptedApplications
+        .filter(app => app.user?.profile?.projects?.length)
+        .flatMap(app =>
+          app.user!.profile!.projects.map(project => project.id)
+        );
+
+      if (projectIds.length === 0) {
+        return [];
+      }
+
+      // Get all updates for these projects
+      const updates = await ctx.db.projectUpdate.findMany({
+        where: {
+          projectId: {
+            in: projectIds
+          }
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              firstName: true,
+              surname: true,
+              name: true,
+              image: true,
+              profile: {
+                select: {
+                  avatarUrl: true,
+                }
+              }
+            }
+          },
+          project: {
+            select: {
+              id: true,
+              title: true,
+              imageUrl: true,
+            }
+          },
+          likes: {
+            select: {
+              userId: true,
+            }
+          },
+          comments: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  firstName: true,
+                  surname: true,
+                  image: true,
+                  profile: {
+                    select: {
+                      avatarUrl: true,
+                    }
+                  }
+                }
+              },
+              likes: {
+                select: {
+                  userId: true,
+                }
+              },
+              _count: {
+                select: {
+                  likes: true,
+                }
+              }
+            },
+            orderBy: { createdAt: "desc" },
+            take: 2, // Last 2 comments only
+          }
+        },
+        orderBy: { updateDate: "desc" },
+        take: 50, // Limit to most recent 50 updates
+      });
+
+      return updates;
+    }),
+
+  // Protected: Get user metrics across all events (for badges on /latest page)
+  getAllUserMetrics: protectedProcedure
+    .query(async ({ ctx }) => {
+      // Get all accepted residents
+      const acceptedApplications = await ctx.db.application.findMany({
+        where: {
+          status: "ACCEPTED",
+          applicationType: "RESIDENT",
+        },
+        select: {
+          user: {
+            select: {
+              id: true,
+              profile: {
+                select: {
+                  projects: {
+                    select: {
+                      id: true,
+                      metrics: {
+                        select: {
+                          id: true,
+                        }
+                      },
+                      updates: {
+                        select: {
+                          id: true,
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Get all praise transactions
+      const praiseTransactions = await ctx.db.praise.findMany({
+        select: {
+          senderId: true,
+          recipientId: true,
+        }
+      }) as Array<{ senderId: string; recipientId: string }>;
+
+      // Calculate metrics for each unique user
+      const seenUsers = new Set<string>();
+      const userMetrics = acceptedApplications
+        .filter(app => app.user && !seenUsers.has(app.user.id))
+        .map(app => {
+          seenUsers.add(app.user!.id);
+          const userId = app.user!.id;
+          const projects = app.user!.profile?.projects ?? [];
+
+          // Count projects with at least one metric
+          const projectsWithMetrics = projects.filter(
+            p => p.metrics && p.metrics.length > 0
+          ).length;
+
+          // Count total updates
+          const totalUpdates = projects.reduce(
+            (sum, p) => sum + (p.updates?.length ?? 0),
+            0
+          );
+
+          // Count kudos sent and praise received
+          const kudosSent = praiseTransactions.filter(
+            p => p.senderId === userId
+          ).length;
+          const praiseReceived = praiseTransactions.filter(
+            p => p.recipientId === userId
+          ).length;
+
+          return {
+            userId,
+            projects: projectsWithMetrics,
+            updates: totalUpdates,
+            kudos: kudosSent,
+            praiseReceived,
+          };
+        });
+
+      // Return as a map keyed by userId
+      return Object.fromEntries(
+        userMetrics.map(m => [m.userId, m])
+      );
+    }),
 });
