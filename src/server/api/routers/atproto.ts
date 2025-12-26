@@ -63,10 +63,17 @@ export const atprotoRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const service = createAtProtoService(ctx.db);
-      const posts = await service.getUserPosts(ctx.session.user.id, input.limit);
-
-      return posts;
+      try {
+        const service = createAtProtoService(ctx.db);
+        const posts = await service.getUserPosts(ctx.session.user.id, input.limit);
+        return posts;
+      } catch (error) {
+        // Fail gracefully for auth errors - return empty array
+        if (error instanceof TRPCError && error.code === "UNAUTHORIZED") {
+          return [];
+        }
+        throw error;
+      }
     }),
 
   /**

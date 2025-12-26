@@ -76,10 +76,17 @@ export const hypercertsRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const service = createHypercertsService(ctx.db);
-      const hypercerts = await service.listHypercerts(ctx.session.user.id, input.limit);
-
-      return hypercerts;
+      try {
+        const service = createHypercertsService(ctx.db);
+        const hypercerts = await service.listHypercerts(ctx.session.user.id, input.limit);
+        return hypercerts;
+      } catch (error) {
+        // Fail gracefully for auth errors - return empty array
+        if (error instanceof TRPCError && error.code === "UNAUTHORIZED") {
+          return [];
+        }
+        throw error;
+      }
     }),
 
   /**
@@ -92,9 +99,16 @@ export const hypercertsRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const service = createHypercertsService(ctx.db);
-      const hypercert = await service.getHypercert(ctx.session.user.id, input.rkey);
-
-      return hypercert;
+      try {
+        const service = createHypercertsService(ctx.db);
+        const hypercert = await service.getHypercert(ctx.session.user.id, input.rkey);
+        return hypercert;
+      } catch (error) {
+        // Fail gracefully for auth errors - return null
+        if (error instanceof TRPCError && error.code === "UNAUTHORIZED") {
+          return null;
+        }
+        throw error;
+      }
     }),
 });
