@@ -100,7 +100,7 @@ export default function AsksOffersClient() {
         p="md"
         withBorder
         component={Link}
-        href={`/events/${item.eventId}/asks-offers/${item.id}`}
+        href={item.eventId ? `/events/${item.eventId}/asks-offers/${item.id}` : `/community/asks-offers/${item.id}`}
         style={{
           textDecoration: 'none',
           color: 'inherit',
@@ -246,11 +246,15 @@ export default function AsksOffersClient() {
   };
 
   const handleEventSelect = (eventId: string | null) => {
-    if (eventId) {
-      setSelectedEventId(eventId);
-      setEventSelectModalOpen(false);
-      setCreateModalOpen(true);
-    }
+    setSelectedEventId(eventId);
+    setEventSelectModalOpen(false);
+    setCreateModalOpen(true);
+  };
+
+  const handleSkipEvent = () => {
+    setSelectedEventId(null);
+    setEventSelectModalOpen(false);
+    setCreateModalOpen(true);
   };
 
   const handleCreateModalClose = () => {
@@ -392,36 +396,37 @@ export default function AsksOffersClient() {
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed">
-            Choose which event to associate this {createType.toLowerCase()} with:
+            Optionally associate this {createType.toLowerCase()} with an event, or create it as a community-wide post:
           </Text>
           <Select
-            label="Event"
+            label="Event (Optional)"
             placeholder="Select an event"
             data={eventOptions}
             value={selectedEventId}
             onChange={handleEventSelect}
             searchable
+            clearable
             disabled={loadingEvents}
             nothingFoundMessage="No events available"
           />
-          {eventOptions.length === 0 && !loadingEvents && (
-            <Text size="sm" c="dimmed" ta="center">
-              You need to be a participant in an event to create asks or offers.
-            </Text>
-          )}
+          <Button
+            variant="light"
+            onClick={handleSkipEvent}
+            fullWidth
+          >
+            Continue without event (community-wide)
+          </Button>
         </Stack>
       </Modal>
 
       {/* Create Ask/Offer Modal */}
-      {selectedEventId && (
-        <CreateAskOfferModal
-          eventId={selectedEventId}
-          isOpen={createModalOpen}
-          onClose={handleCreateModalClose}
-          initialType={createType}
-          onSuccess={handleCreateSuccess}
-        />
-      )}
+      <CreateAskOfferModal
+        eventId={selectedEventId}
+        isOpen={createModalOpen}
+        onClose={handleCreateModalClose}
+        initialType={createType}
+        onSuccess={handleCreateSuccess}
+      />
     </Container>
   );
 }

@@ -66,7 +66,7 @@ async function sendTelegramNotification(message: string) {
 
 // Input schemas
 const CreateAskOfferSchema = z.object({
-  eventId: z.string(),
+  eventId: z.string().optional(), // Optional - can create community-wide asks/offers
   type: z.enum(["ASK", "OFFER"]),
   title: z.string().min(3, "Title must be at least 3 characters").max(100),
   description: z.string().min(10, "Description must be at least 10 characters"),
@@ -237,26 +237,28 @@ export const askOfferRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { eventId, type, title, description, tags } = input;
 
-      // Verify user has access to this event (is an accepted participant)
-      const application = await ctx.db.application.findFirst({
-        where: {
-          eventId,
-          userId: ctx.session.user.id,
-          status: "ACCEPTED",
-        },
-      });
-
-      if (!application) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You must be an accepted participant to create asks/offers",
+      // If eventId is provided, verify user has access to this event (is an accepted participant)
+      if (eventId) {
+        const application = await ctx.db.application.findFirst({
+          where: {
+            eventId,
+            userId: ctx.session.user.id,
+            status: "ACCEPTED",
+          },
         });
+
+        if (!application) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You must be an accepted participant to create asks/offers for this event",
+          });
+        }
       }
 
       const askOffer = await ctx.db.askOffer.create({
         data: {
           userId: ctx.session.user.id,
-          eventId,
+          eventId: eventId ?? null,
           type,
           title,
           description,
@@ -276,7 +278,9 @@ export const askOfferRouter = createTRPCRouter({
       // Send Telegram notification
       const userName = askOffer.user.name ?? "Someone";
       const typeLabel = type === "ASK" ? "Ask" : "Offer";
-      const asksOffersUrl = `https://platform.fundingthecommons.io/events/${eventId}/asks-offers`;
+      const asksOffersUrl = eventId
+        ? `https://platform.fundingthecommons.io/events/${eventId}/asks-offers`
+        : `https://platform.fundingthecommons.io/community/asks-offers`;
 
       const telegramMessage = `
 🆕 *New ${typeLabel}*

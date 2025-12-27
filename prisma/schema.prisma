@@ -1339,7 +1339,7 @@ enum AskOfferType {
 model AskOffer {
   id            String        @id @default(cuid())
   userId        String        // User who created the ask/offer
-  eventId       String        // Event this ask/offer is for
+  eventId       String?       // Event this ask/offer is for (optional - can be community-wide)
   type          AskOfferType  // ASK or OFFER
   title         String        // Short title (e.g., "Looking for Solidity mentor")
   description   String        @db.Text // Detailed description
@@ -1350,7 +1350,7 @@ model AskOffer {
 
   // Relations
   user          User          @relation("UserAsksOffers", fields: [userId], references: [id], onDelete: Cascade)
-  event         Event         @relation("EventAsksOffers", fields: [eventId], references: [id], onDelete: Cascade)
+  event         Event?        @relation("EventAsksOffers", fields: [eventId], references: [id], onDelete: Cascade)
   likes         AskOfferLike[]
 
   @@index([userId])

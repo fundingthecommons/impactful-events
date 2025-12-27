@@ -78,7 +78,7 @@ interface AskOfferDetailClientProps {
       } | null;
     };
   };
-  eventId: string;
+  eventId?: string | null;
   isOwner: boolean;
   userId?: string;
 }
@@ -137,7 +137,7 @@ export default function AskOfferDetailClient({
         message: "Deleted successfully",
         color: "green",
       });
-      router.push(`/events/${eventId}`);
+      router.push(eventId ? `/events/${eventId}` : `/community/asks-offers`);
     },
     onError: (error) => {
       notifications.show({
@@ -156,7 +156,7 @@ export default function AskOfferDetailClient({
         color: "green",
       });
       await utils.askOffer.getById.invalidate({ id: askOffer.id });
-      router.push(`/events/${eventId}`);
+      router.push(eventId ? `/events/${eventId}` : `/community/asks-offers`);
     },
     onError: (error) => {
       notifications.show({
@@ -189,7 +189,7 @@ export default function AskOfferDetailClient({
             <IconArrowLeft size={20} />
           </ActionIcon>
           <Text size="sm" c="dimmed">
-            Back to event
+            {eventId ? "Back to event" : "Back to asks & offers"}
           </Text>
         </Group>
 

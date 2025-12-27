@@ -20,12 +20,14 @@ import {
   Button,
   Divider,
   Timeline,
+  Select,
 } from "@mantine/core";
 import {
   IconBrandGithub,
   IconExternalLink,
   IconMessageCircle,
   IconCalendarEvent,
+  IconPlus,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
@@ -38,6 +40,7 @@ import { UserAvatar } from "~/app/_components/UserAvatar";
 import { CommentPreview } from "~/app/_components/CommentPreview";
 import { MentionTextarea } from "~/app/_components/MentionTextarea";
 import { notifications } from "@mantine/notifications";
+import { CreateUpdateModal } from "~/app/_components/CreateUpdateModal";
 
 // Extract static styles to prevent inline object creation
 const PROJECT_TITLE_STYLE = {
@@ -93,7 +96,21 @@ export default function UpdatesClient() {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [showCommentInput, setShowCommentInput] = useState<Record<string, boolean>>({});
 
+  // State for create update flow
+  const [projectSelectModalOpen, setProjectSelectModalOpen] = useState(false);
+  const [createUpdateModalOpen, setCreateUpdateModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<{ id: string; name: string } | null>(null);
+
   const utils = api.useUtils();
+
+  // Fetch user's projects for the dropdown
+  const { data: myProjects, isLoading: loadingProjects } = api.project.getMyProjects.useQuery(
+    undefined,
+    {
+      enabled: !!session?.user,
+      refetchOnWindowFocus: false,
+    }
+  );
 
   // Fetch all updates
   const { data: updates, isLoading: updatesLoading } = api.project.getAllUpdates.useQuery(
@@ -220,6 +237,38 @@ export default function UpdatesClient() {
     }));
   }, []);
 
+  // Handlers for create update flow
+  const handleOpenCreateUpdate = () => {
+    setSelectedProject(null);
+    setProjectSelectModalOpen(true);
+  };
+
+  const handleProjectSelect = (projectId: string | null) => {
+    if (projectId && myProjects) {
+      const project = myProjects.find((p) => p.id === projectId);
+      if (project) {
+        setSelectedProject({ id: project.id, name: project.title });
+        setProjectSelectModalOpen(false);
+        setCreateUpdateModalOpen(true);
+      }
+    }
+  };
+
+  const handleCreateUpdateClose = () => {
+    setCreateUpdateModalOpen(false);
+    setSelectedProject(null);
+  };
+
+  const handleCreateUpdateSuccess = () => {
+    void utils.project.getAllUpdates.invalidate();
+  };
+
+  // Format projects for the select dropdown
+  const projectOptions = myProjects?.map((project) => ({
+    value: project.id,
+    label: project.title,
+  })) ?? [];
+
   if (updatesLoading) {
     return (
       <Container size="xl" py="xl">
@@ -234,12 +283,22 @@ export default function UpdatesClient() {
     <Container size="xl" py="xl">
       <Stack gap="xl">
         {/* Header */}
-        <Stack gap="xs">
-          <Title order={2}>Updates</Title>
-          <Text c="dimmed">
-            Latest project updates from across all events
-          </Text>
-        </Stack>
+        <Group justify="space-between" align="flex-start">
+          <Stack gap="xs">
+            <Title order={2}>Updates</Title>
+            <Text c="dimmed">
+              Latest project updates from across all events
+            </Text>
+          </Stack>
+          {session?.user && (
+            <Button
+              leftSection={<IconPlus size={16} />}
+              onClick={handleOpenCreateUpdate}
+            >
+              Add Update
+            </Button>
+          )}
+        </Group>
 
         {/* Updates Timeline */}
         {!updates || updates.length === 0 ? (
@@ -559,6 +618,46 @@ export default function UpdatesClient() {
           />
         )}
       </Modal>
+
+      {/* Project Selection Modal */}
+      <Modal
+        opened={projectSelectModalOpen}
+        onClose={() => setProjectSelectModalOpen(false)}
+        title="Select Project for Update"
+        size="md"
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Choose which project to add this update to:
+          </Text>
+          <Select
+            label="Project"
+            placeholder="Select a project"
+            data={projectOptions}
+            value={selectedProject?.id ?? null}
+            onChange={handleProjectSelect}
+            searchable
+            disabled={loadingProjects}
+            nothingFoundMessage="No projects available"
+          />
+          {projectOptions.length === 0 && !loadingProjects && (
+            <Text size="sm" c="dimmed" ta="center">
+              You need to have a project to add updates. Create a project first from your profile.
+            </Text>
+          )}
+        </Stack>
+      </Modal>
+
+      {/* Create Update Modal */}
+      {selectedProject && (
+        <CreateUpdateModal
+          projectId={selectedProject.id}
+          projectName={selectedProject.name}
+          isOpen={createUpdateModalOpen}
+          onClose={handleCreateUpdateClose}
+          onSuccess={handleCreateUpdateSuccess}
+        />
+      )}
     </Container>
   );
 }

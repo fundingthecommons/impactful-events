@@ -14,7 +14,7 @@ import { notifications } from "@mantine/notifications";
 import { MentionTextarea } from "~/app/_components/MentionTextarea";
 
 interface CreateAskOfferModalProps {
-  eventId: string;
+  eventId?: string | null;
   isOpen: boolean;
   onClose: () => void;
   initialType: "ASK" | "OFFER";
@@ -39,6 +39,7 @@ export function CreateAskOfferModal({
     onSuccess: () => {
       void utils.askOffer.getEventAsksOffers.invalidate();
       void utils.askOffer.getUserAsksOffers.invalidate();
+      void utils.askOffer.getAllAsksOffers.invalidate();
 
       // Reset form state
       setTitle("");
@@ -126,7 +127,7 @@ export function CreateAskOfferModal({
     }
 
     createMutation.mutate({
-      eventId,
+      eventId: eventId ?? undefined,
       type: initialType,
       title: title.trim(),
       description: description.trim(),
