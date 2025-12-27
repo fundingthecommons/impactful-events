@@ -41,7 +41,7 @@ export default function PublicHomepage() {
           </Stack>
 
           {/* Single CTA Button */}
-          <Link href="/latest" style={{ textDecoration: 'none' }}>
+          <Link href="/signin" style={{ textDecoration: 'none' }}>
             <Button
               size="xl"
               radius="xl"

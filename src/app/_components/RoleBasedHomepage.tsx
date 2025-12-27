@@ -51,14 +51,12 @@ export default function RoleBasedHomepage() {
   // Determine user's primary role and appropriate dashboard
   const userRole = session.user.role;
   const eventRoles = userRoles ?? [];
-  const hasApplications = userApplications && userApplications.length > 0;
 
   // Debug logging to identify routing
   console.log("🔍 Dashboard routing debug:", {
     userRole,
     eventRoleCount: eventRoles.length,
     roleNames: eventRoles.map(role => role.role.name),
-    hasApplications,
     applicationsCount: userApplications?.length ?? 0
   });
 
@@ -89,13 +87,8 @@ export default function RoleBasedHomepage() {
     return <ParticipantEventsClient />;
   }
 
-  // Users with applications get participant view
-  if (hasApplications) {
-    console.log("✅ Routing to: ParticipantEventsClient");
-    return <ParticipantEventsClient />;
-  }
-
-  // Everyone else gets the default user dashboard
+  // All other authenticated users (including those with applications) get the default dashboard
+  // DefaultUserDashboard shows their applications, available events, and community options
   console.log("✅ Routing to: DefaultUserDashboard");
   return <DefaultUserDashboard />;
 }

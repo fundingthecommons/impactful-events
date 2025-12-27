@@ -5,52 +5,77 @@ import { auth } from "~/server/auth";
 import { db } from "~/server/db";
 import { UserDropdownMenu } from "~/app/_components/UserDropdownMenu";
 import AdminNavigation from "./AdminNavigation";
-import UserNavigation from "~/app/_components/UserNavigation";
-import CommunityNavigation from "~/app/_components/CommunityNavigation";
+import MainNavigation from "~/app/_components/MainNavigation";
+
+interface AcceptedEvent {
+  id: string;
+  name: string;
+}
 
 export default async function HeaderBar() {
   const session = await auth();
 
-  // Check if user has access to residency navigation
-  let hasResidencyAccess = false;
+  // Get all events the user has access to (accepted applications or mentor roles)
+  let acceptedEvents: AcceptedEvent[] = [];
 
   if (session?.user) {
-    // Admins and staff always have access
     const isAdmin = session.user.role === "admin" || session.user.role === "staff";
 
-    if (isAdmin) {
-      hasResidencyAccess = false; // Admins get AdminNavigation, not residency nav
-    } else {
-      // Check if user has an accepted application for the residency
-      const RESIDENCY_EVENT_ID = "funding-commons-residency-2025";
-
-      const application = await db.application.findFirst({
+    if (!isAdmin) {
+      // Query all accepted applications
+      const acceptedApplications = await db.application.findMany({
         where: {
           userId: session.user.id,
-          eventId: RESIDENCY_EVENT_ID,
           status: "ACCEPTED",
         },
         select: {
-          id: true,
-          status: true,
+          eventId: true,
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       });
 
-      // Also check if user is a mentor for the event
-      const mentorRole = await db.userRole.findFirst({
+      // Query all mentor roles
+      const mentorRoles = await db.userRole.findMany({
         where: {
           userId: session.user.id,
-          eventId: RESIDENCY_EVENT_ID,
           role: {
             name: "mentor",
           },
         },
         select: {
-          id: true,
+          eventId: true,
+          event: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       });
 
-      hasResidencyAccess = !!application || !!mentorRole;
+      // Combine and deduplicate events
+      const eventMap = new Map<string, AcceptedEvent>();
+
+      for (const app of acceptedApplications) {
+        eventMap.set(app.event.id, {
+          id: app.event.id,
+          name: app.event.name,
+        });
+      }
+
+      for (const role of mentorRoles) {
+        eventMap.set(role.event.id, {
+          id: role.event.id,
+          name: role.event.name,
+        });
+      }
+
+      acceptedEvents = Array.from(eventMap.values());
     }
   }
 
@@ -70,15 +95,13 @@ export default async function HeaderBar() {
         </Group>
       </Paper>
 
-      {/* Navigation - Show appropriate menu based on user role and residency status */}
+      {/* Navigation - Show appropriate menu based on user role */}
       {session?.user && (
         <Paper withBorder radius={0} px="lg" style={{ borderTop: 0, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)' }}>
           {(session.user.role === "admin" || session.user.role === "staff") ? (
             <AdminNavigation />
-          ) : hasResidencyAccess ? (
-            <UserNavigation />
           ) : (
-            <CommunityNavigation />
+            <MainNavigation acceptedEvents={acceptedEvents} />
           )}
         </Paper>
       )}
