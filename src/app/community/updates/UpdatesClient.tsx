@@ -99,7 +99,7 @@ export default function UpdatesClient() {
   // State for create update flow
   const [projectSelectModalOpen, setProjectSelectModalOpen] = useState(false);
   const [createUpdateModalOpen, setCreateUpdateModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<{ id: string; name: string } | null>(null);
+  const [selectedProject, setSelectedProject] = useState<{ id: string; name: string; githubUrl?: string | null } | null>(null);
 
   const utils = api.useUtils();
 
@@ -247,7 +247,7 @@ export default function UpdatesClient() {
     if (projectId && myProjects) {
       const project = myProjects.find((p) => p.id === projectId);
       if (project) {
-        setSelectedProject({ id: project.id, name: project.title });
+        setSelectedProject({ id: project.id, name: project.title, githubUrl: project.githubUrl });
         setProjectSelectModalOpen(false);
         setCreateUpdateModalOpen(true);
       }
@@ -653,6 +653,7 @@ export default function UpdatesClient() {
         <CreateUpdateModal
           projectId={selectedProject.id}
           projectName={selectedProject.name}
+          githubUrl={selectedProject.githubUrl}
           isOpen={createUpdateModalOpen}
           onClose={handleCreateUpdateClose}
           onSuccess={handleCreateUpdateSuccess}

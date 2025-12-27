@@ -5,7 +5,6 @@ import {
   Modal,
   Stack,
   TextInput,
-  NumberInput,
   Button,
   Group,
   Text,
@@ -15,9 +14,12 @@ import {
   ActionIcon,
   Progress,
   FileButton,
+  Paper,
+  Loader,
+  Collapse,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
-import { IconPlus, IconX } from "@tabler/icons-react";
+import { IconPlus, IconX, IconGitCommit, IconSparkles } from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
@@ -26,20 +28,36 @@ import { MentionTextarea } from "~/app/_components/MentionTextarea";
 interface CreateUpdateModalProps {
   projectId: string;
   projectName: string;
+  githubUrl?: string | null;
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
+interface CommitData {
+  hash: string;
+  datetime: string;
+  message: string;
+}
+
 export function CreateUpdateModal({
   projectId,
   projectName,
+  githubUrl,
   isOpen,
   onClose,
   onSuccess,
 }: CreateUpdateModalProps) {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showCommitGenerator, setShowCommitGenerator] = useState(false);
+  const [commitDateRange, setCommitDateRange] = useState<[Date | null, Date | null]>([
+    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+    new Date(),
+  ]);
+  const [isLoadingCommits, setIsLoadingCommits] = useState(false);
+  const [commits, setCommits] = useState<CommitData[]>([]);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
 
   const utils = api.useUtils();
 
@@ -47,7 +65,6 @@ export function CreateUpdateModal({
     initialValues: {
       title: "",
       content: "",
-      weekNumber: undefined as number | undefined,
       updateDate: new Date(),
       imageUrls: [] as string[],
       githubUrls: [] as string[],
@@ -55,6 +72,117 @@ export function CreateUpdateModal({
       tags: [] as string[],
     },
   });
+
+  // Fetch commits from GitHub for the selected date range
+  const fetchCommits = async () => {
+    if (!githubUrl) {
+      notifications.show({
+        title: "No GitHub URL",
+        message: "This project doesn't have a GitHub repository linked",
+        color: "orange",
+      });
+      return;
+    }
+
+    const [since, until] = commitDateRange;
+    if (!since || !until) {
+      notifications.show({
+        title: "Select date range",
+        message: "Please select both start and end dates",
+        color: "orange",
+      });
+      return;
+    }
+
+    setIsLoadingCommits(true);
+    try {
+      const url = new URL("/api/roadmap/commits", window.location.origin);
+      url.searchParams.set("repo", githubUrl);
+      url.searchParams.set("since", since.toISOString());
+      url.searchParams.set("until", until.toISOString());
+
+      const response = await fetch(url.toString());
+      const data = (await response.json()) as {
+        success: boolean;
+        commits: CommitData[];
+        error?: string;
+      };
+
+      if (data.success) {
+        setCommits(data.commits);
+        if (data.commits.length === 0) {
+          notifications.show({
+            title: "No commits found",
+            message: "No commits found in the selected date range",
+            color: "blue",
+          });
+        }
+      } else {
+        notifications.show({
+          title: "Error",
+          message: data.error ?? "Failed to fetch commits",
+          color: "red",
+        });
+      }
+    } catch {
+      notifications.show({
+        title: "Error",
+        message: "Failed to fetch commits",
+        color: "red",
+      });
+    } finally {
+      setIsLoadingCommits(false);
+    }
+  };
+
+  // Generate title and description from commits using AI
+  const generateFromCommits = async () => {
+    if (commits.length === 0) {
+      notifications.show({
+        title: "No commits",
+        message: "Please fetch commits first",
+        color: "orange",
+      });
+      return;
+    }
+
+    setIsGeneratingContent(true);
+    try {
+      const response = await fetch("/api/ai/summarize-commits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          commits,
+          projectName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate content");
+      }
+
+      const data = (await response.json()) as { title: string; description: string };
+
+      form.setFieldValue("title", data.title);
+      form.setFieldValue("content", data.description);
+
+      notifications.show({
+        title: "Content generated",
+        message: "Title and description have been auto-filled from commits",
+        color: "green",
+      });
+
+      setShowCommitGenerator(false);
+    } catch {
+      notifications.show({
+        title: "Error",
+        message: "Failed to generate content from commits",
+        color: "red",
+      });
+    } finally {
+      setIsGeneratingContent(false);
+    }
+  };
 
   const createUpdate = api.project.createProjectUpdate.useMutation({
     onSuccess: () => {
@@ -86,7 +214,6 @@ export function CreateUpdateModal({
       projectId,
       title: values.title,
       content: values.content,
-      weekNumber: values.weekNumber,
       updateDate: values.updateDate,
       imageUrls: values.imageUrls.filter((url) => url.trim() !== ""),
       githubUrls: values.githubUrls.filter((url) => url.trim() !== ""),
@@ -147,6 +274,12 @@ export function CreateUpdateModal({
 
   const handleClose = () => {
     form.reset();
+    setShowCommitGenerator(false);
+    setCommits([]);
+    setCommitDateRange([
+      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      new Date(),
+    ]);
     onClose();
   };
 
@@ -180,30 +313,122 @@ export function CreateUpdateModal({
             }
           />
 
-          <NumberInput
-            label="Week Number (Optional)"
-            placeholder="Which week of the program?"
-            min={1}
-            max={20}
-            {...form.getInputProps("weekNumber")}
-          />
+          {/* Generate from Commits Section */}
+          {githubUrl && (
+            <Paper withBorder p="sm" radius="md">
+              <Group justify="space-between" mb={showCommitGenerator ? "sm" : 0}>
+                <Group gap="xs">
+                  <IconGitCommit size={18} />
+                  <Text size="sm" fw={500}>
+                    Generate from Commits
+                  </Text>
+                </Group>
+                <Button
+                  variant="light"
+                  size="xs"
+                  onClick={() => setShowCommitGenerator(!showCommitGenerator)}
+                >
+                  {showCommitGenerator ? "Hide" : "Show"}
+                </Button>
+              </Group>
 
-          <DatePickerInput
-            label="Update Date"
-            placeholder="When did this update occur?"
-            value={form.values.updateDate}
-            onChange={(value) => {
-              const dateValue = value
-                ? typeof value === "string"
-                  ? new Date(value)
-                  : value
-                : new Date();
-              form.setFieldValue("updateDate", dateValue);
-            }}
-            maxDate={new Date()}
-            clearable
-            required
-          />
+              <Collapse in={showCommitGenerator}>
+                <Stack gap="sm">
+                  <Text size="xs" c="dimmed">
+                    Select a date range to fetch commits and auto-generate update content using AI.
+                  </Text>
+
+                  <Group grow>
+                    <DatePickerInput
+                      label="From"
+                      placeholder="Start date"
+                      value={commitDateRange[0]}
+                      onChange={(value) => {
+                        const dateValue = value
+                          ? typeof value === "string"
+                            ? new Date(value)
+                            : value
+                          : null;
+                        setCommitDateRange([dateValue, commitDateRange[1]]);
+                      }}
+                      maxDate={new Date()}
+                      size="xs"
+                    />
+                    <DatePickerInput
+                      label="To"
+                      placeholder="End date"
+                      value={commitDateRange[1]}
+                      onChange={(value) => {
+                        const dateValue = value
+                          ? typeof value === "string"
+                            ? new Date(value)
+                            : value
+                          : null;
+                        setCommitDateRange([commitDateRange[0], dateValue]);
+                      }}
+                      maxDate={new Date()}
+                      size="xs"
+                    />
+                  </Group>
+
+                  <Group>
+                    <Button
+                      variant="light"
+                      size="xs"
+                      leftSection={<IconGitCommit size={14} />}
+                      onClick={() => void fetchCommits()}
+                      loading={isLoadingCommits}
+                    >
+                      Fetch Commits
+                    </Button>
+                    {commits.length > 0 && (
+                      <Button
+                        variant="filled"
+                        size="xs"
+                        leftSection={<IconSparkles size={14} />}
+                        onClick={() => void generateFromCommits()}
+                        loading={isGeneratingContent}
+                      >
+                        Generate with AI ({commits.length} commits)
+                      </Button>
+                    )}
+                  </Group>
+
+                  {isLoadingCommits && (
+                    <Group justify="center" py="sm">
+                      <Loader size="sm" />
+                      <Text size="xs" c="dimmed">
+                        Fetching commits...
+                      </Text>
+                    </Group>
+                  )}
+
+                  {commits.length > 0 && !isLoadingCommits && (
+                    <Paper withBorder p="xs" radius="sm" bg="gray.0">
+                      <Text size="xs" fw={500} mb="xs">
+                        Found {commits.length} commits:
+                      </Text>
+                      <Stack gap={4}>
+                        {commits.slice(0, 5).map((commit) => (
+                          <Text key={commit.hash} size="xs" c="dimmed" lineClamp={1}>
+                            <Text span ff="monospace" size="xs">
+                              {commit.hash}
+                            </Text>{" "}
+                            {commit.message}
+                          </Text>
+                        ))}
+                        {commits.length > 5 && (
+                          <Text size="xs" c="dimmed" fs="italic">
+                            ... and {commits.length - 5} more
+                          </Text>
+                        )}
+                      </Stack>
+                    </Paper>
+                  )}
+                </Stack>
+              </Collapse>
+            </Paper>
+          )}
 
           <Stack gap="xs">
             <Text size="sm" fw={500}>
@@ -299,6 +524,23 @@ export function CreateUpdateModal({
               }}
             />
           </Stack>
+
+          <DatePickerInput
+            label="Update Date"
+            placeholder="When did this update occur?"
+            value={form.values.updateDate}
+            onChange={(value) => {
+              const dateValue = value
+                ? typeof value === "string"
+                  ? new Date(value)
+                  : value
+                : new Date();
+              form.setFieldValue("updateDate", dateValue);
+            }}
+            maxDate={new Date()}
+            clearable
+            required
+          />
 
           <TextInput
             label="GitHub URLs (comma-separated)"

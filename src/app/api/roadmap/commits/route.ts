@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const githubUrl = searchParams.get("repo");
+    const sinceParam = searchParams.get("since");
+    const untilParam = searchParams.get("until");
 
     if (!githubUrl) {
       return NextResponse.json({
@@ -45,11 +47,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Fetch commits from GitHub API
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Fetch commits from GitHub API with optional date range
+    const since = sinceParam ? new Date(sinceParam) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const until = untilParam ? new Date(untilParam) : new Date();
 
-    const githubApiUrl = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/commits?since=${sevenDaysAgo.toISOString()}&per_page=50`;
+    let githubApiUrl = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/commits?since=${since.toISOString()}&per_page=100`;
+    if (untilParam) {
+      githubApiUrl += `&until=${until.toISOString()}`;
+    }
 
     const response = await fetch(githubApiUrl, {
       headers: {

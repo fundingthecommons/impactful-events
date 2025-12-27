@@ -228,6 +228,17 @@ export const projectRouter = createTRPCRouter({
         select: {
           id: true,
           title: true,
+          githubUrl: true,
+          repositories: {
+            select: {
+              url: true,
+              isPrimary: true,
+            },
+            orderBy: {
+              isPrimary: "desc",
+            },
+            take: 1,
+          },
         },
         orderBy: {
           createdAt: "desc",
@@ -246,6 +257,17 @@ export const projectRouter = createTRPCRouter({
         select: {
           id: true,
           title: true,
+          githubUrl: true,
+          repositories: {
+            select: {
+              url: true,
+              isPrimary: true,
+            },
+            orderBy: {
+              isPrimary: "desc",
+            },
+            take: 1,
+          },
         },
         orderBy: {
           createdAt: "desc",
@@ -257,7 +279,10 @@ export const projectRouter = createTRPCRouter({
       const uniqueProjects = Array.from(
         new Map(allProjects.map(p => [p.id, p])).values()
       ).map(p => ({
-        ...p,
+        id: p.id,
+        title: p.title,
+        // Use primary repository URL if available, otherwise fall back to githubUrl
+        githubUrl: p.repositories[0]?.url ?? p.githubUrl,
         eventId,
       }));
 
