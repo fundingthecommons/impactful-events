@@ -336,7 +336,7 @@ export default function UpdatesClient() {
                     p="lg"
                     shadow="sm"
                     style={{ cursor: "pointer" }}
-                    onClick={() => router.push(`/projects/${update.project.id}`)}
+                    onClick={() => router.push(`/community/updates/${update.id}`)}
                   >
                     <Stack gap="md">
                       {/* Header with project and author info */}
@@ -521,7 +521,7 @@ export default function UpdatesClient() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  router.push(`/projects/${update.project.id}`);
+                                  router.push(`/community/updates/${update.id}`);
                                 }}
                               >
                                 View all {update.comments.length} comments

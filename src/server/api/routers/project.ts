@@ -27,24 +27,23 @@ async function resolveEventId(db: PrismaClient, identifier: string): Promise<str
 
 // Helper function to send project update notifications to Telegram channel
 async function sendProjectUpdateNotification(params: {
-  updateTitle: string;
+  updateId: string;
   updateContent: string;
   projectTitle: string;
   authorName: string;
-  updateUrl: string;
-  imageUrls?: string[];
+  authorId: string;
 }) {
   const botToken = env.TELEGRAM_BOT_TOKEN;
-  const chatId = env.TELEGRAM_CHANNEL_ID;
-  const topicId = env.TELEGRAM_UPDATES_TOPIC_ID;
+  const chatId = env.TELEGRAM_PROJECT_UPDATE_CHANNEL_ID;
+  const topicId = env.TELEGRAM_PROJECT_UPDATE_TOPIC_ID;
 
   if (!botToken) {
-    console.warn("TELEGRAM_BOT_TOKEN not configured, skipping notification");
+    console.warn("TELEGRAM_BOT_TOKEN not configured, skipping project update notification");
     return;
   }
 
   if (!chatId) {
-    console.warn("TELEGRAM_CHANNEL_ID not configured, skipping notification");
+    console.warn("TELEGRAM_PROJECT_UPDATE_CHANNEL_ID not configured, skipping project update notification");
     return;
   }
 
@@ -54,22 +53,17 @@ async function sendProjectUpdateNotification(params: {
       ? `${params.updateContent.substring(0, 200)}...`
       : params.updateContent;
 
-    const imageInfo = params.imageUrls && params.imageUrls.length > 0
-      ? `\n📷 ${params.imageUrls.length} image${params.imageUrls.length > 1 ? 's' : ''}`
-      : '';
+    const updateUrl = `https://platform.fundingthecommons.io/community/updates/${params.updateId}`;
+    const profileUrl = `https://platform.fundingthecommons.io/profiles/${params.authorId}`;
+    const communityUpdatesUrl = "https://platform.fundingthecommons.io/community/updates";
 
-    const message = `
-📊 *New Project Update*
-
-*Project:* ${params.projectTitle}
-*Update:* ${params.updateTitle}
+    const message = `🆕 *${params.projectTitle}* project update
 
 ${contentPreview}
 
-👤 Posted by: ${params.authorName}${imageInfo}
+👤 Posted by: [${params.authorName}](${profileUrl})
 
-[View full update](${params.updateUrl})
-`.trim();
+[View Update](${updateUrl}) | [View all Community Updates](${communityUpdatesUrl})`;
 
     // Build request body
     const requestBody: {
@@ -702,29 +696,14 @@ export const projectRouter = createTRPCRouter({
       });
 
       // Send Telegram notification
-      // Get user's accepted application to find eventId
-      const acceptedApplications = await ctx.db.application.findMany({
-        where: {
-          userId,
-          status: "ACCEPTED",
-        },
-        select: {
-          eventId: true,
-        },
-        take: 1,
-      });
-
-      const eventId = acceptedApplications[0]?.eventId ?? "funding-commons-residency-2025";
       const authorName = update.author.name ?? "Someone";
-      const updateUrl = `https://platform.fundingthecommons.io/events/${eventId}/updates/${update.id}`;
 
       void sendProjectUpdateNotification({
-        updateTitle: update.title,
+        updateId: update.id,
         updateContent: update.content,
         projectTitle: project.title,
         authorName,
-        updateUrl,
-        imageUrls: update.imageUrls,
+        authorId: userId,
       });
 
       return update;

@@ -205,6 +205,7 @@ export default function DefaultUserDashboard() {
   const { data: availableEvents, isLoading: loadingEvents } = api.event.getAvailableEvents.useQuery();
   const { data: userApplications, isLoading: loadingApplications } = api.application.getUserApplications.useQuery();
   const { data: config } = api.config.getPublicConfig.useQuery();
+  const { data: communityStats } = api.config.getCommunityStats.useQuery();
 
   if (loadingEvents || loadingApplications) {
     return (
@@ -228,12 +229,11 @@ export default function DefaultUserDashboard() {
               <IconRocket size={28} />
             </ThemeIcon>
             <Title order={1} size="h1" fw={700}>
-              Welcome home
+              Welcome to The Commons
             </Title>
           </Group>
           <Text size="lg" c="dimmed" maw={700} mx="auto">
-            Join our community of builders, sponsors, and mentors working together to advance public goods funding. 
-            Discover events, connect with amazing people, and help build the future of decentralized impact.
+            Home of public goods funding innovation. Explore events, submit applications, and get involved in our vibrant community.
           </Text>
         </Stack>
 
@@ -309,39 +309,39 @@ export default function DefaultUserDashboard() {
         </Stack>
 
         {/* Community Stats */}
-        <Paper p="xl" withBorder radius="md" style={{ 
-          background: 'linear-gradient(135deg, var(--mantine-color-pink-0) 0%, var(--mantine-color-grape-0) 100%)' 
+        <Paper p="xl" withBorder radius="md" style={{
+          background: 'linear-gradient(135deg, var(--mantine-color-pink-0) 0%, var(--mantine-color-grape-0) 100%)'
         }}>
           <Stack gap="md" ta="center">
             <Title order={3} c="grape.7">Join Our Growing Community</Title>
             <Text c="dimmed" maw={500} mx="auto">
-              Be part of a vibrant ecosystem of builders, funders, and innovators working together to scale public goods funding.
+              Join a global community of builders, sponsors, and thinkers advancing public goods, open systems, and collective impact.
             </Text>
-            
+
             <SimpleGrid cols={{ base: 2, md: 4 }} spacing="lg" mt="md">
               <Stack gap={0} ta="center">
                 <Text size="xl" fw={700} c="grape.7">
-                  {availableEvents?.length ?? 0}
+                  {communityStats?.members ?? 0}
                 </Text>
-                <Text size="sm" c="dimmed">Events Available</Text>
+                <Text size="sm" c="dimmed">Members</Text>
               </Stack>
               <Stack gap={0} ta="center">
                 <Text size="xl" fw={700} c="grape.7">
-                  {userApplications?.length ?? 0}
+                  {communityStats?.projects ?? 0}
                 </Text>
-                <Text size="sm" c="dimmed">Your Applications</Text>
+                <Text size="sm" c="dimmed">Projects</Text>
               </Stack>
               <Stack gap={0} ta="center">
                 <Text size="xl" fw={700} c="grape.7">
-                  {userApplications?.filter(app => app.status === "ACCEPTED").length ?? 0}
+                  {communityStats?.updates ?? 0}
                 </Text>
-                <Text size="sm" c="dimmed">Acceptances</Text>
+                <Text size="sm" c="dimmed">Updates</Text>
               </Stack>
               <Stack gap={0} ta="center">
                 <Text size="xl" fw={700} c="grape.7">
-                  ∞
+                  {communityStats?.events ?? 0}
                 </Text>
-                <Text size="sm" c="dimmed">Opportunities</Text>
+                <Text size="sm" c="dimmed">Events</Text>
               </Stack>
             </SimpleGrid>
           </Stack>

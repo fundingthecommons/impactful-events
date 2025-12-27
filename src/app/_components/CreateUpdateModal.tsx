@@ -332,14 +332,14 @@ export function CreateUpdateModal({
             }
           />
 
-          {/* Generate from Commits Section */}
+          {/* Auto-generate from Commits Section */}
           {githubUrl && (
             <Paper withBorder p="sm" radius="md">
               <Group justify="space-between" mb={showCommitGenerator ? "sm" : 0}>
                 <Group gap="xs">
                   <IconGitCommit size={18} />
                   <Text size="sm" fw={500}>
-                    Generate from Commits
+                    Auto-generate update from Commits
                   </Text>
                 </Group>
                 <Button
@@ -347,7 +347,7 @@ export function CreateUpdateModal({
                   size="xs"
                   onClick={() => setShowCommitGenerator(!showCommitGenerator)}
                 >
-                  {showCommitGenerator ? "Hide" : "Show"}
+                  {showCommitGenerator ? "Hide" : "Let's go!"}
                 </Button>
               </Group>
 
@@ -357,61 +357,65 @@ export function CreateUpdateModal({
                     Select a date range to fetch commits and auto-generate update content using AI.
                   </Text>
 
-                  <Group grow>
-                    <DatePickerInput
-                      label="From"
-                      placeholder="Start date"
-                      value={commitDateRange[0]}
-                      onChange={(value) => {
-                        const dateValue = value
-                          ? typeof value === "string"
-                            ? new Date(value)
-                            : value
-                          : null;
-                        setCommitDateRange([dateValue, commitDateRange[1]]);
-                      }}
-                      maxDate={new Date()}
-                      size="xs"
-                    />
-                    <DatePickerInput
-                      label="To"
-                      placeholder="End date"
-                      value={commitDateRange[1]}
-                      onChange={(value) => {
-                        const dateValue = value
-                          ? typeof value === "string"
-                            ? new Date(value)
-                            : value
-                          : null;
-                        setCommitDateRange([commitDateRange[0], dateValue]);
-                      }}
-                      maxDate={new Date()}
-                      size="xs"
-                    />
-                  </Group>
+                  <Paper p="sm" radius="sm" bg="var(--mantine-color-blue-light)">
+                    <Stack gap="sm">
+                      <Group grow>
+                        <DatePickerInput
+                          label="From"
+                          placeholder="Start date"
+                          value={commitDateRange[0]}
+                          onChange={(value) => {
+                            const dateValue = value
+                              ? typeof value === "string"
+                                ? new Date(value)
+                                : value
+                              : null;
+                            setCommitDateRange([dateValue, commitDateRange[1]]);
+                          }}
+                          maxDate={new Date()}
+                          size="xs"
+                        />
+                        <DatePickerInput
+                          label="To"
+                          placeholder="End date"
+                          value={commitDateRange[1]}
+                          onChange={(value) => {
+                            const dateValue = value
+                              ? typeof value === "string"
+                                ? new Date(value)
+                                : value
+                              : null;
+                            setCommitDateRange([commitDateRange[0], dateValue]);
+                          }}
+                          maxDate={new Date()}
+                          size="xs"
+                        />
+                      </Group>
 
-                  <Group>
-                    <Button
-                      variant="light"
-                      size="xs"
-                      leftSection={<IconGitCommit size={14} />}
-                      onClick={() => void fetchCommits()}
-                      loading={isLoadingCommits}
-                    >
-                      Fetch Commits
-                    </Button>
-                    {commits.length > 0 && (
-                      <Button
-                        variant="filled"
-                        size="xs"
-                        leftSection={<IconSparkles size={14} />}
-                        onClick={() => void generateFromCommits()}
-                        loading={isGeneratingContent}
-                      >
-                        Generate with AI ({commits.length} commits)
-                      </Button>
-                    )}
-                  </Group>
+                      <Group>
+                        <Button
+                          variant="light"
+                          size="xs"
+                          leftSection={<IconGitCommit size={14} />}
+                          onClick={() => void fetchCommits()}
+                          loading={isLoadingCommits}
+                        >
+                          Fetch Commits
+                        </Button>
+                        {commits.length > 0 && (
+                          <Button
+                            variant="filled"
+                            size="xs"
+                            leftSection={<IconSparkles size={14} />}
+                            onClick={() => void generateFromCommits()}
+                            loading={isGeneratingContent}
+                          >
+                            Generate with AI ({commits.length} commits)
+                          </Button>
+                        )}
+                      </Group>
+                    </Stack>
+                  </Paper>
 
                   {isLoadingCommits && (
                     <Group justify="center" py="sm">
