@@ -135,6 +135,14 @@ export function CreateUpdateModal({
     }
   };
 
+  // Parse GitHub URL to extract owner and repo for constructing commit URLs
+  const parseGitHubUrl = (url: string): { owner: string; repo: string } | null => {
+    const regex = /github\.com[/:]([\\w-]+)\/([\\w-]+?)(?:\.git)?$/;
+    const match = regex.exec(url);
+    if (!match) return null;
+    return { owner: match[1]!, repo: match[2]! };
+  };
+
   // Generate title and description from commits using AI
   const generateFromCommits = async () => {
     if (commits.length === 0) {
@@ -166,9 +174,20 @@ export function CreateUpdateModal({
       form.setFieldValue("title", data.title);
       form.setFieldValue("content", data.description);
 
+      // Auto-fill GitHub URLs with commit links
+      if (githubUrl) {
+        const parsed = parseGitHubUrl(githubUrl);
+        if (parsed) {
+          const commitUrls = commits.map(
+            (commit) => `https://github.com/${parsed.owner}/${parsed.repo}/commit/${commit.hash}`
+          );
+          form.setFieldValue("githubUrls", commitUrls);
+        }
+      }
+
       notifications.show({
         title: "Content generated",
-        message: "Title and description have been auto-filled from commits",
+        message: "Title, description, and GitHub URLs have been auto-filled from commits",
         color: "green",
       });
 
@@ -545,6 +564,7 @@ export function CreateUpdateModal({
           <TextInput
             label="GitHub URLs (comma-separated)"
             placeholder="https://github.com/user/repo/commit/abc123, https://github.com/user/repo/pull/5"
+            value={form.values.githubUrls.join(", ")}
             onChange={(event) => {
               const urls = event.target.value.split(",").map((url) => url.trim());
               form.setFieldValue("githubUrls", urls);
