@@ -7,14 +7,15 @@ import { api } from "~/trpc/react";
 
 interface CommitsTimelineChartProps {
   repositoryId: string;
-  eventId: string;
+  eventId?: string;
 }
 
 export function CommitsTimelineChart({
   repositoryId,
   eventId,
 }: CommitsTimelineChartProps) {
-  const [showResidencyOnly, setShowResidencyOnly] = useState(true);
+  // Default to residency-only view when eventId is provided, otherwise show all time
+  const [showResidencyOnly, setShowResidencyOnly] = useState(!!eventId);
 
   const { data, isLoading, error } = api.project.getRepositoryMetrics.useQuery({
     repositoryId,

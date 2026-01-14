@@ -62,7 +62,7 @@ export default function ImpactTab({ projectId, eventId, repositoryId }: ImpactTa
   return (
     <Stack gap="lg">
       {/* Standard Metrics Section */}
-      {repositoryId && eventId && (
+      {repositoryId && (
         <Paper p="xl" radius="md" withBorder>
           <Stack gap="md">
             <Group gap="xs">
