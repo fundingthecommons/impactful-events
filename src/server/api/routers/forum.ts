@@ -329,9 +329,14 @@ export const forumRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { threadId, parentId, content } = input;
 
-      // Verify thread exists
+      // Verify thread exists and get author info
       const thread = await ctx.db.forumThread.findUnique({
         where: { id: threadId },
+        select: {
+          id: true,
+          title: true,
+          userId: true, // Thread author
+        },
       });
 
       if (!thread) {
@@ -341,10 +346,12 @@ export const forumRouter = createTRPCRouter({
         });
       }
 
-      // If parentId provided, verify parent comment exists
+      // If parentId provided, verify parent comment exists and get author
+      let parentComment: { userId: string } | null = null;
       if (parentId) {
-        const parentComment = await ctx.db.forumComment.findUnique({
+        parentComment = await ctx.db.forumComment.findUnique({
           where: { id: parentId },
+          select: { userId: true },
         });
 
         if (!parentComment) {
@@ -367,6 +374,8 @@ export const forumRouter = createTRPCRouter({
             select: {
               id: true,
               name: true,
+              firstName: true,
+              surname: true,
               image: true,
               profile: {
                 select: {
@@ -379,6 +388,98 @@ export const forumRouter = createTRPCRouter({
           },
         },
       });
+
+      // Send notifications asynchronously (fire-and-forget)
+      void (async () => {
+        try {
+          const commenterName =
+            comment.user.name ??
+            `${comment.user.firstName ?? ""} ${comment.user.surname ?? ""}`.trim() ??
+            "Someone";
+
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL ??
+            "https://platform.fundingthecommons.io";
+          const threadUrl = `${baseUrl}/community/forum/${threadId}`;
+
+          // Get recipients (thread author and parent comment author)
+          const recipientIds = new Set<string>();
+          if (thread.userId !== ctx.session.user.id) {
+            recipientIds.add(thread.userId);
+          }
+          if (parentComment && parentComment.userId !== ctx.session.user.id) {
+            recipientIds.add(parentComment.userId);
+          }
+
+          if (recipientIds.size === 0) return;
+
+          // Get recipient details
+          const recipients = await ctx.db.user.findMany({
+            where: { id: { in: Array.from(recipientIds) } },
+            include: {
+              profile: {
+                select: {
+                  telegramChatId: true,
+                  telegramHandle: true,
+                },
+              },
+            },
+          });
+
+          // Send Telegram notifications
+          const { BotNotificationService } = await import(
+            "~/server/services/botNotificationService"
+          );
+          const botNotificationService = new BotNotificationService(ctx.db);
+
+          await botNotificationService.sendForumCommentNotifications({
+            commentId: comment.id,
+            threadId,
+            commenterUserId: ctx.session.user.id,
+            commenterName,
+            commentContent: content,
+            threadUrl,
+            threadTitle: thread.title,
+            threadAuthorId: thread.userId,
+            parentCommentAuthorId: parentComment?.userId,
+          });
+
+          // Send Email notifications
+          const { getEmailService } = await import(
+            "~/server/email/emailService"
+          );
+          const emailService = getEmailService(ctx.db);
+
+          for (const recipient of recipients) {
+            if (!recipient.email) continue;
+
+            const recipientName =
+              recipient.name ??
+              `${recipient.firstName ?? ""} ${recipient.surname ?? ""}`.trim() ??
+              "Community Member";
+
+            const isReply = parentComment?.userId === recipient.id;
+
+            await emailService.sendForumCommentEmail({
+              recipientEmail: recipient.email,
+              recipientName,
+              commenterName,
+              commentContent: content,
+              threadUrl,
+              threadTitle: thread.title,
+              isReply,
+              threadId,
+              commentId: comment.id,
+            });
+          }
+
+          console.log(
+            `Forum comment notifications sent for comment ${comment.id}`
+          );
+        } catch (error) {
+          console.error("Failed to send forum comment notifications:", error);
+        }
+      })();
 
       return comment;
     }),

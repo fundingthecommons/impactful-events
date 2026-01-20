@@ -127,6 +127,8 @@ model User {
 
   // Asks and Offers relations
   asksOffers           AskOffer[]           @relation("UserAsksOffers")
+  askOfferComments     AskOfferComment[]    @relation("UserAskOfferComments")
+  askOfferCommentLikes AskOfferCommentLike[] @relation("AskOfferCommentLikes")
 
   // Praise relations
   praiseSent           Praise[]             @relation("PraiseSent")
@@ -599,8 +601,10 @@ enum CommunicationContentType {
   GENERAL
   BULK_MESSAGE     // New: For bulk telegram messages
   UPDATE_COMMENT   // New: For project update comment notifications
+  FORUM_COMMENT    // New: For forum thread comment notifications
+  ASK_OFFER_COMMENT // New: For ask/offer comment notifications
   TEST
-  
+
   // Legacy (for backward compatibility)
   MISSING_INFO    // Deprecated: Use APPLICATION_MISSING_INFO
   STATUS_UPDATE   // Deprecated: Use specific status types
@@ -634,7 +638,12 @@ enum EmailType {
   // General
   GENERAL
   TEST
-  
+
+  // Comment notifications
+  UPDATE_COMMENT    // For project update comment notifications
+  FORUM_COMMENT     // For forum thread comment notifications
+  ASK_OFFER_COMMENT // For ask/offer comment notifications
+
   // Legacy (for backward compatibility)
   MISSING_INFO    // Deprecated: Use APPLICATION_MISSING_INFO
   STATUS_UPDATE   // Deprecated: Use specific status types
@@ -1352,6 +1361,7 @@ model AskOffer {
   user          User          @relation("UserAsksOffers", fields: [userId], references: [id], onDelete: Cascade)
   event         Event?        @relation("EventAsksOffers", fields: [eventId], references: [id], onDelete: Cascade)
   likes         AskOfferLike[]
+  comments      AskOfferComment[] @relation("AskOfferComments")
 
   @@index([userId])
   @@index([eventId])
@@ -1376,6 +1386,47 @@ model AskOfferLike {
 
   @@unique([askOfferId, userId])
   @@index([askOfferId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Ask/Offer Comment System
+model AskOfferComment {
+  id          String   @id @default(cuid())
+  askOfferId  String
+  userId      String
+  parentId    String?  // For nested replies
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  askOffer    AskOffer           @relation("AskOfferComments", fields: [askOfferId], references: [id], onDelete: Cascade)
+  user        User               @relation("UserAskOfferComments", fields: [userId], references: [id], onDelete: Cascade)
+  parent      AskOfferComment?   @relation("AskOfferCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     AskOfferComment[]  @relation("AskOfferCommentReplies")
+  likes       AskOfferCommentLike[]
+
+  @@index([askOfferId])
+  @@index([userId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model AskOfferCommentLike {
+  id               String   @id @default(cuid())
+  commentId        String
+  userId           String
+  kudosTransferred Float?   // Amount of kudos transferred (2% of liker's kudos)
+  likerKudosAtTime Float?   // Liker's total kudos balance when they liked
+  createdAt        DateTime @default(now())
+
+  // Relations
+  comment AskOfferComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User            @relation("AskOfferCommentLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
   @@index([userId])
   @@index([createdAt])
 }

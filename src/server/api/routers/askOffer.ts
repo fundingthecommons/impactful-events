@@ -577,4 +577,396 @@ ${tags.length > 0 ? `🏷️ Tags: ${tags.join(", ")}` : ""}
 
       return asksOffers;
     }),
+
+  // ===== COMMENT PROCEDURES =====
+
+  // Get comments for an ask/offer
+  getComments: publicProcedure
+    .input(
+      z.object({
+        askOfferId: z.string(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const comments = await ctx.db.askOfferComment.findMany({
+        where: {
+          askOfferId: input.askOfferId,
+          parentId: null, // Top-level comments only
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              surname: true,
+              image: true,
+              profile: {
+                select: {
+                  jobTitle: true,
+                  company: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+          likes: {
+            select: { userId: true },
+          },
+          replies: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  firstName: true,
+                  surname: true,
+                  image: true,
+                  profile: {
+                    select: {
+                      jobTitle: true,
+                      company: true,
+                      avatarUrl: true,
+                    },
+                  },
+                },
+              },
+              likes: {
+                select: { userId: true },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return comments;
+    }),
+
+  // Create a comment on an ask/offer
+  createComment: protectedProcedure
+    .input(
+      z.object({
+        askOfferId: z.string(),
+        content: z
+          .string()
+          .min(1, "Comment cannot be empty")
+          .max(5000, "Comment is too long"),
+        parentId: z.string().optional(), // For nested replies
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify ask/offer exists and get author info
+      const askOffer = await ctx.db.askOffer.findUnique({
+        where: { id: input.askOfferId },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          userId: true,
+          eventId: true,
+        },
+      });
+
+      if (!askOffer) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Ask/Offer not found",
+        });
+      }
+
+      // If parentId provided, verify parent comment exists
+      let parentComment: { userId: string } | null = null;
+      if (input.parentId) {
+        parentComment = await ctx.db.askOfferComment.findUnique({
+          where: { id: input.parentId },
+          select: { userId: true },
+        });
+
+        if (!parentComment) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Parent comment not found",
+          });
+        }
+      }
+
+      const comment = await ctx.db.askOfferComment.create({
+        data: {
+          askOfferId: input.askOfferId,
+          userId: ctx.session.user.id,
+          parentId: input.parentId,
+          content: input.content,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              surname: true,
+              image: true,
+              profile: {
+                select: {
+                  jobTitle: true,
+                  company: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Send notifications asynchronously (fire-and-forget)
+      void (async () => {
+        try {
+          const commenterName =
+            comment.user.name ??
+            `${comment.user.firstName ?? ""} ${comment.user.surname ?? ""}`.trim() ??
+            "Someone";
+
+          const baseUrl =
+            process.env.NEXT_PUBLIC_APP_URL ??
+            "https://platform.fundingthecommons.io";
+          const askOfferUrl = askOffer.eventId
+            ? `${baseUrl}/events/${askOffer.eventId}/asks-offers/${askOffer.id}`
+            : `${baseUrl}/community/asks-offers/${askOffer.id}`;
+
+          // Get recipients
+          const recipientIds = new Set<string>();
+          if (askOffer.userId !== ctx.session.user.id) {
+            recipientIds.add(askOffer.userId);
+          }
+          if (parentComment && parentComment.userId !== ctx.session.user.id) {
+            recipientIds.add(parentComment.userId);
+          }
+
+          if (recipientIds.size === 0) return;
+
+          const recipients = await ctx.db.user.findMany({
+            where: { id: { in: Array.from(recipientIds) } },
+            include: {
+              profile: {
+                select: {
+                  telegramChatId: true,
+                  telegramHandle: true,
+                },
+              },
+            },
+          });
+
+          // Send Telegram notifications
+          const { BotNotificationService } = await import(
+            "~/server/services/botNotificationService"
+          );
+          const botNotificationService = new BotNotificationService(ctx.db);
+
+          await botNotificationService.sendAskOfferCommentNotifications({
+            commentId: comment.id,
+            askOfferId: input.askOfferId,
+            eventId: askOffer.eventId ?? undefined,
+            commenterUserId: ctx.session.user.id,
+            commenterName,
+            commentContent: input.content,
+            askOfferUrl,
+            askOfferTitle: askOffer.title,
+            askOfferType: askOffer.type,
+            askOfferAuthorId: askOffer.userId,
+            parentCommentAuthorId: parentComment?.userId,
+          });
+
+          // Send Email notifications
+          const { getEmailService } = await import(
+            "~/server/email/emailService"
+          );
+          const emailService = getEmailService(ctx.db);
+
+          for (const recipient of recipients) {
+            if (!recipient.email) continue;
+
+            const recipientName =
+              recipient.name ??
+              `${recipient.firstName ?? ""} ${recipient.surname ?? ""}`.trim() ??
+              "User";
+
+            const isReply = parentComment?.userId === recipient.id;
+
+            await emailService.sendAskOfferCommentEmail({
+              recipientEmail: recipient.email,
+              recipientName,
+              commenterName,
+              commentContent: input.content,
+              askOfferUrl,
+              askOfferTitle: askOffer.title,
+              askOfferType: askOffer.type,
+              isReply,
+              eventId: askOffer.eventId ?? undefined,
+              askOfferId: input.askOfferId,
+              commentId: comment.id,
+            });
+          }
+
+          console.log(
+            `Ask/Offer comment notifications sent for comment ${comment.id}`
+          );
+        } catch (error) {
+          console.error(
+            "Failed to send ask/offer comment notifications:",
+            error
+          );
+        }
+      })();
+
+      return comment;
+    }),
+
+  // Update a comment
+  updateComment: protectedProcedure
+    .input(
+      z.object({
+        commentId: z.string(),
+        content: z.string().min(1).max(5000),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const comment = await ctx.db.askOfferComment.findUnique({
+        where: { id: input.commentId },
+      });
+
+      if (!comment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Comment not found",
+        });
+      }
+
+      if (comment.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only edit your own comments",
+        });
+      }
+
+      return ctx.db.askOfferComment.update({
+        where: { id: input.commentId },
+        data: { content: input.content },
+      });
+    }),
+
+  // Delete a comment
+  deleteComment: protectedProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const comment = await ctx.db.askOfferComment.findUnique({
+        where: { id: input.commentId },
+      });
+
+      if (!comment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Comment not found",
+        });
+      }
+
+      if (comment.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only delete your own comments",
+        });
+      }
+
+      await ctx.db.askOfferComment.delete({
+        where: { id: input.commentId },
+      });
+
+      return { success: true };
+    }),
+
+  // Like a comment
+  likeComment: protectedProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const comment = await ctx.db.askOfferComment.findUnique({
+        where: { id: input.commentId },
+        select: { id: true, userId: true },
+      });
+
+      if (!comment) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Comment not found",
+        });
+      }
+
+      const existingLike = await ctx.db.askOfferCommentLike.findUnique({
+        where: {
+          commentId_userId: {
+            commentId: input.commentId,
+            userId: ctx.session.user.id,
+          },
+        },
+      });
+
+      if (existingLike) {
+        return existingLike;
+      }
+
+      const liker = await ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+        select: { kudos: true },
+      });
+
+      if (!liker) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found",
+        });
+      }
+
+      const transferAmount = liker.kudos * 0.02;
+
+      if (liker.kudos < transferAmount) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Insufficient kudos",
+        });
+      }
+
+      const [like] = await ctx.db.$transaction([
+        ctx.db.askOfferCommentLike.create({
+          data: {
+            commentId: input.commentId,
+            userId: ctx.session.user.id,
+            kudosTransferred: transferAmount,
+            likerKudosAtTime: liker.kudos,
+          },
+        }),
+        ctx.db.user.update({
+          where: { id: ctx.session.user.id },
+          data: { kudos: { decrement: transferAmount } },
+        }),
+        ctx.db.user.update({
+          where: { id: comment.userId },
+          data: { kudos: { increment: transferAmount } },
+        }),
+      ]);
+
+      return like;
+    }),
+
+  // Unlike a comment
+  unlikeComment: protectedProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.askOfferCommentLike.deleteMany({
+        where: {
+          commentId: input.commentId,
+          userId: ctx.session.user.id,
+        },
+      });
+
+      return { success: true };
+    }),
 });

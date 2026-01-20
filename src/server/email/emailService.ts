@@ -12,6 +12,8 @@ import type {
   InvitationProps,
   PasswordResetProps,
   UpdateCommentNotificationProps,
+  ForumCommentNotificationProps,
+  AskOfferCommentNotificationProps,
 } from './templates';
 
 type TemplateProps =
@@ -22,7 +24,9 @@ type TemplateProps =
   | ApplicationMissingInfoProps
   | InvitationProps
   | PasswordResetProps
-  | UpdateCommentNotificationProps;
+  | UpdateCommentNotificationProps
+  | ForumCommentNotificationProps
+  | AskOfferCommentNotificationProps;
 
 // Strongly typed application data interface
 interface ApplicationWithUserAndEvent {
@@ -270,6 +274,83 @@ export class EmailService {
   }
 
   /**
+   * Send forum comment notification email
+   */
+  async sendForumCommentEmail(params: {
+    recipientEmail: string;
+    recipientName: string;
+    commenterName: string;
+    commentContent: string;
+    threadUrl: string;
+    threadTitle: string;
+    isReply: boolean;
+    threadId: string;
+    commentId: string;
+  }): Promise<EmailResult> {
+    const commentPreview =
+      params.commentContent.length > 150
+        ? params.commentContent.substring(0, 150) + '...'
+        : params.commentContent;
+
+    const templateData: ForumCommentNotificationProps = {
+      recipientName: params.recipientName,
+      commenterName: params.commenterName,
+      commentPreview,
+      threadUrl: params.threadUrl,
+      threadTitle: params.threadTitle,
+      isReply: params.isReply,
+    };
+
+    return this.sendEmail({
+      to: params.recipientEmail,
+      templateName: 'forumCommentNotification',
+      templateData,
+      eventId: 'community', // Forum is community-wide
+      userId: undefined,
+    });
+  }
+
+  /**
+   * Send ask/offer comment notification email
+   */
+  async sendAskOfferCommentEmail(params: {
+    recipientEmail: string;
+    recipientName: string;
+    commenterName: string;
+    commentContent: string;
+    askOfferUrl: string;
+    askOfferTitle: string;
+    askOfferType: 'ASK' | 'OFFER';
+    isReply: boolean;
+    eventId?: string;
+    askOfferId: string;
+    commentId: string;
+  }): Promise<EmailResult> {
+    const commentPreview =
+      params.commentContent.length > 150
+        ? params.commentContent.substring(0, 150) + '...'
+        : params.commentContent;
+
+    const templateData: AskOfferCommentNotificationProps = {
+      recipientName: params.recipientName,
+      commenterName: params.commenterName,
+      commentPreview,
+      askOfferUrl: params.askOfferUrl,
+      askOfferTitle: params.askOfferTitle,
+      askOfferType: params.askOfferType,
+      isReply: params.isReply,
+    };
+
+    return this.sendEmail({
+      to: params.recipientEmail,
+      templateName: 'askOfferCommentNotification',
+      templateData,
+      eventId: params.eventId ?? 'community',
+      userId: undefined,
+    });
+  }
+
+  /**
    * Get subject line for a template
    */
   private getSubjectForTemplate(templateName: TemplateName, data: TemplateProps): string {
@@ -290,6 +371,19 @@ export class EmailService {
         return 'Reset your Funding the Commons password';
       case 'updateCommentNotification':
         return `💬 New comment from ${(data as UpdateCommentNotificationProps).commenterName}`;
+      case 'forumCommentNotification': {
+        const forumData = data as ForumCommentNotificationProps;
+        return forumData.isReply
+          ? `💬 ${forumData.commenterName} replied to your comment`
+          : `💬 New comment on "${forumData.threadTitle}"`;
+      }
+      case 'askOfferCommentNotification': {
+        const askOfferData = data as AskOfferCommentNotificationProps;
+        const typeLabel = askOfferData.askOfferType === 'ASK' ? 'Ask' : 'Offer';
+        return askOfferData.isReply
+          ? `💬 ${askOfferData.commenterName} replied to your comment`
+          : `💬 Someone responded to your ${typeLabel}`;
+      }
       default:
         return 'Notification from Funding the Commons';
     }

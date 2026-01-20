@@ -18,6 +18,8 @@ import {
   Modal,
   TextInput,
   TagsInput,
+  Textarea,
+  Title,
 } from "@mantine/core";
 import {
   IconArrowLeft,
@@ -32,6 +34,10 @@ import {
   IconBriefcase,
   IconEdit,
   IconX,
+  IconHeart,
+  IconHeartFilled,
+  IconCornerDownRight,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { notifications } from "@mantine/notifications";
@@ -42,6 +48,22 @@ import { z } from "zod";
 import { MentionTextarea } from "~/app/_components/MentionTextarea";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import { getDisplayName } from "~/utils/userDisplay";
+import { useSession } from "next-auth/react";
+
+function getRelativeTime(date: Date | string): string {
+  const now = new Date();
+  const then = new Date(date);
+  const diffMs = now.getTime() - then.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays > 0) return `${diffDays}d ago`;
+  if (diffHours > 0) return `${diffHours}h ago`;
+  if (diffMins > 0) return `${diffMins}m ago`;
+  return "just now";
+}
 
 const editSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters").max(100),
@@ -90,7 +112,90 @@ export default function AskOfferDetailClient({
 }: AskOfferDetailClientProps) {
   const router = useRouter();
   const utils = api.useUtils();
+  const { data: session } = useSession();
   const [editModalOpen, setEditModalOpen] = useState(false);
+
+  // Comments state
+  const [newComment, setNewComment] = useState("");
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+
+  // Fetch comments
+  const { data: comments } = api.askOffer.getComments.useQuery({
+    askOfferId: askOffer.id,
+  });
+
+  // Comment mutations
+  const createCommentMutation = api.askOffer.createComment.useMutation({
+    onSuccess: () => {
+      void utils.askOffer.getComments.invalidate({ askOfferId: askOffer.id });
+      setNewComment("");
+      setReplyingTo(null);
+      setReplyContent("");
+      notifications.show({
+        title: "Success",
+        message: "Comment added",
+        color: "green",
+      });
+    },
+    onError: (err) => {
+      notifications.show({
+        title: "Error",
+        message: err.message,
+        color: "red",
+      });
+    },
+  });
+
+  const deleteCommentMutation = api.askOffer.deleteComment.useMutation({
+    onSuccess: () => {
+      void utils.askOffer.getComments.invalidate({ askOfferId: askOffer.id });
+      notifications.show({
+        title: "Success",
+        message: "Comment deleted",
+        color: "green",
+      });
+    },
+  });
+
+  const likeCommentMutation = api.askOffer.likeComment.useMutation({
+    onSuccess: () => {
+      void utils.askOffer.getComments.invalidate({ askOfferId: askOffer.id });
+    },
+  });
+
+  const unlikeCommentMutation = api.askOffer.unlikeComment.useMutation({
+    onSuccess: () => {
+      void utils.askOffer.getComments.invalidate({ askOfferId: askOffer.id });
+    },
+  });
+
+  const handleAddComment = () => {
+    if (!newComment.trim()) return;
+    createCommentMutation.mutate({
+      askOfferId: askOffer.id,
+      content: newComment.trim(),
+    });
+  };
+
+  const handleAddReply = (parentId: string) => {
+    if (!replyContent.trim()) return;
+    createCommentMutation.mutate({
+      askOfferId: askOffer.id,
+      parentId,
+      content: replyContent.trim(),
+    });
+  };
+
+  const handleCommentLikeToggle = (commentId: string, hasLiked: boolean) => {
+    if (hasLiked) {
+      unlikeCommentMutation.mutate({ commentId });
+    } else {
+      likeCommentMutation.mutate({ commentId });
+    }
+  };
+
+  const isOwnComment = (userId: string) => session?.user?.id === userId;
 
   const form = useForm<EditFormData>({
     validate: zodResolver(editSchema),
@@ -395,6 +500,239 @@ export default function AskOfferDetailClient({
                   </Group>
                 </Stack>
               </>
+            )}
+          </Stack>
+        </Card>
+
+        {/* Comments Section */}
+        <Card shadow="sm" p="lg" radius="md" withBorder>
+          <Stack gap="md">
+            <Group gap="sm">
+              <IconMessageCircle size={20} />
+              <Title order={4}>
+                Comments {comments?.length ? `(${comments.length})` : ""}
+              </Title>
+            </Group>
+
+            {/* Add Comment Form */}
+            {session ? (
+              <Paper p="md" withBorder>
+                <Stack gap="sm">
+                  <Textarea
+                    placeholder="Share your thoughts... (Markdown supported)"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.currentTarget.value)}
+                    minRows={3}
+                  />
+                  <Group justify="flex-end">
+                    <Button
+                      onClick={handleAddComment}
+                      loading={createCommentMutation.isPending}
+                      disabled={!newComment.trim()}
+                    >
+                      Post Comment
+                    </Button>
+                  </Group>
+                </Stack>
+              </Paper>
+            ) : (
+              <Paper p="md" withBorder bg="gray.0">
+                <Text c="dimmed" ta="center">
+                  Sign in to leave a comment
+                </Text>
+              </Paper>
+            )}
+
+            {/* Comments List */}
+            {comments && comments.length > 0 && (
+              <Stack gap="md">
+                {comments.map((comment) => {
+                  const commentHasLiked = session?.user
+                    ? comment.likes.some((like) => like.userId === session.user.id)
+                    : false;
+
+                  return (
+                    <Paper key={comment.id} p="md" withBorder>
+                      <Stack gap="sm">
+                        {/* Comment Header */}
+                        <Group justify="space-between" align="flex-start">
+                          <Group gap="sm">
+                            <Avatar
+                              src={getAvatarUrl({
+                                customAvatarUrl: comment.user.profile?.avatarUrl,
+                                oauthImageUrl: comment.user.image,
+                                name: comment.user.name,
+                              })}
+                              alt={comment.user.name ?? "User"}
+                              size="sm"
+                              radius="xl"
+                            >
+                              {getAvatarInitials({
+                                name: comment.user.name,
+                              })}
+                            </Avatar>
+                            <div>
+                              <Text fw={500} size="sm">
+                                {getDisplayName(comment.user, "Anonymous")}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                {getRelativeTime(comment.createdAt)}
+                              </Text>
+                            </div>
+                          </Group>
+                          {isOwnComment(comment.userId) && (
+                            <Tooltip label="Delete">
+                              <ActionIcon
+                                variant="subtle"
+                                color="red"
+                                size="sm"
+                                onClick={() => deleteCommentMutation.mutate({ commentId: comment.id })}
+                                loading={deleteCommentMutation.isPending}
+                              >
+                                <IconTrash size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
+                        </Group>
+
+                        {/* Comment Content */}
+                        <MarkdownRenderer content={comment.content} />
+
+                        {/* Comment Actions */}
+                        {session && (
+                          <Group gap="sm">
+                            <Button
+                              variant="subtle"
+                              color={commentHasLiked ? "red" : "gray"}
+                              size="xs"
+                              leftSection={commentHasLiked ? <IconHeartFilled size={14} /> : <IconHeart size={14} />}
+                              onClick={() => handleCommentLikeToggle(comment.id, commentHasLiked)}
+                            >
+                              {comment.likes.length}
+                            </Button>
+                            <Button
+                              variant="subtle"
+                              color="gray"
+                              size="xs"
+                              leftSection={<IconCornerDownRight size={14} />}
+                              onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                            >
+                              Reply
+                            </Button>
+                          </Group>
+                        )}
+
+                        {/* Reply Form */}
+                        {replyingTo === comment.id && (
+                          <Paper p="sm" bg="gray.0" style={{ marginLeft: "2rem" }}>
+                            <Stack gap="sm">
+                              <Textarea
+                                placeholder="Write a reply..."
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.currentTarget.value)}
+                                minRows={2}
+                                size="sm"
+                              />
+                              <Group justify="flex-end" gap="xs">
+                                <Button
+                                  variant="subtle"
+                                  size="xs"
+                                  onClick={() => {
+                                    setReplyingTo(null);
+                                    setReplyContent("");
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  onClick={() => handleAddReply(comment.id)}
+                                  loading={createCommentMutation.isPending}
+                                  disabled={!replyContent.trim()}
+                                >
+                                  Reply
+                                </Button>
+                              </Group>
+                            </Stack>
+                          </Paper>
+                        )}
+
+                        {/* Nested Replies */}
+                        {comment.replies && comment.replies.length > 0 && (
+                          <Stack gap="sm" style={{ marginLeft: "2rem", borderLeft: "2px solid var(--mantine-color-gray-3)", paddingLeft: "1rem" }}>
+                            {comment.replies.map((reply) => {
+                              const replyHasLiked = session?.user
+                                ? reply.likes.some((like) => like.userId === session.user.id)
+                                : false;
+
+                              return (
+                                <Paper key={reply.id} p="sm" bg="gray.0">
+                                  <Stack gap="xs">
+                                    <Group justify="space-between" align="flex-start">
+                                      <Group gap="xs">
+                                        <Avatar
+                                          src={getAvatarUrl({
+                                            customAvatarUrl: reply.user.profile?.avatarUrl,
+                                            oauthImageUrl: reply.user.image,
+                                            name: reply.user.name,
+                                          })}
+                                          alt={reply.user.name ?? "User"}
+                                          size="xs"
+                                          radius="xl"
+                                        >
+                                          {getAvatarInitials({
+                                            name: reply.user.name,
+                                          })}
+                                        </Avatar>
+                                        <Text fw={500} size="xs">
+                                          {getDisplayName(reply.user, "Anonymous")}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                          {getRelativeTime(reply.createdAt)}
+                                        </Text>
+                                      </Group>
+                                      {isOwnComment(reply.userId) && (
+                                        <ActionIcon
+                                          variant="subtle"
+                                          color="red"
+                                          size="xs"
+                                          onClick={() => deleteCommentMutation.mutate({ commentId: reply.id })}
+                                        >
+                                          <IconTrash size={12} />
+                                        </ActionIcon>
+                                      )}
+                                    </Group>
+                                    <MarkdownRenderer content={reply.content} />
+                                    {session && (
+                                      <Group gap="xs">
+                                        <Button
+                                          variant="subtle"
+                                          color={replyHasLiked ? "red" : "gray"}
+                                          size="xs"
+                                          leftSection={replyHasLiked ? <IconHeartFilled size={12} /> : <IconHeart size={12} />}
+                                          onClick={() => handleCommentLikeToggle(reply.id, replyHasLiked)}
+                                        >
+                                          {reply.likes.length}
+                                        </Button>
+                                      </Group>
+                                    )}
+                                  </Stack>
+                                </Paper>
+                              );
+                            })}
+                          </Stack>
+                        )}
+                      </Stack>
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            )}
+
+            {(!comments || comments.length === 0) && (
+              <Text c="dimmed" ta="center" py="md">
+                No comments yet. Be the first to respond!
+              </Text>
             )}
           </Stack>
         </Card>

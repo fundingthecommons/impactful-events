@@ -275,4 +275,178 @@ ${commentPreview}
 
     return results;
   }
+
+  /**
+   * Send forum comment notifications
+   *
+   * @param commentData - Comment and notification details
+   * @returns Array of notification results
+   */
+  async sendForumCommentNotifications(commentData: {
+    commentId: string;
+    threadId: string;
+    commenterUserId: string;
+    commenterName: string;
+    commentContent: string;
+    threadUrl: string;
+    threadTitle: string;
+    threadAuthorId: string;
+    parentCommentAuthorId?: string; // If this is a reply
+  }): Promise<BotNotificationResult[]> {
+    const results: BotNotificationResult[] = [];
+
+    try {
+      // Determine who to notify
+      const recipientIds = new Set<string>();
+
+      // Always notify thread author (unless they're the commenter)
+      if (commentData.threadAuthorId !== commentData.commenterUserId) {
+        recipientIds.add(commentData.threadAuthorId);
+      }
+
+      // If this is a reply, notify the parent comment author
+      if (
+        commentData.parentCommentAuthorId &&
+        commentData.parentCommentAuthorId !== commentData.commenterUserId
+      ) {
+        recipientIds.add(commentData.parentCommentAuthorId);
+      }
+
+      if (recipientIds.size === 0) {
+        return results;
+      }
+
+      const commentPreview =
+        commentData.commentContent.length > 100
+          ? commentData.commentContent.substring(0, 100) + "..."
+          : commentData.commentContent;
+
+      const message = `💬 *New comment from ${commentData.commenterName}*
+
+On thread: "${commentData.threadTitle}"
+
+${commentPreview}
+
+[View the thread](${commentData.threadUrl})`;
+
+      for (const recipientId of recipientIds) {
+        const result = await this.sendDirectMessage(recipientId, message, {
+          communicationType: "FORUM_COMMENT",
+          templateData: {
+            commentId: commentData.commentId,
+            threadId: commentData.threadId,
+            commenterName: commentData.commenterName,
+            recipientUserId: recipientId,
+          },
+        });
+        results.push(result);
+
+        // Rate limiting delay
+        if (recipientIds.size > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to send forum comment notifications:", error);
+      captureApiError(error, {
+        userId: "system",
+        route: "botNotificationService.sendForumCommentNotifications",
+        method: "TELEGRAM_BOT",
+        input: {
+          commentId: commentData.commentId,
+          threadId: commentData.threadId,
+        },
+      });
+    }
+
+    return results;
+  }
+
+  /**
+   * Send ask/offer comment notifications
+   *
+   * @param commentData - Comment and notification details
+   * @returns Array of notification results
+   */
+  async sendAskOfferCommentNotifications(commentData: {
+    commentId: string;
+    askOfferId: string;
+    eventId?: string;
+    commenterUserId: string;
+    commenterName: string;
+    commentContent: string;
+    askOfferUrl: string;
+    askOfferTitle: string;
+    askOfferType: "ASK" | "OFFER";
+    askOfferAuthorId: string;
+    parentCommentAuthorId?: string;
+  }): Promise<BotNotificationResult[]> {
+    const results: BotNotificationResult[] = [];
+
+    try {
+      const recipientIds = new Set<string>();
+
+      // Notify ask/offer author
+      if (commentData.askOfferAuthorId !== commentData.commenterUserId) {
+        recipientIds.add(commentData.askOfferAuthorId);
+      }
+
+      // Notify parent comment author for replies
+      if (
+        commentData.parentCommentAuthorId &&
+        commentData.parentCommentAuthorId !== commentData.commenterUserId
+      ) {
+        recipientIds.add(commentData.parentCommentAuthorId);
+      }
+
+      if (recipientIds.size === 0) {
+        return results;
+      }
+
+      const typeLabel = commentData.askOfferType === "ASK" ? "Ask" : "Offer";
+      const commentPreview =
+        commentData.commentContent.length > 100
+          ? commentData.commentContent.substring(0, 100) + "..."
+          : commentData.commentContent;
+
+      const message = `💬 *${commentData.commenterName} responded to your ${typeLabel}*
+
+"${commentData.askOfferTitle}"
+
+${commentPreview}
+
+[View the conversation](${commentData.askOfferUrl})`;
+
+      for (const recipientId of recipientIds) {
+        const result = await this.sendDirectMessage(recipientId, message, {
+          eventId: commentData.eventId,
+          communicationType: "ASK_OFFER_COMMENT",
+          templateData: {
+            commentId: commentData.commentId,
+            askOfferId: commentData.askOfferId,
+            commenterName: commentData.commenterName,
+            recipientUserId: recipientId,
+          },
+        });
+        results.push(result);
+
+        if (recipientIds.size > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+      }
+    } catch (error) {
+      console.error("Failed to send ask/offer comment notifications:", error);
+      captureApiError(error, {
+        userId: "system",
+        route: "botNotificationService.sendAskOfferCommentNotifications",
+        method: "TELEGRAM_BOT",
+        input: {
+          commentId: commentData.commentId,
+          askOfferId: commentData.askOfferId,
+        },
+      });
+    }
+
+    return results;
+  }
 }
