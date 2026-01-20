@@ -19,6 +19,8 @@ config({ path: resolve(process.cwd(), ".env") });
 
 import { db } from "~/server/db";
 import { GitHubService } from "~/server/services/github";
+import { createEASService } from "~/server/services/eas";
+import { env } from "~/env";
 import type { Prisma } from "@prisma/client";
 
 interface SyncResult {
@@ -92,6 +94,7 @@ async function main() {
     include: {
       project: {
         select: {
+          id: true,
           title: true,
         },
       },
@@ -173,6 +176,56 @@ async function main() {
             lastSyncedAt: new Date(),
           },
         });
+
+        // Create attestation if enabled
+        if (env.EAS_ATTESTATIONS_ENABLED === 'true') {
+          // Validate required env vars before attempting
+          if (!env.EAS_PRIVATE_KEY) {
+            console.warn(`   ⚠ Attestations enabled but EAS_PRIVATE_KEY not set, skipping`);
+          } else if (!env.EAS_SCHEMA_UID) {
+            console.warn(`   ⚠ Attestations enabled but EAS_SCHEMA_UID not set, skipping`);
+          } else {
+            try {
+              const easService = createEASService();
+              easService.setSchemaUid(env.EAS_SCHEMA_UID);
+
+              const attestation = await easService.createAttestation({
+                projectId: repo.project.id,
+                repositoryId: repo.id,
+                totalCommits: residencyActivity.residencyCommits,
+                lastCommitDate: activity.lastCommitDate,
+                weeksActive: activity.weeksActive ?? 0,
+                isActive: activity.isActive,
+                snapshotDate: new Date(),
+                isRetroactive: false,
+              });
+
+              // Store attestation record
+              await db.attestation.create({
+                data: {
+                  uid: attestation.uid,
+                  repositoryId: repo.id,
+                  schemaId: env.EAS_SCHEMA_UID,
+                  chain: 'optimism',
+                  data: {
+                    projectId: repo.project.id,
+                    repositoryId: repo.id,
+                    totalCommits: residencyActivity.residencyCommits,
+                    lastCommitDate: activity.lastCommitDate?.toISOString() ?? null,
+                    weeksActive: activity.weeksActive ?? 0,
+                    isActive: activity.isActive,
+                  },
+                  snapshotDate: new Date(),
+                  isRetroactive: false,
+                },
+              });
+
+              console.log(`   ✓ Attestation: ${attestation.uid}`);
+            } catch (error) {
+              console.error(`   ⚠ Attestation failed (sync still succeeded):`, error instanceof Error ? error.message : error);
+            }
+          }
+        }
       }
 
       console.log(`   ✓ Success\n`);
