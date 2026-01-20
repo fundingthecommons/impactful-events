@@ -1173,6 +1173,7 @@ model Repository {
   project          UserProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId        String
   residencyMetrics RepositoryResidencyMetrics[]
+  attestations     Attestation[]
 
   @@index([projectId])
   @@index([isPrimary])
@@ -1203,6 +1204,26 @@ model RepositoryResidencyMetrics {
   @@unique([repositoryId, eventId])
   @@index([repositoryId])
   @@index([eventId])
+}
+
+// EAS (Ethereum Attestation Service) attestations for repository activity
+// Each attestation is an on-chain record of GitHub metrics at a point in time
+model Attestation {
+  id            String   @id @default(cuid())
+  uid           String   @unique  // EAS attestation UID (on-chain identifier)
+  repositoryId  String
+  schemaId      String             // EAS schema ID used for this attestation
+  chain         String   @default("optimism")
+  data          Json               // Attestation payload (metrics snapshot)
+  snapshotDate  DateTime           // When the source data was captured
+  isRetroactive Boolean  @default(false)  // True for historical BA attestations
+  createdAt     DateTime @default(now())
+
+  // Relations
+  repository    Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId])
+  @@index([uid])
 }
 
 model ProjectCollaborator {
