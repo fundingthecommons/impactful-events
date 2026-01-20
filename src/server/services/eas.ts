@@ -174,11 +174,20 @@ export class EASService {
     const uid = await transaction.wait();
 
     console.log(`Attestation created with UID: ${uid}`);
-    console.log(`Transaction hash: ${transaction.tx.hash}`);
+
+    // Extract tx hash safely - SDK structure varies between versions
+    let txHash = "unknown";
+    try {
+      const txData = transaction as unknown as { tx?: { hash?: string }; receipt?: { hash?: string } };
+      txHash = txData.tx?.hash ?? txData.receipt?.hash ?? "unknown";
+    } catch {
+      // Ignore - txHash is just for logging
+    }
+    console.log(`Transaction hash: ${txHash}`);
 
     return {
       uid,
-      txHash: transaction.tx.hash,
+      txHash,
     };
   }
 
