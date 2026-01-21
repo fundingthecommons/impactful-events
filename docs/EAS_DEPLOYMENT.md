@@ -77,10 +77,10 @@ The seed creates test data including the **Relay Funder** project from the BA re
 
 ```bash
 # Dry run (no on-chain transactions)
-bun run scripts/attest-ba-historical.ts --event-id funding-commons-residency-2025 --dry-run
+bun run scripts/attest-historical.ts --event-id funding-commons-residency-2025 --dry-run
 
 # Live testnet attestation (requires Sepolia ETH)
-bun run scripts/attest-ba-historical.ts --event-id funding-commons-residency-2025
+bun run scripts/attest-historical.ts --event-id funding-commons-residency-2025
 ```
 
 ### 5. Cleanup
@@ -155,10 +155,10 @@ Create retroactive weekly attestations for past residency activity:
 
 ```bash
 # Dry run first — see what would be attested
-bun run scripts/attest-ba-historical.ts --event-id <event-id> --dry-run
+bun run scripts/attest-historical.ts --event-id <event-id> --dry-run
 
 # Real run — creates on-chain attestations
-bun run scripts/attest-ba-historical.ts --event-id <event-id>
+bun run scripts/attest-historical.ts --event-id <event-id>
 ```
 
 **Expected output:**

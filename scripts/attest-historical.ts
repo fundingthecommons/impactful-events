@@ -1,16 +1,16 @@
 #!/usr/bin/env bun
 /**
- * BA Historical Attestation Script
+ * Historical Attestation Script
  *
- * Creates retroactive weekly attestations for BA residency projects.
+ * Creates retroactive weekly attestations for any residency event.
  * Reads from existing DB data - no GitHub API calls.
  *
  * Usage:
- *   bun run scripts/attest-ba-historical.ts --event-id <eventId> [--dry-run]
+ *   bunx tsx scripts/attest-historical.ts --event-id <eventId> [--dry-run]
  *
  * Examples:
- *   bun run scripts/attest-ba-historical.ts --event-id funding-commons-residency-2025 --dry-run
- *   bun run scripts/attest-ba-historical.ts --event-id funding-commons-residency-2025
+ *   bunx tsx scripts/attest-historical.ts --event-id funding-commons-residency-2025 --dry-run
+ *   bunx tsx scripts/attest-historical.ts --event-id chiang-mai-residency-2024
  */
 
 // Load environment variables from .env.local first, then .env
@@ -32,10 +32,10 @@ const eventIdIndex = args.indexOf("--event-id");
 const eventIdArg = eventIdIndex !== -1 ? args[eventIdIndex + 1] : undefined;
 
 if (!eventIdArg) {
-  console.error("Usage: bun run scripts/attest-ba-historical.ts --event-id <eventId> [--dry-run]");
+  console.error("Usage: bunx tsx scripts/attest-historical.ts --event-id <eventId> [--dry-run]");
   console.error("\nExamples:");
-  console.error("  bun run scripts/attest-ba-historical.ts --event-id funding-commons-residency-2025 --dry-run");
-  console.error("  bun run scripts/attest-ba-historical.ts --event-id funding-commons-residency-2025");
+  console.error("  bunx tsx scripts/attest-historical.ts --event-id funding-commons-residency-2025 --dry-run");
+  console.error("  bunx tsx scripts/attest-historical.ts --event-id chiang-mai-residency-2024");
   process.exit(1);
 }
 
@@ -116,7 +116,7 @@ function reconstructWeeklySnapshots(
 
 async function main() {
   console.log("\n=".repeat(60));
-  console.log("BA Historical Attestation Script");
+  console.log("Historical Attestation Script");
   console.log("=".repeat(60));
   console.log(`Event ID: ${eventId}`);
   console.log(`Mode: ${dryRun ? "DRY RUN" : "LIVE"}`);
