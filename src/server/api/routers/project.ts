@@ -395,6 +395,17 @@ export const projectRouter = createTRPCRouter({
               description: true,
               isPrimary: true,
               order: true,
+              attestations: {
+                select: {
+                  id: true,
+                  uid: true,
+                  chain: true,
+                  snapshotDate: true,
+                  isRetroactive: true,
+                  data: true,
+                },
+                orderBy: { snapshotDate: "desc" },
+              },
             },
             orderBy: [
               { isPrimary: "desc" },
@@ -2457,5 +2468,52 @@ export const projectRouter = createTRPCRouter({
       return Object.fromEntries(
         userMetrics.map(m => [m.userId, m])
       );
+    }),
+
+  // Get all attestations for a project's repositories
+  getProjectAttestations: publicProcedure
+    .input(z.object({
+      projectId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const project = await ctx.db.userProject.findUnique({
+        where: { id: input.projectId },
+        include: {
+          repositories: {
+            include: {
+              attestations: {
+                orderBy: { snapshotDate: "desc" },
+              },
+            },
+          },
+        },
+      });
+
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      // Flatten attestations with repository context
+      const attestations = project.repositories.flatMap((repo) =>
+        repo.attestations.map((attestation) => ({
+          ...attestation,
+          repository: {
+            id: repo.id,
+            name: repo.name,
+            url: repo.url,
+            isPrimary: repo.isPrimary,
+          },
+        }))
+      );
+
+      return {
+        projectId: project.id,
+        projectTitle: project.title,
+        attestations,
+        totalCount: attestations.length,
+      };
     }),
 });

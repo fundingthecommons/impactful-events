@@ -41,6 +41,9 @@ import {
   IconCheck,
   IconX,
   IconEdit,
+  IconLink,
+  IconChevronDown,
+  IconChevronUp,
 } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
@@ -105,6 +108,14 @@ interface ProjectDetailClientProps {
       description: string | null;
       isPrimary: boolean;
       order: number;
+      attestations?: Array<{
+        id: string;
+        uid: string;
+        chain: string;
+        snapshotDate: Date;
+        isRetroactive: boolean;
+        data: unknown;
+      }>;
     }>;
     author: {
       id: string;
@@ -184,6 +195,9 @@ export default function ProjectDetailClient({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  // Attestation expansion state
+  const [expandedAttestations, setExpandedAttestations] = useState<Set<string>>(new Set());
 
   // Edit project modal state
   const [editProjectModalOpen, setEditProjectModalOpen] = useState(false);
@@ -702,12 +716,54 @@ export default function ProjectDetailClient({
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays} days ago`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
     return `${Math.floor(diffDays / 30)} months ago`;
+  };
+
+  // Helper to get EAS explorer URL for an attestation
+  // Note: chain "optimism" without "-sepolia" suffix could be either network
+  // Default to testnet (Sepolia) unless explicitly "optimism-mainnet"
+  const getEASExplorerUrl = (uid: string, chain: string) => {
+    const isMainnet = chain === "optimism-mainnet";
+    const baseUrl = isMainnet
+      ? "https://optimism.easscan.org/attestation/view"
+      : "https://optimism-sepolia.easscan.org/attestation/view";
+    return `${baseUrl}/${uid}`;
+  };
+
+  // Toggle attestation expansion for a repository
+  const toggleAttestations = (repoId: string) => {
+    setExpandedAttestations(prev => {
+      const next = new Set(prev);
+      if (next.has(repoId)) {
+        next.delete(repoId);
+      } else {
+        next.add(repoId);
+      }
+      return next;
+    });
+  };
+
+  // Format attestation date
+  const formatAttestationDate = (date: Date) => {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(new Date(date));
+  };
+
+  // Parse attestation data to extract commits
+  const getAttestationCommits = (data: unknown): number | undefined => {
+    if (typeof data === 'object' && data !== null) {
+      const d = data as Record<string, unknown>;
+      return typeof d.totalCommits === 'number' ? d.totalCommits : undefined;
+    }
+    return undefined;
   };
 
   return (
@@ -1006,38 +1062,96 @@ export default function ProjectDetailClient({
                             })
                             .map((repo) => (
                               <Paper key={repo.id} p="md" withBorder radius="md">
-                                <Group justify="space-between" align="flex-start">
-                                  <Stack gap="xs" style={{ flex: 1 }}>
-                                    <Group gap="xs">
-                                      <Text fw={500} size="sm">
-                                        {repo.name ?? "Repository"}
-                                      </Text>
-                                      {repo.isPrimary && (
-                                        <Badge size="xs" variant="light" color="blue">
-                                          Primary
-                                        </Badge>
+                                <Stack gap="sm">
+                                  <Group justify="space-between" align="flex-start">
+                                    <Stack gap="xs" style={{ flex: 1 }}>
+                                      <Group gap="xs">
+                                        <Text fw={500} size="sm">
+                                          {repo.name ?? "Repository"}
+                                        </Text>
+                                        {repo.isPrimary && (
+                                          <Badge size="xs" variant="light" color="blue">
+                                            Primary
+                                          </Badge>
+                                        )}
+                                        {repo.attestations && repo.attestations.length > 0 && (
+                                          <Badge size="xs" variant="light" color="violet">
+                                            {repo.attestations.length} attestation{repo.attestations.length > 1 ? 's' : ''}
+                                          </Badge>
+                                        )}
+                                      </Group>
+                                      {repo.description && (
+                                        <Text size="sm" c="dimmed">
+                                          {repo.description}
+                                        </Text>
                                       )}
-                                    </Group>
-                                    {repo.description && (
-                                      <Text size="sm" c="dimmed">
-                                        {repo.description}
+                                      <Text size="xs" c="dimmed" style={{ wordBreak: 'break-all' }}>
+                                        {repo.url}
                                       </Text>
-                                    )}
-                                    <Text size="xs" c="dimmed" style={{ wordBreak: 'break-all' }}>
-                                      {repo.url}
-                                    </Text>
-                                  </Stack>
-                                  <Button
-                                    component="a"
-                                    href={repo.url}
-                                    target="_blank"
-                                    size="sm"
-                                    variant="light"
-                                    leftSection={<IconBrandGithub size={16} />}
-                                  >
-                                    View
-                                  </Button>
-                                </Group>
+                                    </Stack>
+                                    <Button
+                                      component="a"
+                                      href={repo.url}
+                                      target="_blank"
+                                      size="sm"
+                                      variant="light"
+                                      leftSection={<IconBrandGithub size={16} />}
+                                    >
+                                      View
+                                    </Button>
+                                  </Group>
+
+                                  {/* EAS Attestations Section */}
+                                  {repo.attestations && repo.attestations.length > 0 && (
+                                    <>
+                                      <Divider />
+                                      <Box>
+                                        <Button
+                                          variant="subtle"
+                                          size="xs"
+                                          onClick={() => toggleAttestations(repo.id)}
+                                          rightSection={expandedAttestations.has(repo.id) ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                                          px={0}
+                                        >
+                                          <Group gap={4}>
+                                            <IconLink size={14} />
+                                            <Text size="xs">On-chain Attestations</Text>
+                                          </Group>
+                                        </Button>
+
+                                        {expandedAttestations.has(repo.id) && (
+                                          <Stack gap="xs" mt="xs">
+                                            {repo.attestations.map((attestation) => {
+                                              const commits = getAttestationCommits(attestation.data);
+                                              return (
+                                                <Group key={attestation.id} gap="xs" wrap="nowrap">
+                                                  <Text size="xs" c="dimmed" style={{ minWidth: 75 }}>
+                                                    {formatAttestationDate(attestation.snapshotDate)}
+                                                  </Text>
+                                                  {commits !== undefined && (
+                                                    <Badge size="xs" color="blue" variant="light">
+                                                      {commits} commits
+                                                    </Badge>
+                                                  )}
+                                                  <Anchor
+                                                    href={getEASExplorerUrl(attestation.uid, attestation.chain)}
+                                                    target="_blank"
+                                                    size="xs"
+                                                    c="violet"
+                                                    style={{ whiteSpace: 'nowrap' }}
+                                                  >
+                                                    View
+                                                    <IconExternalLink size={10} style={{ marginLeft: 4, verticalAlign: 'middle' }} />
+                                                  </Anchor>
+                                                </Group>
+                                              );
+                                            })}
+                                          </Stack>
+                                        )}
+                                      </Box>
+                                    </>
+                                  )}
+                                </Stack>
                               </Paper>
                             ))}
                         </Stack>
