@@ -6,6 +6,10 @@
 - EAS Docs: https://docs.attest.org/docs/developer-tools/eas-sdk
 - EAS Explorer: https://attest.org/
 
+**Related Docs:**
+- [Implementation Summary](./EAS_IMPLEMENTATION_SUMMARY.md) — What was actually built
+- [Deployment Guide](./EAS_DEPLOYMENT.md) — How to deploy and operate
+
 ---
 
 ## Architecture Decisions
@@ -226,11 +230,14 @@ bun run scripts/attest-ba-historical.ts --event-id <eventId>
 | `prisma/schema.prisma` | ADD model | ~15 |
 | `scripts/sync-github-activity.ts` | ADD attestation step | ~15 |
 | `scripts/attest-ba-historical.ts` | NEW | ~150 |
-| `src/server/api/root.ts` | NO CHANGE | 0 |
-| UI files | NO CHANGE | 0 |
+| `src/server/api/routers/project.ts` | ADD attestations query | ~50 |
+| `src/app/projects/[projectId]/ProjectDetailClient.tsx` | ADD quick-view UI | ~100 |
+| `src/app/projects/[projectId]/ImpactTab.tsx` | ADD attestations table | ~150 |
+| `src/app/events/[eventId]/projects/[projectId]/ProjectDetailClient.tsx` | ADD quick-view UI | ~100 |
+| `src/app/events/[eventId]/projects/[projectId]/ImpactTab.tsx` | ADD attestations table | ~150 |
 
-**Total new code:** ~280 lines
-**Total modified code:** ~15 lines in existing files
+**Total new code:** ~830 lines (including UI)
+**Total modified code:** ~100 lines in existing files
 
 ---
 
@@ -256,7 +263,8 @@ bun run scripts/attest-ba-historical.ts --event-id <eventId>
 | 5 | `a74611c` | BA historical batch script | ✅ Done |
 | 6 | `46b195b` | Fix EAS SDK response handling | ✅ Done |
 | 7 | — | Testnet verification | ✅ Done (5 attestations created) |
-| 8 | — | README/docs updates | 🔲 Pending |
+| 8 | — | README/docs updates | ✅ Done |
+| 9 | `b381f18` | UI visualization (bonus) | ✅ Done |
 
 **Branch:** `feat/eas-integration`
 
@@ -319,5 +327,6 @@ EAS_ATTESTATIONS_ENABLED=true   # Enable in sync script
 - **Location attestations** — Attest to user-claimed locations
 - **Smart contract evaluators** — Track on-chain metrics
 - **OSO integration** — Pull metrics from Open Source Observer
-- **UI for viewing attestations** — Show attestation history on project page
+- ~~**UI for viewing attestations**~~ — ✅ **COMPLETED** (commit `b381f18`) — Shows in Overview tab (quick-view) and Impact tab (detailed table)
 - **User signing** — Let users sign their own attestations
+- **UI sync/attest trigger** — Button to manually trigger sync+attest from admin UI
