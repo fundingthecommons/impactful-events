@@ -278,6 +278,63 @@ async function main() {
   })
   console.log(`✅ Created/updated residency metrics for: ${relayFunderRepo.name} (${relayFunderMetrics.residencyCommits} commits)`)
 
+  // Create John X user as accepted resident
+  console.log('🌱 Creating John X user as accepted resident...')
+
+  const johnxUser = await prisma.user.upsert({
+    where: { email: 'john@johnx.co' },
+    update: {},
+    create: {
+      email: 'john@johnx.co',
+      name: 'John X',
+    },
+  })
+  console.log(`✅ Created/updated user: ${johnxUser.name}`)
+
+  // Create accepted application for John X
+  const johnxApplication = await prisma.application.upsert({
+    where: {
+      userId_eventId: {
+        userId: johnxUser.id,
+        eventId: residencyEvent.id,
+      },
+    },
+    update: {
+      status: 'ACCEPTED',
+    },
+    create: {
+      userId: johnxUser.id,
+      eventId: residencyEvent.id,
+      email: 'john@johnx.co',
+      status: 'ACCEPTED',
+    },
+  })
+  console.log(`✅ Created/updated application for ${johnxUser.name}: ${johnxApplication.status}`)
+
+  // Get participant role and assign to John X
+  const participantRole = await prisma.role.findUnique({
+    where: { name: 'participant' },
+  })
+
+  if (participantRole) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_eventId_roleId: {
+          userId: johnxUser.id,
+          eventId: residencyEvent.id,
+          roleId: participantRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: johnxUser.id,
+        eventId: residencyEvent.id,
+        roleId: participantRole.id,
+      },
+    })
+    console.log(`✅ Assigned ${johnxUser.name} as participant in ${residencyEvent.name}`)
+  }
+
   // Create application questions for residency
   const residencyQuestions = [
     {
