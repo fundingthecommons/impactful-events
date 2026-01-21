@@ -1,11 +1,11 @@
 # Gardens Grant Milestone Report
 
-**Grant:** The Commons: A Builder Residency + Pop-Up Cities Platform
-**Pool:** Public Goods Tooling Development Garden (#179)
-**Proposal:** #25
-**Amount:** 9,900 DAI
-**Beneficiary:** fundingthecommons.eth
-**Karma GAP:** https://gap.karmahq.xyz/project/funding-the-commons
+- **Grant:** The Commons: A Builder Residency + Pop-Up Cities Platform
+- **Pool:** Public Goods Tooling Development Garden (#179)
+- **Proposal:** #25
+- **Amount:** 9,900 DAI
+- **Beneficiary:** fundingthecommons.eth
+- **Karma GAP:** https://gap.karmahq.xyz/project/funding-the-commons
 
 ---
 
@@ -219,7 +219,7 @@ This report documents completion of the four milestones outlined in our Gardens 
 | Karma GAP Profile | https://gap.karmahq.xyz/project/funding-the-commons |
 | EAS Schema (OP Sepolia) | https://optimism-sepolia.easscan.org/schema/view/0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490 |
 | EAS Schema (OP Mainnet) | https://optimism.easscan.org/schema/view/0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490 |
-| Live Platform | https://impactful-events.vercel.app (or production URL) |
+| Live Platform | https://platform.fundingthecommons.io (or production URL) |
 
 ---
 
@@ -227,7 +227,7 @@ This report documents completion of the four milestones outlined in our Gardens 
 
 | Item | Effort | Blocking? |
 |------|--------|-----------|
-| Run `attest-historical.ts` on production for ≥50 attestations | 1 hour | Yes - acceptance criteria |
+| Run `attest-historical.ts` on production for ≥50 attestations | 10 minutes | Yes - acceptance criteria |
 | Wire weekly update form to EAS attestations | 2-3 hours | No - GitHub attestations satisfy MVP |
 | Hypercerts v2 minting UI | 4-6 hours | No - schema aligned, minting is "optional during MVP" per proposal |
 | Hyperboard embed on event pages | 2-3 hours | No - sponsor data seeded |
