@@ -204,8 +204,8 @@ Seed includes **Relay Funder** project with:
 
 ## EAS Explorer Links
 
-- **Schema (Sepolia):** https://optimism-sepolia.easscan.org/schema/view/0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490
-- **Schema (Mainnet):** https://optimism.easscan.org/schema/view/0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490
+- **Schema (OP Sepolia):** https://optimism-sepolia.easscan.org/schema/view/0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490
+- **Schema (OP Mainnet):** https://optimism.easscan.org/schema/view/0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490
 
 ---
 
