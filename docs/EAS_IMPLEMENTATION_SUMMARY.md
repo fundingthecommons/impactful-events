@@ -13,7 +13,7 @@ Server-side service for creating on-chain attestations on Optimism using the EAS
 - Creates attestations from repository metrics
 - Signs with platform wallet (server-side)
 - Stores attestation records in database
-- Supports both testnet (Sepolia) and mainnet
+- Supports both testnet (OP Sepolia) and OP mainnet
 
 **Schema (registered on both networks):**
 ```
@@ -27,7 +27,7 @@ snapshotDate: uint64   # When the data was captured
 isRetroactive: bool    # True for historical attestations
 ```
 
-**Schema UID:** `0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490`
+**Schema UID:** `0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490` ([OP Sepolia EASScan](https://optimism-sepolia.easscan.org/schema/view/0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490) and [OP EASScan](https://optimism-sepolia.easscan.org/schema/view/0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490))
 
 ---
 
@@ -81,10 +81,11 @@ GitHub API → GitHubService → DB (Repository)
 
 ### 4. Historical Batch Script
 
-**File:** `scripts/attest-ba-historical.ts`
+**File:** `scripts/attest-historical.ts`
 
-Creates retroactive weekly attestations for past residency activity:
+Creates retroactive weekly attestations for any residency event:
 
+- Accepts `--event-id` parameter to target any residency
 - Reads `commitsData` timeline from DB (no GitHub API calls)
 - Reconstructs weekly snapshots from commit history
 - Creates attestation for each week showing activity progression
@@ -92,11 +93,12 @@ Creates retroactive weekly attestations for past residency activity:
 
 **Usage:**
 ```bash
-# Dry run
-bunx tsx scripts/attest-ba-historical.ts --dry-run
+# Dry run - preview what would be attested
+bunx tsx scripts/attest-historical.ts --event-id <event-id> --dry-run
 
-# Live run
-bunx tsx scripts/attest-ba-historical.ts
+# Live run - create on-chain attestations
+bunx tsx scripts/attest-historical.ts --event-id funding-commons-residency-2025
+bunx tsx scripts/attest-historical.ts --event-id chiang-mai-residency-2024
 ```
 
 ---
@@ -142,7 +144,7 @@ New procedure: `getProjectAttestations`
 | `src/server/services/eas.ts` | NEW | EAS attestation service |
 | `prisma/schema.prisma` | MODIFY | Added Attestation model |
 | `scripts/sync-github-activity.ts` | MODIFY | Added attestation step |
-| `scripts/attest-ba-historical.ts` | NEW | Historical batch script |
+| `scripts/attest-historical.ts` | NEW | Historical batch script (any residency) |
 | `src/server/api/routers/project.ts` | MODIFY | Added attestations to queries |
 | `src/app/projects/[projectId]/ProjectDetailClient.tsx` | MODIFY | Added quick-view UI |
 | `src/app/projects/[projectId]/ImpactTab.tsx` | MODIFY | Added attestations table |

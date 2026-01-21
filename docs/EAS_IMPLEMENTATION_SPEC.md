@@ -31,7 +31,7 @@ sync-github-activity.ts runs
 
 **2. BA Batch: Historical reconstruction**
 ```
-attest-ba-historical.ts (new, one-time)
+attest-historical.ts (new, one-time)
   → read commitsData timeline from DB
   → reconstruct weekly snapshots
   → create attestation for each week
@@ -140,7 +140,7 @@ if (env.EAS_ATTESTATIONS_ENABLED) {
 ### 4. BA Historical Batch Script
 **What:** Create retroactive weekly attestations for BA residency projects.
 
-**File:** `scripts/attest-ba-historical.ts` (NEW)
+**File:** `scripts/attest-historical.ts` (NEW)
 
 **Acceptance Criteria:**
 - [x] Queries BA residency projects with GitHub repos — commit `a74611c`
@@ -154,10 +154,10 @@ if (env.EAS_ATTESTATIONS_ENABLED) {
 **Usage:**
 ```bash
 # Dry run - see what would be attested
-bun run scripts/attest-ba-historical.ts --event-id <eventId> --dry-run
+bun run scripts/attest-historical.ts --event-id <eventId> --dry-run
 
 # Real run
-bun run scripts/attest-ba-historical.ts --event-id <eventId>
+bun run scripts/attest-historical.ts --event-id <eventId>
 ```
 
 ---
@@ -203,7 +203,7 @@ bun run scripts/attest-ba-historical.ts --event-id <eventId>
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│ BA BATCH PATH: attest-ba-historical.ts                      │
+│ BA BATCH PATH: attest-historical.ts                      │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  DB (Repository.commitsData) ──► Reconstruct weekly         │
@@ -229,7 +229,7 @@ bun run scripts/attest-ba-historical.ts --event-id <eventId>
 | `src/server/services/eas.ts` | NEW | ~100 |
 | `prisma/schema.prisma` | ADD model | ~15 |
 | `scripts/sync-github-activity.ts` | ADD attestation step | ~15 |
-| `scripts/attest-ba-historical.ts` | NEW | ~150 |
+| `scripts/attest-historical.ts` | NEW | ~150 |
 | `src/server/api/routers/project.ts` | ADD attestations query | ~50 |
 | `src/app/projects/[projectId]/ProjectDetailClient.tsx` | ADD quick-view UI | ~100 |
 | `src/app/projects/[projectId]/ImpactTab.tsx` | ADD attestations table | ~150 |
