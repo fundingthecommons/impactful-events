@@ -33,6 +33,69 @@ EAS_USE_MAINNET=false              # false = Optimism Sepolia, true = Optimism M
 | `EAS_ATTESTATIONS_ENABLED` | Yes | Set to `true` to enable |
 | `EAS_USE_MAINNET` | No | Default `false` (testnet) |
 
+## Local Testing
+
+Test EAS attestations locally without production database access.
+
+### 1. Start Local PostgreSQL
+
+```bash
+docker run -d \
+  --name ftc-postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=ftc-t3 \
+  -p 5432:5432 \
+  postgres:16
+```
+
+### 2. Configure Environment
+
+Ensure `.env.local` has:
+
+```bash
+DATABASE_URL="postgresql://postgres:password@localhost:5432/ftc-t3"
+
+# EAS Config
+EAS_PRIVATE_KEY=0x...your-testnet-wallet-key...
+EAS_USE_MAINNET=false
+EAS_SCHEMA_UID=0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490
+EAS_ATTESTATIONS_ENABLED=true
+```
+
+### 3. Initialize Database
+
+```bash
+bun run db:generate
+bun run db:push
+bun run db:seed
+```
+
+The seed creates test data including the **Relay Funder** project from the BA residency with real commit data.
+
+### 4. Test Attestations
+
+```bash
+# Dry run (no on-chain transactions)
+bun run scripts/attest-ba-historical.ts --event-id funding-commons-residency-2025 --dry-run
+
+# Live testnet attestation (requires Sepolia ETH)
+bun run scripts/attest-ba-historical.ts --event-id funding-commons-residency-2025
+```
+
+### 5. Cleanup
+
+```bash
+docker stop ftc-postgres && docker rm ftc-postgres
+```
+
+### Getting Testnet ETH
+
+For live testnet attestations, get Optimism Sepolia ETH from:
+- https://www.alchemy.com/faucets/optimism-sepolia
+
+---
+
 ## Deployment Steps
 
 ### Step 1: Run Database Migration
