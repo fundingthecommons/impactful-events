@@ -30,12 +30,20 @@ const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const eventIdIndex = args.indexOf("--event-id");
 const eventIdArg = eventIdIndex !== -1 ? args[eventIdIndex + 1] : undefined;
+const delayIndex = args.indexOf("--delay");
+const delayArg = delayIndex !== -1 ? parseInt(args[delayIndex + 1] ?? "300", 10) : 300;
+
+// Rate limiting configuration
+const ATTESTATION_DELAY_MS = delayArg; // Delay between attestations (default 300ms)
+const MAX_RETRIES = 3; // Max retries for rate-limited requests
+const RETRY_DELAY_MS = 5000; // Wait 5 seconds before retry
 
 if (!eventIdArg) {
-  console.error("Usage: bunx tsx scripts/attest-historical.ts --event-id <eventId> [--dry-run]");
+  console.error("Usage: bunx tsx scripts/attest-historical.ts --event-id <eventId> [--dry-run] [--delay <ms>]");
   console.error("\nExamples:");
   console.error("  bunx tsx scripts/attest-historical.ts --event-id funding-commons-residency-2025 --dry-run");
   console.error("  bunx tsx scripts/attest-historical.ts --event-id chiang-mai-residency-2024");
+  console.error("  bunx tsx scripts/attest-historical.ts --event-id my-event --delay 2000  # 2s delay");
   process.exit(1);
 }
 
@@ -62,6 +70,29 @@ interface AttestationRecord {
   uid?: string;
   success: boolean;
   error?: string;
+}
+
+/**
+ * Helper to delay execution
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Check if error is a rate limit error
+ */
+function isRateLimitError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes("rate limit") ||
+      message.includes("exceeded its requests") ||
+      message.includes("too many requests") ||
+      message.includes("-32016") // Optimism rate limit error code
+    );
+  }
+  return false;
 }
 
 /**
@@ -115,11 +146,14 @@ function reconstructWeeklySnapshots(
 }
 
 async function main() {
-  console.log("\n=".repeat(60));
+  console.log("\n" + "=".repeat(60));
   console.log("Historical Attestation Script");
   console.log("=".repeat(60));
   console.log(`Event ID: ${eventId}`);
   console.log(`Mode: ${dryRun ? "DRY RUN" : "LIVE"}`);
+  if (!dryRun) {
+    console.log(`Rate limiting: ${ATTESTATION_DELAY_MS}ms between attestations, ${MAX_RETRIES} retries`);
+  }
   console.log("");
 
   // Validate EAS configuration for live runs
@@ -247,62 +281,82 @@ async function main() {
 
       // Note: If DB write fails after on-chain attestation, we have an orphaned attestation.
       // The script logs the UID so it can be manually reconciled if needed.
-      try {
-        const attestation = await easService!.createAttestation({
-          projectId: repo.project.id,
-          repositoryId: repo.id,
-          totalCommits: snapshot.cumulativeCommits,
-          lastCommitDate: snapshot.weekEnd,
-          weeksActive: snapshot.weeksActive,
-          isActive: snapshot.weeklyCommits > 0,
-          snapshotDate: snapshot.weekEnd,
-          isRetroactive: true,
-        });
+      let attestationSuccess = false;
+      let lastError: string | undefined;
 
-        // Store attestation record in database
-        await db.attestation.create({
-          data: {
-            uid: attestation.uid,
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const attestation = await easService!.createAttestation({
+            projectId: repo.project.id,
             repositoryId: repo.id,
-            schemaId: process.env.EAS_SCHEMA_UID ?? "",
-            chain: "optimism",
-            data: {
-              projectId: repo.project.id,
-              repositoryId: repo.id,
-              totalCommits: snapshot.cumulativeCommits,
-              lastCommitDate: snapshot.weekEnd.toISOString(),
-              weeksActive: snapshot.weeksActive,
-              isActive: snapshot.weeklyCommits > 0,
-            } as Prisma.InputJsonValue,
+            totalCommits: snapshot.cumulativeCommits,
+            lastCommitDate: snapshot.weekEnd,
+            weeksActive: snapshot.weeksActive,
+            isActive: snapshot.weeklyCommits > 0,
             snapshotDate: snapshot.weekEnd,
             isRetroactive: true,
-          },
-        });
+          });
 
-        console.log(`  Week ${weekLabel}: ${attestation.uid}`);
-        totalAttestations++;
-        results.push({
-          repositoryId: repo.id,
-          projectTitle: repo.project.title,
-          weekLabel,
-          uid: attestation.uid,
-          success: true,
-        });
+          // Store attestation record in database
+          await db.attestation.create({
+            data: {
+              uid: attestation.uid,
+              repositoryId: repo.id,
+              schemaId: process.env.EAS_SCHEMA_UID ?? "",
+              chain: "optimism",
+              data: {
+                projectId: repo.project.id,
+                repositoryId: repo.id,
+                totalCommits: snapshot.cumulativeCommits,
+                lastCommitDate: snapshot.weekEnd.toISOString(),
+                weeksActive: snapshot.weeksActive,
+                isActive: snapshot.weeklyCommits > 0,
+              } as Prisma.InputJsonValue,
+              snapshotDate: snapshot.weekEnd,
+              isRetroactive: true,
+            },
+          });
 
-        // Small delay to avoid rate limiting
-        await new Promise((r) => setTimeout(r, 100));
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`  Week ${weekLabel} failed: ${errorMessage}`);
+          console.log(`  Week ${weekLabel}: ${attestation.uid}`);
+          totalAttestations++;
+          results.push({
+            repositoryId: repo.id,
+            projectTitle: repo.project.title,
+            weekLabel,
+            uid: attestation.uid,
+            success: true,
+          });
+
+          attestationSuccess = true;
+          break; // Success - exit retry loop
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : String(error);
+
+          if (isRateLimitError(error) && attempt < MAX_RETRIES) {
+            const waitTime = RETRY_DELAY_MS * attempt; // Exponential backoff
+            console.log(`  Week ${weekLabel}: Rate limited, waiting ${waitTime / 1000}s before retry ${attempt + 1}/${MAX_RETRIES}...`);
+            await delay(waitTime);
+          } else if (attempt < MAX_RETRIES) {
+            console.log(`  Week ${weekLabel}: Error on attempt ${attempt}, retrying...`);
+            await delay(RETRY_DELAY_MS);
+          }
+        }
+      }
+
+      if (!attestationSuccess) {
+        console.error(`  Week ${weekLabel} failed after ${MAX_RETRIES} attempts: ${lastError}`);
         totalErrors++;
         results.push({
           repositoryId: repo.id,
           projectTitle: repo.project.title,
           weekLabel,
           success: false,
-          error: errorMessage,
+          error: lastError,
         });
       }
+
+      // Delay between attestations to avoid rate limiting
+      await delay(ATTESTATION_DELAY_MS);
     }
   }
 
