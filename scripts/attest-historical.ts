@@ -25,6 +25,10 @@ import { createEASService } from "~/server/services/eas";
 
 const db = new PrismaClient();
 
+// Determine chain based on environment (matches EAS service logic)
+const isMainnet = process.env.EAS_USE_MAINNET === "true";
+const chainName = isMainnet ? "optimism-mainnet" : "optimism-sepolia";
+
 // Parse CLI arguments
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
@@ -152,6 +156,7 @@ async function main() {
   console.log(
     `Period: ${event.startDate.toISOString().split("T")[0]} to ${event.endDate.toISOString().split("T")[0]}`
   );
+  console.log(`Network: ${chainName} (${isMainnet ? "MAINNET" : "TESTNET"})`);
 
   // Query repositories with residency metrics for this event
   const residencyMetrics = await db.repositoryResidencyMetrics.findMany({
@@ -265,7 +270,7 @@ async function main() {
             uid: attestation.uid,
             repositoryId: repo.id,
             schemaId: process.env.EAS_SCHEMA_UID ?? "",
-            chain: "optimism",
+            chain: chainName,
             data: {
               projectId: repo.project.id,
               repositoryId: repo.id,
