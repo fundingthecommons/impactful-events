@@ -162,7 +162,7 @@ This report documents completion of the four milestones outlined in our Gardens 
 | Public directory showing projects + last attested update | ✅ Complete | `/projects` directory with attestation display |
 | Read API (JSON) for updates by cohort/project/address | ✅ Complete | tRPC `getProjectAttestations` endpoint |
 | ≥30 resident profiles | ✅ Complete | BA Residency has 30+ |
-| ≥50 on-chain EAS updates | ⏳ Pending | GitHub attestations ready; need to run historical script |
+| ≥50 on-chain EAS updates | ✅ Complete | Attestations registered and reflected on the db |
 | EAS schema UID published | ✅ Complete | `0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490` |
 
 ### EAS Integration — Complete
@@ -240,7 +240,7 @@ This report documents completion of the four milestones outlined in our Gardens 
 |---------------------|-----------|
 | EAS on Optimism as core primitive | ✅ Schema registered, service built, attestations created |
 | ≥30 resident profiles | ✅ BA Residency has 30+ |
-| ≥50 on-chain EAS updates | ⏳ Ready to execute (script complete) |
+| ≥50 on-chain EAS updates | ✅ Completed, 72 attestations on [schema 802](https://optimism.easscan.org/attestations/forSchema/0x2a6c47616c877586c9b94bfee775d192e0017e0c454c1a300392a2375d0e5490), OP Mainnet |
 | Public directory + read API | ✅ Project pages + tRPC API |
 | Privacy (minimal on-chain data) | ✅ Only metrics on-chain; PII off-chain |
 | Open source under permissive license | ✅ MIT License |
