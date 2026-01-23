@@ -219,9 +219,25 @@ async function main() {
       const snapshotTime = a.snapshotDate.getTime();
       return snapshotTime >= event.startDate.getTime() && snapshotTime <= event.endDate.getTime();
     });
-    if (existingRetroactive.length > 0) {
+
+    // Get the week start dates of existing attestations to skip duplicates
+    const existingWeekStarts = new Set(
+      existingRetroactive.map(a => {
+        // Round snapshot date to start of week to match with snapshots
+        const date = new Date(a.snapshotDate);
+        const dayOfWeek = date.getUTCDay();
+        const diff = date.getUTCDate() - dayOfWeek;
+        const weekStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), diff));
+        return weekStart.toISOString().split("T")[0];
+      })
+    );
+
+    // Check if we have all 4 weekly attestations
+    if (existingRetroactive.length >= 4) {
       console.log(`  Skipping: Already has ${existingRetroactive.length} retroactive attestations`);
       continue;
+    } else if (existingRetroactive.length > 0) {
+      console.log(`  Partial: Has ${existingRetroactive.length} retroactive attestations, completing remaining...`);
     }
 
     // Reconstruct weekly snapshots
@@ -234,6 +250,12 @@ async function main() {
 
     for (const snapshot of snapshots) {
       const weekLabel = snapshot.weekStart.toISOString().split("T")[0]!;
+
+      // Skip weeks that already have attestations
+      if (existingWeekStarts.has(weekLabel)) {
+        console.log(`  Skipping week ${weekLabel}: Already attested`);
+        continue;
+      }
 
       if (dryRun) {
         console.log(
