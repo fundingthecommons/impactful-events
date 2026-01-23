@@ -42,6 +42,11 @@ export const env = createEnv({
     ATPROTO_PDS_URL: z.string().url().optional().default("https://bsky.social"),
     ATPROTO_ENCRYPTION_KEY: z.string().min(32).optional(),
     GITHUB_API_TOKEN: z.string().optional(),
+    // EAS (Ethereum Attestation Service) configuration
+    EAS_PRIVATE_KEY: z.string().optional(), // Platform wallet private key for signing
+    EAS_USE_MAINNET: z.enum(["true", "false"]).optional().default("false"),
+    EAS_ATTESTATIONS_ENABLED: z.enum(["true", "false"]).optional().default("false"),
+    EAS_SCHEMA_UID: z.string().optional(), // Set after schema is registered
   },
 
   /**
@@ -88,6 +93,10 @@ export const env = createEnv({
     ATPROTO_PDS_URL: process.env.ATPROTO_PDS_URL,
     ATPROTO_ENCRYPTION_KEY: process.env.ATPROTO_ENCRYPTION_KEY,
     GITHUB_API_TOKEN: process.env.GITHUB_API_TOKEN,
+    EAS_PRIVATE_KEY: process.env.EAS_PRIVATE_KEY,
+    EAS_USE_MAINNET: process.env.EAS_USE_MAINNET,
+    EAS_ATTESTATIONS_ENABLED: process.env.EAS_ATTESTATIONS_ENABLED,
+    EAS_SCHEMA_UID: process.env.EAS_SCHEMA_UID,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   },
   /**

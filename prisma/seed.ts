@@ -161,6 +161,180 @@ async function main() {
   })
   console.log(`✅ Created/updated event: ${residencyEvent.name}`)
 
+  // Create EAS attestation test data using real BA residency project: Relay Funder
+  // See: https://platform.fundingthecommons.io/projects/cmh6h40lp0009jy04kojg7qhf
+  console.log('🌱 Creating EAS test project (Relay Funder from BA residency)...')
+
+  // Create user (Sara Johnstone - Relay Funder founder)
+  const relayFunderUser = await prisma.user.upsert({
+    where: { email: 'sara@relayfunder.com' },
+    update: {},
+    create: {
+      email: 'sara@relayfunder.com',
+      name: 'Sara Johnstone',
+    },
+  })
+  console.log(`✅ Created/updated user: ${relayFunderUser.name}`)
+
+  // Create profile
+  const relayFunderProfile = await prisma.userProfile.upsert({
+    where: { userId: relayFunderUser.id },
+    update: {
+      bio: 'Founder/CEO at Relay Funder. Web3 professional with experience in climate, regenerative finance, and impact spaces.',
+      location: 'Colorado',
+      isPublic: true,
+    },
+    create: {
+      userId: relayFunderUser.id,
+      bio: 'Founder/CEO at Relay Funder. Web3 professional with experience in climate, regenerative finance, and impact spaces.',
+      location: 'Colorado',
+      isPublic: true,
+    },
+  })
+  console.log(`✅ Created/updated profile for: ${relayFunderUser.name}`)
+
+  // Create Relay Funder project
+  const relayFunderProject = await prisma.userProject.upsert({
+    where: { id: 'relay-funder-eas-test' },
+    update: {
+      title: 'Relay Funder',
+      description: 'Crowdfunding infrastructure for refugee communities to deliver higher capital efficiency and direct, transparent aid.',
+    },
+    create: {
+      id: 'relay-funder-eas-test',
+      profileId: relayFunderProfile.id,
+      title: 'Relay Funder',
+      description: 'Crowdfunding infrastructure for refugee communities to deliver higher capital efficiency and direct, transparent aid.',
+      createdAt: new Date('2025-10-25T00:00:00.000Z'),
+    },
+  })
+  console.log(`✅ Created/updated project: ${relayFunderProject.title}`)
+
+  // Create repository pointing to real GitHub repo
+  const relayFunderRepo = await prisma.repository.upsert({
+    where: { id: 'relay-funder-repo-eas-test' },
+    update: {
+      url: 'https://github.com/relay-funder/relay-funder-app',
+      name: 'relay-funder-app',
+      isPrimary: true,
+      totalCommits: 100,
+      isActive: true,
+      weeksActive: 3,
+      lastCommitDate: new Date('2025-11-14T00:00:00.000Z'),
+      firstCommitDate: new Date('2025-11-11T00:00:00.000Z'),
+      lastSyncedAt: new Date(),
+    },
+    create: {
+      id: 'relay-funder-repo-eas-test',
+      projectId: relayFunderProject.id,
+      url: 'https://github.com/relay-funder/relay-funder-app',
+      name: 'relay-funder-app',
+      isPrimary: true,
+      totalCommits: 100,
+      isActive: true,
+      weeksActive: 3,
+      lastCommitDate: new Date('2025-11-14T00:00:00.000Z'),
+      firstCommitDate: new Date('2025-11-11T00:00:00.000Z'),
+      lastSyncedAt: new Date(),
+    },
+  })
+  console.log(`✅ Created/updated repository: ${relayFunderRepo.name}`)
+
+  // Create residency metrics with real commit data from BA residency period
+  // Data fetched from GitHub API for Oct 24 - Nov 14, 2025
+  const relayFunderMetrics = await prisma.repositoryResidencyMetrics.upsert({
+    where: {
+      repositoryId_eventId: {
+        repositoryId: relayFunderRepo.id,
+        eventId: residencyEvent.id,
+      },
+    },
+    update: {
+      residencyCommits: 100,
+      residencyStartDate: new Date('2025-10-24T00:00:00.000Z'),
+      residencyEndDate: new Date('2025-11-14T23:59:59.000Z'),
+      commitsData: [
+        { date: '2025-11-11', count: 43 },
+        { date: '2025-11-12', count: 33 },
+        { date: '2025-11-13', count: 3 },
+        { date: '2025-11-14', count: 21 },
+      ],
+      lastSyncedAt: new Date(),
+    },
+    create: {
+      repositoryId: relayFunderRepo.id,
+      eventId: residencyEvent.id,
+      residencyCommits: 100,
+      residencyStartDate: new Date('2025-10-24T00:00:00.000Z'),
+      residencyEndDate: new Date('2025-11-14T23:59:59.000Z'),
+      commitsData: [
+        { date: '2025-11-11', count: 43 },
+        { date: '2025-11-12', count: 33 },
+        { date: '2025-11-13', count: 3 },
+        { date: '2025-11-14', count: 21 },
+      ],
+      lastSyncedAt: new Date(),
+    },
+  })
+  console.log(`✅ Created/updated residency metrics for: ${relayFunderRepo.name} (${relayFunderMetrics.residencyCommits} commits)`)
+
+  // Create John X user as accepted resident
+  console.log('🌱 Creating John X user as accepted resident...')
+
+  const johnxUser = await prisma.user.upsert({
+    where: { email: 'john@johnx.co' },
+    update: {},
+    create: {
+      email: 'john@johnx.co',
+      name: 'John X',
+    },
+  })
+  console.log(`✅ Created/updated user: ${johnxUser.name}`)
+
+  // Create accepted application for John X
+  const johnxApplication = await prisma.application.upsert({
+    where: {
+      userId_eventId: {
+        userId: johnxUser.id,
+        eventId: residencyEvent.id,
+      },
+    },
+    update: {
+      status: 'ACCEPTED',
+    },
+    create: {
+      userId: johnxUser.id,
+      eventId: residencyEvent.id,
+      email: 'john@johnx.co',
+      status: 'ACCEPTED',
+    },
+  })
+  console.log(`✅ Created/updated application for ${johnxUser.name}: ${johnxApplication.status}`)
+
+  // Get participant role and assign to John X
+  const participantRole = await prisma.role.findUnique({
+    where: { name: 'participant' },
+  })
+
+  if (participantRole) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_eventId_roleId: {
+          userId: johnxUser.id,
+          eventId: residencyEvent.id,
+          roleId: participantRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: johnxUser.id,
+        eventId: residencyEvent.id,
+        roleId: participantRole.id,
+      },
+    })
+    console.log(`✅ Assigned ${johnxUser.name} as participant in ${residencyEvent.name}`)
+  }
+
   // Create application questions for residency
   const residencyQuestions = [
     {
