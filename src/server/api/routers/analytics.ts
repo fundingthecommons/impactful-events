@@ -155,7 +155,7 @@ export const analyticsRouter = createTRPCRouter({
     .input(z.object({
       eventId: z.string(),
       status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]).optional(),
-      applicationType: z.enum(["RESIDENT", "MENTOR"]).optional(),
+      applicationType: z.enum(["RESIDENT", "MENTOR", "SPEAKER"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       checkResearcherAccess(ctx.session.user.role);

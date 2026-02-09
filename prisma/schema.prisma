@@ -432,6 +432,7 @@ enum ApplicationStatus {
 enum ApplicationType {
   RESIDENT
   MENTOR
+  SPEAKER
 }
 
 enum QuestionType {
@@ -1106,7 +1107,16 @@ model UserProfile {
   mentorAvailableDates String[]             // Available time periods
   mentorHoursPerWeek   String?             // Time commitment
   mentorPreferredContact String?           // Preferred contact method
-  
+
+  // Speaker-specific fields
+  speakerTalkTitle      String?             // Proposed talk title
+  speakerTalkAbstract   String?    @db.Text // Talk abstract/description
+  speakerTalkFormat     String?             // keynote, panel, workshop, lightning, etc.
+  speakerTalkDuration   String?             // Preferred duration
+  speakerTalkTopic      String?             // Topic or track
+  speakerPreviousExperience String? @db.Text // Previous speaking experience
+  speakerPastTalkUrl    String?             // Link to past talk recording
+
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   

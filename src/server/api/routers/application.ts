@@ -38,7 +38,7 @@ async function resolveEventId(db: PrismaClient, identifier: string): Promise<str
 const CreateApplicationInputSchema = z.object({
   eventId: z.string(),
   language: z.string().default("en"),
-  applicationType: z.enum(["RESIDENT", "MENTOR"]).default("RESIDENT"),
+  applicationType: z.enum(["RESIDENT", "MENTOR", "SPEAKER"]).default("RESIDENT"),
   invitationToken: z.string().optional(),
 });
 
@@ -134,7 +134,7 @@ export const applicationRouter = createTRPCRouter({
   getApplication: protectedProcedure
     .input(z.object({ 
       eventId: z.string(),
-      applicationType: z.enum(["RESIDENT", "MENTOR"]).optional(),
+      applicationType: z.enum(["RESIDENT", "MENTOR", "SPEAKER"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       const application = await ctx.db.application.findFirst({
@@ -663,7 +663,7 @@ export const applicationRouter = createTRPCRouter({
     .input(z.object({
       eventId: z.string(), // Can be ID or slug
       status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]).optional(),
-      applicationType: z.enum(["RESIDENT", "MENTOR"]).optional(),
+      applicationType: z.enum(["RESIDENT", "MENTOR", "SPEAKER"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);

@@ -120,8 +120,8 @@ export default function EventDetailClient({
   hasLatePassAccess = false
 }: EventDetailClientProps) {
   // Get event-specific content
-  const eventType = (event.type === 'residency' || event.type === 'hackathon') 
-    ? event.type as EventType 
+  const eventType = (event.type === 'residency' || event.type === 'hackathon' || event.type === 'conference')
+    ? event.type as EventType
     : 'residency';
   const content = getEventContent(eventType);
   

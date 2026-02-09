@@ -56,6 +56,14 @@ const profileUpdateSchema = z.object({
   mentorAvailableDates: z.array(z.string().max(50)).max(10).optional(),
   mentorHoursPerWeek: z.string().max(50).optional(),
   mentorPreferredContact: z.string().max(50).optional(),
+  // Speaker-specific fields
+  speakerTalkTitle: z.string().max(200).optional(),
+  speakerTalkAbstract: z.string().max(2000).optional(),
+  speakerTalkFormat: z.string().max(50).optional(),
+  speakerTalkDuration: z.string().max(50).optional(),
+  speakerTalkTopic: z.string().max(200).optional(),
+  speakerPreviousExperience: z.string().max(2000).optional(),
+  speakerPastTalkUrl: z.string().max(500).optional().or(z.literal("")),
 });
 
 const projectCreateSchema = z.object({

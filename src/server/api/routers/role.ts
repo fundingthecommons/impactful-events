@@ -536,4 +536,22 @@ export const roleRouter = createTRPCRouter({
 
     return { created: false, role: mentorRole };
   }),
+
+  // Ensure speaker role exists
+  ensureSpeakerRole: protectedProcedure.mutation(async ({ ctx }) => {
+    const speakerRole = await ctx.db.role.findFirst({
+      where: { name: "speaker" },
+    });
+
+    if (!speakerRole) {
+      const newSpeakerRole = await ctx.db.role.create({
+        data: {
+          name: "speaker",
+        },
+      });
+      return { created: true, role: newSpeakerRole };
+    }
+
+    return { created: false, role: speakerRole };
+  }),
 });

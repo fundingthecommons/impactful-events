@@ -799,6 +799,22 @@ export const eventRouter = createTRPCRouter({
       return !!mentorRole;
     }),
 
+  // Check if current user is a speaker for a specific event
+  checkSpeakerRole: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const speakerRole = await ctx.db.userRole.findFirst({
+        where: {
+          userId: ctx.session.user.id,
+          eventId: input.eventId,
+          role: {
+            name: "speaker"
+          }
+        }
+      });
+      return !!speakerRole;
+    }),
+
   getEventMetrics: publicProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {

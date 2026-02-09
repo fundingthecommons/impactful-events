@@ -40,6 +40,23 @@ export const EVENT_CONTENT_MAP: Record<EventType, EventContent> = {
       },
       icon: "trophy"
     }
+  },
+  conference: {
+    name: "FtC Conference",
+    shortDescription: "Conference Event",
+    applicationClosedMessage: {
+      title: "Speaker Applications are Currently Closed",
+      description: "Thank you for your interest in speaking at this Funding the Commons conference. The speaker application period has ended.",
+      infoMessage: "Stay tuned for announcements about the conference schedule and future speaking opportunities."
+    },
+    branding: {
+      colors: {
+        primary: "teal",
+        secondary: "cyan",
+        gradient: "from-teal-600 to-cyan-600"
+      },
+      icon: "microphone"
+    }
   }
 };
 
@@ -51,8 +68,10 @@ export function getEventIcon(eventType: EventType): Icon {
   switch (eventType) {
     case "residency":
       return IconHome;
-    case "hackathon": 
+    case "hackathon":
       return IconTrophy;
+    case "conference":
+      return IconMicrophone;
     default:
       return IconMicrophone; // fallback
   }

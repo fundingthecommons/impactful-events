@@ -21,7 +21,8 @@ import {
   IconBuilding,
   IconCalendarEvent,
   IconClipboardList,
-  IconUserCheck
+  IconUserCheck,
+  IconMicrophone,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -31,21 +32,18 @@ import { CreateEventModal } from "./CreateEventModal";
 
 // Helper function to get Mantine gradient format from event type
 function getMantineGradient(eventType: string) {
-  // Handle legacy event types that aren't in our EventType union
-  if (eventType === "conference") {
-    return { from: "green", to: "teal" };
-  }
-  
-  if (eventType === "residency" || eventType === "hackathon") {
+  if (eventType === "residency" || eventType === "hackathon" || eventType === "conference") {
     const gradientString = getEventGradient(eventType as EventType);
     // Convert Tailwind gradient to Mantine format
-    if (gradientString.includes("blue")) {
+    if (gradientString.includes("teal")) {
+      return { from: "teal", to: "cyan" };
+    } else if (gradientString.includes("blue")) {
       return { from: "blue", to: "cyan" };
     } else if (gradientString.includes("orange")) {
       return { from: "orange", to: "red" };
     }
   }
-  
+
   // Default fallback
   return { from: "purple", to: "pink" };
 }
@@ -157,6 +155,22 @@ function EventCard({ event }: EventCardProps) {
             </Group>
             <Link href={`/admin/events/${eventIdentifier}/mentors`} style={{ textDecoration: 'none' }}>
               <Badge variant="outline" color="green" style={{ cursor: 'pointer' }}>
+                Manage
+              </Badge>
+            </Link>
+          </Group>
+
+          <Group justify="space-between">
+            <Group gap="xs">
+              <ThemeIcon size="sm" variant="light" color="teal">
+                <IconMicrophone size={12} />
+              </ThemeIcon>
+              <Text size="sm" fw={500}>
+                Speakers
+              </Text>
+            </Group>
+            <Link href={`/admin/events/${eventIdentifier}/speakers`} style={{ textDecoration: 'none' }}>
+              <Badge variant="outline" color="teal" style={{ cursor: 'pointer' }}>
                 Manage
               </Badge>
             </Link>

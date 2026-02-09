@@ -1,4 +1,4 @@
-export type EventType = 'residency' | 'hackathon';
+export type EventType = 'residency' | 'hackathon' | 'conference';
 
 export interface EventContent {
   name: string;
