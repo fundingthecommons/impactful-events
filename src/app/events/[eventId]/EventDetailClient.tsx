@@ -17,14 +17,16 @@ import {
   Tabs,
   Alert,
 } from "@mantine/core";
-import { 
+import {
   IconCalendarEvent,
   IconMapPin,
   IconClock,
   IconCheck,
   IconAlertCircle,
   IconEdit,
+  IconMicrophone,
 } from "@tabler/icons-react";
+import Link from "next/link";
 import Image from "next/image";
 import { api } from "~/trpc/react";
 import DynamicApplicationForm from "~/app/_components/DynamicApplicationForm";
@@ -298,19 +300,29 @@ export default function EventDetailClient({
             <Tabs.Tab value="overview">
               Event Overview
             </Tabs.Tab>
-            <Tabs.Tab 
-              value="application"
-              disabled={!hasLatePassAccess && !userApplication}
-            >
-              <Group gap="xs">
-                {userApplication ? "Manage Application" : "Apply Now"}
-                {!hasLatePassAccess && !userApplication && (
-                  <Badge size="xs" variant="light" color="red">
-                    Closed
-                  </Badge>
-                )}
-              </Group>
-            </Tabs.Tab>
+            {eventType !== 'conference' && (
+              <Tabs.Tab
+                value="application"
+                disabled={!hasLatePassAccess && !userApplication}
+              >
+                <Group gap="xs">
+                  {userApplication ? "Manage Application" : "Apply Now"}
+                  {!hasLatePassAccess && !userApplication && (
+                    <Badge size="xs" variant="light" color="red">
+                      Closed
+                    </Badge>
+                  )}
+                </Group>
+              </Tabs.Tab>
+            )}
+            {eventType === 'conference' && (
+              <Tabs.Tab value="speakers">
+                <Group gap="xs">
+                  <IconMicrophone size={14} />
+                  Speakers
+                </Group>
+              </Tabs.Tab>
+            )}
             <Tabs.Tab value="participants">
               Participants
               {participants.length > 0 && (
@@ -364,18 +376,37 @@ export default function EventDetailClient({
                   </Stack>
                 </Group>
 
-                {!userApplication && (
+                {eventType === 'conference' ? (
                   <>
                     <Divider />
-                    <Button 
-                      size="lg" 
+                    <Stack gap="md">
+                      <Title order={3}>Speak at This Event</Title>
+                      <Text c="dimmed">
+                        Interested in presenting at {event.name}? Submit a speaker application with your talk proposal.
+                      </Text>
+                      <Button
+                        component={Link}
+                        href={`/events/${event.id}/speaker`}
+                        size="lg"
+                        color="teal"
+                        leftSection={<IconMicrophone size={18} />}
+                      >
+                        Apply as Speaker
+                      </Button>
+                    </Stack>
+                  </>
+                ) : !userApplication ? (
+                  <>
+                    <Divider />
+                    <Button
+                      size="lg"
                       onClick={() => setActiveTab("application")}
                       leftSection={<IconEdit size={16} />}
                     >
                       Start Your Application
                     </Button>
                   </>
-                )}
+                ) : null}
               </Stack>
             </Paper>
           </Tabs.Panel>
@@ -453,6 +484,43 @@ export default function EventDetailClient({
               )}
             </Paper>
           </Tabs.Panel>
+
+          {/* Speakers Tab (Conference events) */}
+          {eventType === 'conference' && (
+            <Tabs.Panel value="speakers" mt="md">
+              <Paper p="xl" radius="md" withBorder>
+                <Stack gap="lg">
+                  <Title order={2}>Speakers</Title>
+                  <Text c="dimmed">
+                    Speakers for this conference will be announced as applications are reviewed.
+                  </Text>
+
+                  <Divider />
+
+                  <Card p="xl" radius="md" withBorder style={{ textAlign: 'center' }}>
+                    <Stack gap="md" align="center">
+                      <ThemeIcon size={60} radius="xl" variant="light" color="teal">
+                        <IconMicrophone size={30} />
+                      </ThemeIcon>
+                      <Title order={3}>Want to Speak?</Title>
+                      <Text c="dimmed" maw={400}>
+                        Share your expertise with our community. Submit a speaker application with your talk proposal.
+                      </Text>
+                      <Button
+                        component={Link}
+                        href={`/events/${event.id}/speaker`}
+                        size="lg"
+                        color="teal"
+                        leftSection={<IconMicrophone size={18} />}
+                      >
+                        Apply as Speaker
+                      </Button>
+                    </Stack>
+                  </Card>
+                </Stack>
+              </Paper>
+            </Tabs.Panel>
+          )}
 
           {/* Mentor Dashboard Tab */}
           {/* eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing */}

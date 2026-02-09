@@ -134,23 +134,56 @@ export default function EventPage({ params }: EventPageProps) {
   );
 
 
-  // Show loading while authentication, event data, or access checks are in progress
-  const isLoadingAccess = status === "loading" || eventLoading || isCheckingAccess || isMentorLoading || isApplicationLoading;
+  // Conference events are publicly accessible - only need event data to load
+  const isConference = event?.type === 'conference';
+
+  // Show loading while event data or access checks are in progress
+  const isLoadingAccess = isConference
+    ? eventLoading
+    : status === "loading" || eventLoading || isCheckingAccess || isMentorLoading || isApplicationLoading;
 
   if (isLoadingAccess) {
     return <div>Loading...</div>;
   }
 
-  // Require authentication for this page
+  if (!event) {
+    return <div>Event not found</div>;
+  }
+
+  // Conference events are publicly viewable - skip auth and access control
+  if (isConference) {
+    return (
+      <>
+        <Container size="lg" py="xl">
+          <Stack gap="xl">
+            <Group gap="xs">
+              <Link href="/events" style={{ textDecoration: 'none' }}>
+                <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
+                  Back to Events
+                </Button>
+              </Link>
+            </Group>
+          </Stack>
+        </Container>
+
+        <EventDetailClient
+          event={event}
+          userApplication={userApplication ?? null}
+          userId={session?.user?.id ?? ""}
+          defaultTab={defaultTab ?? undefined}
+          language={language}
+          hasLatePassAccess={true}
+        />
+      </>
+    );
+  }
+
+  // Require authentication for non-conference events
   if (!session?.user) {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
     const callbackUrl = encodeURIComponent(currentUrl);
     router.push(`/signin?callbackUrl=${callbackUrl}`);
     return <div>Redirecting to sign in...</div>;
-  }
-
-  if (!event) {
-    return <div>Event not found</div>;
   }
 
   // Check if user is accepted for this specific event
@@ -190,7 +223,7 @@ export default function EventPage({ params }: EventPageProps) {
             style={{ maxWidth: 500, width: '100%' }}
           >
             <Text c="white" size="md">
-              This event page is only accessible to accepted residents. 
+              This event page is only accessible to accepted residents.
               If you have a late pass code, please use the provided link.
             </Text>
           </Alert>
