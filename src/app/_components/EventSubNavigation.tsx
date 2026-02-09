@@ -8,6 +8,7 @@ import {
   IconHandStop,
   IconUsers,
   IconBulb,
+  IconCalendarEvent,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -28,6 +29,7 @@ export default function EventSubNavigation({ eventId }: EventSubNavigationProps)
 
   // Determine active tab based on current path
   const getActiveTab = () => {
+    if (pathname.startsWith(`${basePath}/schedule`)) return "schedule";
     if (pathname.startsWith(`${basePath}/impact`)) return "impact";
     if (pathname.startsWith(`${basePath}/latest`)) return "latest";
     if (pathname.startsWith(`${basePath}/asks-offers`)) return "asks-offers";
@@ -53,6 +55,16 @@ export default function EventSubNavigation({ eventId }: EventSubNavigationProps)
     >
       <Tabs value={getActiveTab()} color="blue" variant="default">
         <Tabs.List style={{ borderBottom: 0 }}>
+          <TabsTab
+            value="schedule"
+            leftSection={<IconCalendarEvent size={14} />}
+            component={Link}
+            href={`${basePath}/schedule`}
+            style={{ textDecoration: "none", fontSize: "0.875rem" }}
+          >
+            Schedule
+          </TabsTab>
+
           <TabsTab
             value="latest"
             leftSection={<IconNews size={14} />}

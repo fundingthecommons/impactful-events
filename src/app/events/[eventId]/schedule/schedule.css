@@ -1,0 +1,86 @@
+/* Schedule page theme-aware styles */
+
+:root,
+[data-theme="light"] {
+  --schedule-bg: #f8fafc;
+  --schedule-card-bg: #ffffff;
+  --schedule-card-border: #e2e8f0;
+  --schedule-card-hover: #f1f5f9;
+  --schedule-time-label-color: #475569;
+  --schedule-day-bg: #f1f5f9;
+  --schedule-day-text: #1e293b;
+  --schedule-sidebar-bg: #ffffff;
+  --schedule-sidebar-border: #e2e8f0;
+  --schedule-search-bg: #f8fafc;
+}
+
+[data-theme="dark"] {
+  --schedule-bg: #1a1b1e;
+  --schedule-card-bg: #25262b;
+  --schedule-card-border: #373a40;
+  --schedule-card-hover: #2c2e33;
+  --schedule-time-label-color: #909296;
+  --schedule-day-bg: #25262b;
+  --schedule-day-text: #c1c2c5;
+  --schedule-sidebar-bg: #25262b;
+  --schedule-sidebar-border: #373a40;
+  --schedule-search-bg: #2c2e33;
+}
+
+.schedule-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .schedule-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.schedule-time-group {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .schedule-time-group {
+    grid-template-columns: 80px 1fr;
+    gap: 0.5rem;
+  }
+}
+
+.schedule-time-label {
+  padding-top: 0.75rem;
+  text-align: right;
+  padding-right: 0.5rem;
+}
+
+.schedule-session-card {
+  background: var(--schedule-card-bg);
+  border: 1px solid var(--schedule-card-border);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  cursor: default;
+  transition: background-color 0.15s ease;
+}
+
+.schedule-session-card:hover {
+  background: var(--schedule-card-hover);
+}
+
+.schedule-sidebar {
+  position: sticky;
+  top: 1rem;
+}
+
+.schedule-filter-section {
+  background: var(--schedule-sidebar-bg);
+  border: 1px solid var(--schedule-sidebar-border);
+  border-radius: 8px;
+  padding: 1rem;
+}

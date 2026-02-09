@@ -26,6 +26,7 @@ import { metricRouter } from "~/server/api/routers/metric";
 import { atprotoRouter } from "~/server/api/routers/atproto";
 import { hypercertsRouter } from "~/server/api/routers/hypercerts";
 import { forumRouter } from "~/server/api/routers/forum";
+import { scheduleRouter } from "~/server/api/routers/schedule";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -62,6 +63,7 @@ export const appRouter = createTRPCRouter({
   atproto: atprotoRouter,
   hypercerts: hypercertsRouter,
   forum: forumRouter,
+  schedule: scheduleRouter,
 });
 
 // export type definition of API

@@ -214,6 +214,11 @@ model Event {
   metricMeasurements MetricMeasurement[] // Measurements during this event
   repositoryMetrics RepositoryResidencyMetrics[] @relation("RepositoryMetrics") // GitHub metrics for this residency
 
+  // Schedule system relations
+  scheduleVenues       ScheduleVenue[]
+  scheduleSessionTypes ScheduleSessionType[]
+  scheduleSessions     ScheduleSession[]
+
   @@index([slug])
 }
 
@@ -2044,4 +2049,67 @@ model ForumCommentLike {
   @@index([commentId])
   @@index([userId])
   @@index([createdAt])
+}
+
+// Schedule System Models
+
+model ScheduleVenue {
+  id          String   @id @default(cuid())
+  eventId     String
+  name        String
+  description String?  @db.Text
+  capacity    Int?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event       Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sessions    ScheduleSession[]
+
+  @@unique([eventId, name])
+  @@index([eventId])
+  @@index([order])
+}
+
+model ScheduleSessionType {
+  id          String   @id @default(cuid())
+  eventId     String
+  name        String
+  color       String   @default("#4299e1")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event       Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sessions    ScheduleSession[]
+
+  @@unique([eventId, name])
+  @@index([eventId])
+  @@index([order])
+}
+
+model ScheduleSession {
+  id            String   @id @default(cuid())
+  eventId       String
+  title         String
+  description   String?  @db.Text
+  startTime     DateTime
+  endTime       DateTime
+  speakers      String[]
+  venueId       String?
+  sessionTypeId String?
+  order         Int      @default(0)
+  isPublished   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  event         Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  venue         ScheduleVenue?       @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  sessionType   ScheduleSessionType? @relation(fields: [sessionTypeId], references: [id], onDelete: SetNull)
+
+  @@index([eventId])
+  @@index([startTime])
+  @@index([venueId])
+  @@index([sessionTypeId])
+  @@index([isPublished])
 }
