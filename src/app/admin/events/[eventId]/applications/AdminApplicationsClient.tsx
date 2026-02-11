@@ -200,6 +200,24 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   const FLIGHT_CONFIRMATION_MESSAGE = "We haven't received your flight confirmation yet. Your flight is required to secure your spot in the FTC residency. If we don't receive your ticket by Monday, we'll offer your spot to other candidates on our waiting list.\n\nPlease send us the following:\n• Your e-ticket\n• Proof of international health insurance (World Nomads or SafetyWing are good options)\n• If you need a visa letter, please provide: full name, nationality, passport number, date of birth, and passport expiration date.\n\nLooking forward to hear from you soon.";
 
   const [activeTab, setActiveTab] = useState<string>("all");
+
+  // URL hash-based tab linking
+  const validTabs = ["all", "incomplete", "under_review", "pipeline", "consensus", "accepted", "waitlisted", "rejected"];
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash && validTabs.includes(hash)) {
+      setActiveTab(hash);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleTabChange = (value: string | null) => {
+    if (value) {
+      setActiveTab(value);
+      window.history.replaceState(null, "", `#${value}`);
+    }
+  };
+
   const [searchQuery, setSearchQuery] = useState("");
   const [hideRejected, setHideRejected] = useState<boolean>(true);
   const [hideReviewingAccepted, setHideReviewingAccepted] = useState<boolean>(false);
@@ -1970,7 +1988,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
           </Card>
         )}
         {/* Tabs for Application Status */}
-        <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? "all")}>
+        <Tabs value={activeTab} onChange={handleTabChange}>
           <Tabs.List grow>
             <Tabs.Tab value="all">
               All Applications

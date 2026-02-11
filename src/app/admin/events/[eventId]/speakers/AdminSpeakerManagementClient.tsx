@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Container,
   Title,
@@ -104,6 +104,23 @@ function getInvStatusIcon(status: string) {
 export default function AdminSpeakerManagementClient({ eventId }: Props) {
   const [mainTab, setMainTab] = useState<string>("applications");
   const [appTab, setAppTab] = useState<string>("all");
+
+  // URL hash-based tab linking
+  const validMainTabs = ["applications", "invitations"];
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash && validMainTabs.includes(hash)) {
+      setMainTab(hash);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleMainTabChange = (value: string | null) => {
+    if (value) {
+      setMainTab(value);
+      window.history.replaceState(null, "", `#${value}`);
+    }
+  };
   const [selectedApplications, setSelectedApplications] = useState<string[]>([]);
   const [bulkStatusModalOpen, setBulkStatusModalOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<"ACCEPTED" | "REJECTED" | null>(null);
@@ -343,7 +360,7 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
       </SimpleGrid>
 
       {/* Main Tabs */}
-      <Tabs value={mainTab} onChange={(v) => setMainTab(v ?? "applications")}>
+      <Tabs value={mainTab} onChange={handleMainTabChange}>
         <Tabs.List mb="md">
           <Tabs.Tab value="applications">
             Applications

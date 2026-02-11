@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Container, 
   Text, 
@@ -89,6 +89,23 @@ type EvaluationData = {
 export default function EvaluationPageClient({ evaluationId }: EvaluationPageClientProps) {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<'individual' | 'consensus'>('individual');
+
+  // URL hash-based tab linking
+  const validTabs = ["individual", "consensus"];
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash && validTabs.includes(hash)) {
+      setViewMode(hash as 'individual' | 'consensus');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleViewModeChange = (value: string | null) => {
+    if (value) {
+      setViewMode(value as 'individual' | 'consensus');
+      window.history.replaceState(null, "", `#${value}`);
+    }
+  };
 
   // Fetch evaluation details by ID
   const evaluationQuery = api.evaluation.getEvaluationById.useQuery({
@@ -217,7 +234,7 @@ export default function EvaluationPageClient({ evaluationId }: EvaluationPageCli
         </Group>
 
         {/* Tabs for Individual Review and Consensus View */}
-        <Tabs value={viewMode} onChange={(value) => setViewMode(value as 'individual' | 'consensus')}>
+        <Tabs value={viewMode} onChange={handleViewModeChange}>
           <Tabs.List>
             <Tabs.Tab value="individual">Individual Review</Tabs.Tab>
             <Tabs.Tab value="consensus" disabled={!hasConsensusData}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Container, 
   Title, 
@@ -79,6 +79,24 @@ function getStatusIcon(status: string) {
 
 export default function AdminMentorApplicationsClient({ eventId }: Props) {
   const [activeTab, setActiveTab] = useState<string>("all");
+
+  // URL hash-based tab linking
+  const validTabs = ["all", "accepted", "rejected"];
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (hash && validTabs.includes(hash)) {
+      setActiveTab(hash);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleTabChange = (value: string | null) => {
+    if (value) {
+      setActiveTab(value);
+      window.history.replaceState(null, "", `#${value}`);
+    }
+  };
+
   const [selectedApplications, setSelectedApplications] = useState<string[]>([]);
   const [bulkStatusModalOpen, setBulkStatusModalOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<"ACCEPTED" | "REJECTED" | null>(null);
@@ -309,7 +327,7 @@ export default function AdminMentorApplicationsClient({ eventId }: Props) {
 
       {/* Main Content */}
       <Card withBorder>
-        <Tabs value={activeTab} onChange={(value) => setActiveTab(value ?? "all")}>
+        <Tabs value={activeTab} onChange={handleTabChange}>
           <Tabs.List grow>
             <Tabs.Tab value="all">
               All Applications
