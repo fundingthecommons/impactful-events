@@ -377,7 +377,8 @@ export const scheduleRouter = createTRPCRouter({
         });
       }
 
-      const [user, venue] = await Promise.all([
+      const [event, user, venue] = await Promise.all([
+        resolveEventId(ctx.db, input.eventId),
         ctx.db.user.findUnique({ where: { id: input.userId } }),
         ctx.db.scheduleVenue.findUnique({ where: { id: input.venueId } }),
       ]);
@@ -393,7 +394,7 @@ export const scheduleRouter = createTRPCRouter({
         data: {
           userId: input.userId,
           venueId: input.venueId,
-          eventId: input.eventId,
+          eventId: event.id,
           assignedBy: ctx.session.user.id,
         },
         include: {

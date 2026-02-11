@@ -149,10 +149,11 @@ function AssignFloorOwnerForm({ eventId, venues }: AssignFormProps) {
     },
   });
 
-  const userOptions = (searchResults ?? []).map((user) => ({
-    value: user.id,
-    label: `${user.firstName ?? ""} ${user.surname ?? ""}`.trim() || (user.name ?? user.email ?? "Unknown"),
-  }));
+  const userOptions = (searchResults ?? []).map((user) => {
+    const name = `${user.firstName ?? ""} ${user.surname ?? ""}`.trim() || (user.name ?? "Unknown");
+    const email = user.email ? ` (${user.email})` : "";
+    return { value: user.id, label: `${name}${email}` };
+  });
 
   const handleAssign = () => {
     if (!selectedUserId || !selectedVenueId) {
