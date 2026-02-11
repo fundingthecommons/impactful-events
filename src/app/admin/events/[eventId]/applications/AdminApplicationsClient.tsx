@@ -70,6 +70,7 @@ import { getDisplayName } from "~/utils/userDisplay";
 
 type Event = {
   id: string;
+  slug: string | null;
   name: string;
   description: string | null;
   type: string;
@@ -1936,9 +1937,9 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
         {/* Header */}
         <Group justify="space-between">
           <Stack gap="xs">
-            <Link href="/admin/events" style={{ textDecoration: 'none' }}>
+            <Link href={`/admin/events/${event.slug ?? event.id}`} style={{ textDecoration: 'none' }}>
               <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
-                Back to Events
+                Back to {event.name}
               </Button>
             </Link>
             <Title order={1}>

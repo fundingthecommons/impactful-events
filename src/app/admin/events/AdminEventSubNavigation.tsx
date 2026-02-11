@@ -20,10 +20,18 @@ type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
 
 interface AdminEventSubNavigationProps {
   eventId: string;
+  featureFlags?: {
+    featureAsksOffers: boolean;
+    featureProjects: boolean;
+    featureNewsfeed: boolean;
+    featurePraise: boolean;
+    featureImpactAnalytics: boolean;
+  };
 }
 
-export default function AdminEventSubNavigation({ eventId }: AdminEventSubNavigationProps) {
-  const basePath = `/events/${eventId}`;
+export default function AdminEventSubNavigation({ eventId, featureFlags }: AdminEventSubNavigationProps) {
+  const adminBasePath = `/admin/events/${eventId}`;
+  const publicBasePath = `/events/${eventId}`;
 
   const TabsTab = Tabs.Tab as React.ComponentType<TabWithLinkProps>;
 
@@ -45,71 +53,81 @@ export default function AdminEventSubNavigation({ eventId }: AdminEventSubNaviga
             value="my-event"
             leftSection={<IconMapPin size={14} />}
             component={Link}
-            href={basePath}
+            href={adminBasePath}
             style={{ textDecoration: "none", fontSize: "0.875rem" }}
           >
             My Event
           </TabsTab>
 
-          <TabsTab
-            value="asks-offers"
-            leftSection={<IconHandStop size={14} />}
-            component={Link}
-            href={`${basePath}/asks-offers`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Asks & Offers
-          </TabsTab>
+          {featureFlags?.featureAsksOffers !== false && (
+            <TabsTab
+              value="asks-offers"
+              leftSection={<IconHandStop size={14} />}
+              component={Link}
+              href={`${publicBasePath}/asks-offers`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Asks & Offers
+            </TabsTab>
+          )}
 
           <TabsTab
             value="participants"
             leftSection={<IconUsers size={14} />}
             component={Link}
-            href={`${basePath}/participants`}
+            href={`${publicBasePath}/participants`}
             style={{ textDecoration: "none", fontSize: "0.875rem" }}
           >
             Participants
           </TabsTab>
 
-          <TabsTab
-            value="event-projects"
-            leftSection={<IconBulb size={14} />}
-            component={Link}
-            href={`${basePath}/projects`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Projects
-          </TabsTab>
+          {featureFlags?.featureProjects !== false && (
+            <TabsTab
+              value="event-projects"
+              leftSection={<IconBulb size={14} />}
+              component={Link}
+              href={`${publicBasePath}/projects`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Projects
+            </TabsTab>
+          )}
 
-          <TabsTab
-            value="latest"
-            leftSection={<IconNews size={14} />}
-            component={Link}
-            href={`${basePath}/latest`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Latest
-          </TabsTab>
+          {featureFlags?.featureNewsfeed !== false && (
+            <TabsTab
+              value="latest"
+              leftSection={<IconNews size={14} />}
+              component={Link}
+              href={`${publicBasePath}/latest`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Latest
+            </TabsTab>
+          )}
 
-          <TabsTab
-            value="praise"
-            leftSection={<IconSparkles size={14} />}
-            component={Link}
-            href={`${basePath}/praise`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Praise
-          </TabsTab>
+          {featureFlags?.featurePraise !== false && (
+            <TabsTab
+              value="praise"
+              leftSection={<IconSparkles size={14} />}
+              component={Link}
+              href={`${publicBasePath}/praise`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Praise
+            </TabsTab>
+          )}
 
-          <TabsTab
-            value="impact"
-            leftSection={<IconHeart size={14} />}
-            component={Link}
-            href={`${basePath}/impact`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Impact
-          </TabsTab>
+          {featureFlags?.featureImpactAnalytics !== false && (
+            <TabsTab
+              value="impact"
+              leftSection={<IconHeart size={14} />}
+              component={Link}
+              href={`${publicBasePath}/impact`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Impact
+            </TabsTab>
+          )}
         </Tabs.List>
       </Tabs>
     </Paper>

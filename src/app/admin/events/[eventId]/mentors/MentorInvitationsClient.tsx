@@ -264,9 +264,9 @@ export default function MentorInvitationsClient({ eventId }: Props) {
       <Group justify="space-between" mb="xl">
         <div>
           <Group mb="xs">
-            <Link href={`/admin/events`} style={{ textDecoration: 'none' }}>
+            <Link href={`/admin/events/${eventId}`} style={{ textDecoration: 'none' }}>
               <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} size="sm">
-                Back to Events
+                Back to {event?.name ?? "Event"}
               </Button>
             </Link>
           </Group>

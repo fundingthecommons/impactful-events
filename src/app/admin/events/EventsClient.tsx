@@ -302,7 +302,7 @@ type EventWithCounts = {
 
 export default function EventsClient() {
   const [createModalOpened, setCreateModalOpened] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("ACTIVE");
 
   const utils = api.useUtils();
 
@@ -412,8 +412,8 @@ export default function EventsClient() {
           value={statusFilter}
           onChange={setStatusFilter}
           data={[
-            { label: `All (${eventsWithCounts.length})`, value: "ALL" },
             { label: `Active (${activeCount})`, value: "ACTIVE" },
+            { label: `All (${eventsWithCounts.length})`, value: "ALL" },
             { label: `Completed (${completedCount})`, value: "COMPLETED" },
             { label: `Cancelled (${cancelledCount})`, value: "CANCELLED" },
           ]}

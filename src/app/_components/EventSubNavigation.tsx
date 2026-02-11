@@ -21,9 +21,15 @@ type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
 
 interface EventSubNavigationProps {
   eventId: string;
+  featureFlags?: {
+    featureAsksOffers: boolean;
+    featureProjects: boolean;
+    featureNewsfeed: boolean;
+    featureImpactAnalytics: boolean;
+  };
 }
 
-export default function EventSubNavigation({ eventId }: EventSubNavigationProps) {
+export default function EventSubNavigation({ eventId, featureFlags }: EventSubNavigationProps) {
   const pathname = usePathname();
   const basePath = `/events/${eventId}`;
 
@@ -65,25 +71,29 @@ export default function EventSubNavigation({ eventId }: EventSubNavigationProps)
             Schedule
           </TabsTab>
 
-          <TabsTab
-            value="latest"
-            leftSection={<IconNews size={14} />}
-            component={Link}
-            href={`${basePath}/latest`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Latest
-          </TabsTab>
+          {featureFlags?.featureNewsfeed !== false && (
+            <TabsTab
+              value="latest"
+              leftSection={<IconNews size={14} />}
+              component={Link}
+              href={`${basePath}/latest`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Latest
+            </TabsTab>
+          )}
 
-          <TabsTab
-            value="asks-offers"
-            leftSection={<IconHandStop size={14} />}
-            component={Link}
-            href={`${basePath}/asks-offers`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Asks & Offers
-          </TabsTab>
+          {featureFlags?.featureAsksOffers !== false && (
+            <TabsTab
+              value="asks-offers"
+              leftSection={<IconHandStop size={14} />}
+              component={Link}
+              href={`${basePath}/asks-offers`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Asks & Offers
+            </TabsTab>
+          )}
 
           <TabsTab
             value="participants"
@@ -95,25 +105,29 @@ export default function EventSubNavigation({ eventId }: EventSubNavigationProps)
             Participants
           </TabsTab>
 
-          <TabsTab
-            value="event-projects"
-            leftSection={<IconBulb size={14} />}
-            component={Link}
-            href={`${basePath}/projects`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Projects
-          </TabsTab>
+          {featureFlags?.featureProjects !== false && (
+            <TabsTab
+              value="event-projects"
+              leftSection={<IconBulb size={14} />}
+              component={Link}
+              href={`${basePath}/projects`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Projects
+            </TabsTab>
+          )}
 
-          <TabsTab
-            value="impact"
-            leftSection={<IconHeart size={14} />}
-            component={Link}
-            href={`${basePath}/impact`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Impact
-          </TabsTab>
+          {featureFlags?.featureImpactAnalytics !== false && (
+            <TabsTab
+              value="impact"
+              leftSection={<IconHeart size={14} />}
+              component={Link}
+              href={`${basePath}/impact`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Impact
+            </TabsTab>
+          )}
 
           <TabsTab
             value="my-event"

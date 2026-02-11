@@ -1094,6 +1094,15 @@ export const eventRouter = createTRPCRouter({
         isOnline: z.boolean().optional(),
         location: z.string().optional(),
         description: z.string().optional(),
+        // Feature flags
+        featureApplicantVetting: z.boolean().optional(),
+        featureSpeakerVetting: z.boolean().optional(),
+        featureMentorVetting: z.boolean().optional(),
+        featurePraise: z.boolean().optional(),
+        featureProjects: z.boolean().optional(),
+        featureAsksOffers: z.boolean().optional(),
+        featureNewsfeed: z.boolean().optional(),
+        featureImpactAnalytics: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -1275,5 +1284,38 @@ export const eventRouter = createTRPCRouter({
       });
 
       return { success: true };
+    }),
+
+  // Update event feature flags
+  updateEventFeatureFlags: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        featureApplicantVetting: z.boolean().optional(),
+        featureSpeakerVetting: z.boolean().optional(),
+        featureMentorVetting: z.boolean().optional(),
+        featurePraise: z.boolean().optional(),
+        featureProjects: z.boolean().optional(),
+        featureAsksOffers: z.boolean().optional(),
+        featureNewsfeed: z.boolean().optional(),
+        featureImpactAnalytics: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...flags } = input;
+
+      // Only admin/staff can update feature flags
+      const isGlobalAdmin =
+        ctx.session.user.role === "admin" || ctx.session.user.role === "staff";
+      if (!isGlobalAdmin) {
+        throw new Error("You don't have permission to update feature flags");
+      }
+
+      const updatedEvent = await ctx.db.event.update({
+        where: { id },
+        data: flags,
+      });
+
+      return updatedEvent;
     }),
 });

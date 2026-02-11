@@ -29,6 +29,7 @@ export default async function AdminApplicationsPage({ params }: AdminApplication
     where: { id: eventId },
     select: {
       id: true,
+      slug: true,
       name: true,
       description: true,
       type: true,
@@ -42,6 +43,7 @@ export default async function AdminApplicationsPage({ params }: AdminApplication
     where: { slug: eventId },
     select: {
       id: true,
+      slug: true,
       name: true,
       description: true,
       type: true,
