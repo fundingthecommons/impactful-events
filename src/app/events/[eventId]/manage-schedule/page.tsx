@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import ManageScheduleClient from "./ManageScheduleClient";
 
 export const metadata: Metadata = {
-  title: "Manage Schedule",
+  title: "Manage Floors",
   description: "Manage your floor schedule",
 };
 

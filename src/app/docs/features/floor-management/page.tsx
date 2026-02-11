@@ -52,7 +52,7 @@ export default function FloorManagementPage() {
         Accessing Your Floor
       </h2>
       <p className="docs-text">
-        Once assigned, a new &ldquo;Manage Schedule&rdquo; tab will appear in
+        Once assigned, a new &ldquo;Manage Floors&rdquo; tab will appear in
         the event navigation. Click it to see all the venues you have been
         assigned to. If you manage more than one floor, you can switch between
         them using the tabs at the top of the page.
@@ -60,7 +60,7 @@ export default function FloorManagementPage() {
 
       <div className="docs-callout">
         <p className="docs-callout-text">
-          <strong>Cannot see the tab?</strong> The &ldquo;Manage Schedule&rdquo;
+          <strong>Cannot see the tab?</strong> The &ldquo;Manage Floors&rdquo;
           tab only appears when the event organiser has enabled schedule
           management for the event. If you expect to see it but do not, contact
           your event organiser.

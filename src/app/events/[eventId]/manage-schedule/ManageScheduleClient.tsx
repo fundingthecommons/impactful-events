@@ -94,7 +94,7 @@ export default function ManageScheduleClient({ eventId }: ManageScheduleClientPr
       <Stack gap="lg">
         <Group justify="space-between">
           <div>
-            <Title order={2}>Manage Schedule</Title>
+            <Title order={2}>Manage Floors</Title>
             <Text c="dimmed" size="sm">
               {floorsData.isAdmin
                 ? "Admin view — managing all floors"

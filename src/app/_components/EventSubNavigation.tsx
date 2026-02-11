@@ -11,9 +11,11 @@ import {
   IconCalendarEvent,
   IconSettings,
 } from "@tabler/icons-react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
+import { api } from "~/trpc/react";
 
 // Proper type for Tab component with Link
 type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
@@ -41,6 +43,19 @@ export default function EventSubNavigation({
 }: EventSubNavigationProps) {
   const pathname = usePathname();
   const basePath = `/events/${eventId}`;
+  const { data: session } = useSession();
+
+  // Client-side fallback: only fires when server-side check missed floor ownership
+  const shouldCheckClientSide =
+    !isFloorOwner &&
+    !isAdmin &&
+    !!session?.user &&
+    featureFlags?.featureScheduleManagement !== false;
+
+  const { data: clientIsFloorOwner } = api.schedule.isFloorOwner.useQuery(
+    { eventId },
+    { enabled: shouldCheckClientSide },
+  );
 
   // Determine active tab based on current path
   const getActiveTab = () => {
@@ -58,7 +73,9 @@ export default function EventSubNavigation({
   const TabsTab = Tabs.Tab as React.ComponentType<TabWithLinkProps>;
 
   const showManageSchedule =
-    featureFlags?.featureScheduleManagement !== false && (isFloorOwner ?? isAdmin);
+    featureFlags?.featureScheduleManagement !== false &&
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    (isFloorOwner || isAdmin || clientIsFloorOwner === true);
 
   return (
     <Paper
@@ -150,7 +167,7 @@ export default function EventSubNavigation({
               href={`${basePath}/manage-schedule`}
               style={{ textDecoration: "none", fontSize: "0.875rem" }}
             >
-              Manage Schedule
+              Manage Floors
             </TabsTab>
           )}
 

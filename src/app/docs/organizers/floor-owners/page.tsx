@@ -37,7 +37,7 @@ export default function FloorOwnersPage() {
       <p className="docs-text">
         If the person already has an account on the platform, search for them by
         name or email, select the venue you want them to manage, and click
-        assign. They will see the &ldquo;Manage Schedule&rdquo; tab the next
+        assign. They will see the &ldquo;Manage Floors&rdquo; tab the next
         time they visit the event.
       </p>
 
@@ -64,7 +64,7 @@ export default function FloorOwnersPage() {
         Enabling Schedule Management
       </h2>
       <p className="docs-text">
-        For floor owners to see the &ldquo;Manage Schedule&rdquo; tab, the
+        For floor owners to see the &ldquo;Manage Floors&rdquo; tab, the
         schedule management feature flag must be enabled for your event. You can
         toggle this from the event settings page in the admin panel.
       </p>
@@ -109,7 +109,7 @@ export default function FloorOwnersPage() {
       <p className="docs-text">
         To remove a floor owner, go to the Floor Owners tab, find the
         assignment, and click the remove button. The person will lose access to
-        the &ldquo;Manage Schedule&rdquo; tab for that venue, but their account
+        the &ldquo;Manage Floors&rdquo; tab for that venue, but their account
         and any sessions they created will remain.
       </p>
 
