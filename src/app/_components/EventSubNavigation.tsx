@@ -64,7 +64,7 @@ export default function EventSubNavigation({
   // Determine active tab based on current path
   // Use path segments after /events/[eventId]/ to handle both ID and slug URLs
   const getActiveTab = () => {
-    const match = pathname.match(/^\/events\/[^/]+(\/.*)?$/);
+    const match = /^\/events\/[^/]+(\/.*)?$/.exec(pathname);
     const subPath = match?.[1] ?? "";
     if (subPath.startsWith("/speakers")) return "speakers";
     if (subPath.startsWith("/manage-schedule")) return "manage-schedule";
