@@ -79,39 +79,10 @@ export const invitationRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);
 
-      // Check if invitation already exists
-      let existing;
-      if (input.type === "EVENT_ROLE") {
-        existing = await ctx.db.invitation.findFirst({
-          where: {
-            email: input.email,
-            eventId: input.eventId,
-            roleId: input.roleId,
-            status: "PENDING",
-          },
-        });
-      } else {
-        existing = await ctx.db.invitation.findFirst({
-          where: {
-            email: input.email,
-            type: input.type,
-            globalRole: input.globalRole,
-            status: "PENDING",
-          },
-        });
-      }
-
-      if (existing) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Invitation already exists for this email and role combination",
-        });
-      }
-
       let event = null;
       let role = null;
 
-      // Verify event and role exist for event-specific invitations
+      // Resolve event and role first (handles both ID and slug)
       if (input.type === "EVENT_ROLE") {
         event = await ctx.db.event.findUnique({
           where: { id: input.eventId! },
@@ -141,6 +112,42 @@ export const invitationRouter = createTRPCRouter({
         }
       }
 
+      const resolvedEventId = event?.id ?? input.eventId;
+
+      // Check if invitation already exists (using resolved event ID)
+      let existing;
+      if (input.type === "EVENT_ROLE") {
+        existing = await ctx.db.invitation.findFirst({
+          where: {
+            email: input.email,
+            eventId: resolvedEventId,
+            roleId: input.roleId,
+            status: "PENDING",
+          },
+          include: {
+            event: true,
+            role: true,
+          },
+        });
+      } else {
+        existing = await ctx.db.invitation.findFirst({
+          where: {
+            email: input.email,
+            type: input.type,
+            globalRole: input.globalRole,
+            status: "PENDING",
+          },
+          include: {
+            event: true,
+            role: true,
+          },
+        });
+      }
+
+      if (existing) {
+        return existing;
+      }
+
       // Set default expiration to 30 days from now
       const defaultExpiry = new Date();
       defaultExpiry.setDate(defaultExpiry.getDate() + 30);
@@ -149,7 +156,7 @@ export const invitationRouter = createTRPCRouter({
         data: {
           email: input.email,
           type: input.type,
-          eventId: event?.id ?? input.eventId,
+          eventId: resolvedEventId,
           roleId: input.roleId,
           globalRole: input.globalRole,
           expiresAt: input.expiresAt ?? defaultExpiry,
@@ -343,9 +350,27 @@ export const invitationRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       checkAdminAccess(ctx.session.user.role);
 
+      // Resolve eventId (could be slug or ID)
+      let resolvedEventId = input.eventId;
+      if (input.eventId) {
+        const event = await ctx.db.event.findUnique({
+          where: { id: input.eventId },
+          select: { id: true },
+        });
+        if (!event) {
+          const eventBySlug = await ctx.db.event.findUnique({
+            where: { slug: input.eventId },
+            select: { id: true },
+          });
+          if (eventBySlug) {
+            resolvedEventId = eventBySlug.id;
+          }
+        }
+      }
+
       const invitations = await ctx.db.invitation.findMany({
         where: {
-          ...(input.eventId && { eventId: input.eventId }),
+          ...(resolvedEventId && { eventId: resolvedEventId }),
           ...(input.status && { status: input.status }),
           ...(input.email && { email: { contains: input.email, mode: "insensitive" } }),
         },
