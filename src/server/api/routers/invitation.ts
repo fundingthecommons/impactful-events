@@ -117,6 +117,11 @@ export const invitationRouter = createTRPCRouter({
           where: { id: input.eventId! },
         });
 
+        // Fall back to slug lookup if not found by ID
+        event ??= await ctx.db.event.findUnique({
+          where: { slug: input.eventId! },
+        });
+
         if (!event) {
           throw new TRPCError({
             code: "NOT_FOUND",
@@ -144,7 +149,7 @@ export const invitationRouter = createTRPCRouter({
         data: {
           email: input.email,
           type: input.type,
-          eventId: input.eventId,
+          eventId: event?.id ?? input.eventId,
           roleId: input.roleId,
           globalRole: input.globalRole,
           expiresAt: input.expiresAt ?? defaultExpiry,
@@ -198,8 +203,13 @@ export const invitationRouter = createTRPCRouter({
       checkAdminAccess(ctx.session.user.role);
 
       // Verify event and role exist
-      const event = await ctx.db.event.findUnique({
+      let event = await ctx.db.event.findUnique({
         where: { id: input.eventId },
+      });
+
+      // Fall back to slug lookup if not found by ID
+      event ??= await ctx.db.event.findUnique({
+        where: { slug: input.eventId },
       });
 
       if (!event) {
@@ -220,11 +230,13 @@ export const invitationRouter = createTRPCRouter({
         });
       }
 
+      const resolvedEventId = event?.id ?? input.eventId;
+
       // Check for existing invitations
       const existingInvitations = await ctx.db.invitation.findMany({
         where: {
           email: { in: input.emails },
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           roleId: input.roleId,
           status: "PENDING",
         },
@@ -248,7 +260,7 @@ export const invitationRouter = createTRPCRouter({
       const invitationsData = newEmails.map(email => ({
         email,
         type: input.type,
-        eventId: input.eventId ?? undefined,
+        eventId: resolvedEventId ?? undefined,
         roleId: input.roleId ?? undefined,
         globalRole: input.globalRole ?? undefined,
         expiresAt: input.expiresAt ?? defaultExpiry,
