@@ -35,13 +35,14 @@ import {
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { getEventIcon, getEventGradient } from "~/utils/eventContent";
-import { type EventType } from "~/types/event";
+import { normalizeEventType } from "~/types/event";
 import { CreateEventModal } from "./CreateEventModal";
 
 // Helper function to get Mantine gradient format from event type
 function getMantineGradient(eventType: string) {
-  if (eventType === "residency" || eventType === "hackathon" || eventType === "conference") {
-    const gradientString = getEventGradient(eventType as EventType);
+  const normalized = normalizeEventType(eventType);
+  if (normalized) {
+    const gradientString = getEventGradient(normalized);
     // Convert Tailwind gradient to Mantine format
     if (gradientString.includes("teal")) {
       return { from: "teal", to: "cyan" };
@@ -113,7 +114,7 @@ interface EventCardProps {
 }
 
 function EventCard({ event, onStatusChange }: EventCardProps) {
-  const Icon = getEventIcon(event.type as EventType) ?? IconCalendarEvent;
+  const Icon = getEventIcon(normalizeEventType(event.type) ?? 'residency');
   const gradient = getMantineGradient(event.type);
   // Use slug if available, otherwise fall back to id
   const eventIdentifier = event.slug ?? event.id;

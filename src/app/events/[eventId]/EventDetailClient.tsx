@@ -31,7 +31,7 @@ import Image from "next/image";
 import { api } from "~/trpc/react";
 import DynamicApplicationForm from "~/app/_components/DynamicApplicationForm";
 import { getEventContent } from "~/utils/eventContent";
-import { type EventType } from "~/types/event";
+import { normalizeEventType } from "~/types/event";
 import { getDisplayName } from "~/utils/userDisplay";
 
 type Application = {
@@ -122,9 +122,7 @@ export default function EventDetailClient({
   hasLatePassAccess = false
 }: EventDetailClientProps) {
   // Get event-specific content
-  const eventType = (event.type === 'residency' || event.type === 'hackathon' || event.type === 'conference')
-    ? event.type as EventType
-    : 'residency';
+  const eventType = normalizeEventType(event.type) ?? 'residency';
   const content = getEventContent(eventType);
   
   console.log("🔍 EventDetailClient props:", {

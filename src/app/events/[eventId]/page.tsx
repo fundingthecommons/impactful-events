@@ -10,6 +10,7 @@ import { Alert, Text, Container, Stack, Group, Button, ActionIcon } from "@manti
 import { IconCheck, IconArrowLeft } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import { normalizeEventType } from "~/types/event";
 
 interface EventPageProps {
   params: Promise<{ eventId: string }>;
@@ -133,14 +134,16 @@ export default function EventPage({ params }: EventPageProps) {
     { enabled: !!session?.user && !!eventId }
   );
 
+  // Check if user is a speaker for this event
+  const { data: isSpeaker, isLoading: isSpeakerLoading } = api.event.checkSpeakerRole.useQuery(
+    { eventId },
+    { enabled: !!session?.user && !!eventId }
+  );
 
-  // Conference events are publicly accessible - only need event data to load
-  const isConference = event?.type === 'conference';
+  const isConference = normalizeEventType(event?.type) === 'conference';
 
   // Show loading while event data or access checks are in progress
-  const isLoadingAccess = isConference
-    ? eventLoading
-    : status === "loading" || eventLoading || isCheckingAccess || isMentorLoading || isApplicationLoading;
+  const isLoadingAccess = status === "loading" || eventLoading || isCheckingAccess || isMentorLoading || isSpeakerLoading || isApplicationLoading;
 
   if (isLoadingAccess) {
     return <div>Loading...</div>;
@@ -150,35 +153,7 @@ export default function EventPage({ params }: EventPageProps) {
     return <div>Event not found</div>;
   }
 
-  // Conference events are publicly viewable - skip auth and access control
-  if (isConference) {
-    return (
-      <>
-        <Container size="lg" py="xl">
-          <Stack gap="xl">
-            <Group gap="xs">
-              <Link href="/events" style={{ textDecoration: 'none' }}>
-                <Button variant="subtle" leftSection={<IconArrowLeft size={16} />}>
-                  Back to Events
-                </Button>
-              </Link>
-            </Group>
-          </Stack>
-        </Container>
-
-        <EventDetailClient
-          event={event}
-          userApplication={userApplication ?? null}
-          userId={session?.user?.id ?? ""}
-          defaultTab={defaultTab ?? undefined}
-          language={language}
-          hasLatePassAccess={true}
-        />
-      </>
-    );
-  }
-
-  // Require authentication for non-conference events
+  // Require authentication
   if (!session?.user) {
     const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
     const callbackUrl = encodeURIComponent(currentUrl);
@@ -191,22 +166,22 @@ export default function EventPage({ params }: EventPageProps) {
   const isAdmin = session.user.role === "admin" || session.user.role === "staff";
 
   // Determine if user can view this page
-  const canViewPage = isAcceptedForThisEvent || isAdmin || hasLatePassAccess || isMentor;
+  const canViewPage = isAcceptedForThisEvent || isAdmin || hasLatePassAccess || !!isMentor || !!isSpeaker;
 
-  // Check if applications are closed (no late pass, no admin/mentor privileges)
-  const applicationsAreClosed = !hasLatePassAccess && !isAdmin && !isMentor;
+  // Check if applications are closed (no late pass, no admin/mentor/speaker privileges)
+  const applicationsAreClosed = !hasLatePassAccess && !isAdmin && !isMentor && !isSpeaker;
 
   console.log("🔍 Access Control Debug:", {
     isAcceptedForThisEvent,
     isAdmin,
     hasLatePassAccess,
     isMentor,
+    isSpeaker,
+    isConference,
     canViewPage,
     userApplication: userApplication?.status,
     applicationsAreClosed,
     isLoadingAccess,
-    isMentorLoading,
-    isApplicationLoading
   });
 
   // Deny access if user doesn't meet requirements (only after all checks complete)
@@ -240,8 +215,8 @@ export default function EventPage({ params }: EventPageProps) {
     );
   }
   
-  // Show resident dashboard for accepted users, admins, and mentors
-  if (isAcceptedForThisEvent || isAdmin || isMentor) {
+  // Show resident dashboard for accepted users, admins, mentors, and speakers
+  if (isAcceptedForThisEvent || isAdmin || isMentor || isSpeaker) {
     return (
       <ResidentDashboard
         eventId={eventId}

@@ -29,7 +29,7 @@ import {
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { getEventGradient } from "~/utils/eventContent";
-import { type EventType } from "~/types/event";
+import { normalizeEventType } from "~/types/event";
 
 interface SponsoredEvent {
   id: string;
@@ -54,19 +54,20 @@ interface SponsoredEvent {
 
 // Helper function to get Mantine gradient format from event type
 function getMantineGradient(eventType: string) {
-  if (eventType === "conference") {
+  const normalized = normalizeEventType(eventType);
+  if (normalized === "conference") {
     return { from: "green", to: "teal" };
   }
-  
-  if (eventType === "residency" || eventType === "hackathon") {
-    const gradientString = getEventGradient(eventType as EventType);
+
+  if (normalized === "residency" || normalized === "hackathon") {
+    const gradientString = getEventGradient(normalized);
     if (gradientString.includes("blue")) {
       return { from: "blue", to: "cyan" };
     } else if (gradientString.includes("orange")) {
       return { from: "orange", to: "red" };
     }
   }
-  
+
   return { from: "purple", to: "pink" };
 }
 
@@ -164,7 +165,7 @@ function EventCard({ event }: { event: SponsoredEvent }) {
             </Button>
           </Link>
           
-          {event.type === 'residency' && event.sponsorInfo && (
+          {normalizeEventType(event.type) === 'residency' && event.sponsorInfo && (
             <Link href={`/sponsors/${event.sponsorInfo.sponsor.id}/residency?eventId=${event.id}`} style={{ textDecoration: 'none' }}>
               <Button 
                 fullWidth

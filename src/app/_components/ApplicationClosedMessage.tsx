@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Container, Card, Stack, Text, Group, Button } from "@mantine/core";
 import { IconCalendarX, IconArrowLeft, IconInfoCircle } from "@tabler/icons-react";
 import { getEventContent } from "~/utils/eventContent";
-import { type EventType } from "~/types/event";
+import { normalizeEventType } from "~/types/event";
 
 interface ApplicationClosedMessageProps {
   event?: {
@@ -14,9 +14,7 @@ interface ApplicationClosedMessageProps {
 
 export default function ApplicationClosedMessage({ event }: ApplicationClosedMessageProps) {
   // Get event-specific content or fallback to residency
-  const eventType = (event?.type === 'residency' || event?.type === 'hackathon') 
-    ? event.type as EventType 
-    : 'residency';
+  const eventType = normalizeEventType(event?.type) ?? 'residency';
   const content = getEventContent(eventType);
   
   // Use dynamic event data or fallback
