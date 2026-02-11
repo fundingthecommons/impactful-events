@@ -55,6 +55,7 @@ interface EventData {
   featureImpactAnalytics: boolean;
   featureSponsorManagement: boolean;
   featureScheduleManagement: boolean;
+  featureFloorManagement: boolean;
   _count: {
     applications: number;
     sponsors: number;
@@ -71,7 +72,8 @@ type FeatureFlagKey =
   | "featureNewsfeed"
   | "featureImpactAnalytics"
   | "featureSponsorManagement"
-  | "featureScheduleManagement";
+  | "featureScheduleManagement"
+  | "featureFloorManagement";
 
 const FEATURE_FLAGS: {
   key: FeatureFlagKey;
@@ -138,6 +140,12 @@ const FEATURE_FLAGS: {
     label: "Schedule Management",
     description: "Allow floor owners to manage their floor schedules",
     icon: IconSettings,
+  },
+  {
+    key: "featureFloorManagement",
+    label: "Floor Managers",
+    description: "Enable floor manager assignments and venue management",
+    icon: IconMapPin,
   },
 ];
 
@@ -286,6 +294,14 @@ export default function AdminEventDetailClient({ event }: AdminEventDetailClient
               color: "purple",
               href: `/admin/events/${eventIdentifier}/select-rubric`,
               visible: event.featureApplicantVetting,
+            },
+            {
+              label: "Floor Managers",
+              description: "Manage floor assignments and venue owners",
+              icon: IconMapPin,
+              color: "cyan",
+              href: `/admin/events/${eventIdentifier}/floor-owners`,
+              visible: event.featureFloorManagement,
             },
           ].filter((card) => card.visible !== false).map((card) => {
             const CardIcon = card.icon;

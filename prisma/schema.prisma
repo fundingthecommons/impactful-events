@@ -231,6 +231,9 @@ model Event {
   // Feature flag for schedule management
   featureScheduleManagement Boolean @default(false)
 
+  // Feature flag for floor management
+  featureFloorManagement Boolean @default(false)
+
   // Schedule system relations
   scheduleVenues       ScheduleVenue[]
   scheduleSessionTypes ScheduleSessionType[]

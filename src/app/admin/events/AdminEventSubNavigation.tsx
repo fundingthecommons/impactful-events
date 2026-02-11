@@ -9,7 +9,6 @@ import {
   IconUsers,
   IconBulb,
   IconSparkles,
-  IconBuilding,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { type ComponentPropsWithRef } from "react";
@@ -130,15 +129,6 @@ export default function AdminEventSubNavigation({ eventId, featureFlags }: Admin
             </TabsTab>
           )}
 
-          <TabsTab
-            value="floor-owners"
-            leftSection={<IconBuilding size={14} />}
-            component={Link}
-            href={`${adminBasePath}/floor-owners`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Floor Owners
-          </TabsTab>
         </Tabs.List>
       </Tabs>
     </Paper>

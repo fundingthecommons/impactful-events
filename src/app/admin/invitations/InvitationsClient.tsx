@@ -1,48 +1,43 @@
 "use client";
 
 import { useState } from "react";
-import { 
-  Container, 
-  Title, 
-  Card, 
-  Text, 
-  Badge, 
-  Group, 
-  Stack, 
+import {
+  Container,
+  Title,
+  Card,
+  Text,
+  Badge,
+  Group,
+  Stack,
   Button,
   TextInput,
   Select,
   Textarea,
   Modal,
-  Table,
   ActionIcon,
-  Paper,
-
   Loader,
-
-  SimpleGrid,
-
-
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { DatePickerInput } from "@mantine/dates";
-import { notifications } from "@mantine/notifications";
-import { 
-  IconPlus, 
-  IconMail, 
- 
-  IconRefresh,
+import {
+  IconPlus,
+  IconMail,
   IconUsers,
-  IconCheck,
-  IconX,
-  IconClock,
-  IconAlertTriangle,
   IconUpload,
-  IconCopy
+  IconCopy,
 } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
+import {
+  validateEmail,
+  validateBulkEmails,
+  parseEmails,
+  useInvitationMutations,
+  InvitationStatsGrid,
+  InvitationsTable,
+} from "~/app/admin/_components/invitations";
 
 interface CreateInvitationForm {
   email: string;
@@ -80,81 +75,23 @@ export default function InvitationsClient() {
     eventId: filterEventId || undefined,
   });
 
-  // API mutations
-  const createInvitation = api.invitation.create.useMutation({
-    onSuccess: () => {
-      notifications.show({
-        title: "Success",
-        message: "Invitation sent successfully",
-        color: "green",
-      });
+  const refetch = () => void refetchInvitations();
+
+  // Shared mutations
+  const mutations = useInvitationMutations({
+    roleName: "invitation",
+    onCreateSuccess: () => {
       setCreateModalOpen(false);
       createForm.reset();
-      void refetchInvitations();
+      refetch();
     },
-    onError: (error) => {
-      notifications.show({
-        title: "Error",
-        message: error.message,
-        color: "red",
-      });
-    },
-  });
-
-  const bulkCreateInvitations = api.invitation.bulkCreate.useMutation({
-    onSuccess: (result) => {
-      notifications.show({
-        title: "Success",
-        message: `${result.created.length} invitations sent successfully. ${result.skipped} were skipped (already exist).`,
-        color: "green",
-      });
+    onBulkCreateSuccess: () => {
       setBulkModalOpen(false);
       bulkForm.reset();
-      void refetchInvitations();
+      refetch();
     },
-    onError: (error) => {
-      notifications.show({
-        title: "Error",
-        message: error.message,
-        color: "red",
-      });
-    },
-  });
-
-  const cancelInvitation = api.invitation.cancel.useMutation({
-    onSuccess: () => {
-      notifications.show({
-        title: "Success",
-        message: "Invitation cancelled",
-        color: "blue",
-      });
-      void refetchInvitations();
-    },
-    onError: (error) => {
-      notifications.show({
-        title: "Error",
-        message: error.message,
-        color: "red",
-      });
-    },
-  });
-
-  const resendInvitation = api.invitation.resend.useMutation({
-    onSuccess: () => {
-      notifications.show({
-        title: "Success",
-        message: "Invitation resent",
-        color: "green",
-      });
-      void refetchInvitations();
-    },
-    onError: (error) => {
-      notifications.show({
-        title: "Error",
-        message: error.message,
-        color: "red",
-      });
-    },
+    onCancelSuccess: refetch,
+    onResendSuccess: refetch,
   });
 
   // Forms
@@ -168,7 +105,7 @@ export default function InvitationsClient() {
       expiresAt: undefined,
     },
     validate: {
-      email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : "Invalid email"),
+      email: (value) => validateEmail(value),
       type: (value) => (value ? null : "Invitation type is required"),
       eventId: (value, values) => {
         if (values.type === "EVENT_ROLE") {
@@ -199,33 +136,26 @@ export default function InvitationsClient() {
       expiresAt: undefined,
     },
     validate: {
-      emails: (value) => {
-        if (!value.trim()) return "Emails are required";
-        const emails = value.split(/[,\n]/).map(email => email.trim()).filter(Boolean);
-        const invalidEmails = emails.filter(email => !/^\S+@\S+\.\S+$/.test(email));
-        return invalidEmails.length > 0 ? `Invalid emails: ${invalidEmails.join(", ")}` : null;
-      },
+      emails: (value) => validateBulkEmails(value),
       eventId: (value) => (value ? null : "Event is required"),
       roleId: (value) => (value ? null : "Role is required"),
     },
   });
 
   const handleCreateInvitation = (values: CreateInvitationForm) => {
-    createInvitation.mutate({
+    mutations.createInvitation.mutate({
       email: values.email,
       type: values.type,
-      // Only include eventId/roleId for EVENT_ROLE type
       eventId: values.type === "EVENT_ROLE" ? values.eventId : undefined,
       roleId: values.type === "EVENT_ROLE" ? values.roleId : undefined,
-      // Only include globalRole for global types
       globalRole: values.type !== "EVENT_ROLE" ? values.globalRole : undefined,
       expiresAt: values.expiresAt,
     });
   };
 
   const handleBulkCreateInvitations = (values: BulkInvitationForm) => {
-    const emails = values.emails.split(/[,\n]/).map(email => email.trim()).filter(Boolean);
-    bulkCreateInvitations.mutate({
+    const emails = parseEmails(values.emails);
+    mutations.bulkCreateInvitations.mutate({
       emails,
       eventId: values.eventId,
       roleId: values.roleId,
@@ -233,29 +163,9 @@ export default function InvitationsClient() {
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "PENDING": return "blue";
-      case "ACCEPTED": return "green";
-      case "EXPIRED": return "orange";
-      case "CANCELLED": return "red";
-      default: return "gray";
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "PENDING": return <IconClock size={16} />;
-      case "ACCEPTED": return <IconCheck size={16} />;
-      case "EXPIRED": return <IconAlertTriangle size={16} />;
-      case "CANCELLED": return <IconX size={16} />;
-      default: return null;
-    }
-  };
-
   const copyInvitationLink = (token: string) => {
     const invitationUrl = `${window.location.origin}/accept-invitation?token=${token}`;
-    navigator.clipboard.writeText(invitationUrl)
+    void navigator.clipboard.writeText(invitationUrl)
       .then(() => {
         notifications.show({
           title: "Success",
@@ -279,7 +189,7 @@ export default function InvitationsClient() {
     return {
       responses: [
         {
-          answer: invitation.email, // Use email as fallback for telegram handle
+          answer: invitation.email,
           question: {
             questionKey: "telegram",
             questionEn: "Telegram Handle",
@@ -288,7 +198,7 @@ export default function InvitationsClient() {
         },
       ],
       user: {
-        name: invitation.email.split('@')[0] ?? null, // Extract name from email
+        name: invitation.email.split('@')[0] ?? null,
         email: invitation.email,
       },
     };
@@ -305,8 +215,8 @@ export default function InvitationsClient() {
     const invitationUrl = `${window.location.origin}/accept-invitation?token=${invitation.token}`;
     const eventName = invitation.type === "EVENT_ROLE" ? invitation.event?.name : "Platform Administration";
     const roleName = invitation.type === "EVENT_ROLE" ? invitation.role?.name : invitation.globalRole;
-    
-    return `🎉 You've been invited to join ${eventName} as ${roleName}!
+
+    return `You've been invited to join ${eventName ?? "an event"} as ${roleName ?? "a role"}!
 
 Click here to accept your invitation:
 ${invitationUrl}
@@ -340,13 +250,13 @@ We're excited to have you on board!`;
               Back to Events
             </Button>
           </Link>
-          <Button 
+          <Button
             leftSection={<IconPlus size={16} />}
             onClick={() => setCreateModalOpen(true)}
           >
             Send Invitation
           </Button>
-          <Button 
+          <Button
             variant="light"
             leftSection={<IconUpload size={16} />}
             onClick={() => setBulkModalOpen(true)}
@@ -358,38 +268,16 @@ We're excited to have you on board!`;
 
       {/* Statistics */}
       {stats && (
-        <SimpleGrid cols={{ base: 2, sm: 5 }} mb="xl">
-          <Paper p="md" radius="md" withBorder>
-            <Group>
-              <Text size="xl" fw={700}>{stats.total}</Text>
-              <Text size="sm" c="dimmed">Total</Text>
-            </Group>
-          </Paper>
-          <Paper p="md" radius="md" withBorder>
-            <Group>
-              <Text size="xl" fw={700} c="blue">{stats.pending}</Text>
-              <Text size="sm" c="dimmed">Pending</Text>
-            </Group>
-          </Paper>
-          <Paper p="md" radius="md" withBorder>
-            <Group>
-              <Text size="xl" fw={700} c="green">{stats.accepted}</Text>
-              <Text size="sm" c="dimmed">Accepted</Text>
-            </Group>
-          </Paper>
-          <Paper p="md" radius="md" withBorder>
-            <Group>
-              <Text size="xl" fw={700} c="orange">{stats.expired}</Text>
-              <Text size="sm" c="dimmed">Expired</Text>
-            </Group>
-          </Paper>
-          <Paper p="md" radius="md" withBorder>
-            <Group>
-              <Text size="xl" fw={700}>{stats.acceptanceRate}%</Text>
-              <Text size="sm" c="dimmed">Accept Rate</Text>
-            </Group>
-          </Paper>
-        </SimpleGrid>
+        <InvitationStatsGrid
+          stats={[
+            { value: stats.total, label: "Total" },
+            { value: stats.pending, label: "Pending", color: "blue" },
+            { value: stats.accepted, label: "Accepted", color: "green" },
+            { value: stats.expired, label: "Expired", color: "orange" },
+            { value: stats.acceptanceRate, label: "Accept Rate %" },
+          ]}
+          cols={{ base: 2, sm: 5 }}
+        />
       )}
 
       {/* Filters */}
@@ -426,119 +314,65 @@ We're excited to have you on board!`;
       </Card>
 
       {/* Invitations Table */}
-      <Card withBorder>
-        <Table striped highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Email</Table.Th>
-              <Table.Th>Event</Table.Th>
-              <Table.Th>Role</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Invited</Table.Th>
-              <Table.Th>Expires</Table.Th>
-              <Table.Th>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {invitations?.map((invitation) => (
-              <Table.Tr key={invitation.id}>
-                <Table.Td>
-                  <Text size="sm">{invitation.email}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" fw={500}>
-                    {invitation.type === "EVENT_ROLE" ? invitation.event?.name : "Global Platform"}
-                  </Text>
-                  {invitation.type !== "EVENT_ROLE" && (
-                    <Badge size="xs" color="red" variant="dot" ml="xs">Global</Badge>
-                  )}
-                </Table.Td>
-                <Table.Td>
-                  <Badge 
-                    variant="light" 
-                    color={invitation.type === "EVENT_ROLE" ? "blue" : "red"} 
-                    size="sm"
-                  >
-                    {invitation.type === "EVENT_ROLE" ? invitation.role?.name : invitation.globalRole}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Badge 
-                    color={getStatusColor(invitation.status)} 
-                    variant="light" 
-                    size="sm"
-                    leftSection={getStatusIcon(invitation.status)}
-                  >
-                    {invitation.status.toLowerCase()}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c="dimmed">
-                    {new Date(invitation.createdAt).toLocaleDateString()}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c="dimmed">
-                    {new Date(invitation.expiresAt).toLocaleDateString()}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap={4}>
-                    {invitation.status === "PENDING" && (
-                      <>
-                        <ActionIcon
-                          variant="light"
-                          color="green"
-                          size="sm"
-                          onClick={() => copyInvitationLink(invitation.token)}
-                          title="Copy invitation link"
-                        >
-                          <IconCopy size={14} />
-                        </ActionIcon>
-                        <TelegramMessageButton
-                          application={createMockApplicationForTelegram(invitation)}
-                          customMessage={createInvitationTelegramMessage(invitation)}
-                          size={14}
-                          variant="light"
-                          color="blue"
-                        />
-                        <ActionIcon
-                          variant="light"
-                          color="blue"
-                          size="sm"
-                          onClick={() => resendInvitation.mutate({ invitationId: invitation.id })}
-                          loading={resendInvitation.isPending}
-                          title="Resend invitation"
-                        >
-                          <IconRefresh size={14} />
-                        </ActionIcon>
-                        <ActionIcon
-                          variant="light"
-                          color="red"
-                          size="sm"
-                          onClick={() => cancelInvitation.mutate({ invitationId: invitation.id })}
-                          loading={cancelInvitation.isPending}
-                          title="Cancel invitation"
-                        >
-                          <IconX size={14} />
-                        </ActionIcon>
-                      </>
-                    )}
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-
-        {invitations?.length === 0 && (
-          <Text ta="center" py="xl" c="dimmed">
-            No invitations found. Create your first invitation to get started.
-          </Text>
+      <InvitationsTable
+        invitations={invitations ?? []}
+        totalCount={invitations?.length ?? 0}
+        roleName="invitation"
+        title="Event Invitations"
+        onResend={(id) => mutations.resendInvitation.mutate({ invitationId: id })}
+        onCancel={(id) => mutations.cancelInvitation.mutate({ invitationId: id })}
+        isResending={mutations.resendInvitation.isPending}
+        isCancelling={mutations.cancelInvitation.isPending}
+        extraColumns={[
+          {
+            header: "Event",
+            render: (inv) => (
+              <Group gap="xs">
+                <Text size="sm" fw={500}>
+                  {inv.type === "EVENT_ROLE" ? inv.event?.name : "Global Platform"}
+                </Text>
+                {inv.type !== "EVENT_ROLE" && (
+                  <Badge size="xs" color="red" variant="dot">Global</Badge>
+                )}
+              </Group>
+            ),
+          },
+          {
+            header: "Role",
+            render: (inv) => (
+              <Badge
+                variant="light"
+                color={inv.type === "EVENT_ROLE" ? "blue" : "red"}
+                size="sm"
+              >
+                {inv.type === "EVENT_ROLE" ? inv.role?.name : inv.globalRole}
+              </Badge>
+            ),
+          },
+        ]}
+        extraActions={(inv) => (
+          <>
+            <ActionIcon
+              variant="light"
+              color="green"
+              size="sm"
+              onClick={() => copyInvitationLink(inv.token ?? "")}
+              title="Copy invitation link"
+            >
+              <IconCopy size={14} />
+            </ActionIcon>
+            <TelegramMessageButton
+              application={createMockApplicationForTelegram(inv)}
+              customMessage={createInvitationTelegramMessage(inv as Parameters<typeof createInvitationTelegramMessage>[0])}
+              size={14}
+              variant="light"
+              color="blue"
+            />
+          </>
         )}
-      </Card>
+      />
 
-      {/* Create Invitation Modal */}
+      {/* Create Invitation Modal (custom — supports multiple invitation types) */}
       <Modal
         opened={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
@@ -553,7 +387,7 @@ We're excited to have you on board!`;
               {...createForm.getInputProps("email")}
               required
             />
-            
+
             <Select
               label="Invitation Type"
               placeholder="Select invitation type"
@@ -566,14 +400,12 @@ We're excited to have you on board!`;
               required
               onChange={(value) => {
                 createForm.setFieldValue("type", value as "EVENT_ROLE" | "GLOBAL_ADMIN" | "GLOBAL_STAFF");
-                // Reset dependent fields when type changes
                 createForm.setFieldValue("eventId", "");
                 createForm.setFieldValue("roleId", "");
                 createForm.setFieldValue("globalRole", undefined);
               }}
             />
-            
-            {/* Global Role Selection - Only show for global invitations */}
+
             {(createForm.values.type === "GLOBAL_ADMIN" || createForm.values.type === "GLOBAL_STAFF") && (
               <Select
                 label="Global Role"
@@ -586,8 +418,7 @@ We're excited to have you on board!`;
                 required
               />
             )}
-            
-            {/* Event Selection - Only show for event roles */}
+
             {createForm.values.type === "EVENT_ROLE" && (
               <Select
                 label="Event"
@@ -597,8 +428,7 @@ We're excited to have you on board!`;
                 required
               />
             )}
-            
-            {/* Role Selection - Only show for event roles */}
+
             {createForm.values.type === "EVENT_ROLE" && (
               <Select
                 label="Event Role"
@@ -608,21 +438,21 @@ We're excited to have you on board!`;
                 required
               />
             )}
-            
+
             <DatePickerInput
               label="Expires At (optional)"
               placeholder="Select expiration date"
               {...createForm.getInputProps("expiresAt")}
               minDate={new Date()}
             />
-            
+
             <Group justify="flex-end">
               <Button variant="light" onClick={() => setCreateModalOpen(false)}>
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
-                loading={createInvitation.isPending}
+              <Button
+                type="submit"
+                loading={mutations.createInvitation.isPending}
                 leftSection={<IconMail size={16} />}
               >
                 Send Invitation
@@ -644,12 +474,12 @@ We're excited to have you on board!`;
             <Textarea
               label="Emails"
               description="Enter one email per line or separate with commas"
-              placeholder="user1@example.com&#10;user2@example.com&#10;user3@example.com"
+              placeholder={"user1@example.com\nuser2@example.com\nuser3@example.com"}
               {...bulkForm.getInputProps("emails")}
               rows={6}
               required
             />
-            
+
             <Select
               label="Event"
               placeholder="Select an event"
@@ -657,7 +487,7 @@ We're excited to have you on board!`;
               {...bulkForm.getInputProps("eventId")}
               required
             />
-            
+
             <Select
               label="Role"
               placeholder="Select a role"
@@ -665,21 +495,21 @@ We're excited to have you on board!`;
               {...bulkForm.getInputProps("roleId")}
               required
             />
-            
+
             <DatePickerInput
               label="Expires At (optional)"
               placeholder="Select expiration date"
               {...bulkForm.getInputProps("expiresAt")}
               minDate={new Date()}
             />
-            
+
             <Group justify="flex-end">
               <Button variant="light" onClick={() => setBulkModalOpen(false)}>
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
-                loading={bulkCreateInvitations.isPending}
+              <Button
+                type="submit"
+                loading={mutations.bulkCreateInvitations.isPending}
                 leftSection={<IconUpload size={16} />}
               >
                 Send Invitations

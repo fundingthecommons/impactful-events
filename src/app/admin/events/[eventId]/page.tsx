@@ -39,6 +39,7 @@ export default async function AdminEventDetailPage({ params }: AdminEventDetailP
     featureImpactAnalytics: true,
     featureSponsorManagement: true,
     featureScheduleManagement: true,
+    featureFloorManagement: true,
     _count: {
       select: {
         applications: true,

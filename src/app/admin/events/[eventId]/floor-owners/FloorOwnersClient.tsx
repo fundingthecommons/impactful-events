@@ -28,6 +28,7 @@ import {
   IconMail,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
+import { useInvitationMutations } from "~/app/admin/_components/invitations";
 
 interface FloorOwnersClientProps {
   eventId: string;
@@ -218,18 +219,11 @@ function InviteFloorOwnerForm({ eventId, venues }: AssignFormProps) {
   const [email, setEmail] = useState("");
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
 
-  const inviteMutation = api.invitation.create.useMutation({
-    onSuccess: () => {
-      notifications.show({
-        title: "Invited",
-        message: "Floor owner invitation sent",
-        color: "green",
-      });
+  const mutations = useInvitationMutations({
+    roleName: "floor owner",
+    onCreateSuccess: () => {
       setEmail("");
       setSelectedVenueId(null);
-    },
-    onError: (err) => {
-      notifications.show({ title: "Error", message: err.message, color: "red" });
     },
   });
 
@@ -242,7 +236,7 @@ function InviteFloorOwnerForm({ eventId, venues }: AssignFormProps) {
       });
       return;
     }
-    inviteMutation.mutate({
+    mutations.createInvitation.mutate({
       email,
       type: "VENUE_OWNER",
       eventId,
@@ -275,7 +269,7 @@ function InviteFloorOwnerForm({ eventId, venues }: AssignFormProps) {
           />
           <Button
             onClick={handleInvite}
-            loading={inviteMutation.isPending}
+            loading={mutations.createInvitation.isPending}
             disabled={!email || !selectedVenueId}
             variant="light"
           >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   Container,
   Title,
@@ -11,94 +11,41 @@ import {
   Stack,
   Button,
   TextInput,
-  Textarea,
   Table,
   ActionIcon,
-  Paper,
   Loader,
-  SimpleGrid,
   Tabs,
   Checkbox,
   Modal,
-  Divider,
 } from "@mantine/core";
-import { useForm } from "@mantine/form";
-import { DatePickerInput } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
   IconCheck,
   IconX,
-  IconClock,
-  IconAlertTriangle,
   IconUpload,
   IconArrowLeft,
   IconEye,
   IconMail,
-  IconRefresh,
   IconUserPlus,
   IconMicrophone,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import ApplicationDetailsDrawer from "../applications/ApplicationDetailsDrawer";
+import {
+  getApplicationStatusColor,
+  getApplicationStatusIcon,
+  useInvitationManager,
+  InvitationStatsGrid,
+  InvitationsTable,
+  InviteModal,
+  BulkInviteModal,
+  CurrentRoleHoldersTable,
+} from "~/app/admin/_components/invitations";
 
 interface Props {
   eventId: string;
-}
-
-interface InvitationForm {
-  email: string;
-  expiresAt?: Date;
-}
-
-interface BulkInvitationForm {
-  emails: string;
-  expiresAt?: Date;
-}
-
-function getAppStatusColor(status: string) {
-  switch (status) {
-    case "DRAFT": return "gray";
-    case "SUBMITTED": return "blue";
-    case "UNDER_REVIEW": return "yellow";
-    case "ACCEPTED": return "green";
-    case "REJECTED": return "red";
-    case "WAITLISTED": return "orange";
-    default: return "gray";
-  }
-}
-
-function getAppStatusIcon(status: string) {
-  switch (status) {
-    case "DRAFT": return <IconClock size={16} />;
-    case "SUBMITTED": return <IconUpload size={16} />;
-    case "UNDER_REVIEW": return <IconClock size={16} />;
-    case "ACCEPTED": return <IconCheck size={16} />;
-    case "REJECTED": return <IconX size={16} />;
-    case "WAITLISTED": return <IconAlertTriangle size={16} />;
-    default: return null;
-  }
-}
-
-function getInvStatusColor(status: string) {
-  switch (status) {
-    case "PENDING": return "blue";
-    case "ACCEPTED": return "green";
-    case "EXPIRED": return "orange";
-    case "CANCELLED": return "red";
-    default: return "gray";
-  }
-}
-
-function getInvStatusIcon(status: string) {
-  switch (status) {
-    case "PENDING": return <IconClock size={16} />;
-    case "ACCEPTED": return <IconCheck size={16} />;
-    case "EXPIRED": return <IconAlertTriangle size={16} />;
-    case "CANCELLED": return <IconX size={16} />;
-    default: return null;
-  }
 }
 
 export default function AdminSpeakerManagementClient({ eventId }: Props) {
@@ -121,42 +68,35 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
       window.history.replaceState(null, "", `#${value}`);
     }
   };
+
+  // ── Applications State ──
   const [selectedApplications, setSelectedApplications] = useState<string[]>([]);
   const [bulkStatusModalOpen, setBulkStatusModalOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<"ACCEPTED" | "REJECTED" | null>(null);
-  const [inviteModalOpen, setInviteModalOpen] = useState(false);
-  const [bulkInviteModalOpen, setBulkInviteModalOpen] = useState(false);
-  const [filterEmail, setFilterEmail] = useState("");
-
-  // Drawer state
   const [viewDrawerOpened, { open: openViewDrawer, close: closeViewDrawer }] = useDisclosure(false);
   const [viewingApplication, setViewingApplication] = useState<{ id: string } | null>(null);
 
-  // Queries
-  const { data: event, isLoading: loadingEvent } = api.event.getEvent.useQuery({ id: eventId });
-  const { data: roles } = api.role.getEventRoles.useQuery();
-  const speakerRole = useMemo(() => roles?.find(role => role.name === "speaker"), [roles]);
+  // ── Invitations (via shared hook) ──
+  const inv = useInvitationManager({
+    eventId,
+    invitationType: "EVENT_ROLE",
+    roleName: "speaker",
+    roleLookupName: "speaker",
+  });
 
+  // ── Application Queries ──
   const { data: speakerApplications, refetch: refetchApplications, isLoading: loadingApplications } =
     api.application.getEventApplications.useQuery({
       eventId,
       applicationType: "SPEAKER",
     });
 
-  const { data: invitations, refetch: refetchInvitations, isLoading: loadingInvitations } =
-    api.invitation.getAll.useQuery({ eventId });
-
-  const speakerInvitations = useMemo(() => {
-    if (!invitations || !speakerRole) return [];
-    return invitations.filter(inv => inv.roleId === speakerRole.id);
-  }, [invitations, speakerRole]);
-
   const { data: currentSpeakers, isLoading: loadingSpeakers } = api.role.getAllUsersWithEventRoles.useQuery({
     eventId,
-    roleId: speakerRole?.id,
+    roleId: inv.resolvedRoleId,
   });
 
-  // Mutations
+  // ── Application Mutations ──
   const updateApplicationStatus = api.application.updateApplicationStatus.useMutation({
     onSuccess: () => {
       notifications.show({ title: "Success", message: "Speaker application status updated", color: "green" });
@@ -184,99 +124,8 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
     },
   });
 
-  const createInvitation = api.invitation.create.useMutation({
-    onSuccess: () => {
-      notifications.show({ title: "Success", message: "Speaker invitation sent", color: "green" });
-      setInviteModalOpen(false);
-      inviteForm.reset();
-      void refetchInvitations();
-    },
-    onError: (error) => {
-      notifications.show({ title: "Error", message: error.message, color: "red" });
-    },
-  });
-
-  const bulkCreateInvitations = api.invitation.bulkCreate.useMutation({
-    onSuccess: (result) => {
-      notifications.show({
-        title: "Success",
-        message: `${result.created.length} speaker invitations sent. ${result.skipped} skipped.`,
-        color: "green",
-      });
-      setBulkInviteModalOpen(false);
-      bulkInviteForm.reset();
-      void refetchInvitations();
-    },
-    onError: (error) => {
-      notifications.show({ title: "Error", message: error.message, color: "red" });
-    },
-  });
-
-  const cancelInvitation = api.invitation.cancel.useMutation({
-    onSuccess: () => {
-      notifications.show({ title: "Success", message: "Speaker invitation cancelled", color: "blue" });
-      void refetchInvitations();
-    },
-  });
-
-  const resendInvitation = api.invitation.resend.useMutation({
-    onSuccess: () => {
-      notifications.show({ title: "Success", message: "Speaker invitation resent", color: "green" });
-      void refetchInvitations();
-    },
-  });
-
-  // Forms
-  const inviteForm = useForm<InvitationForm>({
-    initialValues: { email: "", expiresAt: undefined },
-    validate: {
-      email: (value) => (/^\S+@\S+\.\S+$/.test(value) ? null : "Invalid email"),
-    },
-  });
-
-  const bulkInviteForm = useForm<BulkInvitationForm>({
-    initialValues: { emails: "", expiresAt: undefined },
-    validate: {
-      emails: (value) => {
-        if (!value.trim()) return "Emails are required";
-        const emails = value.split(/[,\n]/).map(email => email.trim()).filter(Boolean);
-        const invalidEmails = emails.filter(email => !/^\S+@\S+\.\S+$/.test(email));
-        return invalidEmails.length > 0 ? `Invalid emails: ${invalidEmails.join(", ")}` : null;
-      },
-    },
-  });
-
-  const handleInviteSpeaker = (values: InvitationForm) => {
-    if (!speakerRole) {
-      notifications.show({ title: "Error", message: "Speaker role not found. Please ensure the speaker role exists.", color: "red" });
-      return;
-    }
-    createInvitation.mutate({
-      email: values.email,
-      type: "EVENT_ROLE",
-      eventId,
-      roleId: speakerRole.id,
-      expiresAt: values.expiresAt,
-    });
-  };
-
-  const handleBulkInviteSpeakers = (values: BulkInvitationForm) => {
-    if (!speakerRole) {
-      notifications.show({ title: "Error", message: "Speaker role not found", color: "red" });
-      return;
-    }
-    const emails = values.emails.split(/[,\n]/).map(email => email.trim()).filter(Boolean);
-    bulkCreateInvitations.mutate({
-      emails,
-      eventId,
-      roleId: speakerRole.id,
-      type: "EVENT_ROLE",
-      expiresAt: values.expiresAt,
-    });
-  };
-
-  // Loading
-  if (loadingEvent || loadingApplications || loadingInvitations || loadingSpeakers) {
+  // ── Loading ──
+  if (inv.isLoading || loadingApplications || loadingSpeakers) {
     return (
       <Container size="xl" py="xl">
         <Group justify="center"><Loader size="xl" /></Group>
@@ -284,7 +133,7 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
     );
   }
 
-  // Application helpers
+  // ── Application Helpers ──
   const allApplications = speakerApplications ?? [];
   const acceptedApplications = allApplications.filter(app => app.status === "ACCEPTED");
   const rejectedApplications = allApplications.filter(app => app.status === "REJECTED");
@@ -299,17 +148,7 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
   };
   const currentApplications = getCurrentTabApplications();
 
-  // Invitation helpers
-  const filteredInvitations = speakerInvitations.filter(inv =>
-    inv.email.toLowerCase().includes(filterEmail.toLowerCase())
-  );
-
-  const invStats = {
-    total: speakerInvitations.length,
-    pending: speakerInvitations.filter(inv => inv.status === "PENDING").length,
-    accepted: speakerInvitations.filter(inv => inv.status === "ACCEPTED").length,
-    currentSpeakers: currentSpeakers?.filter(user => user.userRoles.length > 0).length ?? 0,
-  };
+  const activeSpeakerCount = currentSpeakers?.filter(user => user.userRoles.length > 0).length ?? 0;
 
   return (
     <Container size="xl" py="md">
@@ -319,7 +158,7 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
           <Group mb="xs">
             <Link href={`/admin/events/${eventId}`} style={{ textDecoration: "none" }}>
               <Button variant="subtle" leftSection={<IconArrowLeft size={16} />} size="sm">
-                Back to {event?.name ?? "Event"}
+                Back to {inv.event?.name ?? "Event"}
               </Button>
             </Link>
           </Group>
@@ -327,37 +166,20 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
             <IconMicrophone size={28} />
             <Title order={1}>Speaker Management</Title>
           </Group>
-          <Text c="dimmed" mb="xs">{event?.name ?? "Loading..."}</Text>
+          <Text c="dimmed" mb="xs">{inv.event?.name ?? "Loading..."}</Text>
         </div>
       </Group>
 
-      {/* Statistics */}
-      <SimpleGrid cols={{ base: 2, sm: 4 }} mb="xl">
-        <Paper p="md" radius="md" withBorder>
-          <Group>
-            <Text size="xl" fw={700}>{allApplications.length}</Text>
-            <Text size="sm" c="dimmed">Applications</Text>
-          </Group>
-        </Paper>
-        <Paper p="md" radius="md" withBorder>
-          <Group>
-            <Text size="xl" fw={700} c="orange">{pendingApplications.length}</Text>
-            <Text size="sm" c="dimmed">Pending</Text>
-          </Group>
-        </Paper>
-        <Paper p="md" radius="md" withBorder>
-          <Group>
-            <Text size="xl" fw={700} c="green">{acceptedApplications.length}</Text>
-            <Text size="sm" c="dimmed">Accepted</Text>
-          </Group>
-        </Paper>
-        <Paper p="md" radius="md" withBorder>
-          <Group>
-            <Text size="xl" fw={700} c="blue">{invStats.currentSpeakers}</Text>
-            <Text size="sm" c="dimmed">Invited Speakers</Text>
-          </Group>
-        </Paper>
-      </SimpleGrid>
+      {/* Top-level Statistics */}
+      <InvitationStatsGrid
+        stats={[
+          { value: allApplications.length, label: "Applications" },
+          { value: pendingApplications.length, label: "Pending", color: "orange" },
+          { value: acceptedApplications.length, label: "Accepted", color: "green" },
+          { value: activeSpeakerCount, label: "Invited Speakers", color: "blue" },
+        ]}
+        cols={{ base: 2, sm: 4 }}
+      />
 
       {/* Main Tabs */}
       <Tabs value={mainTab} onChange={handleMainTabChange}>
@@ -368,13 +190,12 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
           </Tabs.Tab>
           <Tabs.Tab value="invitations">
             Invitations
-            {speakerInvitations.length > 0 && <Badge size="sm" variant="light" ml="xs">{speakerInvitations.length}</Badge>}
+            {inv.invitations.length > 0 && <Badge size="sm" variant="light" ml="xs">{inv.invitations.length}</Badge>}
           </Tabs.Tab>
         </Tabs.List>
 
-        {/* Applications Tab */}
+        {/* ── Applications Tab ── */}
         <Tabs.Panel value="applications">
-          {/* Bulk Actions */}
           {selectedApplications.length > 0 && (
             <Card withBorder mb="md" p="md">
               <Group justify="space-between">
@@ -471,137 +292,51 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
           </Card>
         </Tabs.Panel>
 
-        {/* Invitations Tab */}
+        {/* ── Invitations Tab ── */}
         <Tabs.Panel value="invitations">
           <Group justify="flex-end" mb="md">
-            <Button leftSection={<IconUserPlus size={16} />} onClick={() => setInviteModalOpen(true)}>
+            <Button leftSection={<IconUserPlus size={16} />} onClick={() => inv.setInviteModalOpen(true)}>
               Invite Speaker
             </Button>
-            <Button variant="light" leftSection={<IconUpload size={16} />} onClick={() => setBulkInviteModalOpen(true)}>
+            <Button variant="light" leftSection={<IconUpload size={16} />} onClick={() => inv.setBulkInviteModalOpen(true)}>
               Bulk Invite
             </Button>
           </Group>
 
-          {/* Invitation Stats */}
-          <SimpleGrid cols={{ base: 2, sm: 4 }} mb="md">
-            <Paper p="md" radius="md" withBorder>
-              <Group>
-                <Text size="xl" fw={700}>{invStats.total}</Text>
-                <Text size="sm" c="dimmed">Total Invites</Text>
-              </Group>
-            </Paper>
-            <Paper p="md" radius="md" withBorder>
-              <Group>
-                <Text size="xl" fw={700} c="blue">{invStats.pending}</Text>
-                <Text size="sm" c="dimmed">Pending</Text>
-              </Group>
-            </Paper>
-            <Paper p="md" radius="md" withBorder>
-              <Group>
-                <Text size="xl" fw={700} c="green">{invStats.accepted}</Text>
-                <Text size="sm" c="dimmed">Accepted</Text>
-              </Group>
-            </Paper>
-            <Paper p="md" radius="md" withBorder>
-              <Group>
-                <Text size="xl" fw={700} c="teal">{invStats.currentSpeakers}</Text>
-                <Text size="sm" c="dimmed">Active Speakers</Text>
-              </Group>
-            </Paper>
-          </SimpleGrid>
+          <InvitationStatsGrid
+            stats={[
+              { value: inv.stats.total, label: "Total Invites" },
+              { value: inv.stats.pending, label: "Pending", color: "blue" },
+              { value: inv.stats.accepted, label: "Accepted", color: "green" },
+              { value: activeSpeakerCount, label: "Active Speakers", color: "teal" },
+            ]}
+          />
 
-          {/* Current Speakers */}
-          {invStats.currentSpeakers > 0 && (
-            <Card withBorder mb="md">
-              <Title order={3} mb="md">Current Speakers</Title>
-              <Table>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Name</Table.Th>
-                    <Table.Th>Email</Table.Th>
-                    <Table.Th>Role</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {currentSpeakers?.filter(user => user.userRoles.length > 0).map((speaker) => (
-                    <Table.Tr key={speaker.id}>
-                      <Table.Td><Text size="sm" fw={500}>{speaker.name ?? "Unknown"}</Text></Table.Td>
-                      <Table.Td><Text size="sm">{speaker.email}</Text></Table.Td>
-                      <Table.Td><Badge variant="light" color="teal" size="sm">speaker</Badge></Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Card>
-          )}
+          <CurrentRoleHoldersTable
+            holders={currentSpeakers?.filter(user => user.userRoles.length > 0) ?? []}
+            roleName="speaker"
+            badgeColor="teal"
+            title="Current Speakers"
+          />
 
-          {/* Filter */}
           <Card withBorder mb="md">
             <TextInput
               placeholder="Filter speaker invitations by email..."
-              value={filterEmail}
-              onChange={(e) => setFilterEmail(e.currentTarget.value)}
+              value={inv.filterEmail}
+              onChange={(e) => inv.setFilterEmail(e.currentTarget.value)}
               leftSection={<IconMail size={16} />}
             />
           </Card>
 
-          {/* Invitations Table */}
-          <Card withBorder>
-            <Group justify="space-between" mb="md">
-              <Title order={3}>Speaker Invitations</Title>
-              <Text size="sm" c="dimmed">
-                {filteredInvitations.length} of {speakerInvitations.length} invitations
-              </Text>
-            </Group>
-
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Email</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                  <Table.Th>Invited</Table.Th>
-                  <Table.Th>Expires</Table.Th>
-                  <Table.Th>Actions</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filteredInvitations.map((invitation) => (
-                  <Table.Tr key={invitation.id}>
-                    <Table.Td><Text size="sm">{invitation.email}</Text></Table.Td>
-                    <Table.Td>
-                      <Badge color={getInvStatusColor(invitation.status)} variant="light" size="sm" leftSection={getInvStatusIcon(invitation.status)}>
-                        {invitation.status.toLowerCase()}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td><Text size="sm" c="dimmed">{new Date(invitation.createdAt).toLocaleDateString()}</Text></Table.Td>
-                    <Table.Td><Text size="sm" c="dimmed">{new Date(invitation.expiresAt).toLocaleDateString()}</Text></Table.Td>
-                    <Table.Td>
-                      <Group gap={4}>
-                        {invitation.status === "PENDING" && (
-                          <>
-                            <ActionIcon variant="light" color="blue" size="sm" onClick={() => resendInvitation.mutate({ invitationId: invitation.id })} loading={resendInvitation.isPending} title="Resend invitation">
-                              <IconRefresh size={14} />
-                            </ActionIcon>
-                            <ActionIcon variant="light" color="red" size="sm" onClick={() => cancelInvitation.mutate({ invitationId: invitation.id })} loading={cancelInvitation.isPending} title="Cancel invitation">
-                              <IconX size={14} />
-                            </ActionIcon>
-                          </>
-                        )}
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-
-            {filteredInvitations.length === 0 && (
-              <Text ta="center" py="xl" c="dimmed">
-                {speakerInvitations.length === 0
-                  ? "No speaker invitations yet. Send your first speaker invitation to get started."
-                  : "No speaker invitations match your filter."}
-              </Text>
-            )}
-          </Card>
+          <InvitationsTable
+            invitations={inv.filteredInvitations}
+            totalCount={inv.invitations.length}
+            roleName="speaker"
+            onResend={(id) => inv.resendInvitation.mutate({ invitationId: id })}
+            onCancel={(id) => inv.cancelInvitation.mutate({ invitationId: id })}
+            isResending={inv.resendInvitation.isPending}
+            isCancelling={inv.cancelInvitation.isPending}
+          />
         </Tabs.Panel>
       </Tabs>
 
@@ -635,64 +370,28 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
       </Modal>
 
       {/* Invite Speaker Modal */}
-      <Modal opened={inviteModalOpen} onClose={() => setInviteModalOpen(false)} title="Invite Speaker" size="md">
-        <form onSubmit={inviteForm.onSubmit(handleInviteSpeaker)}>
-          <Stack>
-            <Text size="sm" c="dimmed">
-              Invite a speaker for <strong>{event?.name ?? "this event"}</strong>. They will receive an email invitation
-              and can register or login to submit their speaker application.
-            </Text>
-            <Divider />
-            <TextInput label="Email" placeholder="speaker@example.com" {...inviteForm.getInputProps("email")} required />
-            <DatePickerInput
-              label="Expires At (optional)"
-              description="If not set, invitation will expire in 30 days"
-              placeholder="Select expiration date"
-              {...inviteForm.getInputProps("expiresAt")}
-              minDate={new Date()}
-            />
-            <Group justify="flex-end">
-              <Button variant="light" onClick={() => setInviteModalOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={createInvitation.isPending} leftSection={<IconMail size={16} />}>
-                Send Invitation
-              </Button>
-            </Group>
-          </Stack>
-        </form>
-      </Modal>
+      <InviteModal
+        opened={inv.inviteModalOpen}
+        onClose={() => inv.setInviteModalOpen(false)}
+        title="Invite Speaker"
+        description={`Invite a speaker for ${inv.event?.name ?? "this event"}. They will receive an email invitation and can register or login to submit their speaker application.`}
+        form={inv.inviteForm}
+        onSubmit={inv.handleInvite}
+        isLoading={inv.createInvitation.isPending}
+        emailPlaceholder="speaker@example.com"
+      />
 
       {/* Bulk Invite Modal */}
-      <Modal opened={bulkInviteModalOpen} onClose={() => setBulkInviteModalOpen(false)} title="Bulk Invite Speakers" size="lg">
-        <form onSubmit={bulkInviteForm.onSubmit(handleBulkInviteSpeakers)}>
-          <Stack>
-            <Text size="sm" c="dimmed">
-              Invite multiple speakers for <strong>{event?.name ?? "this event"}</strong> at once.
-            </Text>
-            <Divider />
-            <Textarea
-              label="Speaker Emails"
-              description="Enter one email per line or separate with commas"
-              placeholder={"speaker1@example.com\nspeaker2@example.com\nspeaker3@example.com"}
-              {...bulkInviteForm.getInputProps("emails")}
-              rows={6}
-              required
-            />
-            <DatePickerInput
-              label="Expires At (optional)"
-              description="If not set, invitations will expire in 30 days"
-              placeholder="Select expiration date"
-              {...bulkInviteForm.getInputProps("expiresAt")}
-              minDate={new Date()}
-            />
-            <Group justify="flex-end">
-              <Button variant="light" onClick={() => setBulkInviteModalOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={bulkCreateInvitations.isPending} leftSection={<IconUpload size={16} />}>
-                Send Invitations
-              </Button>
-            </Group>
-          </Stack>
-        </form>
-      </Modal>
+      <BulkInviteModal
+        opened={inv.bulkInviteModalOpen}
+        onClose={() => inv.setBulkInviteModalOpen(false)}
+        title="Bulk Invite Speakers"
+        description={`Invite multiple speakers for ${inv.event?.name ?? "this event"} at once.`}
+        form={inv.bulkInviteForm}
+        onSubmit={inv.handleBulkInvite}
+        isLoading={inv.bulkCreateInvitations.isPending}
+        emailsLabel="Speaker Emails"
+      />
 
       {/* Application Detail Drawer */}
       <ApplicationDetailsDrawer
@@ -704,7 +403,10 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
   );
 }
 
-// Applications table sub-component
+// ──────────────────────────────────────────
+// Applications Table (speaker-specific)
+// ──────────────────────────────────────────
+
 interface ApplicationRow {
   id: string;
   status: string;
@@ -784,7 +486,7 @@ function SpeakerApplicationsTable({
                 <Text size="sm">{application.email}</Text>
               </Table.Td>
               <Table.Td>
-                <Badge color={getAppStatusColor(application.status)} variant="light" size="sm" leftSection={getAppStatusIcon(application.status)}>
+                <Badge color={getApplicationStatusColor(application.status)} variant="light" size="sm" leftSection={getApplicationStatusIcon(application.status)}>
                   {application.status.replace("_", " ").toLowerCase()}
                 </Badge>
               </Table.Td>
