@@ -513,6 +513,29 @@ export const scheduleRouter = createTRPCRouter({
       return { success: true };
     }),
 
+  // Get sessions where the current user is a linked speaker
+  getMySessions: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const event = await resolveEventId(ctx.db, input.eventId);
+      const sessions = await ctx.db.scheduleSession.findMany({
+        where: {
+          eventId: event.id,
+          sessionSpeakers: { some: { userId: ctx.session.user.id } },
+        },
+        include: {
+          venue: { select: { id: true, name: true } },
+          sessionType: { select: { id: true, name: true, color: true } },
+          sessionSpeakers: {
+            include: { user: { select: userSelectFields } },
+            orderBy: { order: "asc" },
+          },
+        },
+        orderBy: [{ startTime: "asc" }, { order: "asc" }],
+      });
+      return sessions;
+    }),
+
   // Admin: Get all venue owners for an event
   getVenueOwners: protectedProcedure
     .input(z.object({ eventId: z.string() }))

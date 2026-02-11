@@ -17,6 +17,7 @@ import {
 } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
+import { getDisplayName } from "~/utils/userDisplay";
 import "./schedule.css";
 
 type ScheduleSession = {
@@ -30,6 +31,16 @@ type ScheduleSession = {
   sessionTypeId: string | null;
   venue: { id: string; name: string } | null;
   sessionType: { id: string; name: string; color: string } | null;
+  sessionSpeakers: Array<{
+    user: {
+      id: string;
+      firstName: string | null;
+      surname: string | null;
+      name: string | null;
+      email: string | null;
+      image: string | null;
+    };
+  }>;
 };
 
 interface SchedulePageClientProps {
@@ -58,9 +69,11 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const matchesTitle = session.title.toLowerCase().includes(q);
-        const matchesSpeaker = session.speakers.some((s) =>
-          s.toLowerCase().includes(q)
-        );
+        const matchesSpeaker =
+          session.speakers.some((s) => s.toLowerCase().includes(q)) ||
+          session.sessionSpeakers.some((s) =>
+            getDisplayName(s.user, "").toLowerCase().includes(q),
+          );
         const matchesVenue = session.venue?.name.toLowerCase().includes(q) ?? false;
         if (!matchesTitle && !matchesSpeaker && !matchesVenue) return false;
       }
@@ -226,9 +239,12 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
                             {session.sessionType.name}
                           </Text>
                         )}
-                        {session.speakers.length > 0 && (
+                        {(session.sessionSpeakers.length > 0 || session.speakers.length > 0) && (
                           <Text size="xs" c="dimmed" mt={2}>
-                            {session.speakers.join(" \u2022 ")}
+                            {[
+                              ...session.sessionSpeakers.map((s) => getDisplayName(s.user, "Unknown")),
+                              ...session.speakers,
+                            ].join(" \u2022 ")}
                           </Text>
                         )}
                       </div>

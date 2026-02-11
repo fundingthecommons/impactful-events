@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import EventDetailClient from "./EventDetailClient";
 import ResidentDashboard from "./ResidentDashboard";
+import ConferenceDashboard from "./ConferenceDashboard";
 import ApplicationClosedMessage from "~/app/_components/ApplicationClosedMessage";
 import { Alert, Text, Container, Stack, Group, Button, ActionIcon } from "@mantine/core";
 import { IconCheck, IconArrowLeft } from "@tabler/icons-react";
@@ -140,10 +141,16 @@ export default function EventPage({ params }: EventPageProps) {
     { enabled: !!session?.user && !!eventId }
   );
 
+  // Check if user is a floor owner for this event
+  const { data: isFloorOwner, isLoading: isFloorOwnerLoading } = api.schedule.isFloorOwner.useQuery(
+    { eventId },
+    { enabled: !!session?.user && !!eventId }
+  );
+
   const isConference = normalizeEventType(event?.type) === 'conference';
 
   // Show loading while event data or access checks are in progress
-  const isLoadingAccess = status === "loading" || eventLoading || isCheckingAccess || isMentorLoading || isSpeakerLoading || isApplicationLoading;
+  const isLoadingAccess = status === "loading" || eventLoading || isCheckingAccess || isMentorLoading || isSpeakerLoading || isFloorOwnerLoading || isApplicationLoading;
 
   if (isLoadingAccess) {
     return <div>Loading...</div>;
@@ -166,10 +173,10 @@ export default function EventPage({ params }: EventPageProps) {
   const isAdmin = session.user.role === "admin" || session.user.role === "staff";
 
   // Determine if user can view this page
-  const canViewPage = isAcceptedForThisEvent || isAdmin || hasLatePassAccess || !!isMentor || !!isSpeaker;
+  const canViewPage = isAcceptedForThisEvent || isAdmin || hasLatePassAccess || !!isMentor || !!isSpeaker || !!isFloorOwner;
 
   // Check if applications are closed (no late pass, no admin/mentor/speaker privileges)
-  const applicationsAreClosed = !hasLatePassAccess && !isAdmin && !isMentor && !isSpeaker;
+  const applicationsAreClosed = !hasLatePassAccess && !isAdmin && !isMentor && !isSpeaker && !isFloorOwner;
 
   console.log("🔍 Access Control Debug:", {
     isAcceptedForThisEvent,
@@ -177,6 +184,7 @@ export default function EventPage({ params }: EventPageProps) {
     hasLatePassAccess,
     isMentor,
     isSpeaker,
+    isFloorOwner,
     isConference,
     canViewPage,
     userApplication: userApplication?.status,
@@ -198,8 +206,9 @@ export default function EventPage({ params }: EventPageProps) {
             style={{ maxWidth: 500, width: '100%' }}
           >
             <Text c="white" size="md">
-              This event page is only accessible to accepted residents.
-              If you have a late pass code, please use the provided link.
+              {isConference
+                ? "This event page is only accessible to registered speakers, floor managers, and administrators."
+                : "This event page is only accessible to accepted residents. If you have a late pass code, please use the provided link."}
             </Text>
           </Alert>
           <Button
@@ -215,6 +224,19 @@ export default function EventPage({ params }: EventPageProps) {
     );
   }
   
+  // Show conference dashboard for conference events
+  if (isConference && (isAdmin || !!isSpeaker || !!isFloorOwner)) {
+    return (
+      <ConferenceDashboard
+        eventId={eventId}
+        eventName={event.name}
+        isSpeaker={!!isSpeaker}
+        isFloorOwner={!!isFloorOwner}
+        isAdmin={isAdmin}
+      />
+    );
+  }
+
   // Show resident dashboard for accepted users, admins, mentors, and speakers
   if (isAcceptedForThisEvent || isAdmin || isMentor || isSpeaker) {
     return (

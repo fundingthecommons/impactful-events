@@ -31,11 +31,23 @@ import {
   IconBuilding,
   IconClock,
   IconUsers,
+  IconX,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
+import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
+import { getDisplayName } from "~/utils/userDisplay";
 
 interface ManageScheduleClientProps {
   eventId: string;
+}
+
+interface SelectedSpeaker {
+  id: string;
+  firstName?: string | null;
+  surname?: string | null;
+  name: string | null;
+  email: string | null;
+  image: string | null;
 }
 
 type FloorSession = {
@@ -51,6 +63,9 @@ type FloorSession = {
   isPublished: boolean;
   venue: { id: string; name: string } | null;
   sessionType: { id: string; name: string; color: string } | null;
+  sessionSpeakers: Array<{
+    user: SelectedSpeaker;
+  }>;
 };
 
 export default function ManageScheduleClient({ eventId }: ManageScheduleClientProps) {
@@ -369,9 +384,13 @@ function SessionCard({ session, eventId, venueId, sessionTypes, onDelete, isDele
             <Text size="sm" c="dimmed">
               <IconClock size={12} style={{ verticalAlign: "middle" }} /> {dateStr} {timeStr}
             </Text>
-            {session.speakers.length > 0 && (
+            {(session.sessionSpeakers.length > 0 || session.speakers.length > 0) && (
               <Text size="sm" c="dimmed">
-                <IconUsers size={12} style={{ verticalAlign: "middle" }} /> {session.speakers.join(", ")}
+                <IconUsers size={12} style={{ verticalAlign: "middle" }} />{" "}
+                {[
+                  ...session.sessionSpeakers.map((s) => getDisplayName(s.user, "Unknown")),
+                  ...session.speakers,
+                ].join(", ")}
               </Text>
             )}
             {session.description && (
@@ -407,6 +426,67 @@ function SessionCard({ session, eventId, venueId, sessionTypes, onDelete, isDele
 }
 
 // ──────────────────────────────────────────
+// SpeakerSelector
+// ──────────────────────────────────────────
+
+interface SpeakerSelectorProps {
+  linkedSpeakers: SelectedSpeaker[];
+  onAddLinkedSpeaker: (user: SelectedSpeaker) => void;
+  onRemoveLinkedSpeaker: (userId: string) => void;
+  textSpeakers: string;
+  onTextSpeakersChange: (value: string) => void;
+}
+
+function SpeakerSelector({
+  linkedSpeakers,
+  onAddLinkedSpeaker,
+  onRemoveLinkedSpeaker,
+  textSpeakers,
+  onTextSpeakersChange,
+}: SpeakerSelectorProps) {
+  return (
+    <Stack gap="xs">
+      <div>
+        <Text size="sm" fw={500} mb={4}>Speakers</Text>
+        <UserSearchSelect
+          onSelect={onAddLinkedSpeaker}
+          excludeUserIds={linkedSpeakers.map((s) => s.id)}
+          placeholder="Search speakers by name or email..."
+        />
+      </div>
+      {linkedSpeakers.length > 0 && (
+        <Group gap="xs">
+          {linkedSpeakers.map((speaker) => (
+            <Badge
+              key={speaker.id}
+              variant="light"
+              size="lg"
+              rightSection={
+                <ActionIcon
+                  size="xs"
+                  variant="transparent"
+                  onClick={() => onRemoveLinkedSpeaker(speaker.id)}
+                >
+                  <IconX size={12} />
+                </ActionIcon>
+              }
+            >
+              {getDisplayName(speaker, "Unknown")}
+            </Badge>
+          ))}
+        </Group>
+      )}
+      <TextInput
+        label="Additional Speakers"
+        description="Comma-separated names for speakers not in the system"
+        value={textSpeakers}
+        onChange={(e) => onTextSpeakersChange(e.currentTarget.value)}
+      />
+    </Stack>
+  );
+}
+
+// ──────────────────────────────────────────
 // CreateSessionButton + Modal
 // ──────────────────────────────────────────
 
@@ -424,7 +504,8 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
   const [description, setDescription] = useState("");
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
-  const [speakers, setSpeakers] = useState("");
+  const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeaker[]>([]);
+  const [textSpeakers, setTextSpeakers] = useState("");
   const [sessionTypeId, setSessionTypeId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(true);
 
@@ -446,7 +527,8 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
     setDescription("");
     setStartTime(null);
     setEndTime(null);
-    setSpeakers("");
+    setLinkedSpeakers([]);
+    setTextSpeakers("");
     setSessionTypeId(null);
     setIsPublished(true);
   };
@@ -462,7 +544,8 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
       description: description || undefined,
       startTime,
       endTime,
-      speakers: speakers ? speakers.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      speakers: textSpeakers ? textSpeakers.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      linkedSpeakerIds: linkedSpeakers.map((s) => s.id),
       venueId,
       sessionTypeId: sessionTypeId ?? undefined,
       isPublished,
@@ -504,11 +587,12 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
               required
             />
           </Group>
-          <TextInput
-            label="Speakers"
-            description="Comma-separated names"
-            value={speakers}
-            onChange={(e) => setSpeakers(e.currentTarget.value)}
+          <SpeakerSelector
+            linkedSpeakers={linkedSpeakers}
+            onAddLinkedSpeaker={(user) => setLinkedSpeakers((prev) => [...prev, user])}
+            onRemoveLinkedSpeaker={(userId) => setLinkedSpeakers((prev) => prev.filter((s) => s.id !== userId))}
+            textSpeakers={textSpeakers}
+            onTextSpeakersChange={setTextSpeakers}
           />
           {sessionTypes.length > 0 && (
             <Select
@@ -568,7 +652,10 @@ function EditSessionModal({
   const [description, setDescription] = useState(session.description ?? "");
   const [startTime, setStartTime] = useState<Date | null>(new Date(session.startTime));
   const [endTime, setEndTime] = useState<Date | null>(new Date(session.endTime));
-  const [speakers, setSpeakers] = useState(session.speakers.join(", "));
+  const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeaker[]>(
+    session.sessionSpeakers.map((s) => s.user),
+  );
+  const [textSpeakers, setTextSpeakers] = useState(session.speakers.join(", "));
   const [sessionTypeId, setSessionTypeId] = useState<string | null>(session.sessionTypeId);
   const [isPublished, setIsPublished] = useState(session.isPublished);
 
@@ -595,7 +682,8 @@ function EditSessionModal({
       description: description || null,
       startTime,
       endTime,
-      speakers: speakers ? speakers.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      speakers: textSpeakers ? textSpeakers.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      linkedSpeakerIds: linkedSpeakers.map((s) => s.id),
       sessionTypeId: sessionTypeId ?? null,
       isPublished,
     });
@@ -631,11 +719,12 @@ function EditSessionModal({
             required
           />
         </Group>
-        <TextInput
-          label="Speakers"
-          description="Comma-separated names"
-          value={speakers}
-          onChange={(e) => setSpeakers(e.currentTarget.value)}
+        <SpeakerSelector
+          linkedSpeakers={linkedSpeakers}
+          onAddLinkedSpeaker={(user) => setLinkedSpeakers((prev) => [...prev, user])}
+          onRemoveLinkedSpeaker={(userId) => setLinkedSpeakers((prev) => prev.filter((s) => s.id !== userId))}
+          textSpeakers={textSpeakers}
+          onTextSpeakersChange={setTextSpeakers}
         />
         {sessionTypes.length > 0 && (
           <Select
