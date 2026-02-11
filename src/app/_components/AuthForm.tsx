@@ -18,7 +18,7 @@ import {
   Anchor,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { IconBrandDiscord, IconBrandGoogle, IconCheck, IconAlertCircle } from "@tabler/icons-react";
+import { IconBrandDiscord, IconBrandGoogle, IconCheck, IconAlertCircle, IconMail } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 
 interface AuthFormProps {
@@ -62,9 +62,11 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [magicLinkMode, setMagicLinkMode] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState("");
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   const createUserMutation = api.user.create.useMutation();
-  const acceptInvitationMutation = api.invitation.accept.useMutation();
 
   // Preserve late pass from URL parameters in client-side cookie
   useEffect(() => {
@@ -132,21 +134,6 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
       if (result?.error) {
         setError("Invalid email or password");
       } else if (result?.url) {
-        // Check and accept any pending invitations for this email after successful sign-in
-        try {
-          const invitationResult = await acceptInvitationMutation.mutateAsync({
-            email: values.email,
-            // userId is now optional - API will look up user by email
-          });
-
-          if (invitationResult.accepted > 0) {
-            console.log(`Accepted ${invitationResult.accepted} invitation(s) during sign-in:`, invitationResult.roles);
-          }
-        } catch (invitationError) {
-          // Log but don't fail sign-in if invitation acceptance fails
-          console.log("No pending invitations or invitation acceptance failed during sign-in:", invitationError);
-        }
-
         setSuccess("Sign in successful! Redirecting...");
         window.location.href = result.url;
       }
@@ -162,28 +149,14 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
     setError(null);
 
     try {
-      const user = await createUserMutation.mutateAsync({
+      await createUserMutation.mutateAsync({
         firstName: values.firstName,
         surname: values.surname,
         email: values.email,
         password: values.password,
       });
 
-      // Check and accept any pending invitations for this email
-      try {
-        const invitationResult = await acceptInvitationMutation.mutateAsync({
-          email: values.email,
-          userId: user.id,
-        });
-
-        if (invitationResult.accepted > 0) {
-          console.log(`Accepted ${invitationResult.accepted} invitation(s):`, invitationResult.roles);
-        }
-      } catch (invitationError) {
-        // Log but don't fail registration if invitation acceptance fails
-        console.log("No pending invitations or invitation acceptance failed:", invitationError);
-      }
-
+      // Invitations are accepted automatically in the signIn callback
       const result = await signIn("credentials", {
         email: values.email,
         password: values.password,
@@ -199,6 +172,35 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create account");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMagicLinkSignIn = async () => {
+    if (!magicLinkEmail || !/^\S+@\S+$/.test(magicLinkEmail)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await signIn("postmark", {
+        email: magicLinkEmail,
+        redirect: false,
+        callbackUrl: callbackUrl ?? "/dashboard",
+      });
+
+      if (result?.error) {
+        setError("Failed to send sign-in link. Please try again.");
+      } else {
+        setMagicLinkSent(true);
+        setSuccess("Check your email for a sign-in link!");
+      }
+    } catch {
+      setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -254,36 +256,54 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
           </Tabs.List>
 
           <Tabs.Panel value="signin" mt="sm">
-            <form onSubmit={signInForm.onSubmit(handleSignIn)}>
+            {magicLinkSent ? (
+              <Stack gap="sm" align="center" py="md">
+                <IconMail size={48} color="var(--mantine-color-blue-6)" />
+                <Text fw={600} size="lg">Check your email</Text>
+                <Text size="sm" c="dimmed" ta="center">
+                  We sent a sign-in link to <strong>{magicLinkEmail}</strong>.
+                  Click the link in the email to sign in.
+                </Text>
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  onClick={() => {
+                    setMagicLinkSent(false);
+                    setSuccess(null);
+                  }}
+                >
+                  Try a different method
+                </Button>
+              </Stack>
+            ) : magicLinkMode ? (
               <Stack gap="sm">
                 <TextInput
                   label="Email"
                   placeholder="your@email.com"
+                  value={magicLinkEmail}
+                  onChange={(e) => setMagicLinkEmail(e.currentTarget.value)}
                   required
-                  {...signInForm.getInputProps("email")}
+                  leftSection={<IconMail size={16} />}
                 />
-                <PasswordInput
-                  label="Password"
-                  placeholder="Your password"
-                  required
-                  {...signInForm.getInputProps("password")}
-                />
-                <Group justify="space-between">
-                  <Checkbox
-                    label="Remember me"
-                    size="sm"
-                    {...signInForm.getInputProps("rememberMe", { type: "checkbox" })}
-                  />
-                  <Anchor size="xs" href="/auth/forgot-password">
-                    Forgot password?
-                  </Anchor>
-                </Group>
-                <Button type="submit" loading={isLoading} fullWidth>
-                  Sign In
+                <Button
+                  onClick={() => void handleMagicLinkSignIn()}
+                  loading={isLoading}
+                  fullWidth
+                  leftSection={<IconMail size={18} />}
+                >
+                  Send Sign-In Link
                 </Button>
-                
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  onClick={() => setMagicLinkMode(false)}
+                  fullWidth
+                >
+                  Sign in with password instead
+                </Button>
+
                 <Divider label="Or continue with" labelPosition="center" />
-                
+
                 <Stack gap="xs">
                   <Button
                     variant="outline"
@@ -305,7 +325,69 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
                   </Button>
                 </Stack>
               </Stack>
-            </form>
+            ) : (
+              <form onSubmit={signInForm.onSubmit(handleSignIn)}>
+                <Stack gap="sm">
+                  <TextInput
+                    label="Email"
+                    placeholder="your@email.com"
+                    required
+                    {...signInForm.getInputProps("email")}
+                  />
+                  <PasswordInput
+                    label="Password"
+                    placeholder="Your password"
+                    required
+                    {...signInForm.getInputProps("password")}
+                  />
+                  <Group justify="space-between">
+                    <Checkbox
+                      label="Remember me"
+                      size="sm"
+                      {...signInForm.getInputProps("rememberMe", { type: "checkbox" })}
+                    />
+                    <Anchor size="xs" href="/auth/forgot-password">
+                      Forgot password?
+                    </Anchor>
+                  </Group>
+                  <Button type="submit" loading={isLoading} fullWidth>
+                    Sign In
+                  </Button>
+                  <Button
+                    variant="subtle"
+                    size="sm"
+                    onClick={() => setMagicLinkMode(true)}
+                    fullWidth
+                    leftSection={<IconMail size={16} />}
+                  >
+                    Sign in with email link instead
+                  </Button>
+
+                  <Divider label="Or continue with" labelPosition="center" />
+
+                  <Stack gap="xs">
+                    <Button
+                      variant="outline"
+                      leftSection={<IconBrandDiscord size={18} />}
+                      onClick={() => handleProviderSignIn("discord")}
+                      loading={isLoading}
+                      fullWidth
+                    >
+                      Continue with Discord
+                    </Button>
+                    <Button
+                      variant="outline"
+                      leftSection={<IconBrandGoogle size={18} />}
+                      onClick={() => handleProviderSignIn("google")}
+                      loading={isLoading}
+                      fullWidth
+                    >
+                      Continue with Google
+                    </Button>
+                  </Stack>
+                </Stack>
+              </form>
+            )}
           </Tabs.Panel>
 
           <Tabs.Panel value="signup" mt="sm">

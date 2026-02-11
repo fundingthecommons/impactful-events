@@ -7,6 +7,7 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { sendInvitationEmail } from "~/lib/email";
+import { acceptPendingInvitations } from "~/server/auth/acceptInvitations";
 
 // Helper function to check if user has admin/staff role
 function checkAdminAccess(userRole?: string | null) {
@@ -516,134 +517,30 @@ export const invitationRouter = createTRPCRouter({
       return invitation;
     }),
 
-  // Accept invitation (called during user registration)
+  // Accept invitation (called during user registration / sign-in)
+  // Note: Invitations are also accepted automatically in the NextAuth signIn callback
   accept: publicProcedure
     .input(z.object({
       email: z.string().email(),
-      userId: z.string().optional(), // Make userId optional for sign-in flow
+      userId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       let userId = input.userId;
-      
-      // If userId not provided, look up user by email (for sign-in flow)
+
       if (!userId) {
         const user = await ctx.db.user.findUnique({
           where: { email: input.email },
-          select: { id: true }
+          select: { id: true },
         });
-        
+
         if (!user) {
-          return { accepted: 0, roles: [], error: "User not found" };
+          return { accepted: 0, roles: [] };
         }
-        
+
         userId = user.id;
       }
 
-      // Get all pending invitations for this email
-      const invitations = await ctx.db.invitation.findMany({
-        where: {
-          email: input.email,
-          status: "PENDING",
-          expiresAt: {
-            gt: new Date(),
-          },
-        },
-        include: {
-          event: true,
-          role: true,
-        },
-      });
-
-      if (invitations.length === 0) {
-        return { accepted: 0, roles: [] };
-      }
-
-      const acceptedRoles = [];
-
-      // Process each invitation
-      for (const invitation of invitations) {
-        if (invitation.type === "EVENT_ROLE" && invitation.eventId && invitation.roleId) {
-          // Check if user already has this role for this event
-          const existingRole = await ctx.db.userRole.findUnique({
-            where: {
-              userId_eventId_roleId: {
-                userId: userId,
-                eventId: invitation.eventId,
-                roleId: invitation.roleId,
-              },
-            },
-          });
-
-          if (!existingRole) {
-            // Create the user role assignment
-            await ctx.db.userRole.create({
-              data: {
-                userId: userId,
-                eventId: invitation.eventId,
-                roleId: invitation.roleId,
-              },
-            });
-
-            acceptedRoles.push({
-              eventName: invitation.event?.name ?? "Event",
-              roleName: invitation.role?.name ?? "Role",
-            });
-          }
-        } else if ((invitation.type === "GLOBAL_ADMIN" || invitation.type === "GLOBAL_STAFF") && invitation.globalRole) {
-          // Update user's global role
-          await ctx.db.user.update({
-            where: { id: userId },
-            data: { role: invitation.globalRole },
-          });
-
-          acceptedRoles.push({
-            eventName: "Global Platform",
-            roleName: invitation.globalRole,
-          });
-        } else if (invitation.type === "VENUE_OWNER" && invitation.eventId && invitation.venueId) {
-          // Create venue ownership record
-          const existingOwnership = await ctx.db.venueOwner.findUnique({
-            where: {
-              userId_venueId: { userId, venueId: invitation.venueId },
-            },
-          });
-
-          if (!existingOwnership) {
-            await ctx.db.venueOwner.create({
-              data: {
-                userId,
-                venueId: invitation.venueId,
-                eventId: invitation.eventId,
-                assignedBy: invitation.invitedBy,
-              },
-            });
-          }
-
-          const venueName = await ctx.db.scheduleVenue.findUnique({
-            where: { id: invitation.venueId },
-            select: { name: true },
-          });
-
-          acceptedRoles.push({
-            eventName: invitation.event?.name ?? "Event",
-            roleName: `Floor Owner - ${venueName?.name ?? "Venue"}`,
-          });
-        }
-
-        // Mark invitation as accepted
-        await ctx.db.invitation.update({
-          where: { id: invitation.id },
-          data: {
-            status: "ACCEPTED",
-            acceptedAt: new Date(),
-          },
-        });
-      }
-
-      return {
-        accepted: acceptedRoles.length,
-        roles: acceptedRoles,
-      };
+      return acceptPendingInvitations(input.email, userId);
     }),
 
   // Cancel invitation

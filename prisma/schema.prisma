@@ -667,6 +667,7 @@ enum EmailType {
   
   // Authentication related
   PASSWORD_RESET
+  MAGIC_LINK
   
   // General
   GENERAL

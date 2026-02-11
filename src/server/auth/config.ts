@@ -1,12 +1,18 @@
+import type React from "react";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { type DefaultSession, type NextAuthConfig } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import DiscordProvider from "next-auth/providers/discord";
 import GoogleProvider from "next-auth/providers/google";
+import PostmarkProvider from "next-auth/providers/postmark";
+import { render } from "@react-email/render";
 import { z } from "zod";
 
 import { db } from "~/server/db";
 import { verifyPassword } from "~/utils/password";
+import { sendEmail } from "~/lib/email";
+import { MagicLinkTemplate } from "~/server/email/templates/magicLink";
+import { acceptPendingInvitations } from "./acceptInvitations";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -116,21 +122,33 @@ export const authConfig = {
       //   },
       // },
     }),
-    /**
-     * ...add more providers here.
-     *
-     * Most other providers require a bit more work than the Discord provider. For example, the
-     * GitHub provider requires you to add the `refresh_token_expires_in` field to the Account
-     * model. Refer to the NextAuth.js docs for the provider you want to use. Example:
-     *
-     * @see https://next-auth.js.org/providers/github
-     */
+    PostmarkProvider({
+      from: process.env.ADMIN_EMAIL ?? "noreply@fundingthecommons.io",
+      apiKey: process.env.POSTMARK_SERVER_TOKEN,
+      async sendVerificationRequest({ identifier: to, url, expires }) {
+        const expirationMinutes = Math.round(
+          (expires.getTime() - Date.now()) / (1000 * 60)
+        );
+
+        const html = await render(
+          MagicLinkTemplate({ signInUrl: url, expirationMinutes }) as React.ReactElement
+        );
+
+        await sendEmail({
+          to,
+          subject: "Sign in to Funding the Commons",
+          htmlContent: html,
+          textContent: `Sign in to Funding the Commons:\n\n${url}\n\nThis link expires in ${expirationMinutes} minutes.`,
+        });
+      },
+    }),
   ],
   adapter: PrismaAdapter(db),
   // Account linking will be handled by the signIn callback
   pages: {
-    signIn: '/signin', // Custom sign-in page
-    error: '/auth/error', // Custom error page
+    signIn: '/signin',
+    error: '/auth/error',
+    verifyRequest: '/auth/verify-request',
   },
   session: {
     strategy: "jwt", // Use JWT for credentials provider
@@ -180,14 +198,33 @@ export const authConfig = {
         });
       }
 
-      // Always allow sign in - NextAuth will handle account linking with the adapter
+      // Universal invitation acceptance for ALL sign-in methods
+      if (user.id && user.email) {
+        try {
+          const invitationResult = await acceptPendingInvitations(user.email, user.id);
+          if (invitationResult.accepted > 0) {
+            console.log(
+              `[AUTH] Accepted ${invitationResult.accepted} invitation(s) for ${user.email}:`,
+              invitationResult.roles
+            );
+          }
+        } catch (error) {
+          // Log but never block sign-in
+          console.error("[AUTH] Invitation acceptance failed:", error);
+        }
+      }
+
       return true;
     },
-    jwt: ({ token, user }) => {
-      // When user logs in, add user data to token
+    jwt: async ({ token, user }) => {
       if (user) {
         token.id = user.id;
-        token.role = user.role;
+        // Fetch latest role from DB (invitation acceptance may have updated it)
+        const dbUser = await db.user.findUnique({
+          where: { id: user.id },
+          select: { role: true },
+        });
+        token.role = dbUser?.role ?? user.role;
       }
       return token;
     },

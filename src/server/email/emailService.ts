@@ -11,6 +11,7 @@ import type {
   ApplicationMissingInfoProps,
   InvitationProps,
   PasswordResetProps,
+  MagicLinkProps,
   UpdateCommentNotificationProps,
   ForumCommentNotificationProps,
   AskOfferCommentNotificationProps,
@@ -24,6 +25,7 @@ type TemplateProps =
   | ApplicationMissingInfoProps
   | InvitationProps
   | PasswordResetProps
+  | MagicLinkProps
   | UpdateCommentNotificationProps
   | ForumCommentNotificationProps
   | AskOfferCommentNotificationProps;
@@ -369,6 +371,8 @@ export class EmailService {
         return `You're invited to join ${(data as InvitationProps).eventName}`;
       case 'passwordReset':
         return 'Reset your Funding the Commons password';
+      case 'magicLink':
+        return 'Sign in to Funding the Commons';
       case 'updateCommentNotification':
         return `💬 New comment from ${(data as UpdateCommentNotificationProps).commenterName}`;
       case 'forumCommentNotification': {

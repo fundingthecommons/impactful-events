@@ -8,6 +8,7 @@ import { PasswordReset } from './passwordReset';
 import { UpdateCommentNotificationTemplate } from './updateCommentNotification';
 import { ForumCommentNotificationTemplate } from './forumCommentNotification';
 import { AskOfferCommentNotificationTemplate } from './askOfferCommentNotification';
+import { MagicLinkTemplate } from './magicLink';
 
 // Template registry with all available templates
 export const templates = {
@@ -23,6 +24,7 @@ export const templates = {
 
   // Authentication templates
   passwordReset: PasswordReset,
+  magicLink: MagicLinkTemplate,
 
   // Project update templates
   updateCommentNotification: UpdateCommentNotificationTemplate,
@@ -43,6 +45,7 @@ export const templateToEmailType = {
   applicationMissingInfo: 'APPLICATION_MISSING_INFO',
   invitation: 'INVITATION_EVENT_ROLE',
   passwordReset: 'PASSWORD_RESET',
+  magicLink: 'MAGIC_LINK',
   updateCommentNotification: 'UPDATE_COMMENT',
   forumCommentNotification: 'FORUM_COMMENT',
   askOfferCommentNotification: 'ASK_OFFER_COMMENT',
@@ -56,6 +59,7 @@ export { ApplicationSubmittedTemplate } from './applicationSubmitted';
 export { ApplicationMissingInfoTemplate } from './applicationMissingInfo';
 export { InvitationTemplate } from './invitation';
 export { PasswordReset } from './passwordReset';
+export { MagicLinkTemplate } from './magicLink';
 export { UpdateCommentNotificationTemplate } from './updateCommentNotification';
 export { ForumCommentNotificationTemplate } from './forumCommentNotification';
 export { AskOfferCommentNotificationTemplate } from './askOfferCommentNotification';
@@ -68,6 +72,7 @@ export type { ApplicationSubmittedProps } from './applicationSubmitted';
 export type { ApplicationMissingInfoProps } from './applicationMissingInfo';
 export type { InvitationProps } from './invitation';
 export type { PasswordResetProps } from './passwordReset';
+export type { MagicLinkProps } from './magicLink';
 export type { UpdateCommentNotificationProps } from './updateCommentNotification';
 export type { ForumCommentNotificationProps } from './forumCommentNotification';
 export type { AskOfferCommentNotificationProps } from './askOfferCommentNotification';
