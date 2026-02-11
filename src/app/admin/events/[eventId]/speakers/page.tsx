@@ -1,4 +1,6 @@
 import { type Metadata } from "next";
+import { redirect } from "next/navigation";
+import { auth } from "~/server/auth";
 import AdminSpeakerManagementClient from "./AdminSpeakerManagementClient";
 
 export const metadata: Metadata = {
@@ -14,5 +16,16 @@ interface Props {
 
 export default async function SpeakerManagementPage({ params }: Props) {
   const { eventId } = await params;
+
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect(`/signin?callbackUrl=/admin/events/${eventId}/speakers`);
+  }
+
+  if (session.user.role !== "staff" && session.user.role !== "admin") {
+    redirect("/unauthorized");
+  }
+
   return <AdminSpeakerManagementClient eventId={eventId} />;
 }

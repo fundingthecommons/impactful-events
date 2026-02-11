@@ -236,6 +236,8 @@ export const invitationRouter = createTRPCRouter({
             eventId: invitation.eventId ?? undefined,
           });
         } else if (input.type === "VENUE_OWNER") {
+          const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+          const eventSlug = invitation.event!.slug ?? invitation.eventId;
           await sendInvitationEmail({
             email: invitation.email,
             eventName: invitation.event!.name,
@@ -245,6 +247,7 @@ export const invitationRouter = createTRPCRouter({
             invitationToken: invitation.token,
             expiresAt: invitation.expiresAt,
             eventId: invitation.eventId ?? undefined,
+            signupUrl: `${baseUrl}/events/${eventSlug}`,
           });
         } else {
           // Send global admin invitation email
@@ -690,6 +693,7 @@ export const invitationRouter = createTRPCRouter({
         include: {
           event: true,
           role: true,
+          venue: true,
         },
       });
 
@@ -720,6 +724,7 @@ export const invitationRouter = createTRPCRouter({
         include: {
           event: true,
           role: true,
+          venue: true,
         },
       });
 
@@ -735,6 +740,20 @@ export const invitationRouter = createTRPCRouter({
             invitationToken: updatedInvitation.token,
             expiresAt: updatedInvitation.expiresAt,
             eventId: updatedInvitation.eventId ?? undefined,
+          });
+        } else if (updatedInvitation.type === "VENUE_OWNER") {
+          const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+          const eventSlug = updatedInvitation.event?.slug ?? updatedInvitation.eventId;
+          await sendInvitationEmail({
+            email: updatedInvitation.email,
+            eventName: updatedInvitation.event?.name ?? "Event",
+            eventDescription: `You've been invited as a Floor Owner for "${updatedInvitation.venue?.name ?? "Venue"}" at ${updatedInvitation.event?.name ?? "Event"}. You'll be able to manage the schedule for this floor.`,
+            roleName: `Floor Owner - ${updatedInvitation.venue?.name ?? "Venue"}`,
+            inviterName: getInviterName(ctx.session.user),
+            invitationToken: updatedInvitation.token,
+            expiresAt: updatedInvitation.expiresAt,
+            eventId: updatedInvitation.eventId ?? undefined,
+            signupUrl: `${baseUrl}/events/${eventSlug}`,
           });
         } else {
           await sendInvitationEmail({
