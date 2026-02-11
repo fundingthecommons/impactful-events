@@ -33,7 +33,7 @@ const CreateInvitationSchema = z.object({
   eventId: z.string().optional(),
   roleId: z.string().optional(),
   globalRole: z.enum(["admin", "staff"]).optional(),
-  expiresAt: z.date().optional(),
+  expiresAt: z.coerce.date().optional(),
 }).refine((data) => {
   // For EVENT_ROLE type, eventId and roleId are required
   if (data.type === "EVENT_ROLE") {
@@ -54,7 +54,7 @@ const BulkCreateInvitationSchema = z.object({
   eventId: z.string().optional(),
   roleId: z.string().optional(),
   globalRole: z.enum(["admin", "staff"]).optional(),
-  expiresAt: z.date().optional(),
+  expiresAt: z.coerce.date().optional(),
 }).refine((data) => {
   // Same validation as CreateInvitationSchema
   if (data.type === "EVENT_ROLE") {
