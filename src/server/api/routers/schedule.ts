@@ -164,6 +164,7 @@ export const scheduleRouter = createTRPCRouter({
         startTime: z.coerce.date().optional(),
         endTime: z.coerce.date().optional(),
         speakers: z.array(z.string()).optional(),
+        linkedSpeakerIds: z.array(z.string()).optional(),
         venueId: z.string().nullable().optional(),
         sessionTypeId: z.string().nullable().optional(),
         order: z.number().optional(),
@@ -171,7 +172,7 @@ export const scheduleRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
+      const { id, linkedSpeakerIds, ...data } = input;
 
       // Check permission on the existing session
       await assertCanManageSession(
@@ -191,7 +192,23 @@ export const scheduleRouter = createTRPCRouter({
         );
       }
 
-      return ctx.db.scheduleSession.update({ where: { id }, data });
+      const session = await ctx.db.scheduleSession.update({ where: { id }, data });
+
+      // Sync linked speakers if explicitly provided
+      if (linkedSpeakerIds !== undefined) {
+        await ctx.db.sessionSpeaker.deleteMany({ where: { sessionId: id } });
+        if (linkedSpeakerIds.length > 0) {
+          await ctx.db.sessionSpeaker.createMany({
+            data: linkedSpeakerIds.map((userId, index) => ({
+              sessionId: id,
+              userId,
+              order: index,
+            })),
+          });
+        }
+      }
+
+      return session;
     }),
 
   // Delete a session (admin or floor owner of the session's venue)

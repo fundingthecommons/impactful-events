@@ -138,11 +138,13 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
   const acceptedApplications = allApplications.filter(app => app.status === "ACCEPTED");
   const rejectedApplications = allApplications.filter(app => app.status === "REJECTED");
   const pendingApplications = allApplications.filter(app => !["ACCEPTED", "REJECTED"].includes(app.status));
+  const invitedApplications = allApplications.filter(app => app.invitationId != null);
 
   const getCurrentTabApplications = () => {
     switch (appTab) {
       case "accepted": return acceptedApplications;
       case "rejected": return rejectedApplications;
+      case "invited": return invitedApplications;
       default: return allApplications;
     }
   };
@@ -228,6 +230,9 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
                 </Tabs.Tab>
                 <Tabs.Tab value="rejected">
                   Rejected {rejectedApplications.length > 0 && <Badge size="sm" variant="light" color="red" ml="xs">{rejectedApplications.length}</Badge>}
+                </Tabs.Tab>
+                <Tabs.Tab value="invited">
+                  Invited {invitedApplications.length > 0 && <Badge size="sm" variant="light" color="violet" ml="xs">{invitedApplications.length}</Badge>}
                 </Tabs.Tab>
               </Tabs.List>
 

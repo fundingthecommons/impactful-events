@@ -189,6 +189,7 @@ export const applicationRouter = createTRPCRouter({
 
       // Validate invitation token if provided
       let hasValidInvitation = false;
+      let validInvitationId: string | null = null;
       if (input.invitationToken) {
         const invitation = await ctx.db.invitation.findUnique({
           where: { token: input.invitationToken },
@@ -208,6 +209,7 @@ export const applicationRouter = createTRPCRouter({
             invitation.eventId === input.eventId &&
             invitation.email.toLowerCase() === ctx.session.user.email?.toLowerCase()) {
           hasValidInvitation = true;
+          validInvitationId = invitation.id;
           console.log('✅ Valid invitation token found for user');
         } else if (invitation) {
           console.log('❌ Invalid invitation:', {
@@ -277,12 +279,21 @@ export const applicationRouter = createTRPCRouter({
           requestedType: input.applicationType
         });
 
-        // If existing application has different type, update it to the requested type
-        if (existing.applicationType !== input.applicationType) {
-          console.log('🔄 Updating application type from', existing.applicationType, 'to', input.applicationType);
+        // If existing application has different type or needs invitation linkage, update it
+        const needsTypeUpdate = existing.applicationType !== input.applicationType;
+        const needsInvitationLink = validInvitationId && !existing.invitationId;
+
+        if (needsTypeUpdate || needsInvitationLink) {
+          console.log('🔄 Updating application:', {
+            typeChange: needsTypeUpdate ? `${existing.applicationType} → ${input.applicationType}` : 'none',
+            invitationLink: needsInvitationLink ? validInvitationId : 'none',
+          });
           const updated = await ctx.db.application.update({
             where: { id: existing.id },
-            data: { applicationType: input.applicationType },
+            data: {
+              ...(needsTypeUpdate && { applicationType: input.applicationType }),
+              ...(needsInvitationLink && { invitationId: validInvitationId }),
+            },
             include: {
               event: true,
               responses: {
@@ -292,10 +303,10 @@ export const applicationRouter = createTRPCRouter({
               },
             },
           });
-          console.log('✅ Application type updated successfully');
+          console.log('✅ Application updated successfully');
           return updated;
         }
-        
+
         console.log('ℹ️ Application type already matches, returning existing application');
         return existing;
       }
@@ -311,6 +322,7 @@ export const applicationRouter = createTRPCRouter({
             language: input.language,
             applicationType: input.applicationType,
             status: "DRAFT",
+            ...(validInvitationId && { invitationId: validInvitationId }),
           },
           include: {
             event: true,
@@ -698,6 +710,13 @@ export const applicationRouter = createTRPCRouter({
           responses: {
             include: {
               question: true,
+            },
+          },
+          invitation: {
+            select: {
+              id: true,
+              email: true,
+              createdAt: true,
             },
           },
           reviewerAssignments: {
