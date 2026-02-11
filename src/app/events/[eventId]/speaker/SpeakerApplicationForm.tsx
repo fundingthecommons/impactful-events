@@ -97,30 +97,7 @@ export default function SpeakerApplicationForm({
 
   const createApplication = api.application.createApplication.useMutation();
   const submitApplication = api.application.submitApplication.useMutation();
-
-  const updateProfile = api.profile.updateProfile.useMutation({
-    onSuccess: () => {
-      notifications.show({
-        title: "Speaker Application Submitted!",
-        message:
-          "Your speaker application has been submitted successfully. We will review it and get back to you.",
-        color: "green",
-        icon: <IconCheck size={16} />,
-      });
-
-      router.push(`/events/${eventId}`);
-    },
-    onError: (error) => {
-      notifications.show({
-        title: "Submission Failed",
-        message:
-          error.message ??
-          "There was an error submitting your speaker application. Please try again.",
-        color: "red",
-        icon: <IconX size={16} />,
-      });
-    },
-  });
+  const updateProfile = api.profile.updateProfile.useMutation();
 
   const form = useForm<SpeakerApplicationData>({
     validate: zodResolver(speakerApplicationSchema),
@@ -145,7 +122,7 @@ export default function SpeakerApplicationForm({
     setIsSubmitting(true);
 
     try {
-      // Create speaker application record
+      // Step 1: Create speaker application record
       const application = await createApplication.mutateAsync({
         eventId,
         applicationType: "SPEAKER",
@@ -153,7 +130,7 @@ export default function SpeakerApplicationForm({
         invitationToken,
       });
 
-      // Update profile with speaker info
+      // Step 2: Update profile with speaker info
       await updateProfile.mutateAsync({
         bio: values.bio,
         jobTitle: values.jobTitle,
@@ -170,12 +147,32 @@ export default function SpeakerApplicationForm({
         speakerPastTalkUrl: values.pastTalkUrl,
       });
 
-      // Auto-submit the application
+      // Step 3: Submit the application (DRAFT → SUBMITTED)
       await submitApplication.mutateAsync({
         applicationId: application.id,
       });
-    } catch {
-      // Error is handled by the mutation's onError callback
+
+      // All steps succeeded - show success and redirect
+      notifications.show({
+        title: "Speaker Application Submitted!",
+        message:
+          "Your speaker application has been submitted successfully. We will review it and get back to you.",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+
+      router.push(`/events/${eventId}`);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "There was an error submitting your speaker application. Please try again.";
+      notifications.show({
+        title: "Submission Failed",
+        message,
+        color: "red",
+        icon: <IconX size={16} />,
+      });
     } finally {
       setIsSubmitting(false);
     }

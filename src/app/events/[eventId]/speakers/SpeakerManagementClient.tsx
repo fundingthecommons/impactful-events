@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
+  Alert,
   Container,
   Title,
   Card,
@@ -83,7 +84,7 @@ export default function SpeakerManagementClient({ eventId }: Props) {
   });
 
   // ── Application Queries ──
-  const { data: speakerApplications, refetch: refetchApplications, isLoading: loadingApplications } =
+  const { data: speakerApplications, refetch: refetchApplications, isLoading: loadingApplications, error: applicationsError } =
     api.application.getEventApplications.useQuery({
       eventId,
       applicationType: "SPEAKER",
@@ -122,6 +123,15 @@ export default function SpeakerManagementClient({ eventId }: Props) {
     },
   });
 
+  // Build a set of invited emails for cross-referencing (must be before early returns)
+  const invitedEmails = useMemo(() => {
+    const emails = new Set<string>();
+    for (const invitation of inv.invitations) {
+      emails.add(invitation.email.toLowerCase());
+    }
+    return emails;
+  }, [inv.invitations]);
+
   // ── Loading ──
   if (inv.isLoading || loadingApplications || loadingSpeakers) {
     return (
@@ -131,12 +141,25 @@ export default function SpeakerManagementClient({ eventId }: Props) {
     );
   }
 
+  // ── Error Handling ──
+  if (applicationsError) {
+    return (
+      <Container size="xl" py="xl">
+        <Alert color="red" title="Failed to load applications">
+          {applicationsError.message}
+        </Alert>
+      </Container>
+    );
+  }
+
   // ── Application Helpers ──
   const allApplications = speakerApplications ?? [];
   const acceptedApplications = allApplications.filter(app => app.status === "ACCEPTED");
   const rejectedApplications = allApplications.filter(app => app.status === "REJECTED");
   const pendingApplications = allApplications.filter(app => !["ACCEPTED", "REJECTED"].includes(app.status));
-  const invitedApplications = allApplications.filter(app => app.invitationId != null);
+  const invitedApplications = allApplications.filter(
+    app => app.invitationId != null || invitedEmails.has(app.email.toLowerCase())
+  );
 
   const getCurrentTabApplications = () => {
     switch (appTab) {
@@ -231,6 +254,7 @@ export default function SpeakerManagementClient({ eventId }: Props) {
                 <SpeakerApplicationsTable
                   applications={allApplications}
                   selectedApplications={selectedApplications}
+                  invitedEmails={invitedEmails}
                   onSelectAll={() => {
                     setSelectedApplications(prev =>
                       prev.length === currentApplications.length ? [] : currentApplications.map(a => a.id)
@@ -250,6 +274,7 @@ export default function SpeakerManagementClient({ eventId }: Props) {
                 <SpeakerApplicationsTable
                   applications={acceptedApplications}
                   selectedApplications={selectedApplications}
+                  invitedEmails={invitedEmails}
                   onSelectAll={() => {
                     setSelectedApplications(prev =>
                       prev.length === acceptedApplications.length ? [] : acceptedApplications.map(a => a.id)
@@ -269,6 +294,7 @@ export default function SpeakerManagementClient({ eventId }: Props) {
                 <SpeakerApplicationsTable
                   applications={rejectedApplications}
                   selectedApplications={selectedApplications}
+                  invitedEmails={invitedEmails}
                   onSelectAll={() => {
                     setSelectedApplications(prev =>
                       prev.length === rejectedApplications.length ? [] : rejectedApplications.map(a => a.id)
@@ -288,6 +314,7 @@ export default function SpeakerManagementClient({ eventId }: Props) {
                 <SpeakerApplicationsTable
                   applications={invitedApplications}
                   selectedApplications={selectedApplications}
+                  invitedEmails={invitedEmails}
                   onSelectAll={() => {
                     setSelectedApplications(prev =>
                       prev.length === invitedApplications.length ? [] : invitedApplications.map(a => a.id)
@@ -435,6 +462,7 @@ interface ApplicationRow {
 interface SpeakerApplicationsTableProps {
   applications: ApplicationRow[];
   selectedApplications: string[];
+  invitedEmails: Set<string>;
   onSelectAll: () => void;
   onSelectApplication: (id: string) => void;
   onStatusUpdate: (id: string, status: "ACCEPTED" | "REJECTED") => void;
@@ -445,6 +473,7 @@ interface SpeakerApplicationsTableProps {
 function SpeakerApplicationsTable({
   applications,
   selectedApplications,
+  invitedEmails,
   onSelectAll,
   onSelectApplication,
   onStatusUpdate,
@@ -498,7 +527,7 @@ function SpeakerApplicationsTable({
               <Table.Td>
                 <Group gap={6} wrap="nowrap">
                   <Text size="sm" fw={500}>{application.user?.name ?? "Unknown"}</Text>
-                  {application.invitationId && (
+                  {(application.invitationId ?? invitedEmails.has(application.email.toLowerCase())) && (
                     <Badge size="xs" variant="light" color="violet" leftSection={<IconMail size={10} />}>
                       Invited
                     </Badge>

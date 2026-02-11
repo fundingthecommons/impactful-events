@@ -588,36 +588,39 @@ export const applicationRouter = createTRPCRouter({
       }
 
       // Check required questions are answered (excluding conditional fields)
-      const allRequiredQuestions = await ctx.db.applicationQuestion.findMany({
-        where: {
-          eventId: application.eventId,
-          required: true,
-        },
-      });
-
-      // Filter out conditional fields that shouldn't be required
-      const requiredQuestions = allRequiredQuestions.filter(question => {
-        const questionText = question.questionEn.toLowerCase();
-        const isConditionalField = questionText.includes("specify") || 
-                                   questionText.includes("if you answered") ||
-                                   questionText.includes("if you did not select") ||
-                                   questionText.includes("other") && questionText.includes("please");
-        return !isConditionalField;
-      });
-
-      const answeredQuestionIds = new Set(
-        application.responses.map(r => r.questionId)
-      );
-
-      const missingRequired = requiredQuestions.filter(
-        q => !answeredQuestionIds.has(q.id)
-      );
-
-      if (missingRequired.length > 0) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Please answer all required questions: ${missingRequired.map(q => q.questionKey).join(", ")}`,
+      // Speaker applications store data in the profile, not as question responses
+      if (application.applicationType !== "SPEAKER") {
+        const allRequiredQuestions = await ctx.db.applicationQuestion.findMany({
+          where: {
+            eventId: application.eventId,
+            required: true,
+          },
         });
+
+        // Filter out conditional fields that shouldn't be required
+        const requiredQuestions = allRequiredQuestions.filter(question => {
+          const questionText = question.questionEn.toLowerCase();
+          const isConditionalField = questionText.includes("specify") ||
+                                     questionText.includes("if you answered") ||
+                                     questionText.includes("if you did not select") ||
+                                     questionText.includes("other") && questionText.includes("please");
+          return !isConditionalField;
+        });
+
+        const answeredQuestionIds = new Set(
+          application.responses.map(r => r.questionId)
+        );
+
+        const missingRequired = requiredQuestions.filter(
+          q => !answeredQuestionIds.has(q.id)
+        );
+
+        if (missingRequired.length > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Please answer all required questions: ${missingRequired.map(q => q.questionKey).join(", ")}`,
+          });
+        }
       }
 
       // Submit the application
