@@ -868,6 +868,49 @@ async function main() {
   }
   console.log(`✅ Created/updated ${commonSkills.length} common skills`);
 
+  // Seed 12 floors (ScheduleVenues) for Intelligence at the Frontier event
+  const iatfEvent = await prisma.event.findFirst({
+    where: { slug: 'intelligence-at-the-frontier' },
+  })
+
+  if (iatfEvent) {
+    console.log('🏢 Creating floors for Intelligence at the Frontier...')
+    const floors = [
+      { name: 'Floor 1', order: 1 },
+      { name: 'Floor 2', order: 2 },
+      { name: 'Floor 3', order: 3 },
+      { name: 'Floor 4', order: 4 },
+      { name: 'Floor 5', order: 5 },
+      { name: 'Floor 6', order: 6 },
+      { name: 'Floor 7', order: 7 },
+      { name: 'Floor 8', order: 8 },
+      { name: 'Floor 9', order: 9 },
+      { name: 'Floor 10', order: 10 },
+      { name: 'Floor 11', order: 11 },
+      { name: 'Floor 12', order: 12 },
+    ]
+
+    for (const floor of floors) {
+      await prisma.scheduleVenue.upsert({
+        where: {
+          eventId_name: {
+            eventId: iatfEvent.id,
+            name: floor.name,
+          },
+        },
+        update: { order: floor.order },
+        create: {
+          eventId: iatfEvent.id,
+          name: floor.name,
+          order: floor.order,
+        },
+      })
+      console.log(`✅ Created/updated venue: ${floor.name}`)
+    }
+  } else {
+    console.log('⚠️  Intelligence at the Frontier event not found, skipping floor seeding')
+  }
+
   console.log('🎉 Seeding completed successfully!')
 }
 

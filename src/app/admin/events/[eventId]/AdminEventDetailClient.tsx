@@ -277,6 +277,7 @@ export default function AdminEventDetailClient({ event }: AdminEventDetailClient
               icon: IconMicrophone,
               color: "teal",
               href: `/admin/events/${eventIdentifier}/speakers`,
+              visible: event.featureSpeakerVetting,
             },
             {
               label: "Selection Rubric",
