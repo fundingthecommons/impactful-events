@@ -123,6 +123,7 @@ function AssignFloorOwnerForm({ eventId, venues }: AssignFormProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserOption, setSelectedUserOption] = useState<{ value: string; label: string } | null>(null);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
 
   const utils = api.useUtils();
@@ -140,6 +141,7 @@ function AssignFloorOwnerForm({ eventId, venues }: AssignFormProps) {
         color: "green",
       });
       setSelectedUserId(null);
+      setSelectedUserOption(null);
       setSelectedVenueId(null);
       setSearchQuery("");
       void utils.schedule.getVenueOwners.invalidate({ eventId });
@@ -154,6 +156,12 @@ function AssignFloorOwnerForm({ eventId, venues }: AssignFormProps) {
     const email = user.email ? ` (${user.email})` : "";
     return { value: user.id, label: `${name}${email}` };
   });
+
+  // Always include the selected user in the options so the label persists when search clears
+  const userOptionsWithSelected =
+    selectedUserOption && !userOptions.some((o) => o.value === selectedUserOption.value)
+      ? [selectedUserOption, ...userOptions]
+      : userOptions;
 
   const handleAssign = () => {
     if (!selectedUserId || !selectedVenueId) {
@@ -183,9 +191,13 @@ function AssignFloorOwnerForm({ eventId, venues }: AssignFormProps) {
             label="Search User"
             placeholder="Type to search..."
             searchable
-            data={userOptions}
+            data={userOptionsWithSelected}
             value={selectedUserId}
-            onChange={setSelectedUserId}
+            onChange={(value) => {
+              setSelectedUserId(value);
+              const option = userOptions.find((o) => o.value === value);
+              setSelectedUserOption(option ?? null);
+            }}
             onSearchChange={setSearchQuery}
             searchValue={searchQuery}
             nothingFoundMessage={debouncedSearch.length >= 2 ? "No users found" : "Type at least 2 characters"}
