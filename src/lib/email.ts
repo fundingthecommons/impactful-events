@@ -728,8 +728,8 @@ export async function sendInvitationEmail(params: {
   globalRole?: string;
 }): Promise<SendEmailResult> {
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const signupUrl = params.eventId 
-    ? `${baseUrl}/events/${params.eventId}/mentor?invitation=${params.invitationToken}`
+  const signupUrl = params.eventId
+    ? `${baseUrl}/events/${params.eventId}/${params.roleName.toLowerCase()}`
     : `${baseUrl}/auth/register`;
   
   let emailContent;
