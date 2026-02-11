@@ -461,13 +461,7 @@ export const eventRouter = createTRPCRouter({
           },
         },
       },
-    });
-
-    console.log("🔍 getEvents query result:", {
-      totalEvents: events.length,
-      eventNames: events.map(e => e.name),
-      eventDates: events.map(e => ({ name: e.name, start: e.startDate, end: e.endDate })),
-      applicationCounts: events.map(e => ({ name: e.name, count: e._count.applications }))
+      orderBy: [{ startDate: "desc" }],
     });
 
     return events;
@@ -1183,6 +1177,51 @@ export const eventRouter = createTRPCRouter({
             },
           },
         },
+      });
+
+      return updatedEvent;
+    }),
+
+  // Update event status (quick status change)
+  updateEventStatus: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        status: z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const event = await ctx.db.event.findUnique({
+        where: { id: input.id },
+        include: {
+          userRoles: {
+            where: { userId: ctx.session.user.id },
+            include: { role: true },
+          },
+        },
+      });
+
+      if (!event) {
+        throw new Error("Event not found");
+      }
+
+      const isCreator = event.createdById === ctx.session.user.id;
+      const hasOrganizerRole = event.userRoles.some(
+        (ur) => ur.role.name === "ORGANIZER" || ur.role.name === "ADMIN",
+      );
+      const isGlobalAdmin =
+        ctx.session.user.role === "admin" ||
+        ctx.session.user.role === "staff";
+
+      if (!isCreator && !hasOrganizerRole && !isGlobalAdmin) {
+        throw new Error(
+          "You don't have permission to update this event status",
+        );
+      }
+
+      const updatedEvent = await ctx.db.event.update({
+        where: { id: input.id },
+        data: { status: input.status },
       });
 
       return updatedEvent;
