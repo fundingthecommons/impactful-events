@@ -1,36 +1,61 @@
 "use client";
 
-import { 
-  Menu, 
-  Avatar, 
-  Text, 
-  Group, 
+import {
+  Menu,
+  Avatar,
+  Text,
+  Group,
   Stack,
   Badge,
   Divider,
-  rem 
+  rem
 } from "@mantine/core";
 import {
   IconUser,
   IconEdit,
   IconLogout,
-  IconShield,
   IconSettings,
 } from "@tabler/icons-react";
 import { signOut } from "next-auth/react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import type { Session } from "next-auth";
 import { api } from "~/trpc/react";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 import { getDisplayName } from "~/utils/userDisplay";
 
+const ROLE_COLORS: Record<string, string> = {
+  admin: "red",
+  staff: "orange",
+  organizer: "violet",
+  "floor manager": "teal",
+  speaker: "blue",
+  mentor: "green",
+  sponsor: "yellow",
+  resident: "grape",
+  judge: "indigo",
+};
+
+function getRoleColor(role: string): string {
+  return ROLE_COLORS[role.toLowerCase()] ?? "gray";
+}
+
 interface UserDropdownMenuProps {
   session: Session;
 }
 
 export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
+  const params = useParams<{ eventId?: string }>();
+  const eventId = params?.eventId;
+
   // Fetch user profile to get custom avatar
   const { data: profile } = api.profile.getMyProfile.useQuery();
+
+  // Fetch event-specific roles when viewing an event
+  const { data: eventRoles } = api.role.getMyRolesForEvent.useQuery(
+    { eventId: eventId! },
+    { enabled: !!eventId },
+  );
 
   const handleSignOut = () => {
     void signOut();
@@ -62,13 +87,20 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
                 {avatarInitials}
               </Avatar>
             </Group>
-            {session.user.role && session.user.role !== "user" && (
+            {eventRoles && eventRoles.length > 0 ? (
               <Group gap={4}>
-                <IconShield size={12} color="green" />
-                <Badge size="xs" color={session.user.role === "admin" ? "red" : "green"} variant="light">
+                {eventRoles.map((role) => (
+                  <Badge key={role} size="xs" color={getRoleColor(role)} variant="light">
+                    {role.toUpperCase()}
+                  </Badge>
+                ))}
+              </Group>
+            ) : (
+              !eventId && session.user.role && session.user.role !== "user" && (
+                <Badge size="xs" color={getRoleColor(session.user.role)} variant="light">
                   {session.user.role.toUpperCase()}
                 </Badge>
-              </Group>
+              )
             )}
           </Stack>
         </Group>

@@ -509,6 +509,48 @@ export const roleRouter = createTRPCRouter({
     };
   }),
 
+  // Get current user's roles for a specific event (aggregates UserRole, VenueOwner, Application)
+  getMyRolesForEvent: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const globalRole = ctx.session.user.role;
+      const roles: string[] = [];
+
+      // 1. Global admin/staff role
+      if (globalRole === "admin") roles.push("admin");
+      else if (globalRole === "staff") roles.push("staff");
+
+      // 2. Event-specific roles from UserRole table
+      const userRoles = await ctx.db.userRole.findMany({
+        where: { userId, eventId: input.eventId },
+        include: { role: { select: { name: true } } },
+      });
+      for (const ur of userRoles) {
+        if (!roles.includes(ur.role.name)) {
+          roles.push(ur.role.name);
+        }
+      }
+
+      // 3. Floor owner from VenueOwner table
+      const venueOwner = await ctx.db.venueOwner.findFirst({
+        where: { userId, eventId: input.eventId },
+      });
+      if (venueOwner && !roles.includes("floor manager")) {
+        roles.push("floor manager");
+      }
+
+      // 4. Accepted application = resident
+      const acceptedApp = await ctx.db.application.findFirst({
+        where: { userId, eventId: input.eventId, status: "ACCEPTED" },
+      });
+      if (acceptedApp && !roles.includes("resident")) {
+        roles.push("resident");
+      }
+
+      return roles;
+    }),
+
   // Get all event roles (for invitations and assignments)
   getEventRoles: publicProcedure.query(async ({ ctx }) => {
     const roles = await ctx.db.role.findMany({
