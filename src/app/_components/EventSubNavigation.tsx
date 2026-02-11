@@ -1,6 +1,6 @@
 "use client";
 
-import { Paper, Tabs } from "@mantine/core";
+import { Paper, Tabs, Text } from "@mantine/core";
 import {
   IconMapPin,
   IconHeart,
@@ -25,6 +25,7 @@ type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
 
 interface EventSubNavigationProps {
   eventId: string;
+  eventName?: string;
   featureFlags?: {
     featureAsksOffers: boolean;
     featureProjects: boolean;
@@ -39,6 +40,7 @@ interface EventSubNavigationProps {
 
 export default function EventSubNavigation({
   eventId,
+  eventName,
   featureFlags,
   isFloorOwner,
   isAdmin,
@@ -60,16 +62,19 @@ export default function EventSubNavigation({
   );
 
   // Determine active tab based on current path
+  // Use path segments after /events/[eventId]/ to handle both ID and slug URLs
   const getActiveTab = () => {
-    if (pathname.startsWith(`${basePath}/speakers`)) return "speakers";
-    if (pathname.startsWith(`${basePath}/manage-schedule`)) return "manage-schedule";
-    if (pathname.startsWith(`${basePath}/schedule`)) return "schedule";
-    if (pathname.startsWith(`${basePath}/impact`)) return "impact";
-    if (pathname.startsWith(`${basePath}/latest`)) return "latest";
-    if (pathname.startsWith(`${basePath}/asks-offers`)) return "asks-offers";
-    if (pathname.startsWith(`${basePath}/participants`)) return "participants";
-    if (pathname.startsWith(`${basePath}/projects`)) return "event-projects";
-    if (pathname === basePath) return "my-event";
+    const match = pathname.match(/^\/events\/[^/]+(\/.*)?$/);
+    const subPath = match?.[1] ?? "";
+    if (subPath.startsWith("/speakers")) return "speakers";
+    if (subPath.startsWith("/manage-schedule")) return "manage-schedule";
+    if (subPath.startsWith("/schedule")) return "schedule";
+    if (subPath.startsWith("/impact")) return "impact";
+    if (subPath.startsWith("/latest")) return "latest";
+    if (subPath.startsWith("/asks-offers")) return "asks-offers";
+    if (subPath.startsWith("/participants")) return "participants";
+    if (subPath.startsWith("/projects")) return "event-projects";
+    if (subPath === "" || subPath === "/") return "my-event";
     return null;
   };
 
@@ -95,6 +100,21 @@ export default function EventSubNavigation({
     >
       <Tabs value={getActiveTab()} color="blue" variant="default">
         <Tabs.List style={{ borderBottom: 0 }}>
+          {eventName && (
+            <Text
+              fw={700}
+              size="sm"
+              c="dimmed"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                paddingRight: "0.75rem",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {eventName}:
+            </Text>
+          )}
           <TabsTab
             value="schedule"
             leftSection={<IconCalendarEvent size={14} />}
@@ -129,15 +149,17 @@ export default function EventSubNavigation({
             </TabsTab>
           )}
 
-          <TabsTab
-            value="participants"
-            leftSection={<IconUsers size={14} />}
-            component={Link}
-            href={`${basePath}/participants`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
-          >
-            Participants
-          </TabsTab>
+          {isAdmin && (
+            <TabsTab
+              value="participants"
+              leftSection={<IconUsers size={14} />}
+              component={Link}
+              href={`${basePath}/participants`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Participants
+            </TabsTab>
+          )}
 
           {featureFlags?.featureProjects !== false && (
             <TabsTab
@@ -151,7 +173,7 @@ export default function EventSubNavigation({
             </TabsTab>
           )}
 
-          {featureFlags?.featureImpactAnalytics !== false && (
+          {isAdmin && featureFlags?.featureImpactAnalytics !== false && (
             <TabsTab
               value="impact"
               leftSection={<IconHeart size={14} />}

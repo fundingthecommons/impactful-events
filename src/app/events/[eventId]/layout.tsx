@@ -13,6 +13,8 @@ export default async function EventLayout({ children, params }: EventLayoutProps
 
   const featureFlagSelect = {
     id: true,
+    name: true,
+    slug: true,
     featureAsksOffers: true,
     featureProjects: true,
     featureNewsfeed: true,
@@ -45,7 +47,8 @@ export default async function EventLayout({ children, params }: EventLayoutProps
   return (
     <>
       <EventSubNavigation
-        eventId={eventId}
+        eventId={event?.slug ?? eventId}
+        eventName={event?.name}
         featureFlags={event ?? undefined}
         isFloorOwner={isFloorOwner}
         isAdmin={isAdmin}
