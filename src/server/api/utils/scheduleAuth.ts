@@ -52,6 +52,27 @@ export async function getUserOwnedVenueIds(
 }
 
 /**
+ * Assert user is admin/staff OR a floor owner for the given event.
+ * Throws FORBIDDEN if neither.
+ */
+export async function assertAdminOrEventFloorOwner(
+  db: PrismaClient,
+  userId: string,
+  userRole: string | undefined | null,
+  eventId: string,
+): Promise<void> {
+  if (isAdminOrStaff(userRole)) return;
+
+  const floorOwner = await isEventFloorOwner(db, userId, eventId);
+  if (!floorOwner) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Admin or floor manager access required",
+    });
+  }
+}
+
+/**
  * Assert user can manage a specific venue (admin OR owner of that venue).
  * Throws FORBIDDEN if not authorized.
  */

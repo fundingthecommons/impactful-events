@@ -10,6 +10,7 @@ import {
   IconBulb,
   IconCalendarEvent,
   IconSettings,
+  IconMicrophone,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -30,6 +31,7 @@ interface EventSubNavigationProps {
     featureNewsfeed: boolean;
     featureImpactAnalytics: boolean;
     featureScheduleManagement?: boolean;
+    featureSpeakerVetting?: boolean;
   };
   isFloorOwner?: boolean;
   isAdmin?: boolean;
@@ -59,6 +61,7 @@ export default function EventSubNavigation({
 
   // Determine active tab based on current path
   const getActiveTab = () => {
+    if (pathname.startsWith(`${basePath}/speakers`)) return "speakers";
     if (pathname.startsWith(`${basePath}/manage-schedule`)) return "manage-schedule";
     if (pathname.startsWith(`${basePath}/schedule`)) return "schedule";
     if (pathname.startsWith(`${basePath}/impact`)) return "impact";
@@ -169,6 +172,18 @@ export default function EventSubNavigation({
               style={{ textDecoration: "none", fontSize: "0.875rem" }}
             >
               Manage Floors
+            </TabsTab>
+          )}
+
+          {showManageSchedule && featureFlags?.featureSpeakerVetting !== false && (
+            <TabsTab
+              value="speakers"
+              leftSection={<IconMicrophone size={14} />}
+              component={Link}
+              href={`${basePath}/speakers`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Speakers
             </TabsTab>
           )}
 

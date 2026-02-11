@@ -13,6 +13,7 @@ import {
   sendSubmissionNotification
 } from "~/server/api/utils/applicationCompletion";
 import { captureApiError, captureEmailError } from "~/utils/errorCapture";
+import { assertAdminOrEventFloorOwner } from "~/server/api/utils/scheduleAuth";
 
 /**
  * Resolve event identifier (ID or slug) to actual event ID.
@@ -670,7 +671,7 @@ export const applicationRouter = createTRPCRouter({
       return questions;
     }),
 
-  // Admin: Get all applications for an event
+  // Admin/Floor Manager: Get all applications for an event
   getEventApplications: protectedProcedure
     .input(z.object({
       eventId: z.string(), // Can be ID or slug
@@ -678,13 +679,19 @@ export const applicationRouter = createTRPCRouter({
       applicationType: z.enum(["RESIDENT", "MENTOR", "SPEAKER"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
-      checkAdminAccess(ctx.session.user.role);
-
       // Resolve eventId (supports both ID and slug)
       const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
       if (!resolvedEventId) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
       }
+
+      // Allow admin/staff OR floor managers for the event
+      await assertAdminOrEventFloorOwner(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        resolvedEventId,
+      );
 
       const applications = await ctx.db.application.findMany({
         where: {
@@ -855,11 +862,24 @@ export const applicationRouter = createTRPCRouter({
       return applicationsWithScores;
     }),
 
-  // Admin: Update application status
+  // Admin/Floor Manager: Update application status
   updateApplicationStatus: protectedProcedure
     .input(UpdateApplicationStatusSchema)
     .mutation(async ({ ctx, input }) => {
-      checkAdminAccess(ctx.session.user.role);
+      // Fetch eventId for floor manager auth check
+      const appForAuth = await ctx.db.application.findUnique({
+        where: { id: input.applicationId },
+        select: { eventId: true },
+      });
+      if (!appForAuth) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Application not found" });
+      }
+      await assertAdminOrEventFloorOwner(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        appForAuth.eventId,
+      );
 
       const application = await ctx.db.application.update({
         where: { id: input.applicationId },
@@ -1054,11 +1074,24 @@ export const applicationRouter = createTRPCRouter({
       return application;
     }),
 
-  // Admin: Bulk update application status
+  // Admin/Floor Manager: Bulk update application status
   bulkUpdateApplicationStatus: protectedProcedure
     .input(BulkUpdateApplicationStatusSchema)
     .mutation(async ({ ctx, input }) => {
-      checkAdminAccess(ctx.session.user.role);
+      // Fetch eventId from first application for floor manager auth check
+      const firstApp = await ctx.db.application.findFirst({
+        where: { id: { in: input.applicationIds } },
+        select: { eventId: true },
+      });
+      if (!firstApp) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "No applications found" });
+      }
+      await assertAdminOrEventFloorOwner(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        firstApp.eventId,
+      );
 
       const applications = await ctx.db.application.updateMany({
         where: {

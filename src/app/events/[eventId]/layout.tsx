@@ -18,6 +18,7 @@ export default async function EventLayout({ children, params }: EventLayoutProps
     featureNewsfeed: true,
     featureImpactAnalytics: true,
     featureScheduleManagement: true,
+    featureSpeakerVetting: true,
   } as const;
 
   let event = await db.event.findUnique({

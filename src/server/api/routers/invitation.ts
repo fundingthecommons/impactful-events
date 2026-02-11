@@ -8,6 +8,7 @@ import {
 } from "~/server/api/trpc";
 import { sendInvitationEmail } from "~/lib/email";
 import { acceptPendingInvitations } from "~/server/auth/acceptInvitations";
+import { assertAdminOrEventFloorOwner } from "~/server/api/utils/scheduleAuth";
 
 // Helper function to check if user has admin/staff role
 function checkAdminAccess(userRole?: string | null) {
@@ -87,8 +88,6 @@ export const invitationRouter = createTRPCRouter({
   create: protectedProcedure
     .input(CreateInvitationSchema)
     .mutation(async ({ ctx, input }) => {
-      checkAdminAccess(ctx.session.user.role);
-
       let event = null;
       let role = null;
       let venue = null;
@@ -111,6 +110,14 @@ export const invitationRouter = createTRPCRouter({
           });
         }
 
+        // Allow admin/staff OR floor managers for the event
+        await assertAdminOrEventFloorOwner(
+          ctx.db,
+          ctx.session.user.id,
+          ctx.session.user.role,
+          event.id,
+        );
+
         role = await ctx.db.role.findUnique({
           where: { id: input.roleId! },
         });
@@ -121,6 +128,11 @@ export const invitationRouter = createTRPCRouter({
             message: "Role not found",
           });
         }
+      }
+
+      // Non-EVENT_ROLE types require admin access
+      if (input.type !== "EVENT_ROLE") {
+        checkAdminAccess(ctx.session.user.role);
       }
 
       // Resolve event and venue for VENUE_OWNER invitations
@@ -276,8 +288,6 @@ export const invitationRouter = createTRPCRouter({
   bulkCreate: protectedProcedure
     .input(BulkCreateInvitationSchema)
     .mutation(async ({ ctx, input }) => {
-      checkAdminAccess(ctx.session.user.role);
-
       // Verify event and role exist
       let event = await ctx.db.event.findUnique({
         where: { id: input.eventId },
@@ -294,6 +304,14 @@ export const invitationRouter = createTRPCRouter({
           message: "Event not found",
         });
       }
+
+      // Allow admin/staff OR floor managers for the event
+      await assertAdminOrEventFloorOwner(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        event.id,
+      );
 
       const role = await ctx.db.role.findUnique({
         where: { id: input.roleId },
@@ -409,7 +427,7 @@ export const invitationRouter = createTRPCRouter({
       };
     }),
 
-  // Get all invitations (admin only)
+  // Get all invitations (admin or floor manager with eventId)
   getAll: protectedProcedure
     .input(z.object({
       eventId: z.string().optional(),
@@ -417,8 +435,6 @@ export const invitationRouter = createTRPCRouter({
       email: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      checkAdminAccess(ctx.session.user.role);
-
       // Resolve eventId (could be slug or ID)
       let resolvedEventId = input.eventId;
       if (input.eventId) {
@@ -435,6 +451,18 @@ export const invitationRouter = createTRPCRouter({
             resolvedEventId = eventBySlug.id;
           }
         }
+      }
+
+      // When eventId is provided, allow floor managers; otherwise require admin
+      if (resolvedEventId) {
+        await assertAdminOrEventFloorOwner(
+          ctx.db,
+          ctx.session.user.id,
+          ctx.session.user.role,
+          resolvedEventId,
+        );
+      } else {
+        checkAdminAccess(ctx.session.user.role);
       }
 
       const invitations = await ctx.db.invitation.findMany({
@@ -547,8 +575,6 @@ export const invitationRouter = createTRPCRouter({
   cancel: protectedProcedure
     .input(z.object({ invitationId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      checkAdminAccess(ctx.session.user.role);
-
       const invitation = await ctx.db.invitation.findUnique({
         where: { id: input.invitationId },
       });
@@ -558,6 +584,18 @@ export const invitationRouter = createTRPCRouter({
           code: "NOT_FOUND",
           message: "Invitation not found",
         });
+      }
+
+      // Allow admin/staff OR floor managers for the invitation's event
+      if (invitation.eventId) {
+        await assertAdminOrEventFloorOwner(
+          ctx.db,
+          ctx.session.user.id,
+          ctx.session.user.role,
+          invitation.eventId,
+        );
+      } else {
+        checkAdminAccess(ctx.session.user.role);
       }
 
       if (invitation.status !== "PENDING") {
@@ -583,8 +621,6 @@ export const invitationRouter = createTRPCRouter({
   resend: protectedProcedure
     .input(z.object({ invitationId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      checkAdminAccess(ctx.session.user.role);
-
       const invitation = await ctx.db.invitation.findUnique({
         where: { id: input.invitationId },
         include: {
@@ -599,6 +635,18 @@ export const invitationRouter = createTRPCRouter({
           code: "NOT_FOUND",
           message: "Invitation not found",
         });
+      }
+
+      // Allow admin/staff OR floor managers for the invitation's event
+      if (invitation.eventId) {
+        await assertAdminOrEventFloorOwner(
+          ctx.db,
+          ctx.session.user.id,
+          ctx.session.user.role,
+          invitation.eventId,
+        );
+      } else {
+        checkAdminAccess(ctx.session.user.role);
       }
 
       if (invitation.status === "ACCEPTED") {
