@@ -153,6 +153,9 @@ model User {
   forumComments         ForumComment[]      @relation("UserForumComments")
   forumThreadLikes      ForumThreadLike[]   @relation("ForumThreadLikes")
   forumCommentLikes     ForumCommentLike[]  @relation("ForumCommentLikes")
+
+  // Venue ownership relations (floor owners)
+  venueOwnerships       VenueOwner[]        @relation("VenueOwners")
 }
 
 model VerificationToken {
@@ -205,7 +208,8 @@ model Event {
   featureProjects          Boolean @default(true)
   featureAsksOffers        Boolean @default(true)
   featureNewsfeed          Boolean @default(true)
-  featureImpactAnalytics   Boolean @default(true)
+  featureImpactAnalytics     Boolean @default(true)
+  featureSponsorManagement   Boolean @default(true)
 
   createdBy   User?    @relation("EventsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdById String?
@@ -224,10 +228,16 @@ model Event {
   metricMeasurements MetricMeasurement[] // Measurements during this event
   repositoryMetrics RepositoryResidencyMetrics[] @relation("RepositoryMetrics") // GitHub metrics for this residency
 
+  // Feature flag for schedule management
+  featureScheduleManagement Boolean @default(false)
+
   // Schedule system relations
   scheduleVenues       ScheduleVenue[]
   scheduleSessionTypes ScheduleSessionType[]
   scheduleSessions     ScheduleSession[]
+
+  // Venue ownership relations (floor owners)
+  venueOwners          VenueOwner[]
 
   @@index([slug])
 }
@@ -473,6 +483,7 @@ enum InvitationType {
   EVENT_ROLE      // For event-specific roles (mentor, sponsor, etc.)
   GLOBAL_ADMIN    // For global admin access
   GLOBAL_STAFF    // For global staff access
+  VENUE_OWNER     // For floor/venue ownership
 }
 
 model Application {
@@ -572,9 +583,12 @@ model Invitation {
   createdAt   DateTime @default(now())
   acceptedAt  DateTime?
   
-  event       Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  role        Role?    @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  
+  venueId     String?  // For VENUE_OWNER invitations
+
+  event       Event?          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  role        Role?           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  venue       ScheduleVenue?  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
   @@unique([email, eventId, roleId]) // Prevent duplicate event role invites
   @@unique([email, type, globalRole]) // Prevent duplicate global role invites
   @@index([email])
@@ -2075,6 +2089,8 @@ model ScheduleVenue {
 
   event       Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
   sessions    ScheduleSession[]
+  owners      VenueOwner[]
+  invitations Invitation[]
 
   @@unique([eventId, name])
   @@index([eventId])
@@ -2122,4 +2138,23 @@ model ScheduleSession {
   @@index([venueId])
   @@index([sessionTypeId])
   @@index([isPublished])
+}
+
+model VenueOwner {
+  id         String   @id @default(cuid())
+  userId     String
+  venueId    String
+  eventId    String   // Denormalized for efficient queries
+  assignedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User          @relation("VenueOwners", fields: [userId], references: [id], onDelete: Cascade)
+  venue      ScheduleVenue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  event      Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, venueId])
+  @@index([userId, eventId])
+  @@index([venueId])
+  @@index([eventId])
 }

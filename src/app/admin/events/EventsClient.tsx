@@ -24,9 +24,6 @@ import {
   IconUsers,
   IconBuilding,
   IconCalendarEvent,
-  IconClipboardList,
-  IconUserCheck,
-  IconMicrophone,
   IconAlertTriangle,
   IconCheck,
   IconX,
@@ -121,7 +118,16 @@ function EventCard({ event, onStatusChange }: EventCardProps) {
   const overdue = isEventOverdue(event.endDate, event.status);
 
   return (
-    <Card shadow="lg" padding="xl" radius="md" withBorder h="100%">
+    <Card
+      shadow="lg"
+      padding="xl"
+      radius="md"
+      withBorder
+      h="100%"
+      component={Link}
+      href={`/admin/events/${eventIdentifier}`}
+      style={{ textDecoration: 'none', cursor: 'pointer' }}
+    >
       <Card.Section>
         <Box
           h={120}
@@ -160,6 +166,7 @@ function EventCard({ event, onStatusChange }: EventCardProps) {
                     size="sm"
                     tt="uppercase"
                     style={{ cursor: 'pointer' }}
+                    onClick={(e: React.MouseEvent) => e.preventDefault()}
                   >
                     {getEventStatusLabel(event.status)}
                   </Badge>
@@ -168,14 +175,14 @@ function EventCard({ event, onStatusChange }: EventCardProps) {
                   <Menu.Label>Change Status</Menu.Label>
                   <Menu.Item
                     leftSection={<IconPlayerPlay size={14} />}
-                    onClick={() => onStatusChange(event.id, "ACTIVE")}
+                    onClick={(e: React.MouseEvent) => { e.preventDefault(); onStatusChange(event.id, "ACTIVE"); }}
                     disabled={event.status === "ACTIVE"}
                   >
                     Active
                   </Menu.Item>
                   <Menu.Item
                     leftSection={<IconCheck size={14} />}
-                    onClick={() => onStatusChange(event.id, "COMPLETED")}
+                    onClick={(e: React.MouseEvent) => { e.preventDefault(); onStatusChange(event.id, "COMPLETED"); }}
                     disabled={event.status === "COMPLETED"}
                   >
                     Completed
@@ -183,7 +190,7 @@ function EventCard({ event, onStatusChange }: EventCardProps) {
                   <Menu.Item
                     color="red"
                     leftSection={<IconX size={14} />}
-                    onClick={() => onStatusChange(event.id, "CANCELLED")}
+                    onClick={(e: React.MouseEvent) => { e.preventDefault(); onStatusChange(event.id, "CANCELLED"); }}
                     disabled={event.status === "CANCELLED"}
                   >
                     Cancelled
@@ -198,87 +205,20 @@ function EventCard({ event, onStatusChange }: EventCardProps) {
           </Text>
         </Stack>
 
-        <Stack gap="sm">
-          <Group justify="space-between">
-            <Group gap="xs">
-              <ThemeIcon size="sm" variant="light" color="blue">
-                <IconUsers size={12} />
-              </ThemeIcon>
-              <Text size="sm" fw={500}>
-                {event._count?.applications ?? 0} Applications
-              </Text>
-            </Group>
-            <Link href={`/admin/events/${eventIdentifier}/applications`} style={{ textDecoration: 'none' }}>
-              <Badge variant="outline" color="blue" style={{ cursor: 'pointer' }}>
-                Manage
-              </Badge>
-            </Link>
+        <Group gap="lg">
+          <Group gap={4}>
+            <IconUsers size={14} />
+            <Text size="sm" fw={500}>
+              {event._count?.applications ?? 0} Applications
+            </Text>
           </Group>
-
-          <Group justify="space-between">
-            <Group gap="xs">
-              <ThemeIcon size="sm" variant="light" color="orange">
-                <IconBuilding size={12} />
-              </ThemeIcon>
-              <Text size="sm" fw={500}>
-                {event._count?.sponsors ?? 0} Sponsors
-              </Text>
-            </Group>
-            <Link href={`/admin/events/${eventIdentifier}/sponsors`} style={{ textDecoration: 'none' }}>
-              <Badge variant="outline" color="orange" style={{ cursor: 'pointer' }}>
-                View
-              </Badge>
-            </Link>
+          <Group gap={4}>
+            <IconBuilding size={14} />
+            <Text size="sm" fw={500}>
+              {event._count?.sponsors ?? 0} Sponsors
+            </Text>
           </Group>
-
-          <Group justify="space-between">
-            <Group gap="xs">
-              <ThemeIcon size="sm" variant="light" color="green">
-                <IconUserCheck size={12} />
-              </ThemeIcon>
-              <Text size="sm" fw={500}>
-                Mentors
-              </Text>
-            </Group>
-            <Link href={`/admin/events/${eventIdentifier}/mentors`} style={{ textDecoration: 'none' }}>
-              <Badge variant="outline" color="green" style={{ cursor: 'pointer' }}>
-                Manage
-              </Badge>
-            </Link>
-          </Group>
-
-          <Group justify="space-between">
-            <Group gap="xs">
-              <ThemeIcon size="sm" variant="light" color="teal">
-                <IconMicrophone size={12} />
-              </ThemeIcon>
-              <Text size="sm" fw={500}>
-                Speakers
-              </Text>
-            </Group>
-            <Link href={`/admin/events/${eventIdentifier}/speakers`} style={{ textDecoration: 'none' }}>
-              <Badge variant="outline" color="teal" style={{ cursor: 'pointer' }}>
-                Manage
-              </Badge>
-            </Link>
-          </Group>
-
-          <Group justify="space-between">
-            <Group gap="xs">
-              <ThemeIcon size="sm" variant="light" color="purple">
-                <IconClipboardList size={12} />
-              </ThemeIcon>
-              <Text size="sm" fw={500}>
-                Selection Rubric
-              </Text>
-            </Group>
-            <Link href={`/admin/events/${eventIdentifier}/select-rubric`} style={{ textDecoration: 'none' }}>
-              <Badge variant="outline" color="purple" style={{ cursor: 'pointer' }}>
-                View
-              </Badge>
-            </Link>
-          </Group>
-        </Stack>
+        </Group>
       </Stack>
     </Card>
   );

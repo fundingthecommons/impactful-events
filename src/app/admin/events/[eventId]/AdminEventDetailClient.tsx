@@ -11,6 +11,7 @@ import {
   Badge,
   SimpleGrid,
   Divider,
+  ThemeIcon,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -25,7 +26,11 @@ import {
   IconMapPin,
   IconCalendarEvent,
   IconSettings,
+  IconBuilding,
+  IconClipboardList,
+  IconChevronRight,
 } from "@tabler/icons-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 
@@ -48,6 +53,12 @@ interface EventData {
   featureAsksOffers: boolean;
   featureNewsfeed: boolean;
   featureImpactAnalytics: boolean;
+  featureSponsorManagement: boolean;
+  featureScheduleManagement: boolean;
+  _count: {
+    applications: number;
+    sponsors: number;
+  };
 }
 
 type FeatureFlagKey =
@@ -58,7 +69,9 @@ type FeatureFlagKey =
   | "featureProjects"
   | "featureAsksOffers"
   | "featureNewsfeed"
-  | "featureImpactAnalytics";
+  | "featureImpactAnalytics"
+  | "featureSponsorManagement"
+  | "featureScheduleManagement";
 
 const FEATURE_FLAGS: {
   key: FeatureFlagKey;
@@ -114,6 +127,18 @@ const FEATURE_FLAGS: {
     description: "Enable impact metrics and analytics dashboard",
     icon: IconHeart,
   },
+  {
+    key: "featureSponsorManagement",
+    label: "Sponsor Management",
+    description: "Enable sponsor tracking and management for the event",
+    icon: IconBuilding,
+  },
+  {
+    key: "featureScheduleManagement",
+    label: "Schedule Management",
+    description: "Allow floor owners to manage their floor schedules",
+    icon: IconSettings,
+  },
 ];
 
 function getStatusColor(status: string): string {
@@ -143,6 +168,7 @@ interface AdminEventDetailClientProps {
 
 export default function AdminEventDetailClient({ event }: AdminEventDetailClientProps) {
   const router = useRouter();
+  const eventIdentifier = event.slug ?? event.id;
 
   const updateFeatureFlags = api.event.updateEventFeatureFlags.useMutation({
     onSuccess: () => {
@@ -215,6 +241,100 @@ export default function AdminEventDetailClient({ event }: AdminEventDetailClient
             </Group>
           </Stack>
         </Paper>
+
+        {/* Management Cards */}
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+          {[
+            {
+              label: "Applications",
+              description: "Review and manage event applications",
+              icon: IconUsers,
+              color: "blue",
+              href: `/admin/events/${eventIdentifier}/applications`,
+              count: event._count.applications,
+              visible: event.featureApplicantVetting,
+            },
+            {
+              label: "Sponsors",
+              description: "View and manage event sponsors",
+              icon: IconBuilding,
+              color: "orange",
+              href: `/admin/events/${eventIdentifier}/sponsors`,
+              count: event._count.sponsors,
+              visible: event.featureSponsorManagement,
+            },
+            {
+              label: "Mentors",
+              description: "Manage mentor applications and assignments",
+              icon: IconUserCheck,
+              color: "green",
+              href: `/admin/events/${eventIdentifier}/mentors`,
+              visible: event.featureMentorVetting,
+            },
+            {
+              label: "Speakers",
+              description: "Manage speaker invitations and applications",
+              icon: IconMicrophone,
+              color: "teal",
+              href: `/admin/events/${eventIdentifier}/speakers`,
+            },
+            {
+              label: "Selection Rubric",
+              description: "Configure application evaluation criteria",
+              icon: IconClipboardList,
+              color: "purple",
+              href: `/admin/events/${eventIdentifier}/select-rubric`,
+              visible: event.featureApplicantVetting,
+            },
+          ].filter((card) => card.visible !== false).map((card) => {
+            const CardIcon = card.icon;
+            return (
+              <Paper
+                key={card.label}
+                p="lg"
+                radius="md"
+                withBorder
+                component={Link}
+                href={card.href}
+                style={{
+                  textDecoration: "none",
+                  cursor: "pointer",
+                  transition: "box-shadow 150ms ease",
+                }}
+                onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.currentTarget.style.boxShadow = "var(--mantine-shadow-md)";
+                }}
+                onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
+                  e.currentTarget.style.boxShadow = "";
+                }}
+              >
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
+                  <Group gap="sm" wrap="nowrap" style={{ flex: 1 }}>
+                    <ThemeIcon size="lg" radius="md" variant="light" color={card.color}>
+                      <CardIcon size={20} />
+                    </ThemeIcon>
+                    <Stack gap={2}>
+                      <Group gap="xs">
+                        <Text size="sm" fw={600}>
+                          {card.label}
+                        </Text>
+                        {"count" in card && card.count !== undefined && (
+                          <Badge size="sm" variant="light" color={card.color}>
+                            {card.count}
+                          </Badge>
+                        )}
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        {card.description}
+                      </Text>
+                    </Stack>
+                  </Group>
+                  <IconChevronRight size={16} style={{ opacity: 0.5 }} />
+                </Group>
+              </Paper>
+            );
+          })}
+        </SimpleGrid>
 
         {/* Feature Configuration */}
         <Paper p="lg" radius="md" withBorder>

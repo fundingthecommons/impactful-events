@@ -1,4 +1,5 @@
 import { db } from "~/server/db";
+import { auth } from "~/server/auth";
 import EventSubNavigation from "~/app/_components/EventSubNavigation";
 
 interface EventLayoutProps {
@@ -8,12 +9,15 @@ interface EventLayoutProps {
 
 export default async function EventLayout({ children, params }: EventLayoutProps) {
   const { eventId } = await params;
+  const session = await auth();
 
   const featureFlagSelect = {
+    id: true,
     featureAsksOffers: true,
     featureProjects: true,
     featureNewsfeed: true,
     featureImpactAnalytics: true,
+    featureScheduleManagement: true,
   } as const;
 
   let event = await db.event.findUnique({
@@ -26,9 +30,25 @@ export default async function EventLayout({ children, params }: EventLayoutProps
     select: featureFlagSelect,
   });
 
+  // Check floor owner status for current user
+  let isFloorOwner = false;
+  const isAdmin = session?.user?.role === "admin" || session?.user?.role === "staff";
+
+  if (session?.user?.id && event) {
+    const ownership = await db.venueOwner.findFirst({
+      where: { userId: session.user.id, eventId: event.id },
+    });
+    isFloorOwner = !!ownership;
+  }
+
   return (
     <>
-      <EventSubNavigation eventId={eventId} featureFlags={event ?? undefined} />
+      <EventSubNavigation
+        eventId={eventId}
+        featureFlags={event ?? undefined}
+        isFloorOwner={isFloorOwner}
+        isAdmin={isAdmin}
+      />
       {children}
     </>
   );

@@ -1103,6 +1103,8 @@ export const eventRouter = createTRPCRouter({
         featureAsksOffers: z.boolean().optional(),
         featureNewsfeed: z.boolean().optional(),
         featureImpactAnalytics: z.boolean().optional(),
+        featureSponsorManagement: z.boolean().optional(),
+        featureScheduleManagement: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -1299,6 +1301,8 @@ export const eventRouter = createTRPCRouter({
         featureAsksOffers: z.boolean().optional(),
         featureNewsfeed: z.boolean().optional(),
         featureImpactAnalytics: z.boolean().optional(),
+        featureSponsorManagement: z.boolean().optional(),
+        featureScheduleManagement: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

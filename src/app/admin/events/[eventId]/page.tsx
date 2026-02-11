@@ -37,6 +37,14 @@ export default async function AdminEventDetailPage({ params }: AdminEventDetailP
     featureAsksOffers: true,
     featureNewsfeed: true,
     featureImpactAnalytics: true,
+    featureSponsorManagement: true,
+    featureScheduleManagement: true,
+    _count: {
+      select: {
+        applications: true,
+        sponsors: true,
+      },
+    },
   } as const;
 
   let event = await db.event.findUnique({

@@ -9,6 +9,7 @@ import {
   IconUsers,
   IconBulb,
   IconCalendarEvent,
+  IconSettings,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -26,15 +27,24 @@ interface EventSubNavigationProps {
     featureProjects: boolean;
     featureNewsfeed: boolean;
     featureImpactAnalytics: boolean;
+    featureScheduleManagement?: boolean;
   };
+  isFloorOwner?: boolean;
+  isAdmin?: boolean;
 }
 
-export default function EventSubNavigation({ eventId, featureFlags }: EventSubNavigationProps) {
+export default function EventSubNavigation({
+  eventId,
+  featureFlags,
+  isFloorOwner,
+  isAdmin,
+}: EventSubNavigationProps) {
   const pathname = usePathname();
   const basePath = `/events/${eventId}`;
 
   // Determine active tab based on current path
   const getActiveTab = () => {
+    if (pathname.startsWith(`${basePath}/manage-schedule`)) return "manage-schedule";
     if (pathname.startsWith(`${basePath}/schedule`)) return "schedule";
     if (pathname.startsWith(`${basePath}/impact`)) return "impact";
     if (pathname.startsWith(`${basePath}/latest`)) return "latest";
@@ -46,6 +56,9 @@ export default function EventSubNavigation({ eventId, featureFlags }: EventSubNa
   };
 
   const TabsTab = Tabs.Tab as React.ComponentType<TabWithLinkProps>;
+
+  const showManageSchedule =
+    featureFlags?.featureScheduleManagement !== false && (isFloorOwner ?? isAdmin);
 
   return (
     <Paper
@@ -126,6 +139,18 @@ export default function EventSubNavigation({ eventId, featureFlags }: EventSubNa
               style={{ textDecoration: "none", fontSize: "0.875rem" }}
             >
               Impact
+            </TabsTab>
+          )}
+
+          {showManageSchedule && (
+            <TabsTab
+              value="manage-schedule"
+              leftSection={<IconSettings size={14} />}
+              component={Link}
+              href={`${basePath}/manage-schedule`}
+              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            >
+              Manage Schedule
             </TabsTab>
           )}
 

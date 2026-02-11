@@ -29,10 +29,11 @@ function getInviterName(user: { firstName?: string | null; surname?: string | nu
 // Schema definitions
 const CreateInvitationSchema = z.object({
   email: z.string().email(),
-  type: z.enum(["EVENT_ROLE", "GLOBAL_ADMIN", "GLOBAL_STAFF"]).default("EVENT_ROLE"),
+  type: z.enum(["EVENT_ROLE", "GLOBAL_ADMIN", "GLOBAL_STAFF", "VENUE_OWNER"]).default("EVENT_ROLE"),
   eventId: z.string().optional(),
   roleId: z.string().optional(),
   globalRole: z.enum(["admin", "staff"]).optional(),
+  venueId: z.string().optional(),
   expiresAt: z.coerce.date().optional(),
 }).refine((data) => {
   // For EVENT_ROLE type, eventId and roleId are required
@@ -43,6 +44,10 @@ const CreateInvitationSchema = z.object({
   if (data.type === "GLOBAL_ADMIN" || data.type === "GLOBAL_STAFF") {
     return data.globalRole;
   }
+  // For VENUE_OWNER, eventId and venueId are required
+  if (data.type === "VENUE_OWNER") {
+    return data.eventId && data.venueId;
+  }
   return true;
 }, {
   message: "Missing required fields for invitation type",
@@ -50,10 +55,11 @@ const CreateInvitationSchema = z.object({
 
 const BulkCreateInvitationSchema = z.object({
   emails: z.array(z.string().email()),
-  type: z.enum(["EVENT_ROLE", "GLOBAL_ADMIN", "GLOBAL_STAFF"]).default("EVENT_ROLE"),
+  type: z.enum(["EVENT_ROLE", "GLOBAL_ADMIN", "GLOBAL_STAFF", "VENUE_OWNER"]).default("EVENT_ROLE"),
   eventId: z.string().optional(),
   roleId: z.string().optional(),
   globalRole: z.enum(["admin", "staff"]).optional(),
+  venueId: z.string().optional(),
   expiresAt: z.coerce.date().optional(),
 }).refine((data) => {
   // Same validation as CreateInvitationSchema
@@ -62,6 +68,9 @@ const BulkCreateInvitationSchema = z.object({
   }
   if (data.type === "GLOBAL_ADMIN" || data.type === "GLOBAL_STAFF") {
     return data.globalRole;
+  }
+  if (data.type === "VENUE_OWNER") {
+    return data.eventId && data.venueId;
   }
   return true;
 }, {
@@ -81,6 +90,7 @@ export const invitationRouter = createTRPCRouter({
 
       let event = null;
       let role = null;
+      let venue = null;
 
       // Resolve event and role first (handles both ID and slug)
       if (input.type === "EVENT_ROLE") {
@@ -112,6 +122,35 @@ export const invitationRouter = createTRPCRouter({
         }
       }
 
+      // Resolve event and venue for VENUE_OWNER invitations
+      if (input.type === "VENUE_OWNER") {
+        event = await ctx.db.event.findUnique({
+          where: { id: input.eventId! },
+        });
+
+        event ??= await ctx.db.event.findUnique({
+          where: { slug: input.eventId! },
+        });
+
+        if (!event) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Event not found",
+          });
+        }
+
+        venue = await ctx.db.scheduleVenue.findUnique({
+          where: { id: input.venueId! },
+        });
+
+        if (!venue) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Venue not found",
+          });
+        }
+      }
+
       const resolvedEventId = event?.id ?? input.eventId;
 
       // Check if invitation already exists (using resolved event ID)
@@ -122,6 +161,20 @@ export const invitationRouter = createTRPCRouter({
             email: input.email,
             eventId: resolvedEventId,
             roleId: input.roleId,
+            status: "PENDING",
+          },
+          include: {
+            event: true,
+            role: true,
+          },
+        });
+      } else if (input.type === "VENUE_OWNER") {
+        existing = await ctx.db.invitation.findFirst({
+          where: {
+            email: input.email,
+            type: "VENUE_OWNER",
+            eventId: resolvedEventId,
+            venueId: input.venueId,
             status: "PENDING",
           },
           include: {
@@ -159,6 +212,7 @@ export const invitationRouter = createTRPCRouter({
           eventId: resolvedEventId,
           roleId: input.roleId,
           globalRole: input.globalRole,
+          venueId: input.venueId,
           expiresAt: input.expiresAt ?? defaultExpiry,
           invitedBy: ctx.session.user.id,
         },
@@ -176,6 +230,17 @@ export const invitationRouter = createTRPCRouter({
             eventName: invitation.event!.name,
             eventDescription: invitation.event!.description ?? "Join us for this exciting event!",
             roleName: invitation.role!.name,
+            inviterName: getInviterName(ctx.session.user),
+            invitationToken: invitation.token,
+            expiresAt: invitation.expiresAt,
+            eventId: invitation.eventId ?? undefined,
+          });
+        } else if (input.type === "VENUE_OWNER") {
+          await sendInvitationEmail({
+            email: invitation.email,
+            eventName: invitation.event!.name,
+            eventDescription: `You've been invited as a Floor Owner for "${venue?.name ?? "Venue"}" at ${invitation.event!.name}. You'll be able to manage the schedule for this floor.`,
+            roleName: `Floor Owner - ${venue?.name ?? "Venue"}`,
             inviterName: getInviterName(ctx.session.user),
             invitationToken: invitation.token,
             expiresAt: invitation.expiresAt,
@@ -531,6 +596,34 @@ export const invitationRouter = createTRPCRouter({
           acceptedRoles.push({
             eventName: "Global Platform",
             roleName: invitation.globalRole,
+          });
+        } else if (invitation.type === "VENUE_OWNER" && invitation.eventId && invitation.venueId) {
+          // Create venue ownership record
+          const existingOwnership = await ctx.db.venueOwner.findUnique({
+            where: {
+              userId_venueId: { userId, venueId: invitation.venueId },
+            },
+          });
+
+          if (!existingOwnership) {
+            await ctx.db.venueOwner.create({
+              data: {
+                userId,
+                venueId: invitation.venueId,
+                eventId: invitation.eventId,
+                assignedBy: invitation.invitedBy,
+              },
+            });
+          }
+
+          const venueName = await ctx.db.scheduleVenue.findUnique({
+            where: { id: invitation.venueId },
+            select: { name: true },
+          });
+
+          acceptedRoles.push({
+            eventName: invitation.event?.name ?? "Event",
+            roleName: `Floor Owner - ${venueName?.name ?? "Venue"}`,
           });
         }
 
