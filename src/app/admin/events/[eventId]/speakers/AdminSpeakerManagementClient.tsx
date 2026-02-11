@@ -293,6 +293,25 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
                   isUpdating={updateApplicationStatus.isPending}
                 />
               </Tabs.Panel>
+              <Tabs.Panel value="invited" mt="md">
+                <SpeakerApplicationsTable
+                  applications={invitedApplications}
+                  selectedApplications={selectedApplications}
+                  onSelectAll={() => {
+                    setSelectedApplications(prev =>
+                      prev.length === invitedApplications.length ? [] : invitedApplications.map(a => a.id)
+                    );
+                  }}
+                  onSelectApplication={(id) => {
+                    setSelectedApplications(prev =>
+                      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+                    );
+                  }}
+                  onStatusUpdate={(id, status) => updateApplicationStatus.mutate({ applicationId: id, status })}
+                  onViewApplication={(id) => { setViewingApplication({ id }); openViewDrawer(); }}
+                  isUpdating={updateApplicationStatus.isPending}
+                />
+              </Tabs.Panel>
             </Tabs>
           </Card>
         </Tabs.Panel>
@@ -418,6 +437,7 @@ interface ApplicationRow {
   email: string;
   eventId: string;
   submittedAt: Date | null;
+  invitationId?: string | null;
   user?: { name: string | null } | null;
 }
 
@@ -485,7 +505,14 @@ function SpeakerApplicationsTable({
                 />
               </Table.Td>
               <Table.Td>
-                <Text size="sm" fw={500}>{application.user?.name ?? "Unknown"}</Text>
+                <Group gap={6} wrap="nowrap">
+                  <Text size="sm" fw={500}>{application.user?.name ?? "Unknown"}</Text>
+                  {application.invitationId && (
+                    <Badge size="xs" variant="light" color="violet" leftSection={<IconMail size={10} />}>
+                      Invited
+                    </Badge>
+                  )}
+                </Group>
               </Table.Td>
               <Table.Td>
                 <Text size="sm">{application.email}</Text>
