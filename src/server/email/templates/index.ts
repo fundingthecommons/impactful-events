@@ -9,6 +9,7 @@ import { UpdateCommentNotificationTemplate } from './updateCommentNotification';
 import { ForumCommentNotificationTemplate } from './forumCommentNotification';
 import { AskOfferCommentNotificationTemplate } from './askOfferCommentNotification';
 import { MagicLinkTemplate } from './magicLink';
+import { FloorOwnerAssignedTemplate } from './floorOwnerAssigned';
 
 // Template registry with all available templates
 export const templates = {
@@ -21,6 +22,9 @@ export const templates = {
 
   // Invitation templates
   invitation: InvitationTemplate,
+
+  // Floor owner templates
+  floorOwnerAssigned: FloorOwnerAssignedTemplate,
 
   // Authentication templates
   passwordReset: PasswordReset,
@@ -44,6 +48,7 @@ export const templateToEmailType = {
   applicationSubmitted: 'APPLICATION_SUBMITTED',
   applicationMissingInfo: 'APPLICATION_MISSING_INFO',
   invitation: 'INVITATION_EVENT_ROLE',
+  floorOwnerAssigned: 'FLOOR_OWNER_ASSIGNED',
   passwordReset: 'PASSWORD_RESET',
   magicLink: 'MAGIC_LINK',
   updateCommentNotification: 'UPDATE_COMMENT',
@@ -63,6 +68,7 @@ export { MagicLinkTemplate } from './magicLink';
 export { UpdateCommentNotificationTemplate } from './updateCommentNotification';
 export { ForumCommentNotificationTemplate } from './forumCommentNotification';
 export { AskOfferCommentNotificationTemplate } from './askOfferCommentNotification';
+export { FloorOwnerAssignedTemplate } from './floorOwnerAssigned';
 
 // Export prop types
 export type { ApplicationAcceptedProps } from './applicationAccepted';
@@ -76,3 +82,4 @@ export type { MagicLinkProps } from './magicLink';
 export type { UpdateCommentNotificationProps } from './updateCommentNotification';
 export type { ForumCommentNotificationProps } from './forumCommentNotification';
 export type { AskOfferCommentNotificationProps } from './askOfferCommentNotification';
+export type { FloorOwnerAssignedProps } from './floorOwnerAssigned';

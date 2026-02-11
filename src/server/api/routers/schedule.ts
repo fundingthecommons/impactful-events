@@ -14,6 +14,8 @@ import {
   isEventFloorOwner,
   getUserOwnedVenueIds,
 } from "~/server/api/utils/scheduleAuth";
+import { getEmailService } from "~/server/email/emailService";
+import { captureEmailError } from "~/utils/errorCapture";
 
 const eventSelect = {
   id: true,
@@ -69,6 +71,10 @@ export const scheduleRouter = createTRPCRouter({
         include: {
           venue: { select: { id: true, name: true } },
           sessionType: { select: { id: true, name: true, color: true } },
+          sessionSpeakers: {
+            include: { user: { select: userSelectFields } },
+            orderBy: { order: "asc" },
+          },
         },
         orderBy: [{ startTime: "asc" }, { order: "asc" }],
       });
@@ -107,9 +113,10 @@ export const scheduleRouter = createTRPCRouter({
         eventId: z.string(),
         title: z.string().min(1),
         description: z.string().optional(),
-        startTime: z.date(),
-        endTime: z.date(),
+        startTime: z.coerce.date(),
+        endTime: z.coerce.date(),
         speakers: z.array(z.string()).default([]),
+        linkedSpeakerIds: z.array(z.string()).optional(),
         venueId: z.string().optional(),
         sessionTypeId: z.string().optional(),
         order: z.number().default(0),
@@ -130,7 +137,21 @@ export const scheduleRouter = createTRPCRouter({
           message: "Only admins can create sessions without a venue",
         });
       }
-      return ctx.db.scheduleSession.create({ data: input });
+
+      const { linkedSpeakerIds, ...sessionData } = input;
+      const session = await ctx.db.scheduleSession.create({ data: sessionData });
+
+      if (linkedSpeakerIds && linkedSpeakerIds.length > 0) {
+        await ctx.db.sessionSpeaker.createMany({
+          data: linkedSpeakerIds.map((userId, index) => ({
+            sessionId: session.id,
+            userId,
+            order: index,
+          })),
+        });
+      }
+
+      return session;
     }),
 
   // Update a session (admin or floor owner of the session's venue)
@@ -140,8 +161,8 @@ export const scheduleRouter = createTRPCRouter({
         id: z.string(),
         title: z.string().min(1).optional(),
         description: z.string().nullable().optional(),
-        startTime: z.date().optional(),
-        endTime: z.date().optional(),
+        startTime: z.coerce.date().optional(),
+        endTime: z.coerce.date().optional(),
         speakers: z.array(z.string()).optional(),
         venueId: z.string().nullable().optional(),
         sessionTypeId: z.string().nullable().optional(),
@@ -349,6 +370,10 @@ export const scheduleRouter = createTRPCRouter({
         include: {
           venue: { select: { id: true, name: true } },
           sessionType: { select: { id: true, name: true, color: true } },
+          sessionSpeakers: {
+            include: { user: { select: userSelectFields } },
+            orderBy: { order: "asc" },
+          },
         },
         orderBy: [{ startTime: "asc" }, { order: "asc" }],
       });
@@ -390,7 +415,7 @@ export const scheduleRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Venue not found" });
       }
 
-      return ctx.db.venueOwner.create({
+      const venueOwner = await ctx.db.venueOwner.create({
         data: {
           userId: input.userId,
           venueId: input.venueId,
@@ -402,6 +427,43 @@ export const scheduleRouter = createTRPCRouter({
           venue: { select: { id: true, name: true } },
         },
       });
+
+      // Send floor owner assignment notification email
+      if (user.email) {
+        try {
+          const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+          const eventPath = event.slug ?? event.id;
+          const manageFloorUrl = `${baseUrl}/events/${eventPath}/manage-schedule`;
+
+          const fullName = [user.firstName, user.surname].filter(Boolean).join(" ");
+          const floorOwnerName = fullName.length > 0 ? fullName : (user.name ?? "there");
+          const assignedByName = ctx.session.user.name ?? ctx.session.user.email ?? "An administrator";
+
+          const emailService = getEmailService(ctx.db);
+          await emailService.sendEmail({
+            to: user.email,
+            templateName: "floorOwnerAssigned",
+            templateData: {
+              floorOwnerName,
+              eventName: event.name,
+              venueName: venue.name,
+              assignedByName,
+              manageFloorUrl,
+            },
+            eventId: event.id,
+            userId: user.id,
+          });
+        } catch (error) {
+          captureEmailError(error, {
+            userId: user.id,
+            emailType: "floor_owner_assigned",
+            recipient: user.email,
+            templateName: "floorOwnerAssigned",
+          });
+        }
+      }
+
+      return venueOwner;
     }),
 
   // Admin: Remove a floor owner from a venue

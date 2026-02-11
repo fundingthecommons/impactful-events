@@ -156,6 +156,9 @@ model User {
 
   // Venue ownership relations (floor owners)
   venueOwnerships       VenueOwner[]        @relation("VenueOwners")
+
+  // Session speaker relations
+  sessionSpeakers       SessionSpeaker[]    @relation("SessionSpeakers")
 }
 
 model VerificationToken {
@@ -508,12 +511,16 @@ model Application {
   // Waitlist management
   waitlistOrder Int?     // Manual override for waitlist position (null = auto-ranked)
   
+  // Invitation linkage
+  invitationId  String?  // Links to the invitation that led to this application
+
   // Legacy data tracking
   googleFormId  String?  // If migrated from Google Forms
   notionPageId  String?  // If migrated from Notion Forms
-  
+
   user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  invitation    Invitation? @relation(fields: [invitationId], references: [id])
   responses     ApplicationResponse[]
   communications Communication[]  // Communications related to this application
   emails        Email[]  // Legacy: Emails related to this application (for backward compatibility)
@@ -532,6 +539,7 @@ model Application {
   @@unique([userId, eventId]) // One application per user per event
   @@index([email])
   @@index([status])
+  @@index([invitationId])
 }
 
 model ApplicationQuestion {
@@ -591,6 +599,7 @@ model Invitation {
   event       Event?          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   role        Role?           @relation(fields: [roleId], references: [id], onDelete: Cascade)
   venue       ScheduleVenue?  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  applications Application[]
 
   @@unique([email, eventId, roleId]) // Prevent duplicate event role invites
   @@unique([email, type, globalRole]) // Prevent duplicate global role invites
@@ -664,7 +673,10 @@ enum EmailType {
   // Invitation related
   INVITATION_EVENT_ROLE
   INVITATION_ADMIN
-  
+
+  // Floor owner related
+  FLOOR_OWNER_ASSIGNED
+
   // Authentication related
   PASSWORD_RESET
   MAGIC_LINK
@@ -2133,15 +2145,31 @@ model ScheduleSession {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  event         Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  venue         ScheduleVenue?       @relation(fields: [venueId], references: [id], onDelete: SetNull)
-  sessionType   ScheduleSessionType? @relation(fields: [sessionTypeId], references: [id], onDelete: SetNull)
+  event           Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  venue           ScheduleVenue?       @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  sessionType     ScheduleSessionType? @relation(fields: [sessionTypeId], references: [id], onDelete: SetNull)
+  sessionSpeakers SessionSpeaker[]
 
   @@index([eventId])
   @@index([startTime])
   @@index([venueId])
   @@index([sessionTypeId])
   @@index([isPublished])
+}
+
+model SessionSpeaker {
+  id        String   @id @default(cuid())
+  sessionId String
+  userId    String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  session   ScheduleSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user      User            @relation("SessionSpeakers", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([sessionId])
+  @@index([userId])
 }
 
 model VenueOwner {

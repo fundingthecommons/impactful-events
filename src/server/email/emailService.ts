@@ -15,6 +15,7 @@ import type {
   UpdateCommentNotificationProps,
   ForumCommentNotificationProps,
   AskOfferCommentNotificationProps,
+  FloorOwnerAssignedProps,
 } from './templates';
 
 type TemplateProps =
@@ -28,7 +29,8 @@ type TemplateProps =
   | MagicLinkProps
   | UpdateCommentNotificationProps
   | ForumCommentNotificationProps
-  | AskOfferCommentNotificationProps;
+  | AskOfferCommentNotificationProps
+  | FloorOwnerAssignedProps;
 
 // Strongly typed application data interface
 interface ApplicationWithUserAndEvent {
@@ -388,6 +390,8 @@ export class EmailService {
           ? `💬 ${askOfferData.commenterName} replied to your comment`
           : `💬 Someone responded to your ${typeLabel}`;
       }
+      case 'floorOwnerAssigned':
+        return `You've been assigned as a Floor Owner for ${(data as FloorOwnerAssignedProps).eventName}`;
       default:
         return 'Notification from Funding the Commons';
     }
