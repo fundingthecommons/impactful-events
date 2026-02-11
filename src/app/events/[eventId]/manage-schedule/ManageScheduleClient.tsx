@@ -502,8 +502,8 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [startTime, setStartTime] = useState<Date | null>(null);
-  const [endTime, setEndTime] = useState<Date | null>(null);
+  const [startTime, setStartTime] = useState<Date | null>(new Date(2025, 2, 14, 12, 0));
+  const [endTime, setEndTime] = useState<Date | null>(new Date(2025, 2, 14, 12, 0));
   const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeaker[]>([]);
   const [textSpeakers, setTextSpeakers] = useState("");
   const [sessionTypeId, setSessionTypeId] = useState<string | null>(null);
@@ -525,8 +525,8 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
   const resetForm = () => {
     setTitle("");
     setDescription("");
-    setStartTime(null);
-    setEndTime(null);
+    setStartTime(new Date(2025, 2, 14, 12, 0));
+    setEndTime(new Date(2025, 2, 14, 12, 0));
     setLinkedSpeakers([]);
     setTextSpeakers("");
     setSessionTypeId(null);
