@@ -197,6 +197,16 @@ model Event {
   isOnline    Boolean     @default(true)
   status      EventStatus @default(ACTIVE)
 
+  // Feature flags (all default to true for backward compatibility)
+  featureApplicantVetting  Boolean @default(true)
+  featureSpeakerVetting    Boolean @default(true)
+  featureMentorVetting     Boolean @default(true)
+  featurePraise            Boolean @default(true)
+  featureProjects          Boolean @default(true)
+  featureAsksOffers        Boolean @default(true)
+  featureNewsfeed          Boolean @default(true)
+  featureImpactAnalytics   Boolean @default(true)
+
   createdBy   User?    @relation("EventsCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdById String?
 
