@@ -72,10 +72,11 @@ export default function EventSubNavigation({
 
   const TabsTab = Tabs.Tab as React.ComponentType<TabWithLinkProps>;
 
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+  const isEffectiveFloorOwner = isFloorOwner || clientIsFloorOwner === true;
   const showManageSchedule =
-    featureFlags?.featureScheduleManagement !== false &&
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    (isFloorOwner || isAdmin || clientIsFloorOwner === true);
+    isEffectiveFloorOwner ||
+    (isAdmin && featureFlags?.featureScheduleManagement !== false);
 
   return (
     <Paper
