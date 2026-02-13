@@ -25,12 +25,10 @@ import { notifications } from "@mantine/notifications";
 import { useDebouncedValue } from "@mantine/hooks";
 import {
   IconSearch,
-  IconMail,
   IconUserPlus,
   IconEye,
   IconX
 } from "@tabler/icons-react";
-import Link from "next/link";
 import { api } from "~/trpc/react";
 import { getDisplayName } from "~/utils/userDisplay";
 
@@ -184,11 +182,6 @@ export default function UsersClient() {
         >
           Assign Role
         </Button>
-        <Link href="/admin/invitations" style={{ textDecoration: 'none' }}>
-          <Button variant="light" leftSection={<IconMail size={16} />}>
-            Send Invitations
-          </Button>
-        </Link>
       </Group>
 
       {/* Statistics */}

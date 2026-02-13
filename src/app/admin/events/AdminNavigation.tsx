@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, Menu } from "@mantine/core";
-import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconMapPin, IconMailOpened, IconChartBar } from "@tabler/icons-react";
+import { IconDashboard, IconCalendarEvent, IconUsers, IconMailOpened, IconChartBar } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -17,10 +17,8 @@ export default function AdminNavigation() {
   // Determine active tab based on current path
   const getActiveTab = () => {
     if (pathname === "/admin" || pathname === "/admin/") return "dashboard";
-    if (pathname.startsWith("/admin/events/residency")) return "residency";
     if (pathname.startsWith("/admin/events") || pathname.startsWith("/admin/communications")) return "events";
     if (pathname.startsWith("/admin/users")) return "users";
-    if (pathname.startsWith("/admin/invitations")) return "invitations";
     if (pathname.startsWith("/impact-reports")) return "impact-reports";
     return null;
   };
@@ -70,16 +68,6 @@ export default function AdminNavigation() {
         </Menu>
 
         <TabsTab
-          value="residency"
-          leftSection={<IconMapPin size={16} />}
-          component={Link}
-          href="/admin/events/funding-commons-residency-2025/applications"
-          style={{ textDecoration: 'none' }}
-        >
-          Residency
-        </TabsTab>
-
-        <TabsTab
           value="users"
           leftSection={<IconUsers size={16} />}
           component={Link}
@@ -87,16 +75,6 @@ export default function AdminNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Users
-        </TabsTab>
-
-        <TabsTab
-          value="invitations"
-          leftSection={<IconMail size={16} />}
-          component={Link}
-          href="/admin/invitations"
-          style={{ textDecoration: 'none' }}
-        >
-          Invitations
         </TabsTab>
 
         <TabsTab

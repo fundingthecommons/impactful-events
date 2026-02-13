@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import {
-  Container,
-  Title,
   Card,
   Text,
   Badge,
@@ -22,12 +20,10 @@ import { DatePickerInput } from "@mantine/dates";
 import {
   IconPlus,
   IconMail,
-  IconUsers,
   IconUpload,
   IconCopy,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
-import Link from "next/link";
 import { api } from "~/trpc/react";
 import TelegramMessageButton from "~/app/_components/TelegramMessageButton";
 import {
@@ -228,42 +224,29 @@ We're excited to have you on board!`;
 
   if (loadingInvitations || loadingEvents || loadingRoles) {
     return (
-      <Container size="xl" py="xl">
-        <Group justify="center">
-          <Loader size="xl" />
-        </Group>
-      </Container>
+      <Group justify="center" py="xl">
+        <Loader size="xl" />
+      </Group>
     );
   }
 
   return (
-    <Container size="xl" py="md">
-      {/* Header */}
-      <Group justify="space-between" mb="xl">
-        <div>
-          <Title order={1} mb="xs">Event Invitations</Title>
-          <Text c="dimmed">Invite users to events with specific roles</Text>
-        </div>
-        <Group>
-          <Link href="/admin/events" style={{ textDecoration: 'none' }}>
-            <Button variant="light" leftSection={<IconUsers size={16} />}>
-              Back to Events
-            </Button>
-          </Link>
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={() => setCreateModalOpen(true)}
-          >
-            Send Invitation
-          </Button>
-          <Button
-            variant="light"
-            leftSection={<IconUpload size={16} />}
-            onClick={() => setBulkModalOpen(true)}
-          >
-            Bulk Invite
-          </Button>
-        </Group>
+    <>
+      {/* Action Buttons */}
+      <Group justify="flex-end" mb="xl">
+        <Button
+          leftSection={<IconPlus size={16} />}
+          onClick={() => setCreateModalOpen(true)}
+        >
+          Send Invitation
+        </Button>
+        <Button
+          variant="light"
+          leftSection={<IconUpload size={16} />}
+          onClick={() => setBulkModalOpen(true)}
+        >
+          Bulk Invite
+        </Button>
       </Group>
 
       {/* Statistics */}
@@ -518,6 +501,6 @@ We're excited to have you on board!`;
           </Stack>
         </form>
       </Modal>
-    </Container>
+    </>
   );
 }
