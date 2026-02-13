@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, Menu } from "@mantine/core";
-import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconAddressBook, IconMapPin, IconMailOpened, IconUserCircle, IconChartBar } from "@tabler/icons-react";
+import { IconDashboard, IconCalendarEvent, IconUsers, IconMail, IconMapPin, IconMailOpened, IconChartBar } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ComponentPropsWithRef } from "react";
@@ -19,10 +19,8 @@ export default function AdminNavigation() {
     if (pathname === "/admin" || pathname === "/admin/") return "dashboard";
     if (pathname.startsWith("/admin/events/residency")) return "residency";
     if (pathname.startsWith("/admin/events") || pathname.startsWith("/admin/communications")) return "events";
-    if (pathname.startsWith("/admin/profiles")) return "profiles";
     if (pathname.startsWith("/admin/users")) return "users";
     if (pathname.startsWith("/admin/invitations")) return "invitations";
-    if (pathname.startsWith("/crm")) return "crm";
     if (pathname.startsWith("/impact-reports")) return "impact-reports";
     return null;
   };
@@ -82,16 +80,6 @@ export default function AdminNavigation() {
         </TabsTab>
 
         <TabsTab
-          value="profiles"
-          leftSection={<IconUserCircle size={16} />}
-          component={Link}
-          href="/admin/profiles"
-          style={{ textDecoration: 'none' }}
-        >
-          Profiles
-        </TabsTab>
-
-        <TabsTab
           value="users"
           leftSection={<IconUsers size={16} />}
           component={Link}
@@ -109,16 +97,6 @@ export default function AdminNavigation() {
           style={{ textDecoration: 'none' }}
         >
           Invitations
-        </TabsTab>
-
-        <TabsTab
-          value="crm"
-          leftSection={<IconAddressBook size={16} />}
-          component={Link}
-          href="/crm/contacts"
-          style={{ textDecoration: 'none' }}
-        >
-          CRM
         </TabsTab>
 
         <TabsTab

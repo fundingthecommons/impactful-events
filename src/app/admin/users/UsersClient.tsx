@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import {
-  Container,
-  Title,
   Card,
   Text,
   Badge,
@@ -170,35 +168,27 @@ export default function UsersClient() {
   // Only show full-page loader on initial load (no data yet)
   if (loadingUsers && !users) {
     return (
-      <Container size="xl" py="xl">
-        <Group justify="center">
-          <Loader size="xl" />
-        </Group>
-      </Container>
+      <Group justify="center" py="xl">
+        <Loader size="xl" />
+      </Group>
     );
   }
 
   return (
-    <Container size="xl" py="md">
-      {/* Header */}
-      <Group justify="space-between" mb="xl">
-        <div>
-          <Title order={1} mb="xs">User Management</Title>
-          <Text c="dimmed">Manage users and assign event-specific roles</Text>
-        </div>
-        <Group>
-          <Button 
-            leftSection={<IconUserPlus size={16} />}
-            onClick={() => setAssignRoleModalOpen(true)}
-          >
-            Assign Role
+    <>
+      {/* Action Buttons */}
+      <Group justify="flex-end" mb="xl">
+        <Button
+          leftSection={<IconUserPlus size={16} />}
+          onClick={() => setAssignRoleModalOpen(true)}
+        >
+          Assign Role
+        </Button>
+        <Link href="/admin/invitations" style={{ textDecoration: 'none' }}>
+          <Button variant="light" leftSection={<IconMail size={16} />}>
+            Send Invitations
           </Button>
-          <Link href="/admin/invitations" style={{ textDecoration: 'none' }}>
-            <Button variant="light" leftSection={<IconMail size={16} />}>
-              Send Invitations
-            </Button>
-          </Link>
-        </Group>
+        </Link>
       </Group>
 
       {/* Statistics */}
@@ -597,6 +587,6 @@ export default function UsersClient() {
           <Loader />
         )}
       </Modal>
-    </Container>
+    </>
   );
 }
