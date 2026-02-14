@@ -92,7 +92,7 @@ function RegisterFormContent() {
         email: values.email,
         password: values.password,
         redirect: false,
-        callbackUrl: "/dashboard",
+        callbackUrl: "/",
       });
 
       if (signInResult?.error) {
