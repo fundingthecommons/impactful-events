@@ -21,7 +21,6 @@ export function NavigationTab({
   href,
   icon,
   children,
-  level = "main",
 }: NavigationTabProps) {
   const TabsTab = Tabs.Tab as React.ComponentType<TabWithLinkProps>;
   
