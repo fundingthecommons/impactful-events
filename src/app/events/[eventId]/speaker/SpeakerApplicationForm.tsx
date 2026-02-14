@@ -63,16 +63,16 @@ const speakerApplicationSchema = z.object({
 
 type SpeakerApplicationData = z.infer<typeof speakerApplicationSchema>;
 
-const talkFormatOptions = [
-  { value: "keynote", label: "Keynote" },
-  { value: "talk", label: "Talk" },
-  { value: "panel", label: "Panel Discussion" },
-  { value: "workshop", label: "Workshop" },
-  { value: "lightning", label: "Lightning Talk (5-10 min)" },
-  { value: "fireside", label: "Fireside Chat" },
+export const talkFormatOptions = [
+  { value: "Keynote", label: "Keynote" },
+  { value: "Talk", label: "Talk" },
+  { value: "Panel Discussion", label: "Panel Discussion" },
+  { value: "Workshop", label: "Workshop" },
+  { value: "Lightning Talk", label: "Lightning Talk" },
+  { value: "Fireside Chat", label: "Fireside Chat" },
 ];
 
-const talkDurationOptions = [
+export const talkDurationOptions = [
   { value: "5", label: "5 minutes" },
   { value: "10", label: "10 minutes" },
   { value: "15", label: "15 minutes" },
@@ -280,9 +280,16 @@ export default function SpeakerApplicationForm({
 
                 <Grid.Col span={{ base: 12, sm: 6 }}>
                   <Select
-                    label="Talk Format"
-                    placeholder="Select the format"
-                    data={talkFormatOptions}
+                    label="Session Type"
+                    placeholder="Select the session type"
+                    data={
+                      (scheduleFilters?.sessionTypes ?? []).length > 0
+                        ? scheduleFilters!.sessionTypes.map((st) => ({
+                            value: st.name,
+                            label: st.name,
+                          }))
+                        : talkFormatOptions
+                    }
                     {...form.getInputProps("talkFormat")}
                     required
                   />

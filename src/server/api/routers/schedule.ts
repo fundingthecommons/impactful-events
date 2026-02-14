@@ -102,6 +102,21 @@ export const scheduleRouter = createTRPCRouter({
         ctx.db.scheduleVenue.findMany({
           where: { eventId: event.id },
           orderBy: { order: "asc" },
+          include: {
+            owners: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    surname: true,
+                    name: true,
+                    image: true,
+                  },
+                },
+              },
+            },
+          },
         }),
         ctx.db.scheduleSessionType.findMany({
           where: { eventId: event.id },
@@ -113,7 +128,36 @@ export const scheduleRouter = createTRPCRouter({
         }),
       ]);
 
-      return { venues, sessionTypes, tracks };
+      // Derive unique floor managers with their venue IDs
+      const floorManagerMap = new Map<
+        string,
+        {
+          id: string;
+          firstName: string | null;
+          surname: string | null;
+          name: string | null;
+          image: string | null;
+          venueIds: string[];
+        }
+      >();
+
+      for (const venue of venues) {
+        for (const owner of venue.owners) {
+          const existing = floorManagerMap.get(owner.user.id);
+          if (existing) {
+            existing.venueIds.push(venue.id);
+          } else {
+            floorManagerMap.set(owner.user.id, {
+              ...owner.user,
+              venueIds: [venue.id],
+            });
+          }
+        }
+      }
+
+      const floorManagers = Array.from(floorManagerMap.values());
+
+      return { venues, sessionTypes, tracks, floorManagers };
     }),
 
   // ──────────────────────────────────────────

@@ -55,6 +55,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
   const [activeVenueId, setActiveVenueId] = useState<string | null>(null);
   const [activeSessionTypes, setActiveSessionTypes] = useState<string[]>([]);
   const [activeTracks, setActiveTracks] = useState<string[]>([]);
+  const [activeFloorManagerId, setActiveFloorManagerId] = useState<string | null>(null);
 
   const { data: scheduleData, isLoading: scheduleLoading } =
     api.schedule.getEventSchedule.useQuery({ eventId });
@@ -99,6 +100,15 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
       ) {
         return false;
       }
+      // Floor manager filter
+      if (activeFloorManagerId && filterData?.floorManagers) {
+        const manager = filterData.floorManagers.find(
+          (fm) => fm.id === activeFloorManagerId,
+        );
+        if (manager && (!session.venueId || !manager.venueIds.includes(session.venueId))) {
+          return false;
+        }
+      }
       return true;
     });
 
@@ -136,7 +146,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
       days: Array.from(byDay.keys()),
       groupedByDay: groupedByDayResult,
     };
-  }, [sessions, searchQuery, activeVenueId, activeSessionTypes, activeTracks]);
+  }, [sessions, searchQuery, activeVenueId, activeSessionTypes, activeTracks, activeFloorManagerId, filterData?.floorManagers]);
 
   const [activeDay, setActiveDay] = useState<string | null>(null);
   const selectedDay = activeDay ?? days[0] ?? null;
@@ -322,6 +332,29 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
                   }))}
                   value={activeVenueId}
                   onChange={setActiveVenueId}
+                  clearable
+                  styles={{
+                    input: {
+                      backgroundColor: "var(--schedule-search-bg)",
+                    },
+                  }}
+                />
+              </div>
+            )}
+
+            {filterData?.floorManagers && filterData.floorManagers.length > 0 && (
+              <div className="schedule-filter-section">
+                <Text fw={600} size="sm" mb="xs">
+                  Filter By Floor Manager
+                </Text>
+                <Select
+                  placeholder="All floor managers"
+                  data={filterData.floorManagers.map((fm) => ({
+                    value: fm.id,
+                    label: getDisplayName(fm, "Unknown"),
+                  }))}
+                  value={activeFloorManagerId}
+                  onChange={setActiveFloorManagerId}
                   clearable
                   styles={{
                     input: {
