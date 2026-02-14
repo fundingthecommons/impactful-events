@@ -129,6 +129,12 @@ export default function EventPage({ params }: EventPageProps) {
     { enabled: !!eventId && !!session?.user }
   );
 
+  // Get speaker-specific application (separate query to reliably detect speaker applicants)
+  const { data: speakerApplication, isLoading: isSpeakerAppLoading } = api.application.getApplication.useQuery(
+    { eventId, applicationType: "SPEAKER" },
+    { enabled: !!eventId && !!session?.user }
+  );
+
   // Check if user is a mentor for this event (bypass latePass requirement)
   const { data: isMentor, isLoading: isMentorLoading } = api.event.checkMentorRole.useQuery(
     { eventId },
@@ -150,7 +156,7 @@ export default function EventPage({ params }: EventPageProps) {
   const isConference = normalizeEventType(event?.type) === 'CONFERENCE';
 
   // Show loading while event data or access checks are in progress
-  const isLoadingAccess = status === "loading" || eventLoading || isCheckingAccess || isMentorLoading || isSpeakerLoading || isFloorOwnerLoading || isApplicationLoading;
+  const isLoadingAccess = status === "loading" || eventLoading || isCheckingAccess || isMentorLoading || isSpeakerLoading || isFloorOwnerLoading || isApplicationLoading || isSpeakerAppLoading;
 
   if (isLoadingAccess) {
     return <div>Loading...</div>;
@@ -171,7 +177,7 @@ export default function EventPage({ params }: EventPageProps) {
   // Check if user is accepted for this specific event
   const isAcceptedForThisEvent = userApplication?.status === "ACCEPTED";
   const isAdmin = session.user.role === "admin" || session.user.role === "staff";
-  const hasSpeakerApplication = userApplication?.applicationType === "SPEAKER";
+  const hasSpeakerApplication = !!speakerApplication;
 
   // Determine if user can view this page
   const canViewPage = isAcceptedForThisEvent || isAdmin || hasLatePassAccess || !!isMentor || !!isSpeaker || !!isFloorOwner || hasSpeakerApplication;
@@ -235,6 +241,7 @@ export default function EventPage({ params }: EventPageProps) {
         isSpeaker={!!isSpeaker}
         isFloorOwner={!!isFloorOwner}
         isAdmin={isAdmin}
+        hasSpeakerApplication={hasSpeakerApplication}
       />
     );
   }

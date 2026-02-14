@@ -13,6 +13,10 @@ import {
   Center,
   Divider,
   Spoiler,
+  Timeline,
+  Collapse,
+  Anchor,
+  ThemeIcon,
 } from "@mantine/core";
 import {
   IconCalendar,
@@ -21,6 +25,18 @@ import {
   IconSettings,
   IconMicrophone,
   IconUserPlus,
+  IconCheck,
+  IconSearch,
+  IconCircleDashed,
+  IconSend,
+  IconChevronDown,
+  IconChevronUp,
+  IconBriefcase,
+  IconWorld,
+  IconBrandLinkedin,
+  IconBrandX,
+  IconVideo,
+  IconInfoCircle,
 } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
 import Link from "next/link";
@@ -54,6 +70,41 @@ function getStatusMessage(status: string): string {
   }
 }
 
+function getTimelineActiveStep(status: string): number {
+  switch (status) {
+    case "DRAFT": return 0;
+    case "SUBMITTED": return 1;
+    case "UNDER_REVIEW": return 2;
+    case "ACCEPTED":
+    case "REJECTED":
+    case "WAITLISTED":
+      return 3;
+    case "CANCELLED": return 0;
+    default: return 0;
+  }
+}
+
+function getNextStepsGuidance(status: string): string {
+  switch (status) {
+    case "DRAFT":
+      return "Complete and submit your application to be considered for the conference.";
+    case "SUBMITTED":
+      return "Our selection committee is reviewing all speaker applications. We\u2019ll notify you by email once a decision is made.";
+    case "UNDER_REVIEW":
+      return "Your application has advanced to active review by our selection committee. We\u2019ll be in touch soon.";
+    case "ACCEPTED":
+      return "Your talk has been accepted! Check below for your session assignments and prepare your materials.";
+    case "WAITLISTED":
+      return "Your talk is on our waitlist. We\u2019ll notify you by email if a spot opens up.";
+    case "REJECTED":
+      return "We appreciate your interest and encourage you to apply for future events.";
+    case "CANCELLED":
+      return "Your application has been cancelled.";
+    default:
+      return "";
+  }
+}
+
 const talkFormatLabels: Record<string, string> = {
   keynote: "Keynote",
   talk: "Talk",
@@ -69,6 +120,7 @@ interface ConferenceDashboardProps {
   isSpeaker: boolean;
   isFloorOwner: boolean;
   isAdmin: boolean;
+  hasSpeakerApplication: boolean;
 }
 
 export default function ConferenceDashboard({
@@ -77,8 +129,10 @@ export default function ConferenceDashboard({
   isSpeaker,
   isFloorOwner,
   isAdmin,
+  hasSpeakerApplication,
 }: ConferenceDashboardProps) {
   const [addSpeakerOpened, { open: openAddSpeaker, close: closeAddSpeaker }] = useDisclosure(false);
+  const [detailsOpened, { toggle: toggleDetails }] = useDisclosure(false);
 
   const { data: mySessions, isLoading: sessionsLoading } =
     api.schedule.getMySessions.useQuery(
@@ -96,13 +150,15 @@ export default function ConferenceDashboard({
     api.profile.getMyProfile.useQuery();
 
   const submissionLoading = applicationLoading || profileLoading;
+  const applicationStatus = speakerApplication?.status ?? "";
+  const isDecisionMade = ["ACCEPTED", "REJECTED", "WAITLISTED"].includes(applicationStatus);
 
   return (
     <Container size="lg" py="xl">
       <Stack gap="lg">
         <div>
           <Title order={2}>{eventName}</Title>
-          <Text c="dimmed" size="sm">Conference Dashboard</Text>
+          <Text c="dimmed" size="sm">Speaker Dashboard</Text>
         </div>
 
         {/* My Talk Submission */}
@@ -238,6 +294,111 @@ export default function ConferenceDashboard({
                   </Text>
                 )}
 
+                {/* Expandable additional details */}
+                {myProfile && (
+                  <>
+                    <Button
+                      variant="subtle"
+                      size="xs"
+                      onClick={toggleDetails}
+                      rightSection={detailsOpened ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
+                      style={{ alignSelf: "flex-start" }}
+                    >
+                      {detailsOpened ? "Hide details" : "View full application"}
+                    </Button>
+
+                    <Collapse in={detailsOpened}>
+                      <Stack gap="sm" pt="xs">
+                        <Divider label="Speaker Profile" labelPosition="left" />
+
+                        {myProfile.bio && (
+                          <div>
+                            <Text size="xs" c="dimmed" fw={500} tt="uppercase">
+                              Bio
+                            </Text>
+                            <Text size="sm">{myProfile.bio}</Text>
+                          </div>
+                        )}
+
+                        {(myProfile.jobTitle ?? myProfile.company) && (
+                          <Group gap="lg">
+                            {myProfile.jobTitle && (
+                              <div>
+                                <Text size="xs" c="dimmed" fw={500} tt="uppercase">
+                                  Job Title
+                                </Text>
+                                <Group gap={4}>
+                                  <IconBriefcase size={14} color="var(--mantine-color-dimmed)" />
+                                  <Text size="sm">{myProfile.jobTitle}</Text>
+                                </Group>
+                              </div>
+                            )}
+                            {myProfile.company && (
+                              <div>
+                                <Text size="xs" c="dimmed" fw={500} tt="uppercase">
+                                  Organization
+                                </Text>
+                                <Text size="sm">{myProfile.company}</Text>
+                              </div>
+                            )}
+                          </Group>
+                        )}
+
+                        {myProfile.speakerPreviousExperience && (
+                          <div>
+                            <Text size="xs" c="dimmed" fw={500} tt="uppercase">
+                              Previous Speaking Experience
+                            </Text>
+                            <Text size="sm">{myProfile.speakerPreviousExperience}</Text>
+                          </div>
+                        )}
+
+                        {(myProfile.website ?? myProfile.linkedinUrl ?? myProfile.twitterUrl ?? myProfile.speakerPastTalkUrl) && (
+                          <div>
+                            <Text size="xs" c="dimmed" fw={500} tt="uppercase" mb={4}>
+                              Links
+                            </Text>
+                            <Group gap="md">
+                              {myProfile.website && (
+                                <Anchor href={myProfile.website} target="_blank" size="sm">
+                                  <Group gap={4}>
+                                    <IconWorld size={14} />
+                                    Website
+                                  </Group>
+                                </Anchor>
+                              )}
+                              {myProfile.linkedinUrl && (
+                                <Anchor href={myProfile.linkedinUrl} target="_blank" size="sm">
+                                  <Group gap={4}>
+                                    <IconBrandLinkedin size={14} />
+                                    LinkedIn
+                                  </Group>
+                                </Anchor>
+                              )}
+                              {myProfile.twitterUrl && (
+                                <Anchor href={myProfile.twitterUrl} target="_blank" size="sm">
+                                  <Group gap={4}>
+                                    <IconBrandX size={14} />
+                                    Twitter / X
+                                  </Group>
+                                </Anchor>
+                              )}
+                              {myProfile.speakerPastTalkUrl && (
+                                <Anchor href={myProfile.speakerPastTalkUrl} target="_blank" size="sm">
+                                  <Group gap={4}>
+                                    <IconVideo size={14} />
+                                    Past Talk
+                                  </Group>
+                                </Anchor>
+                              )}
+                            </Group>
+                          </div>
+                        )}
+                      </Stack>
+                    </Collapse>
+                  </>
+                )}
+
                 {speakerApplication.status === "DRAFT" && (
                   <Group>
                     <Button
@@ -256,8 +417,123 @@ export default function ConferenceDashboard({
           </Stack>
         </Card>
 
+        {/* What Happens Next */}
+        {hasSpeakerApplication && speakerApplication && applicationStatus !== "CANCELLED" && (
+          <Card withBorder>
+            <Stack gap="md">
+              <Group gap="xs">
+                <IconInfoCircle size={20} color="var(--mantine-color-blue-6)" />
+                <Title order={4}>What Happens Next</Title>
+              </Group>
+
+              <Text size="sm" c="dimmed">
+                {getNextStepsGuidance(applicationStatus)}
+              </Text>
+
+              <Timeline
+                active={getTimelineActiveStep(applicationStatus)}
+                bulletSize={28}
+                lineWidth={2}
+                color={isDecisionMade ? getStatusColor(applicationStatus) : "blue"}
+              >
+                <Timeline.Item
+                  bullet={
+                    <ThemeIcon
+                      size={28}
+                      variant={applicationStatus !== "DRAFT" ? "filled" : "light"}
+                      color={applicationStatus !== "DRAFT" ? "teal" : "gray"}
+                      radius="xl"
+                    >
+                      <IconSend size={14} />
+                    </ThemeIcon>
+                  }
+                  title={<Text size="sm" fw={500}>Application Submitted</Text>}
+                >
+                  <Text size="xs" c="dimmed">
+                    {speakerApplication.submittedAt
+                      ? `Submitted on ${new Date(speakerApplication.submittedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+                      : "Submit your application to begin the review process"}
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item
+                  bullet={
+                    <ThemeIcon
+                      size={28}
+                      variant={["UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"].includes(applicationStatus) ? "filled" : "light"}
+                      color={["UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED"].includes(applicationStatus) ? "blue" : "gray"}
+                      radius="xl"
+                    >
+                      <IconSearch size={14} />
+                    </ThemeIcon>
+                  }
+                  title={<Text size="sm" fw={500}>Under Review</Text>}
+                >
+                  <Text size="xs" c="dimmed">
+                    Our selection committee reviews all applications
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item
+                  bullet={
+                    <ThemeIcon
+                      size={28}
+                      variant={isDecisionMade ? "filled" : "light"}
+                      color={isDecisionMade ? getStatusColor(applicationStatus) : "gray"}
+                      radius="xl"
+                    >
+                      {isDecisionMade ? <IconCheck size={14} /> : <IconCircleDashed size={14} />}
+                    </ThemeIcon>
+                  }
+                  title={<Text size="sm" fw={500}>Decision Made</Text>}
+                >
+                  <Text size="xs" c="dimmed">
+                    {isDecisionMade
+                      ? `Your application status: ${applicationStatus.replace("_", " ").toLowerCase()}`
+                      : "You\u2019ll be notified by email once a decision is made"}
+                  </Text>
+                </Timeline.Item>
+
+                <Timeline.Item
+                  bullet={
+                    <ThemeIcon
+                      size={28}
+                      variant={applicationStatus === "ACCEPTED" && isSpeaker ? "filled" : "light"}
+                      color={applicationStatus === "ACCEPTED" ? "green" : "gray"}
+                      radius="xl"
+                    >
+                      <IconCalendar size={14} />
+                    </ThemeIcon>
+                  }
+                  title={<Text size="sm" fw={500}>Event Preparation</Text>}
+                >
+                  <Text size="xs" c="dimmed">
+                    {applicationStatus === "ACCEPTED"
+                      ? "Prepare your materials and check your session schedule"
+                      : "Accepted speakers prepare their presentations"}
+                  </Text>
+                </Timeline.Item>
+              </Timeline>
+
+              {applicationStatus === "ACCEPTED" && (
+                <Group>
+                  <Button
+                    component={Link}
+                    href={`/events/${eventId}/schedule`}
+                    variant="light"
+                    size="sm"
+                    leftSection={<IconCalendar size={16} />}
+                  >
+                    View Schedule
+                  </Button>
+                </Group>
+              )}
+            </Stack>
+          </Card>
+        )}
+
         {/* Speaker: My Sessions */}
-        {isSpeaker && (
+        {(isSpeaker || (hasSpeakerApplication && applicationStatus === "ACCEPTED")) && (
           <Card withBorder>
             <Stack gap="md">
               <Group justify="space-between">
@@ -273,7 +549,9 @@ export default function ConferenceDashboard({
                 </Center>
               ) : !mySessions || mySessions.length === 0 ? (
                 <Text c="dimmed" size="sm">
-                  No sessions linked to your account yet. Floor managers will assign you to sessions.
+                  {hasSpeakerApplication && !isSpeaker
+                    ? "Your sessions will appear here once organizers finalize the schedule."
+                    : "No sessions linked to your account yet. Floor managers will assign you to sessions."}
                 </Text>
               ) : (
                 <Stack gap="xs">
