@@ -116,6 +116,7 @@ const talkFormatLabels: Record<string, string> = {
 
 interface ConferenceDashboardProps {
   eventId: string;
+  eventSlug: string;
   eventName: string;
   isSpeaker: boolean;
   isFloorOwner: boolean;
@@ -125,6 +126,7 @@ interface ConferenceDashboardProps {
 
 export default function ConferenceDashboard({
   eventId,
+  eventSlug,
   eventName,
   isSpeaker,
   isFloorOwner,
@@ -191,7 +193,7 @@ export default function ConferenceDashboard({
                 <Group>
                   <Button
                     component={Link}
-                    href={`/events/${eventId}/speaker`}
+                    href={`/events/${eventSlug}/speaker`}
                     variant="light"
                     color="teal"
                     size="sm"
@@ -403,7 +405,7 @@ export default function ConferenceDashboard({
                   <Group>
                     <Button
                       component={Link}
-                      href={`/events/${eventId}/speaker`}
+                      href={`/events/${eventSlug}/speaker`}
                       variant="light"
                       color="teal"
                       size="sm"
@@ -519,7 +521,7 @@ export default function ConferenceDashboard({
                 <Group>
                   <Button
                     component={Link}
-                    href={`/events/${eventId}/schedule`}
+                    href={`/events/${eventSlug}/schedule`}
                     variant="light"
                     size="sm"
                     leftSection={<IconCalendar size={16} />}
@@ -642,7 +644,7 @@ export default function ConferenceDashboard({
               <Group>
                 <Button
                   component={Link}
-                  href={`/events/${eventId}/manage-schedule`}
+                  href={`/events/${eventSlug}/manage-schedule`}
                   leftSection={<IconSettings size={16} />}
                   variant="light"
                 >
@@ -677,7 +679,7 @@ export default function ConferenceDashboard({
             <Group>
               <Button
                 component={Link}
-                href={`/events/${eventId}/schedule`}
+                href={`/events/${eventSlug}/schedule`}
                 leftSection={<IconCalendar size={16} />}
                 variant="light"
               >

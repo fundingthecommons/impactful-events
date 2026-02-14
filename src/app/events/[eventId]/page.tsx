@@ -118,39 +118,43 @@ export default function EventPage({ params }: EventPageProps) {
   }, [searchParams, router]);
 
   // Fetch event details using tRPC (now works for both auth and unauth users)
+  // Note: eventId from URL may be a slug, so getEvent handles slug fallback
   const { data: event, isLoading: eventLoading } = api.event.getEvent.useQuery(
     { id: eventId },
     { enabled: !!eventId }
   );
 
+  // Use the resolved event UUID for all subsequent queries (URL param may be a slug)
+  const resolvedEventId = event?.id ?? "";
+
   // Get user application (only for authenticated users)
   const { data: userApplication, isLoading: isApplicationLoading } = api.application.getApplication.useQuery(
-    { eventId },
-    { enabled: !!eventId && !!session?.user }
+    { eventId: resolvedEventId },
+    { enabled: !!resolvedEventId && !!session?.user }
   );
 
   // Get speaker-specific application (separate query to reliably detect speaker applicants)
   const { data: speakerApplication, isLoading: isSpeakerAppLoading } = api.application.getApplication.useQuery(
-    { eventId, applicationType: "SPEAKER" },
-    { enabled: !!eventId && !!session?.user }
+    { eventId: resolvedEventId, applicationType: "SPEAKER" },
+    { enabled: !!resolvedEventId && !!session?.user }
   );
 
   // Check if user is a mentor for this event (bypass latePass requirement)
   const { data: isMentor, isLoading: isMentorLoading } = api.event.checkMentorRole.useQuery(
-    { eventId },
-    { enabled: !!session?.user && !!eventId }
+    { eventId: resolvedEventId },
+    { enabled: !!session?.user && !!resolvedEventId }
   );
 
   // Check if user is a speaker for this event
   const { data: isSpeaker, isLoading: isSpeakerLoading } = api.event.checkSpeakerRole.useQuery(
-    { eventId },
-    { enabled: !!session?.user && !!eventId }
+    { eventId: resolvedEventId },
+    { enabled: !!session?.user && !!resolvedEventId }
   );
 
   // Check if user is a floor owner for this event
   const { data: isFloorOwner, isLoading: isFloorOwnerLoading } = api.schedule.isFloorOwner.useQuery(
-    { eventId },
-    { enabled: !!session?.user && !!eventId }
+    { eventId: resolvedEventId },
+    { enabled: !!session?.user && !!resolvedEventId }
   );
 
   const isConference = normalizeEventType(event?.type) === 'CONFERENCE';
@@ -236,7 +240,8 @@ export default function EventPage({ params }: EventPageProps) {
   if (isConference && (isAdmin || !!isSpeaker || !!isFloorOwner || hasSpeakerApplication)) {
     return (
       <ConferenceDashboard
-        eventId={eventId}
+        eventId={resolvedEventId}
+        eventSlug={eventId}
         eventName={event.name}
         isSpeaker={!!isSpeaker}
         isFloorOwner={!!isFloorOwner}
@@ -250,7 +255,7 @@ export default function EventPage({ params }: EventPageProps) {
   if (isAcceptedForThisEvent || isAdmin || isMentor || isSpeaker) {
     return (
       <ResidentDashboard
-        eventId={eventId}
+        eventId={resolvedEventId}
         eventName={event.name}
         userApplication={userApplication ?? null}
       />
