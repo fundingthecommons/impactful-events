@@ -147,7 +147,7 @@ export default function EventPage({ params }: EventPageProps) {
     { enabled: !!session?.user && !!eventId }
   );
 
-  const isConference = normalizeEventType(event?.type) === 'conference';
+  const isConference = normalizeEventType(event?.type) === 'CONFERENCE';
 
   // Show loading while event data or access checks are in progress
   const isLoadingAccess = status === "loading" || eventLoading || isCheckingAccess || isMentorLoading || isSpeakerLoading || isFloorOwnerLoading || isApplicationLoading;

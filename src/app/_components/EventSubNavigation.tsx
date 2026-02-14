@@ -25,10 +25,12 @@ import { NavigationContainer } from "./nav/NavigationContainer";
 import { NavigationTabs } from "./nav/NavigationTabs";
 import { NavigationTab } from "./nav/NavigationTab";
 import { SubNavigationHeader } from "./nav/SubNavigationHeader";
+import { normalizeEventType } from "~/types/event";
 
 interface EventSubNavigationProps {
   eventId: string;
   eventName?: string;
+  eventType?: string;
   featureFlags?: {
     featureAsksOffers: boolean;
     featureProjects: boolean;
@@ -51,6 +53,7 @@ interface EventSubNavigationProps {
 export default function EventSubNavigation({
   eventId,
   eventName,
+  eventType,
   featureFlags,
   isFloorOwner,
   isAdmin,
@@ -58,6 +61,7 @@ export default function EventSubNavigation({
 }: EventSubNavigationProps) {
   const pathname = usePathname();
   const basePath = `/events/${eventId}`;
+  const isConference = normalizeEventType(eventType) === "CONFERENCE";
   const { data: session } = useSession();
 
   // Client-side fallback: only fires when server-side check missed floor ownership
@@ -241,7 +245,7 @@ export default function EventSubNavigation({
               Schedule
             </NavigationTab>
 
-            {featureFlags?.featureNewsfeed !== false && (
+            {!isConference && featureFlags?.featureNewsfeed !== false && (
               <NavigationTab
                 value="latest"
                 href={`${basePath}/latest`}
@@ -263,14 +267,16 @@ export default function EventSubNavigation({
               </NavigationTab>
             )}
 
-            <NavigationTab
-              value="participants"
-              href={`${basePath}/participants`}
-              icon={<IconUsers size={16} />}
-              level="sub"
-            >
-              Participants
-            </NavigationTab>
+            {!isConference && (
+              <NavigationTab
+                value="participants"
+                href={`${basePath}/participants`}
+                icon={<IconUsers size={16} />}
+                level="sub"
+              >
+                Participants
+              </NavigationTab>
+            )}
 
             {featureFlags?.featureProjects !== false && (
               <NavigationTab

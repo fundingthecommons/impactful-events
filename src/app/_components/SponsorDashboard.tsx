@@ -55,11 +55,11 @@ interface SponsoredEvent {
 // Helper function to get Mantine gradient format from event type
 function getMantineGradient(eventType: string) {
   const normalized = normalizeEventType(eventType);
-  if (normalized === "conference") {
+  if (normalized === "CONFERENCE") {
     return { from: "green", to: "teal" };
   }
 
-  if (normalized === "residency" || normalized === "hackathon") {
+  if (normalized === "RESIDENCY" || normalized === "HACKATHON") {
     const gradientString = getEventGradient(normalized);
     if (gradientString.includes("blue")) {
       return { from: "blue", to: "cyan" };
@@ -165,7 +165,7 @@ function EventCard({ event }: { event: SponsoredEvent }) {
             </Button>
           </Link>
           
-          {normalizeEventType(event.type) === 'residency' && event.sponsorInfo && (
+          {normalizeEventType(event.type) === 'RESIDENCY' && event.sponsorInfo && (
             <Link href={`/sponsors/${event.sponsorInfo.sponsor.id}/residency?eventId=${event.id}`} style={{ textDecoration: 'none' }}>
               <Button 
                 fullWidth

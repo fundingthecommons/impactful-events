@@ -1,13 +1,13 @@
-export type EventType = 'residency' | 'hackathon' | 'conference';
+export type EventType = 'RESIDENCY' | 'HACKATHON' | 'CONFERENCE';
 
 /**
- * Normalizes a raw event type string (stored as UPPERCASE in DB)
- * to the lowercase EventType used in code comparisons.
+ * Normalizes a raw event type string to the UPPERCASE EventType
+ * used consistently throughout the codebase.
  */
 export function normalizeEventType(rawType: string | undefined | null): EventType | undefined {
   if (!rawType) return undefined;
-  const lower = rawType.toLowerCase();
-  if (lower === 'residency' || lower === 'hackathon' || lower === 'conference') return lower;
+  const upper = rawType.toUpperCase();
+  if (upper === 'RESIDENCY' || upper === 'HACKATHON' || upper === 'CONFERENCE') return upper;
   return undefined;
 }
 

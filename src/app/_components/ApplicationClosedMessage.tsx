@@ -14,7 +14,7 @@ interface ApplicationClosedMessageProps {
 
 export default function ApplicationClosedMessage({ event }: ApplicationClosedMessageProps) {
   // Get event-specific content or fallback to residency
-  const eventType = normalizeEventType(event?.type) ?? 'residency';
+  const eventType = normalizeEventType(event?.type) ?? 'RESIDENCY';
   const content = getEventContent(eventType);
   
   // Use dynamic event data or fallback
@@ -75,7 +75,7 @@ export default function ApplicationClosedMessage({ event }: ApplicationClosedMes
                 className={`bg-gradient-to-r ${content.branding.colors.gradient} hover:from-${content.branding.colors.primary}-700 hover:to-${content.branding.colors.secondary}-700`}
                 size="md"
               >
-                Back to {eventType === 'hackathon' ? 'Hackathon' : 'Residency'} Overview
+                Back to {eventType === 'HACKATHON' ? 'Hackathon' : 'Residency'} Overview
               </Button>
               
               <Button
@@ -95,10 +95,10 @@ export default function ApplicationClosedMessage({ event }: ApplicationClosedMes
         <Card p="lg" radius="md" withBorder className={`bg-gradient-to-r from-${content.branding.colors.primary}-50 to-${content.branding.colors.secondary}-50 max-w-2xl w-full`}>
           <Stack gap="md">
             <Text size="lg" fw={600} className={`text-${content.branding.colors.primary}-900`}>
-              About the {eventType === 'hackathon' ? 'RealFi Hackathon' : 'RealFi Residency'}
+              About the {eventType === 'HACKATHON' ? 'RealFi Hackathon' : 'RealFi Residency'}
             </Text>
             <Text size="sm" className={`text-${content.branding.colors.primary}-700`}>
-              {eventType === 'hackathon' 
+              {eventType === 'HACKATHON'
                 ? 'A competitive event where builders and entrepreneurs develop innovative RealFi solutions that solve everyday problems for Argentinians. Join us for an intensive coding and collaboration experience in Buenos Aires.'
                 : 'This 8-week intensive program brings together builders, researchers, and entrepreneurs to develop real-world blockchain applications that solve everyday problems for Argentinians. The residency combines hands-on development, mentorship, and collaboration in Buenos Aires.'
               }

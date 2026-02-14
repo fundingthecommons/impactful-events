@@ -45,12 +45,12 @@ interface AvailableEvent {
 }
 
 function getEventIcon(type: string) {
-  switch (type.toLowerCase()) {
-    case "residency":
+  switch (type.toUpperCase()) {
+    case "RESIDENCY":
       return IconRocket;
-    case "hackathon":
+    case "HACKATHON":
       return IconTrophy;
-    case "conference":
+    case "CONFERENCE":
       return IconUsersGroup;
     default:
       return IconCalendarEvent;
@@ -58,12 +58,12 @@ function getEventIcon(type: string) {
 }
 
 function getEventGradient(type: string) {
-  switch (type.toLowerCase()) {
-    case "residency":
+  switch (type.toUpperCase()) {
+    case "RESIDENCY":
       return { from: "blue", to: "cyan" };
-    case "hackathon":
+    case "HACKATHON":
       return { from: "orange", to: "red" };
-    case "conference":
+    case "CONFERENCE":
       return { from: "green", to: "teal" };
     default:
       return { from: "purple", to: "pink" };

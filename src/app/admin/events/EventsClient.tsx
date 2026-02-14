@@ -111,7 +111,7 @@ interface EventCardProps {
 }
 
 function EventCard({ event, onStatusChange }: EventCardProps) {
-  const Icon = getEventIcon(normalizeEventType(event.type) ?? 'residency');
+  const Icon = getEventIcon(normalizeEventType(event.type) ?? 'RESIDENCY');
   const gradient = getMantineGradient(event.type);
   // Use slug if available, otherwise fall back to id
   const eventIdentifier = event.slug ?? event.id;

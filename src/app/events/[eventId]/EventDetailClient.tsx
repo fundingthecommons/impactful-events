@@ -122,7 +122,7 @@ export default function EventDetailClient({
   hasLatePassAccess = false
 }: EventDetailClientProps) {
   // Get event-specific content
-  const eventType = normalizeEventType(event.type) ?? 'residency';
+  const eventType = normalizeEventType(event.type) ?? 'RESIDENCY';
   const content = getEventContent(eventType);
   
   console.log("🔍 EventDetailClient props:", {
@@ -298,7 +298,7 @@ export default function EventDetailClient({
             <Tabs.Tab value="overview">
               Event Overview
             </Tabs.Tab>
-            {eventType !== 'conference' && (
+            {eventType !== 'CONFERENCE' && (
               <Tabs.Tab
                 value="application"
                 disabled={!hasLatePassAccess && !userApplication}
@@ -313,7 +313,7 @@ export default function EventDetailClient({
                 </Group>
               </Tabs.Tab>
             )}
-            {eventType === 'conference' && (
+            {eventType === 'CONFERENCE' && (
               <Tabs.Tab value="speakers">
                 <Group gap="xs">
                   <IconMicrophone size={14} />
@@ -374,7 +374,7 @@ export default function EventDetailClient({
                   </Stack>
                 </Group>
 
-                {eventType === 'conference' ? (
+                {eventType === 'CONFERENCE' ? (
                   <>
                     <Divider />
                     <Stack gap="md">
@@ -484,7 +484,7 @@ export default function EventDetailClient({
           </Tabs.Panel>
 
           {/* Speakers Tab (Conference events) */}
-          {eventType === 'conference' && (
+          {eventType === 'CONFERENCE' && (
             <Tabs.Panel value="speakers" mt="md">
               <Paper p="xl" radius="md" withBorder>
                 <Stack gap="lg">
@@ -611,7 +611,7 @@ export default function EventDetailClient({
                 {participants.length > 0 ? (
                   <>
                     <Text c="dimmed">
-                      Meet the {participants.length} accepted {eventType === 'hackathon' ? 'participants' : 'residents'} joining this event.
+                      Meet the {participants.length} accepted {eventType === 'HACKATHON' ? 'participants' : 'residents'} joining this event.
                     </Text>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
                       {participants.map((participant) => (
@@ -715,7 +715,7 @@ export default function EventDetailClient({
           <Tabs.Panel value="projects" mt="md">
             <Paper p="xl" radius="md" withBorder>
               <Stack gap="lg">
-                <Title order={2}>{eventType === 'hackathon' ? 'Hackathon Projects' : 'Participant Projects'}</Title>
+                <Title order={2}>{eventType === 'HACKATHON' ? 'Hackathon Projects' : 'Participant Projects'}</Title>
                 {projects.length > 0 ? (
                   <>
                     <Text c="dimmed">
@@ -866,7 +866,7 @@ export default function EventDetailClient({
                       variant="light"
                       color={content.branding.colors.primary}
                     >
-                      About the {eventType === 'hackathon' ? 'Hackathon' : 'Residency'}
+                      About the {eventType === 'HACKATHON' ? 'Hackathon' : 'Residency'}
                     </Button>
                     <Button
                       component="a"

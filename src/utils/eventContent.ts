@@ -7,7 +7,7 @@ import {
 } from "@tabler/icons-react";
 
 export const EVENT_CONTENT_MAP: Record<EventType, EventContent> = {
-  residency: {
+  RESIDENCY: {
     name: "FtC RealFi Residency",
     shortDescription: "Buenos Aires 2025",
     applicationClosedMessage: {
@@ -24,7 +24,7 @@ export const EVENT_CONTENT_MAP: Record<EventType, EventContent> = {
       icon: "home"
     }
   },
-  hackathon: {
+  HACKATHON: {
     name: "FtC RealFi Hackathon",
     shortDescription: "Buenos Aires 2025",
     applicationClosedMessage: {
@@ -41,7 +41,7 @@ export const EVENT_CONTENT_MAP: Record<EventType, EventContent> = {
       icon: "trophy"
     }
   },
-  conference: {
+  CONFERENCE: {
     name: "FtC Conference",
     shortDescription: "Conference Event",
     applicationClosedMessage: {
@@ -66,11 +66,11 @@ export function getEventContent(eventType: EventType): EventContent {
 
 export function getEventIcon(eventType: EventType): Icon {
   switch (eventType) {
-    case "residency":
+    case "RESIDENCY":
       return IconHome;
-    case "hackathon":
+    case "HACKATHON":
       return IconTrophy;
-    case "conference":
+    case "CONFERENCE":
       return IconMicrophone;
     default:
       return IconMicrophone; // fallback

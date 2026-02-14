@@ -49,12 +49,12 @@ interface EventCardProps {
 }
 
 function getEventIcon(type: string) {
-  switch (type.toLowerCase()) {
-    case "residency":
+  switch (type.toUpperCase()) {
+    case "RESIDENCY":
       return IconHome;
-    case "hackathon":
+    case "HACKATHON":
       return IconTrophy;
-    case "conference":
+    case "CONFERENCE":
       return IconMicrophone;
     default:
       return IconUmbrella;
@@ -62,12 +62,12 @@ function getEventIcon(type: string) {
 }
 
 function getEventGradient(type: string) {
-  switch (type.toLowerCase()) {
-    case "residency":
+  switch (type.toUpperCase()) {
+    case "RESIDENCY":
       return { from: "blue", to: "cyan" };
-    case "hackathon":
+    case "HACKATHON":
       return { from: "orange", to: "red" };
-    case "conference":
+    case "CONFERENCE":
       return { from: "green", to: "teal" };
     default:
       return { from: "purple", to: "pink" };
@@ -119,7 +119,7 @@ function EventCard({ event, applicationStatus }: EventCardProps) {
     }).format(date);
   };
 
-  const isHackathon = event.type.toLowerCase() === "hackathon";
+  const isHackathon = event.type.toUpperCase() === "HACKATHON";
   const showComingSoon = isHackathon && !applicationStatus?.hasApplication;
   
   return (
