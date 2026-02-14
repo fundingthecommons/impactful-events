@@ -329,7 +329,7 @@ export default function SpeakerApplicationForm({
                             <Checkbox
                               key={venue.id}
                               value={venue.id}
-                              label={venue.name}
+                              label={`${venue.name}${inviterVenues?.some((v) => v.id === venue.id) ? " (invited)" : ""}`}
                             />
                           ))}
                         </Stack>
