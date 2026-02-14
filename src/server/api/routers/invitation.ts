@@ -8,7 +8,7 @@ import {
 } from "~/server/api/trpc";
 import { sendInvitationEmail, type SendEmailResult } from "~/lib/email";
 import { acceptPendingInvitations } from "~/server/auth/acceptInvitations";
-import { assertAdminOrEventFloorOwner } from "~/server/api/utils/scheduleAuth";
+import { assertAdminOrEventFloorOwner, isAdminOrStaff, getUserOwnedVenueIds } from "~/server/api/utils/scheduleAuth";
 
 // Helper function to check if user has admin/staff role
 function checkAdminAccess(userRole?: string | null) {
@@ -489,11 +489,19 @@ export const invitationRouter = createTRPCRouter({
         checkAdminAccess(ctx.session.user.role);
       }
 
+      // For floor owners, scope invitations to those with matching venueId
+      let venueFilter: { venueId?: { in: string[] } } | undefined;
+      if (resolvedEventId && !isAdminOrStaff(ctx.session.user.role)) {
+        const ownedVenueIds = await getUserOwnedVenueIds(ctx.db, ctx.session.user.id, resolvedEventId);
+        venueFilter = { venueId: { in: ownedVenueIds } };
+      }
+
       const invitations = await ctx.db.invitation.findMany({
         where: {
           ...(resolvedEventId && { eventId: resolvedEventId }),
           ...(input.status && { status: input.status }),
           ...(input.email && { email: { contains: input.email, mode: "insensitive" } }),
+          ...venueFilter,
         },
         include: {
           event: true,

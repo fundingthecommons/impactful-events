@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "@mantine/form";
 import { zodResolver } from "mantine-form-zod-resolver";
 import { z } from "zod";
+import { useEffect } from "react";
 import {
   Container,
   Title,
@@ -19,6 +20,7 @@ import {
   Badge,
   Alert,
   Progress,
+  Checkbox,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -31,6 +33,7 @@ import {
   IconBrandTwitter,
   IconWorld,
   IconVideo,
+  IconBuilding,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
@@ -93,7 +96,25 @@ export default function SpeakerApplicationForm({
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedVenueIds, setSelectedVenueIds] = useState<string[]>([]);
   const { data: config } = api.config.getPublicConfig.useQuery();
+
+  // Fetch available venues/floors for this event
+  const { data: scheduleFilters } = api.schedule.getEventScheduleFilters.useQuery({ eventId });
+  const venues = scheduleFilters?.venues ?? [];
+
+  // If invited, fetch inviter's venues for pre-selection
+  const { data: inviterVenues } = api.application.getInviterVenues.useQuery(
+    { invitationToken: invitationToken!, eventId },
+    { enabled: !!invitationToken },
+  );
+
+  // Pre-select inviter's venues when data loads
+  useEffect(() => {
+    if (inviterVenues && inviterVenues.length > 0 && selectedVenueIds.length === 0) {
+      setSelectedVenueIds(inviterVenues.map((v) => v.id));
+    }
+  }, [inviterVenues]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createApplication = api.application.createApplication.useMutation();
   const submitApplication = api.application.submitApplication.useMutation();
@@ -147,9 +168,10 @@ export default function SpeakerApplicationForm({
         speakerPastTalkUrl: values.pastTalkUrl,
       });
 
-      // Step 3: Submit the application (DRAFT → SUBMITTED)
+      // Step 3: Submit the application (DRAFT → SUBMITTED) with venue selections
       await submitApplication.mutateAsync({
         applicationId: application.id,
+        venueIds: selectedVenueIds.length > 0 ? selectedVenueIds : undefined,
       });
 
       // All steps succeeded - show success and redirect
@@ -285,6 +307,36 @@ export default function SpeakerApplicationForm({
                     required
                   />
                 </Grid.Col>
+
+                {venues.length > 0 && (
+                  <Grid.Col span={12}>
+                    <Stack gap="xs">
+                      <Group gap="xs" align="center">
+                        <IconBuilding size={16} color="var(--mantine-color-teal-6)" />
+                        <Text fw={500} size="sm">
+                          Which floor(s) would you like to speak on?
+                        </Text>
+                      </Group>
+                      <Text size="xs" c="dimmed">
+                        Select one or more floors where you&apos;d like to present
+                      </Text>
+                      <Checkbox.Group
+                        value={selectedVenueIds}
+                        onChange={setSelectedVenueIds}
+                      >
+                        <Stack gap="xs">
+                          {venues.map((venue) => (
+                            <Checkbox
+                              key={venue.id}
+                              value={venue.id}
+                              label={venue.name}
+                            />
+                          ))}
+                        </Stack>
+                      </Checkbox.Group>
+                    </Stack>
+                  </Grid.Col>
+                )}
               </Grid>
             </Stack>
           </Card>

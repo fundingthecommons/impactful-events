@@ -439,6 +439,7 @@ interface ApplicationRow {
   submittedAt: Date | null;
   invitationId?: string | null;
   user?: { name: string | null } | null;
+  venues?: { venue: { id: string; name: string } }[];
 }
 
 interface SpeakerApplicationsTableProps {
@@ -489,6 +490,7 @@ function SpeakerApplicationsTable({
             <Table.Th>Select</Table.Th>
             <Table.Th>Name</Table.Th>
             <Table.Th>Email</Table.Th>
+            <Table.Th>Floors</Table.Th>
             <Table.Th>Status</Table.Th>
             <Table.Th>Submitted</Table.Th>
             <Table.Th>Actions</Table.Th>
@@ -516,6 +518,15 @@ function SpeakerApplicationsTable({
               </Table.Td>
               <Table.Td>
                 <Text size="sm">{application.email}</Text>
+              </Table.Td>
+              <Table.Td>
+                <Group gap={4} wrap="wrap">
+                  {application.venues?.map((av) => (
+                    <Badge key={av.venue.id} size="xs" variant="light" color="cyan">
+                      {av.venue.name}
+                    </Badge>
+                  ))}
+                </Group>
               </Table.Td>
               <Table.Td>
                 <Badge color={getApplicationStatusColor(application.status)} variant="light" size="sm" leftSection={getApplicationStatusIcon(application.status)}>

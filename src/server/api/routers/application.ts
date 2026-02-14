@@ -13,7 +13,7 @@ import {
   sendSubmissionNotification
 } from "~/server/api/utils/applicationCompletion";
 import { captureApiError, captureEmailError } from "~/utils/errorCapture";
-import { assertAdminOrEventFloorOwner } from "~/server/api/utils/scheduleAuth";
+import { assertAdminOrEventFloorOwner, isAdminOrStaff, getUserOwnedVenueIds } from "~/server/api/utils/scheduleAuth";
 
 /**
  * Resolve event identifier (ID or slug) to actual event ID.
@@ -51,6 +51,7 @@ const UpdateApplicationResponseSchema = z.object({
 
 const SubmitApplicationSchema = z.object({
   applicationId: z.string(),
+  venueIds: z.array(z.string()).optional(), // Floor/venue selections for speaker applications
 });
 
 const UpdateApplicationStatusSchema = z.object({
@@ -153,6 +154,16 @@ export const applicationRouter = createTRPCRouter({
             orderBy: {
               question: {
                 order: "asc",
+              },
+            },
+          },
+          venues: {
+            include: {
+              venue: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
@@ -623,6 +634,20 @@ export const applicationRouter = createTRPCRouter({
         }
       }
 
+      // Save venue/floor selections if provided (for speaker applications)
+      if (input.venueIds && input.venueIds.length > 0) {
+        // Remove existing venue associations and replace with new ones
+        await ctx.db.applicationVenue.deleteMany({
+          where: { applicationId: input.applicationId },
+        });
+        await ctx.db.applicationVenue.createMany({
+          data: input.venueIds.map((venueId) => ({
+            applicationId: input.applicationId,
+            venueId,
+          })),
+        });
+      }
+
       // Submit the application
       const submitted = await ctx.db.application.update({
         where: { id: input.applicationId },
@@ -696,11 +721,25 @@ export const applicationRouter = createTRPCRouter({
         resolvedEventId,
       );
 
+      // For floor owners, scope to applications with matching venue associations
+      let venueFilter: Prisma.ApplicationWhereInput | undefined;
+      if (!isAdminOrStaff(ctx.session.user.role)) {
+        const ownedVenueIds = await getUserOwnedVenueIds(ctx.db, ctx.session.user.id, resolvedEventId);
+        venueFilter = {
+          venues: {
+            some: {
+              venueId: { in: ownedVenueIds },
+            },
+          },
+        };
+      }
+
       const applications = await ctx.db.application.findMany({
         where: {
           eventId: resolvedEventId,
           ...(input.status && { status: input.status }),
           ...(input.applicationType && { applicationType: input.applicationType }),
+          ...venueFilter,
         },
         include: {
           user: {
@@ -727,6 +766,16 @@ export const applicationRouter = createTRPCRouter({
               id: true,
               email: true,
               createdAt: true,
+            },
+          },
+          venues: {
+            include: {
+              venue: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
           reviewerAssignments: {
@@ -2501,5 +2550,49 @@ export const applicationRouter = createTRPCRouter({
 
       // Combine both datasets
       return [...sponsorEntries, ...scaledResidentEntries];
+    }),
+
+  // Get venue pre-selections for an invitation token (inviter's owned venues)
+  getInviterVenues: protectedProcedure
+    .input(z.object({
+      invitationToken: z.string(),
+      eventId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const invitation = await ctx.db.invitation.findUnique({
+        where: { token: input.invitationToken },
+        select: {
+          invitedBy: true,
+          eventId: true,
+        },
+      });
+
+      if (!invitation?.invitedBy) {
+        return [];
+      }
+
+      // Resolve eventId for comparison
+      const resolvedEventId = await resolveEventId(ctx.db, input.eventId);
+      if (!resolvedEventId || invitation.eventId !== resolvedEventId) {
+        return [];
+      }
+
+      // Look up the inviter's owned venues
+      const ownedVenues = await ctx.db.venueOwner.findMany({
+        where: {
+          userId: invitation.invitedBy,
+          eventId: resolvedEventId,
+        },
+        include: {
+          venue: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      return ownedVenues.map((vo) => vo.venue);
     }),
 });

@@ -12,6 +12,7 @@ export default async function AdminEventLayout({ children, params }: AdminEventL
   const featureFlagSelect = {
     name: true,
     slug: true,
+    type: true,
     featureAsksOffers: true,
     featureProjects: true,
     featureNewsfeed: true,
@@ -42,6 +43,7 @@ export default async function AdminEventLayout({ children, params }: AdminEventL
       <EventSubNavigation
         eventId={slug}
         eventName={event?.name}
+        eventType={event?.type ?? undefined}
         featureFlags={event ?? undefined}
         isAdmin={true}
         adminBasePath={`/admin/events/${eventId}`}

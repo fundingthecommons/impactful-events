@@ -530,16 +530,33 @@ model Application {
   evaluations          ApplicationEvaluation[]
   consensus            ReviewConsensus?
   
-  // Profile sync relations  
+  // Profile sync relations
   profileSyncs         ProfileSync[]
-  
+
   // Onboarding relation
   onboarding           ApplicationOnboarding?
-  
+
+  // Venue/floor associations (many-to-many)
+  venues               ApplicationVenue[]
+
   @@unique([userId, eventId]) // One application per user per event
   @@index([email])
   @@index([status])
   @@index([invitationId])
+}
+
+model ApplicationVenue {
+  id            String        @id @default(cuid())
+  applicationId String
+  venueId       String
+  createdAt     DateTime      @default(now())
+
+  application   Application   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  venue         ScheduleVenue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, venueId])
+  @@index([applicationId])
+  @@index([venueId])
 }
 
 model ApplicationQuestion {
@@ -2103,10 +2120,11 @@ model ScheduleVenue {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  event       Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  sessions    ScheduleSession[]
-  owners      VenueOwner[]
-  invitations Invitation[]
+  event        Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sessions     ScheduleSession[]
+  owners       VenueOwner[]
+  invitations  Invitation[]
+  applications ApplicationVenue[]
 
   @@unique([eventId, name])
   @@index([eventId])
