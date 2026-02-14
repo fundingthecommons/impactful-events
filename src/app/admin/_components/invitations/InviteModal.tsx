@@ -9,7 +9,7 @@ import {
   Divider,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
-import { IconMail } from "@tabler/icons-react";
+import { IconMail, IconUser } from "@tabler/icons-react";
 import type { UseFormReturnType } from "@mantine/form";
 
 interface InviteModalProps {
@@ -17,8 +17,8 @@ interface InviteModalProps {
   onClose: () => void;
   title: string;
   description?: string;
-  form: UseFormReturnType<{ email: string; expiresAt: Date | undefined }>;
-  onSubmit: (values: { email: string; expiresAt: Date | undefined }) => void;
+  form: UseFormReturnType<{ email: string; firstName: string; expiresAt: Date | undefined }>;
+  onSubmit: (values: { email: string; firstName: string; expiresAt: Date | undefined }) => void;
   isLoading: boolean;
   emailPlaceholder?: string;
   extraFields?: ReactNode;
@@ -48,8 +48,16 @@ export default function InviteModal({
             </>
           )}
           <TextInput
+            label="First Name"
+            description="Used in the email greeting (e.g. Dear John...)"
+            placeholder="John"
+            leftSection={<IconUser size={16} />}
+            {...form.getInputProps("firstName")}
+          />
+          <TextInput
             label="Email"
             placeholder={emailPlaceholder ?? "user@example.com"}
+            leftSection={<IconMail size={16} />}
             {...form.getInputProps("email")}
             required
           />

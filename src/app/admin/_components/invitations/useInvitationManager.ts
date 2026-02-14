@@ -36,6 +36,7 @@ interface InvitationStats {
 
 interface InviteFormValues {
   email: string;
+  firstName: string;
   expiresAt: Date | undefined;
 }
 
@@ -116,7 +117,7 @@ export function useInvitationManager({
 
   // ── Forms ──
   const inviteForm = useForm<InviteFormValues>({
-    initialValues: { email: "", expiresAt: undefined },
+    initialValues: { email: "", firstName: "", expiresAt: undefined },
     validate: {
       email: (value) => validateEmail(value),
     },
@@ -161,6 +162,7 @@ export function useInvitationManager({
 
     mutations.createInvitation.mutate({
       email: values.email,
+      inviteeName: values.firstName || undefined,
       type: invitationType,
       eventId,
       roleId: invitationType === "EVENT_ROLE" ? resolvedRoleId : undefined,

@@ -598,6 +598,7 @@ model ApplicationResponse {
 model Invitation {
   id          String   @id @default(cuid())
   email       String   // Email to invite
+  inviteeName String?  // Optional first name for email personalization
   type        InvitationType @default(EVENT_ROLE) // Type of invitation
   eventId     String?  // Which event they're being invited to (null for global roles)
   roleId      String?  // What event role they'll get (null for global roles)

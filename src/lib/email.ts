@@ -717,6 +717,7 @@ Invitation link: ${signupWithTokenUrl}
  */
 export async function sendInvitationEmail(params: {
   email: string;
+  inviteeName?: string;
   eventName: string;
   eventDescription: string;
   roleName: string;

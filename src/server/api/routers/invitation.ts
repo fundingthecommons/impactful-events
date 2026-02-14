@@ -32,6 +32,7 @@ function getInviterName(user: { firstName?: string | null; surname?: string | nu
 async function sendInvitationEmailForType(params: {
   invitation: {
     email: string;
+    inviteeName?: string | null;
     type: string;
     token: string;
     expiresAt: Date;
@@ -44,10 +45,12 @@ async function sendInvitationEmailForType(params: {
   venueName?: string | null;
 }): Promise<SendEmailResult> {
   const { invitation, inviterName, venueName } = params;
+  const inviteeName = invitation.inviteeName ?? undefined;
 
   if (invitation.type === "EVENT_ROLE") {
     return sendInvitationEmail({
       email: invitation.email,
+      inviteeName,
       eventName: invitation.event?.name ?? "Event",
       eventDescription: invitation.event?.description ?? "Join us for this exciting event!",
       roleName: invitation.role?.name ?? "Participant",
@@ -61,6 +64,7 @@ async function sendInvitationEmailForType(params: {
     const eventSlug = invitation.event?.slug ?? invitation.eventId;
     return sendInvitationEmail({
       email: invitation.email,
+      inviteeName,
       eventName: invitation.event?.name ?? "Event",
       eventDescription: `You've been invited as a Floor Owner for "${venueName ?? "Venue"}" at ${invitation.event?.name ?? "Event"}. You'll be able to manage the schedule for this floor.`,
       roleName: `Floor Owner - ${venueName ?? "Venue"}`,
@@ -73,6 +77,7 @@ async function sendInvitationEmailForType(params: {
   } else {
     return sendInvitationEmail({
       email: invitation.email,
+      inviteeName,
       eventName: "Platform Administration",
       eventDescription: `You've been invited to join as a ${invitation.globalRole} administrator for the entire platform.`,
       roleName: invitation.globalRole ?? "Administrator",
@@ -88,6 +93,7 @@ async function sendInvitationEmailForType(params: {
 // Schema definitions
 const CreateInvitationSchema = z.object({
   email: z.string().email(),
+  inviteeName: z.string().optional(),
   type: z.enum(["EVENT_ROLE", "GLOBAL_ADMIN", "GLOBAL_STAFF", "VENUE_OWNER"]).default("EVENT_ROLE"),
   eventId: z.string().optional(),
   roleId: z.string().optional(),
@@ -293,6 +299,8 @@ export const invitationRouter = createTRPCRouter({
       const invitation = await ctx.db.invitation.create({
         data: {
           email: input.email,
+          // @ts-expect-error: inviteeName field added to schema, run `prisma generate` after migration
+          inviteeName: input.inviteeName,
           type: input.type,
           eventId: resolvedEventId,
           roleId: input.roleId,
