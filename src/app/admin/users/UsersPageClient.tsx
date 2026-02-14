@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { Tabs, Container } from "@mantine/core";
-import { IconUsers, IconUserCircle, IconMail } from "@tabler/icons-react";
+import { IconUsers, IconUserCircle, IconMail, IconMailOpened } from "@tabler/icons-react";
 import UsersClient from "./UsersClient";
 import ProfilesAdminClient from "./ProfilesAdminClient";
 import InvitationsClient from "./InvitationsClient";
+import { CommunicationsClient } from "../communications/CommunicationsClient";
 
-const VALID_TABS = ["management", "profiles", "invitations"];
+const VALID_TABS = ["management", "profiles", "invitations", "communications"];
 
 export default function UsersPageClient() {
   const [activeTab, setActiveTab] = useState<string>("management");
@@ -39,6 +40,9 @@ export default function UsersPageClient() {
           <Tabs.Tab value="invitations" leftSection={<IconMail size={16} />}>
             Invitations
           </Tabs.Tab>
+          <Tabs.Tab value="communications" leftSection={<IconMailOpened size={16} />}>
+            Communications
+          </Tabs.Tab>
         </Tabs.List>
 
         <Tabs.Panel value="management">
@@ -51,6 +55,10 @@ export default function UsersPageClient() {
 
         <Tabs.Panel value="invitations">
           {activeTab === "invitations" && <InvitationsClient />}
+        </Tabs.Panel>
+
+        <Tabs.Panel value="communications">
+          {activeTab === "communications" && <CommunicationsClient />}
         </Tabs.Panel>
       </Tabs>
     </Container>
