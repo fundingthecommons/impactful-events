@@ -457,6 +457,7 @@ export const invitationRouter = createTRPCRouter({
       eventId: z.string().optional(),
       status: z.enum(["PENDING", "ACCEPTED", "EXPIRED", "CANCELLED"]).optional(),
       email: z.string().optional(),
+      type: z.enum(["EVENT_ROLE", "GLOBAL_ADMIN", "GLOBAL_STAFF", "VENUE_OWNER"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
       // Resolve eventId (could be slug or ID)
@@ -501,11 +502,13 @@ export const invitationRouter = createTRPCRouter({
           ...(resolvedEventId && { eventId: resolvedEventId }),
           ...(input.status && { status: input.status }),
           ...(input.email && { email: { contains: input.email, mode: "insensitive" } }),
+          ...(input.type && { type: input.type }),
           ...venueFilter,
         },
         include: {
           event: true,
           role: true,
+          venue: true,
         },
         orderBy: { createdAt: "desc" },
       });

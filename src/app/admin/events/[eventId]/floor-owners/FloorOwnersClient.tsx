@@ -17,6 +17,7 @@ import {
   Badge,
   ActionIcon,
   Divider,
+  Tooltip,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -26,6 +27,8 @@ import {
   IconUserPlus,
   IconSearch,
   IconMail,
+  IconMailForward,
+  IconX,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { useInvitationMutations } from "~/app/admin/_components/invitations";
@@ -41,7 +44,10 @@ export default function FloorOwnersClient({ eventId }: FloorOwnersClientProps) {
   const { data: filterData, isLoading: filtersLoading } =
     api.schedule.getEventScheduleFilters.useQuery({ eventId });
 
-  if (ownersLoading || filtersLoading) {
+  const { data: pendingInvitations, isLoading: invitationsLoading } =
+    api.invitation.getAll.useQuery({ eventId, type: "VENUE_OWNER", status: "PENDING" });
+
+  if (ownersLoading || filtersLoading || invitationsLoading) {
     return (
       <Center h={400}>
         <Loader size="lg" />
@@ -58,6 +64,15 @@ export default function FloorOwnersClient({ eventId }: FloorOwnersClientProps) {
     const existing = ownersByVenue.get(venueId) ?? [];
     existing.push(owner);
     ownersByVenue.set(venueId, existing);
+  }
+
+  // Group pending invitations by venue
+  const invitationsByVenue = new Map<string, typeof pendingInvitations>();
+  for (const invitation of pendingInvitations ?? []) {
+    if (!invitation.venueId) continue;
+    const existing = invitationsByVenue.get(invitation.venueId) ?? [];
+    existing.push(invitation);
+    invitationsByVenue.set(invitation.venueId, existing);
   }
 
   return (
@@ -94,11 +109,13 @@ export default function FloorOwnersClient({ eventId }: FloorOwnersClientProps) {
           <Stack gap="md">
             {venues.map((venue) => {
               const owners = ownersByVenue.get(venue.id) ?? [];
+              const invitations = invitationsByVenue.get(venue.id) ?? [];
               return (
                 <VenueOwnerCard
                   key={venue.id}
                   venue={venue}
                   owners={owners}
+                  pendingInvitations={invitations}
                   eventId={eventId}
                 />
               );
@@ -231,12 +248,14 @@ function AssignFloorOwnerForm({ eventId, venues }: AssignFormProps) {
 function InviteFloorOwnerForm({ eventId, venues }: AssignFormProps) {
   const [email, setEmail] = useState("");
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const utils = api.useUtils();
 
   const mutations = useInvitationMutations({
     roleName: "floor owner",
     onCreateSuccess: () => {
       setEmail("");
       setSelectedVenueId(null);
+      void utils.invitation.getAll.invalidate({ eventId });
     },
   });
 
@@ -298,6 +317,13 @@ function InviteFloorOwnerForm({ eventId, venues }: AssignFormProps) {
 // VenueOwnerCard
 // ──────────────────────────────────────────
 
+interface PendingInvitation {
+  id: string;
+  email: string;
+  venueId: string | null;
+  status: string;
+}
+
 interface VenueOwnerCardProps {
   venue: { id: string; name: string };
   owners: {
@@ -312,10 +338,11 @@ interface VenueOwnerCardProps {
     };
     venue: { id: string; name: string };
   }[];
+  pendingInvitations: PendingInvitation[];
   eventId: string;
 }
 
-function VenueOwnerCard({ venue, owners, eventId }: VenueOwnerCardProps) {
+function VenueOwnerCard({ venue, owners, pendingInvitations, eventId }: VenueOwnerCardProps) {
   const utils = api.useUtils();
 
   const removeMutation = api.schedule.removeVenueOwner.useMutation({
@@ -332,6 +359,19 @@ function VenueOwnerCard({ venue, owners, eventId }: VenueOwnerCardProps) {
     },
   });
 
+  const invitationMutations = useInvitationMutations({
+    roleName: "floor owner",
+    onCancelSuccess: () => {
+      void utils.invitation.getAll.invalidate({ eventId });
+    },
+    onResendSuccess: () => {
+      void utils.invitation.getAll.invalidate({ eventId });
+    },
+  });
+
+  const totalCount = owners.length + pendingInvitations.length;
+  const isEmpty = totalCount === 0;
+
   return (
     <Paper p="md" withBorder>
       <Group justify="space-between" mb="sm">
@@ -341,10 +381,15 @@ function VenueOwnerCard({ venue, owners, eventId }: VenueOwnerCardProps) {
           <Badge size="sm" variant="light">
             {owners.length} {owners.length === 1 ? "owner" : "owners"}
           </Badge>
+          {pendingInvitations.length > 0 && (
+            <Badge size="sm" variant="light" color="yellow">
+              {pendingInvitations.length} pending
+            </Badge>
+          )}
         </Group>
       </Group>
 
-      {owners.length === 0 ? (
+      {isEmpty ? (
         <Text c="dimmed" size="sm">No owners assigned</Text>
       ) : (
         <Stack gap="xs">
@@ -382,6 +427,53 @@ function VenueOwnerCard({ venue, owners, eventId }: VenueOwnerCardProps) {
               </Group>
             );
           })}
+
+          {pendingInvitations.map((invitation) => (
+            <Group key={invitation.id} justify="space-between">
+              <Group gap="sm">
+                <Avatar size="sm" radius="xl" color="yellow">
+                  <IconMail size={14} />
+                </Avatar>
+                <div>
+                  <Group gap="xs">
+                    <Text size="sm" fw={500}>{invitation.email}</Text>
+                    <Badge size="xs" variant="light" color="yellow">Pending</Badge>
+                  </Group>
+                  <Text size="xs" c="dimmed">Invitation sent</Text>
+                </div>
+              </Group>
+              <Group gap={4}>
+                <Tooltip label="Resend invitation">
+                  <ActionIcon
+                    variant="subtle"
+                    color="blue"
+                    onClick={() =>
+                      invitationMutations.resendInvitation.mutate({
+                        invitationId: invitation.id,
+                      })
+                    }
+                    loading={invitationMutations.resendInvitation.isPending}
+                  >
+                    <IconMailForward size={16} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Cancel invitation">
+                  <ActionIcon
+                    variant="subtle"
+                    color="red"
+                    onClick={() =>
+                      invitationMutations.cancelInvitation.mutate({
+                        invitationId: invitation.id,
+                      })
+                    }
+                    loading={invitationMutations.cancelInvitation.isPending}
+                  >
+                    <IconX size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            </Group>
+          ))}
         </Stack>
       )}
     </Paper>
