@@ -517,13 +517,29 @@ export const roleRouter = createTRPCRouter({
       const globalRole = ctx.session.user.role;
       const roles: string[] = [];
 
+      // Resolve eventId — could be a slug or an actual ID
+      let resolvedEventId = input.eventId;
+      const eventById = await ctx.db.event.findUnique({
+        where: { id: input.eventId },
+        select: { id: true },
+      });
+      if (!eventById) {
+        const eventBySlug = await ctx.db.event.findUnique({
+          where: { slug: input.eventId },
+          select: { id: true },
+        });
+        if (eventBySlug) {
+          resolvedEventId = eventBySlug.id;
+        }
+      }
+
       // 1. Global admin/staff role
       if (globalRole === "admin") roles.push("admin");
       else if (globalRole === "staff") roles.push("staff");
 
       // 2. Event-specific roles from UserRole table
       const userRoles = await ctx.db.userRole.findMany({
-        where: { userId, eventId: input.eventId },
+        where: { userId, eventId: resolvedEventId },
         include: { role: { select: { name: true } } },
       });
       for (const ur of userRoles) {
@@ -534,7 +550,7 @@ export const roleRouter = createTRPCRouter({
 
       // 3. Floor owner from VenueOwner table
       const venueOwner = await ctx.db.venueOwner.findFirst({
-        where: { userId, eventId: input.eventId },
+        where: { userId, eventId: resolvedEventId },
       });
       if (venueOwner && !roles.includes("floor manager")) {
         roles.push("floor manager");
@@ -542,7 +558,7 @@ export const roleRouter = createTRPCRouter({
 
       // 4. Accepted application = resident
       const acceptedApp = await ctx.db.application.findFirst({
-        where: { userId, eventId: input.eventId, status: "ACCEPTED" },
+        where: { userId, eventId: resolvedEventId, status: "ACCEPTED" },
       });
       if (acceptedApp && !roles.includes("resident")) {
         roles.push("resident");
