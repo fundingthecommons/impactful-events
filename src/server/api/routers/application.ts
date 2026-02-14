@@ -104,6 +104,34 @@ const CreateSponsoredApplicationSchema = z.object({
   notes: z.string().optional(),
 });
 
+const CreateSpeakerOnBehalfSchema = z.object({
+  eventId: z.string(),
+  // Speaker identity
+  email: z.string().email("Valid email is required"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().optional(),
+  // Talk details
+  talkTitle: z.string().min(1).max(200),
+  talkAbstract: z.string().min(50).max(2000),
+  talkFormat: z.string().min(1),
+  talkDuration: z.string().min(1),
+  talkTopic: z.string().min(1),
+  venueIds: z.array(z.string()).optional(),
+  // Speaker profile
+  bio: z.string().min(20).max(1000),
+  jobTitle: z.string().max(100).optional(),
+  company: z.string().max(100).optional(),
+  previousSpeakingExperience: z.string().max(2000).optional(),
+  // Links
+  website: z.string().url().optional().or(z.literal("")),
+  linkedinUrl: z.string().url().optional().or(z.literal("")),
+  twitterUrl: z.string().url().optional().or(z.literal("")),
+  pastTalkUrl: z.string().url().optional().or(z.literal("")),
+  // Headshot
+  headshotUrl: z.string().optional(),
+  headshotFileName: z.string().optional(),
+});
+
 // Helper function to check if user has admin/staff role
 function checkAdminAccess(userRole?: string | null) {
   if (!userRole || (userRole !== "admin" && userRole !== "staff")) {
@@ -2594,5 +2622,164 @@ export const applicationRouter = createTRPCRouter({
       });
 
       return ownedVenues.map((vo) => vo.venue);
+    }),
+
+  // Create speaker application on behalf of a speaker (floor manager or admin)
+  createSpeakerOnBehalf: protectedProcedure
+    .input(CreateSpeakerOnBehalfSchema)
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const userRole = ctx.session.user.role;
+
+      // Authorization: must be admin/staff or floor owner for this event
+      await assertAdminOrEventFloorOwner(ctx.db, userId, userRole, input.eventId);
+
+      // If floor owner (not admin), verify selected venues belong to them
+      if (!isAdminOrStaff(userRole) && input.venueIds?.length) {
+        const ownedVenueIds = await getUserOwnedVenueIds(ctx.db, userId, input.eventId);
+        const unauthorized = input.venueIds.filter((id) => !ownedVenueIds.includes(id));
+        if (unauthorized.length > 0) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You can only add speakers to venues you manage",
+          });
+        }
+      }
+
+      // Check if application already exists for this email and event
+      const existingApplication = await ctx.db.application.findFirst({
+        where: {
+          email: input.email.toLowerCase(),
+          eventId: input.eventId,
+        },
+      });
+
+      if (existingApplication) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "An application already exists for this email address and event",
+        });
+      }
+
+      // Find or create user by email
+      let speakerUser = await ctx.db.user.findFirst({
+        where: { email: { equals: input.email.toLowerCase(), mode: "insensitive" } },
+      });
+
+      if (!speakerUser) {
+        const fullName = input.lastName
+          ? `${input.firstName} ${input.lastName}`
+          : input.firstName;
+
+        speakerUser = await ctx.db.user.create({
+          data: {
+            email: input.email.toLowerCase(),
+            firstName: input.firstName,
+            surname: input.lastName ?? null,
+            name: fullName,
+            role: "user",
+          },
+        });
+      }
+
+      // Upsert UserProfile with speaker fields
+      await ctx.db.userProfile.upsert({
+        where: { userId: speakerUser.id },
+        update: {
+          speakerTalkTitle: input.talkTitle,
+          speakerTalkAbstract: input.talkAbstract,
+          speakerTalkFormat: input.talkFormat,
+          speakerTalkDuration: input.talkDuration,
+          speakerTalkTopic: input.talkTopic,
+          speakerPreviousExperience: input.previousSpeakingExperience ?? null,
+          speakerPastTalkUrl: input.pastTalkUrl ?? null,
+          bio: input.bio,
+          jobTitle: input.jobTitle ?? null,
+          company: input.company ?? null,
+          website: input.website ?? null,
+          linkedinUrl: input.linkedinUrl ?? null,
+          twitterUrl: input.twitterUrl ?? null,
+        },
+        create: {
+          userId: speakerUser.id,
+          speakerTalkTitle: input.talkTitle,
+          speakerTalkAbstract: input.talkAbstract,
+          speakerTalkFormat: input.talkFormat,
+          speakerTalkDuration: input.talkDuration,
+          speakerTalkTopic: input.talkTopic,
+          speakerPreviousExperience: input.previousSpeakingExperience ?? null,
+          speakerPastTalkUrl: input.pastTalkUrl ?? null,
+          bio: input.bio,
+          jobTitle: input.jobTitle ?? null,
+          company: input.company ?? null,
+          website: input.website ?? null,
+          linkedinUrl: input.linkedinUrl ?? null,
+          twitterUrl: input.twitterUrl ?? null,
+        },
+      });
+
+      // Create application
+      const application = await ctx.db.application.create({
+        data: {
+          eventId: input.eventId,
+          userId: speakerUser.id,
+          email: input.email.toLowerCase(),
+          applicationType: "SPEAKER",
+          status: "SUBMITTED",
+          language: "en",
+          affiliation: input.company ?? null,
+          isComplete: true,
+          completedAt: new Date(),
+          submittedAt: new Date(),
+        },
+      });
+
+      // Create ApplicationOnboarding with headshot if provided
+      if (input.headshotUrl) {
+        await ctx.db.applicationOnboarding.create({
+          data: {
+            applicationId: application.id,
+            headshotUrl: input.headshotUrl,
+            headshotFileName: input.headshotFileName ?? null,
+            shortBio: input.bio,
+          },
+        });
+      }
+
+      // Create ApplicationVenue records
+      if (input.venueIds?.length) {
+        await ctx.db.applicationVenue.createMany({
+          data: input.venueIds.map((venueId) => ({
+            applicationId: application.id,
+            venueId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      // Assign speaker role
+      const speakerRole = await ctx.db.role.findFirst({
+        where: { name: { contains: "speaker", mode: "insensitive" } },
+      });
+
+      if (speakerRole) {
+        await ctx.db.userRole.createMany({
+          data: [{
+            userId: speakerUser.id,
+            eventId: input.eventId,
+            roleId: speakerRole.id,
+          }],
+          skipDuplicates: true,
+        });
+      }
+
+      return {
+        application,
+        user: {
+          id: speakerUser.id,
+          email: speakerUser.email,
+          name: speakerUser.name,
+        },
+      };
     }),
 });

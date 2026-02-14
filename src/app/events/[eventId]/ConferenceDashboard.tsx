@@ -20,10 +20,13 @@ import {
   IconMapPin,
   IconSettings,
   IconMicrophone,
+  IconUserPlus,
 } from "@tabler/icons-react";
+import { useDisclosure } from "@mantine/hooks";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { getDisplayName } from "~/utils/userDisplay";
+import { AddSpeakerModal } from "./AddSpeakerModal";
 
 function getStatusColor(status: string): string {
   switch (status) {
@@ -75,6 +78,8 @@ export default function ConferenceDashboard({
   isFloorOwner,
   isAdmin,
 }: ConferenceDashboardProps) {
+  const [addSpeakerOpened, { open: openAddSpeaker, close: closeAddSpeaker }] = useDisclosure(false);
+
   const { data: mySessions, isLoading: sessionsLoading } =
     api.schedule.getMySessions.useQuery(
       { eventId },
@@ -365,10 +370,24 @@ export default function ConferenceDashboard({
                 >
                   Manage Floors
                 </Button>
+                <Button
+                  leftSection={<IconUserPlus size={16} />}
+                  variant="light"
+                  color="teal"
+                  onClick={openAddSpeaker}
+                >
+                  Add Speaker
+                </Button>
               </Group>
             </Stack>
           </Card>
         )}
+
+        <AddSpeakerModal
+          eventId={eventId}
+          opened={addSpeakerOpened}
+          onClose={closeAddSpeaker}
+        />
 
         {/* Everyone: Event Schedule */}
         <Card withBorder>
