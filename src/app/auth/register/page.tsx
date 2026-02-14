@@ -1,12 +1,13 @@
 "use client";
 
-import { Button, Container, Paper, PasswordInput, Stack, Text, TextInput, Title, Alert } from "@mantine/core";
+import { Button, Container, Paper, PasswordInput, Stack, Text, TextInput, Title, Alert, Center, Loader } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconCheck, IconX } from "@tabler/icons-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 interface RegisterForm {
   name: string;
@@ -26,10 +27,11 @@ interface RegisterResponse {
   };
 }
 
-export default function RegisterPage() {
+function RegisterFormContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const invitationToken = searchParams.get("invitation");
 
   const form = useForm<RegisterForm>({
     initialValues: {
@@ -49,18 +51,16 @@ export default function RegisterPage() {
         if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>?]/.test(value)) return "Password must contain at least one special character";
         return null;
       },
-      confirmPassword: (value, values) => 
+      confirmPassword: (value, values) =>
         value !== values.password ? "Passwords do not match" : null,
     },
   });
 
   const handleSubmit = async (values: RegisterForm) => {
-    console.log("Registration form submitted with:", { ...values, password: "***", confirmPassword: "***" });
     setLoading(true);
     setError(null);
 
     try {
-      console.log("Sending registration request to /api/auth/register");
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
@@ -70,40 +70,38 @@ export default function RegisterPage() {
           name: values.name,
           email: values.email,
           password: values.password,
+          ...(invitationToken ? { invitationToken } : {}),
         }),
       });
 
-      console.log("Registration response status:", response.status);
-      
-      let data: RegisterResponse;
-      try {
-        data = await response.json() as RegisterResponse;
-        console.log("Registration response data:", data);
-      } catch (jsonError) {
-        console.error("Failed to parse JSON response:", jsonError);
-        throw new Error("Invalid response from server");
-      }
+      const data = await response.json() as RegisterResponse;
 
       if (!response.ok) {
-        console.error("Registration failed with error:", data.error);
         throw new Error(data.error ?? "Registration failed");
       }
 
-      console.log("Registration successful, user created:", data.user);
       notifications.show({
         title: "Success!",
-        message: "Account created successfully. You can now sign in.",
+        message: "Account created successfully. Signing you in...",
         color: "green",
         icon: <IconCheck size={16} />,
       });
 
-      // Wait a bit before redirecting to ensure the notification is visible
-      setTimeout(() => {
-        router.push("/signin");
-      }, 1500);
-    } catch (error) {
-      console.error("Registration error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Registration failed";
+      // Auto-login after successful registration
+      const signInResult = await signIn("credentials", {
+        email: values.email,
+        password: values.password,
+        redirect: false,
+        callbackUrl: "/dashboard",
+      });
+
+      if (signInResult?.error) {
+        setError("Account created but sign in failed. Please try signing in manually.");
+      } else if (signInResult?.url) {
+        window.location.href = signInResult.url;
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Registration failed";
       setError(errorMessage);
       notifications.show({
         title: "Registration Failed",
@@ -134,7 +132,7 @@ export default function RegisterPage() {
             {error}
           </Alert>
         )}
-        
+
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <Stack>
             <TextInput
@@ -172,5 +170,13 @@ export default function RegisterPage() {
         </form>
       </Paper>
     </Container>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<Center h="100vh"><Loader size="lg" /></Center>}>
+      <RegisterFormContent />
+    </Suspense>
   );
 }
