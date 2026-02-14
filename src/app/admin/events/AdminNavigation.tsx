@@ -1,12 +1,14 @@
 "use client";
 
-import { Tabs, Menu } from "@mantine/core";
+import { Menu, Tabs } from "@mantine/core";
 import { IconDashboard, IconCalendarEvent, IconUsers, IconMailOpened, IconChartBar } from "@tabler/icons-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavigationContainer } from "~/app/_components/nav/NavigationContainer";
+import { NavigationTabs } from "~/app/_components/nav/NavigationTabs";
+import { NavigationTab } from "~/app/_components/nav/NavigationTab";
 import { type ComponentPropsWithRef } from "react";
 
-// Proper type for Tab component with Link
 type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
   href?: string;
 };
@@ -26,25 +28,23 @@ export default function AdminNavigation() {
   const TabsTab = Tabs.Tab as React.ComponentType<TabWithLinkProps>;
 
   return (
-    <Tabs value={getActiveTab()} color="blue">
-      <Tabs.List>
-        <TabsTab
+    <NavigationContainer level="main">
+      <NavigationTabs activeTab={getActiveTab()} level="main">
+        <NavigationTab
           value="dashboard"
-          leftSection={<IconDashboard size={16} />}
-          component={Link}
           href="/admin"
-          style={{ textDecoration: 'none' }}
+          icon={<IconDashboard size={18} />}
         >
           Dashboard
-        </TabsTab>
+        </NavigationTab>
 
-        {/* Events Dropdown */}
+        {/* Events Dropdown - keep Menu for now as it has dropdown functionality */}
         <Menu trigger="hover" openDelay={100} closeDelay={400}>
           <Menu.Target>
             <TabsTab
               value="events"
-              leftSection={<IconCalendarEvent size={16} />}
-              style={{ cursor: 'pointer' }}
+              leftSection={<IconCalendarEvent size={18} />}
+              className="cursor-pointer px-6 py-4"
             >
               Events
             </TabsTab>
@@ -67,26 +67,22 @@ export default function AdminNavigation() {
           </Menu.Dropdown>
         </Menu>
 
-        <TabsTab
+        <NavigationTab
           value="users"
-          leftSection={<IconUsers size={16} />}
-          component={Link}
           href="/admin/users"
-          style={{ textDecoration: 'none' }}
+          icon={<IconUsers size={18} />}
         >
           Users
-        </TabsTab>
+        </NavigationTab>
 
-        <TabsTab
+        <NavigationTab
           value="impact-reports"
-          leftSection={<IconChartBar size={16} />}
-          component={Link}
           href="/impact-reports"
-          style={{ textDecoration: 'none' }}
+          icon={<IconChartBar size={18} />}
         >
           Impact Reports
-        </TabsTab>
-      </Tabs.List>
-    </Tabs>
+        </NavigationTab>
+      </NavigationTabs>
+    </NavigationContainer>
   );
 }

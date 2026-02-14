@@ -81,10 +81,10 @@ export default async function HeaderBar() {
 
   return (
     <div>
-      <Paper withBorder radius={0} p="md" style={{ paddingLeft: 32, paddingRight: 32, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)' }}>
+      <Paper withBorder radius={0} className="px-8 py-4 shadow-sm">
         <Group justify="space-between" align="center">
           <Group align="center" gap={8}>
-            <Link href="/" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+            <Link href="/" className="flex items-center cursor-pointer">
               <Image src="/images/ftc-logo.avif" alt="FtC" width={100} height={100} />
             </Link>
           </Group>
@@ -97,14 +97,14 @@ export default async function HeaderBar() {
 
       {/* Navigation - Show appropriate menu based on user role */}
       {session?.user && (
-        <Paper withBorder radius={0} px="lg" style={{ borderTop: 0, boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)' }}>
+        <>
           {(session.user.role === "admin" || session.user.role === "staff") ? (
             <AdminNavigation />
           ) : (
             <MainNavigation acceptedEvents={acceptedEvents} />
           )}
-        </Paper>
+        </>
       )}
     </div>
   );
-} 
+}

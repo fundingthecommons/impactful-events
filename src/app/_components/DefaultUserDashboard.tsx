@@ -249,11 +249,11 @@ export default function DefaultUserDashboard() {
           </Stack>
         )}
 
-        {/* Available Events - Only show if there are active events */}
+        {/* Upcoming Events - Only show if there are active events */}
         {availableEvents && availableEvents.length > 0 && (
           <Stack gap="md">
             <Group justify="space-between">
-              <Title order={2}>Available Events</Title>
+              <Title order={2}>Upcoming Events</Title>
               {hasApplications && (
                 <Link href="/events" style={{ textDecoration: 'none' }}>
                   <Button variant="light" leftSection={<IconPlus size={16} />}>

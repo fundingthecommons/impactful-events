@@ -1,6 +1,5 @@
 "use client";
 
-import { Tabs } from "@mantine/core";
 import {
   IconHome,
   IconUsers,
@@ -8,14 +7,10 @@ import {
   IconHeartHandshake,
   IconCalendarEvent,
 } from "@tabler/icons-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ComponentPropsWithRef } from "react";
-
-// Proper type for Tab component with Link
-type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
-  href?: string;
-};
+import { NavigationContainer } from "./nav/NavigationContainer";
+import { NavigationTabs } from "./nav/NavigationTabs";
+import { NavigationTab } from "./nav/NavigationTab";
 
 interface AcceptedEvent {
   id: string;
@@ -46,65 +41,53 @@ export default function MainNavigation({ acceptedEvents = [] }: MainNavigationPr
     return null;
   };
 
-  const TabsTab = Tabs.Tab as React.ComponentType<TabWithLinkProps>;
-
   return (
-    <Tabs value={getActiveTab()} color="blue">
-      <Tabs.List>
-        <TabsTab
+    <NavigationContainer level="main">
+      <NavigationTabs activeTab={getActiveTab()} level="main">
+        <NavigationTab
           value="home"
-          leftSection={<IconHome size={16} />}
-          component={Link}
           href="/"
-          style={{ textDecoration: "none" }}
+          icon={<IconHome size={18} />}
         >
           Home
-        </TabsTab>
+        </NavigationTab>
 
-        <TabsTab
+        <NavigationTab
           value="community"
-          leftSection={<IconHeartHandshake size={16} />}
-          component={Link}
           href="/community"
-          style={{ textDecoration: "none" }}
+          icon={<IconHeartHandshake size={18} />}
         >
           Community
-        </TabsTab>
+        </NavigationTab>
 
-        <TabsTab
+        <NavigationTab
           value="profiles"
-          leftSection={<IconUsers size={16} />}
-          component={Link}
           href="/profiles"
-          style={{ textDecoration: "none" }}
+          icon={<IconUsers size={18} />}
         >
           Profiles
-        </TabsTab>
+        </NavigationTab>
 
-        <TabsTab
+        <NavigationTab
           value="projects"
-          leftSection={<IconBulb size={16} />}
-          component={Link}
           href="/projects"
-          style={{ textDecoration: "none" }}
+          icon={<IconBulb size={18} />}
         >
           Projects
-        </TabsTab>
+        </NavigationTab>
 
         {/* Dynamic event tabs for accepted residents */}
         {acceptedEvents.map((event) => (
-          <TabsTab
+          <NavigationTab
             key={event.id}
             value={`event-${event.id}`}
-            leftSection={<IconCalendarEvent size={16} />}
-            component={Link}
             href={`/events/${event.id}`}
-            style={{ textDecoration: "none" }}
+            icon={<IconCalendarEvent size={18} />}
           >
             {event.name}
-          </TabsTab>
+          </NavigationTab>
         ))}
-      </Tabs.List>
-    </Tabs>
+      </NavigationTabs>
+    </NavigationContainer>
   );
 }

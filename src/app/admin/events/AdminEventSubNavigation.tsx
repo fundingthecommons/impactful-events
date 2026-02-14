@@ -1,6 +1,5 @@
 "use client";
 
-import { Paper, Tabs } from "@mantine/core";
 import {
   IconMapPin,
   IconHeart,
@@ -10,13 +9,9 @@ import {
   IconBulb,
   IconSparkles,
 } from "@tabler/icons-react";
-import Link from "next/link";
-import { type ComponentPropsWithRef } from "react";
-
-// Proper type for Tab component with Link
-type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
-  href?: string;
-};
+import { NavigationContainer } from "~/app/_components/nav/NavigationContainer";
+import { NavigationTabs } from "~/app/_components/nav/NavigationTabs";
+import { NavigationTab } from "~/app/_components/nav/NavigationTab";
 
 interface AdminEventSubNavigationProps {
   eventId: string;
@@ -33,104 +28,82 @@ export default function AdminEventSubNavigation({ eventId, featureFlags }: Admin
   const adminBasePath = `/admin/events/${eventId}`;
   const publicBasePath = `/events/${eventId}`;
 
-  const TabsTab = Tabs.Tab as React.ComponentType<TabWithLinkProps>;
-
   return (
-    <Paper
-      radius={0}
-      px="lg"
-      style={{
-        borderTop: 0,
-        borderLeft: "1px solid var(--mantine-color-default-border)",
-        borderRight: "1px solid var(--mantine-color-default-border)",
-        borderBottom: "1px solid var(--mantine-color-default-border)",
-        background: "var(--theme-surface-secondary, var(--mantine-color-gray-0))",
-      }}
-    >
-      <Tabs value={null} color="blue" variant="default">
-        <Tabs.List style={{ borderBottom: 0 }}>
-          <TabsTab
-            value="my-event"
-            leftSection={<IconMapPin size={14} />}
-            component={Link}
-            href={adminBasePath}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
+    <NavigationContainer level="sub">
+      <NavigationTabs activeTab={null} level="sub">
+        <NavigationTab
+          value="my-event"
+          href={adminBasePath}
+          icon={<IconMapPin size={16} />}
+          level="sub"
+        >
+          My Event
+        </NavigationTab>
+
+        {featureFlags?.featureAsksOffers !== false && (
+          <NavigationTab
+            value="asks-offers"
+            href={`${publicBasePath}/asks-offers`}
+            icon={<IconHandStop size={16} />}
+            level="sub"
           >
-            My Event
-          </TabsTab>
+            Asks & Offers
+          </NavigationTab>
+        )}
 
-          {featureFlags?.featureAsksOffers !== false && (
-            <TabsTab
-              value="asks-offers"
-              leftSection={<IconHandStop size={14} />}
-              component={Link}
-              href={`${publicBasePath}/asks-offers`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
-            >
-              Asks & Offers
-            </TabsTab>
-          )}
+        <NavigationTab
+          value="participants"
+          href={`${publicBasePath}/participants`}
+          icon={<IconUsers size={16} />}
+          level="sub"
+        >
+          Participants
+        </NavigationTab>
 
-          <TabsTab
-            value="participants"
-            leftSection={<IconUsers size={14} />}
-            component={Link}
-            href={`${publicBasePath}/participants`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
+        {featureFlags?.featureProjects !== false && (
+          <NavigationTab
+            value="event-projects"
+            href={`${publicBasePath}/projects`}
+            icon={<IconBulb size={16} />}
+            level="sub"
           >
-            Participants
-          </TabsTab>
+            Projects
+          </NavigationTab>
+        )}
 
-          {featureFlags?.featureProjects !== false && (
-            <TabsTab
-              value="event-projects"
-              leftSection={<IconBulb size={14} />}
-              component={Link}
-              href={`${publicBasePath}/projects`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
-            >
-              Projects
-            </TabsTab>
-          )}
+        {featureFlags?.featureNewsfeed !== false && (
+          <NavigationTab
+            value="latest"
+            href={`${publicBasePath}/latest`}
+            icon={<IconNews size={16} />}
+            level="sub"
+          >
+            Latest
+          </NavigationTab>
+        )}
 
-          {featureFlags?.featureNewsfeed !== false && (
-            <TabsTab
-              value="latest"
-              leftSection={<IconNews size={14} />}
-              component={Link}
-              href={`${publicBasePath}/latest`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
-            >
-              Latest
-            </TabsTab>
-          )}
+        {featureFlags?.featurePraise !== false && (
+          <NavigationTab
+            value="praise"
+            href={`${publicBasePath}/praise`}
+            icon={<IconSparkles size={16} />}
+            level="sub"
+          >
+            Praise
+          </NavigationTab>
+        )}
 
-          {featureFlags?.featurePraise !== false && (
-            <TabsTab
-              value="praise"
-              leftSection={<IconSparkles size={14} />}
-              component={Link}
-              href={`${publicBasePath}/praise`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
-            >
-              Praise
-            </TabsTab>
-          )}
-
-          {featureFlags?.featureImpactAnalytics !== false && (
-            <TabsTab
-              value="impact"
-              leftSection={<IconHeart size={14} />}
-              component={Link}
-              href={`${publicBasePath}/impact`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
-            >
-              Impact
-            </TabsTab>
-          )}
-
-        </Tabs.List>
-      </Tabs>
-    </Paper>
+        {featureFlags?.featureImpactAnalytics !== false && (
+          <NavigationTab
+            value="impact"
+            href={`${publicBasePath}/impact`}
+            icon={<IconHeart size={16} />}
+            level="sub"
+          >
+            Impact
+          </NavigationTab>
+        )}
+      </NavigationTabs>
+    </NavigationContainer>
   );
 }

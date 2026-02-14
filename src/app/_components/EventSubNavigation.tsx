@@ -1,6 +1,5 @@
 "use client";
 
-import { Paper, Tabs, Text } from "@mantine/core";
 import {
   IconMapPin,
   IconHeart,
@@ -13,15 +12,12 @@ import {
   IconMicrophone,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ComponentPropsWithRef } from "react";
 import { api } from "~/trpc/react";
-
-// Proper type for Tab component with Link
-type TabWithLinkProps = ComponentPropsWithRef<typeof Tabs.Tab> & {
-  href?: string;
-};
+import { NavigationContainer } from "./nav/NavigationContainer";
+import { NavigationTabs } from "./nav/NavigationTabs";
+import { NavigationTab } from "./nav/NavigationTab";
+import { SubNavigationHeader } from "./nav/SubNavigationHeader";
 
 interface EventSubNavigationProps {
   eventId: string;
@@ -78,8 +74,6 @@ export default function EventSubNavigation({
     return null;
   };
 
-  const TabsTab = Tabs.Tab as React.ComponentType<TabWithLinkProps>;
-
   // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   const isEffectiveFloorOwner = isFloorOwner || clientIsFloorOwner === true;
   const showManageSchedule =
@@ -87,139 +81,106 @@ export default function EventSubNavigation({
     (isAdmin && featureFlags?.featureScheduleManagement !== false);
 
   return (
-    <Paper
-      radius={0}
-      px="lg"
-      style={{
-        borderTop: 0,
-        borderLeft: "1px solid var(--mantine-color-default-border)",
-        borderRight: "1px solid var(--mantine-color-default-border)",
-        borderBottom: "1px solid var(--mantine-color-default-border)",
-        background: "var(--theme-surface-secondary, var(--mantine-color-gray-0))",
-      }}
-    >
-      <Tabs value={getActiveTab()} color="blue" variant="default">
-        <Tabs.List style={{ borderBottom: 0 }}>
-          {eventName && (
-            <Text
-              fw={700}
-              size="sm"
-              c="dimmed"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                paddingRight: "0.75rem",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {eventName}:
-            </Text>
-          )}
-          <TabsTab
+    <>
+      {eventName && <SubNavigationHeader title={eventName} />}
+      <NavigationContainer level="sub" withTopBorder={!eventName}>
+        <NavigationTabs activeTab={getActiveTab()} level="sub">
+          <NavigationTab
             value="schedule"
-            leftSection={<IconCalendarEvent size={14} />}
-            component={Link}
             href={`${basePath}/schedule`}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            icon={<IconCalendarEvent size={16} />}
+            level="sub"
           >
             Schedule
-          </TabsTab>
+          </NavigationTab>
 
           {featureFlags?.featureNewsfeed !== false && (
-            <TabsTab
+            <NavigationTab
               value="latest"
-              leftSection={<IconNews size={14} />}
-              component={Link}
               href={`${basePath}/latest`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+              icon={<IconNews size={16} />}
+              level="sub"
             >
               Latest
-            </TabsTab>
+            </NavigationTab>
           )}
 
           {featureFlags?.featureAsksOffers !== false && (
-            <TabsTab
+            <NavigationTab
               value="asks-offers"
-              leftSection={<IconHandStop size={14} />}
-              component={Link}
               href={`${basePath}/asks-offers`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+              icon={<IconHandStop size={16} />}
+              level="sub"
             >
               Asks & Offers
-            </TabsTab>
+            </NavigationTab>
           )}
 
           {isAdmin && (
-            <TabsTab
+            <NavigationTab
               value="participants"
-              leftSection={<IconUsers size={14} />}
-              component={Link}
               href={`${basePath}/participants`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+              icon={<IconUsers size={16} />}
+              level="sub"
             >
               Participants
-            </TabsTab>
+            </NavigationTab>
           )}
 
           {featureFlags?.featureProjects !== false && (
-            <TabsTab
+            <NavigationTab
               value="event-projects"
-              leftSection={<IconBulb size={14} />}
-              component={Link}
               href={`${basePath}/projects`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+              icon={<IconBulb size={16} />}
+              level="sub"
             >
               Projects
-            </TabsTab>
+            </NavigationTab>
           )}
 
           {isAdmin && featureFlags?.featureImpactAnalytics !== false && (
-            <TabsTab
+            <NavigationTab
               value="impact"
-              leftSection={<IconHeart size={14} />}
-              component={Link}
               href={`${basePath}/impact`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+              icon={<IconHeart size={16} />}
+              level="sub"
             >
               Impact
-            </TabsTab>
+            </NavigationTab>
           )}
 
           {showManageSchedule && (
-            <TabsTab
+            <NavigationTab
               value="manage-schedule"
-              leftSection={<IconSettings size={14} />}
-              component={Link}
               href={`${basePath}/manage-schedule`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+              icon={<IconSettings size={16} />}
+              level="sub"
             >
               Manage Floors
-            </TabsTab>
+            </NavigationTab>
           )}
 
           {showManageSchedule && featureFlags?.featureSpeakerVetting !== false && (
-            <TabsTab
+            <NavigationTab
               value="speakers"
-              leftSection={<IconMicrophone size={14} />}
-              component={Link}
               href={`${basePath}/speakers`}
-              style={{ textDecoration: "none", fontSize: "0.875rem" }}
+              icon={<IconMicrophone size={16} />}
+              level="sub"
             >
               Speakers
-            </TabsTab>
+            </NavigationTab>
           )}
 
-          <TabsTab
+          <NavigationTab
             value="my-event"
-            leftSection={<IconMapPin size={14} />}
-            component={Link}
             href={basePath}
-            style={{ textDecoration: "none", fontSize: "0.875rem" }}
+            icon={<IconMapPin size={16} />}
+            level="sub"
           >
             My Event
-          </TabsTab>
-        </Tabs.List>
-      </Tabs>
-    </Paper>
+          </NavigationTab>
+        </NavigationTabs>
+      </NavigationContainer>
+    </>
   );
 }
