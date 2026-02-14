@@ -11,6 +11,7 @@ import {
   IconSettings,
   IconMicrophone,
   IconSparkles,
+  IconBuilding,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
@@ -65,7 +66,10 @@ export default function EventSubNavigation({
   // Determine active tab based on current path
   // Handles both /events/[eventId]/ and /admin/events/[eventId]/ paths
   const getActiveTab = () => {
-    // Check admin path first
+    // Check admin sub-paths first
+    if (adminBasePath && pathname.startsWith(`${adminBasePath}/floor-owners`)) {
+      return "floor-owners";
+    }
     if (adminBasePath && (pathname === adminBasePath || pathname === `${adminBasePath}/`)) {
       return "my-event";
     }
@@ -103,8 +107,19 @@ export default function EventSubNavigation({
             icon={<IconMapPin size={16} />}
             level="sub"
           >
-            My Event
+            Manage event
           </NavigationTab>
+
+          {adminBasePath && (
+            <NavigationTab
+              value="floor-owners"
+              href={`${adminBasePath}/floor-owners`}
+              icon={<IconBuilding size={16} />}
+              level="sub"
+            >
+              Manage floor owners
+            </NavigationTab>
+          )}
 
           <NavigationTab
             value="schedule"
