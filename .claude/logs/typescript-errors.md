@@ -225,3 +225,61 @@ interface TimelineItem {
 5. When working with complex nested objects, verify the interface structure first
 
 ---
+
+## 2026-02-14 - TS2322 Type Mismatch in tRPC Mutation Input - [Project: impactful-events]
+
+**Error**: Type '{ userId: string; role: string; }[]' is not assignable to type '{ userId: string; role?: "Speaker" | "Facilitator" | "Moderator" | "Presenter" | "Panelist" | "Host" | undefined; }[]'. Types of property 'role' are incompatible. Type 'string' is not assignable to type '"Speaker" | "Facilitator" | "Moderator" | "Presenter" | "Panelist" | "Host" | undefined'.
+**Project Type**: Next.js + TypeScript + Vercel
+**File**: src/app/events/[eventId]/manage-schedule/ManageScheduleClient.tsx
+**Lines**: 599, 766
+**Code Context**:
+```typescript
+// ❌ INCORRECT - Interface uses generic string type
+interface SelectedSpeakerWithRole {
+  user: SelectedSpeaker;
+  role: string;  // Too broad for tRPC z.enum() input
+}
+
+// Array without `as const` - infers string[] instead of literal tuple
+const PARTICIPANT_ROLES = ["Speaker", "Facilitator", ...];
+
+// Passing to tRPC mutation that expects z.enum(PARTICIPANT_ROLES)
+linkedSpeakers: linkedSpeakers.map((s) => ({
+  userId: s.user.id,
+  role: s.role,  // TS2322: string not assignable to union
+})),
+```
+**Fix Applied**:
+```typescript
+// ✅ CORRECT - Use `as const` and derive union type
+const PARTICIPANT_ROLES = [
+  "Speaker", "Facilitator", "Moderator",
+  "Presenter", "Panelist", "Host",
+] as const;
+
+type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
+
+interface SelectedSpeakerWithRole {
+  user: SelectedSpeaker;
+  role: ParticipantRole;  // Matches tRPC z.enum() input
+}
+
+// Cast Prisma string values to the union type
+session.sessionSpeakers.map((s) => ({
+  user: s.user,
+  role: s.role as ParticipantRole,
+}));
+
+// Cast Select onChange string value
+onChangeSpeakerRole(id, val as ParticipantRole);
+```
+**Type Pattern**: When a tRPC procedure uses `z.enum(ROLES)` for input validation, the client-side types must match the enum union type exactly. Generic `string` will not work.
+**Prevention**:
+1. Always use `as const` on arrays used with `z.enum()` to get literal types
+2. Derive union types from const arrays: `type Role = (typeof ROLES)[number]`
+3. Use the derived type in interfaces/state, not generic `string`
+4. Cast database string values to the union type when initializing state from Prisma data
+5. Cast Select/input string values to the union type in event handlers
+6. Keep client-side PARTICIPANT_ROLES in sync with server-side z.enum() values
+
+---

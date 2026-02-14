@@ -61,6 +61,26 @@ function CommunicatePageContent() {
 
 ---
 
+## 2026-02-14 - Stale .next Cache Causing Phantom ESLint Errors - [Project: impactful-events]
+
+**Build Command**: `vercel build`
+**Error**: Multiple `@typescript-eslint/no-unsafe-*` errors reporting "error typed value" on tRPC procedures that actually pass typecheck cleanly
+**Root Cause**: Stale `.next` build cache from a previous failed build. The cached type information was outdated after fixing TypeScript errors, causing ESLint (which Next.js runs during build) to report errors that no longer exist in the source code.
+**Files Affected**: `src/app/events/[eventId]/AddSpeakerModal.tsx` (phantom errors), `src/app/events/[eventId]/manage-schedule/ManageScheduleClient.tsx` (real TS2322 errors)
+**Symptoms**:
+- `bun run typecheck` passes with 0 errors (after fixing real TS issues)
+- `bunx eslint <file>` passes when run directly
+- `vercel build` fails with "error typed value" errors that don't exist
+- Errors reference tRPC procedures as "error typed" even though the router compiles cleanly
+**Fix Applied**: Delete `.next` directory before rebuilding: `rm -rf .next && vercel build`
+**Prevention**:
+1. When `vercel build` reports ESLint type errors that don't reproduce with direct `eslint` or `bun run typecheck`, suspect stale `.next` cache
+2. Always clean the `.next` directory when debugging mysterious "error typed value" ESLint errors
+3. If fixing TS errors in one file but build still shows errors in other files that use the same tRPC router, the cache is likely stale
+4. The build cache stores type information from previous compilations - if the codebase changed significantly, this can cause false positives
+
+---
+
 ## Usage
 
 This log is referenced by CLAUDE.md to help Claude Code generate code that builds successfully on the first try by learning from actual build failures in this specific codebase.

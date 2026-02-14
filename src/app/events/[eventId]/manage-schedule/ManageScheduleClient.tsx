@@ -50,11 +50,6 @@ interface SelectedSpeaker {
   image: string | null;
 }
 
-interface SelectedSpeakerWithRole {
-  user: SelectedSpeaker;
-  role: string;
-}
-
 const PARTICIPANT_ROLES = [
   "Speaker",
   "Facilitator",
@@ -62,7 +57,14 @@ const PARTICIPANT_ROLES = [
   "Presenter",
   "Panelist",
   "Host",
-];
+] as const;
+
+type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
+
+interface SelectedSpeakerWithRole {
+  user: SelectedSpeaker;
+  role: ParticipantRole;
+}
 
 type FloorSession = {
   id: string;
@@ -467,7 +469,7 @@ interface SpeakerSelectorProps {
   linkedSpeakers: SelectedSpeakerWithRole[];
   onAddLinkedSpeaker: (user: SelectedSpeaker) => void;
   onRemoveLinkedSpeaker: (userId: string) => void;
-  onChangeSpeakerRole: (userId: string, role: string) => void;
+  onChangeSpeakerRole: (userId: string, role: ParticipantRole) => void;
   textSpeakers: string;
   onTextSpeakersChange: (value: string) => void;
 }
@@ -516,7 +518,7 @@ function SpeakerSelector({
                 data={PARTICIPANT_ROLES}
                 value={speakerWithRole.role}
                 onChange={(val) => {
-                  if (val) onChangeSpeakerRole(speakerWithRole.user.id, val);
+                  if (val) onChangeSpeakerRole(speakerWithRole.user.id, val as ParticipantRole);
                 }}
                 allowDeselect={false}
               />
@@ -732,7 +734,7 @@ function EditSessionModal({
   const [startTime, setStartTime] = useState<Date | null>(new Date(session.startTime));
   const [endTime, setEndTime] = useState<Date | null>(new Date(session.endTime));
   const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeakerWithRole[]>(
-    session.sessionSpeakers.map((s) => ({ user: s.user, role: s.role })),
+    session.sessionSpeakers.map((s) => ({ user: s.user, role: s.role as ParticipantRole })),
   );
   const [textSpeakers, setTextSpeakers] = useState(session.speakers.join(", "));
   const [sessionTypeId, setSessionTypeId] = useState<string | null>(session.sessionTypeId);
