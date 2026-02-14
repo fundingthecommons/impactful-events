@@ -19,6 +19,10 @@ export default async function AdminEventLayout({ children, params }: AdminEventL
     featureImpactAnalytics: true,
     featureScheduleManagement: true,
     featureSpeakerVetting: true,
+    featureApplicantVetting: true,
+    featureSponsorManagement: true,
+    featureMentorVetting: true,
+    featureFloorManagement: true,
   } as const;
 
   let event = await db.event.findUnique({

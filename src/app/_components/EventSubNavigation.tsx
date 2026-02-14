@@ -12,9 +12,14 @@ import {
   IconMicrophone,
   IconSparkles,
   IconBuilding,
+  IconClipboardList,
+  IconUserCheck,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { Text, Group } from "@mantine/core";
 import { api } from "~/trpc/react";
 import { NavigationContainer } from "./nav/NavigationContainer";
 import { NavigationTabs } from "./nav/NavigationTabs";
@@ -32,10 +37,14 @@ interface EventSubNavigationProps {
     featurePraise?: boolean;
     featureScheduleManagement?: boolean;
     featureSpeakerVetting?: boolean;
+    featureApplicantVetting?: boolean;
+    featureSponsorManagement?: boolean;
+    featureMentorVetting?: boolean;
+    featureFloorManagement?: boolean;
   };
   isFloorOwner?: boolean;
   isAdmin?: boolean;
-  /** When provided, renders the "My Event" tab linking to this admin path */
+  /** When provided, renders admin-specific tabs linking to admin sub-pages */
   adminBasePath?: string;
 }
 
@@ -63,16 +72,125 @@ export default function EventSubNavigation({
     { enabled: shouldCheckClientSide },
   );
 
-  // Determine active tab based on current path
-  // Handles both /events/[eventId]/ and /admin/events/[eventId]/ paths
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+  const isEffectiveFloorOwner = isFloorOwner || clientIsFloorOwner === true;
+  const showManageSchedule =
+    isEffectiveFloorOwner ||
+    (isAdmin && featureFlags?.featureScheduleManagement !== false);
+
+  // --- Admin route: management tabs ---
+  if (adminBasePath) {
+    const getAdminActiveTab = () => {
+      if (pathname.startsWith(`${adminBasePath}/applications`)) return "applications";
+      if (pathname.startsWith(`${adminBasePath}/floor-owners`)) return "floor-owners";
+      if (pathname.startsWith(`${adminBasePath}/mentors`)) return "mentors";
+      if (pathname.startsWith(`${adminBasePath}/speakers`)) return "speakers";
+      if (pathname.startsWith(`${adminBasePath}/sponsors`)) return "sponsors";
+      if (pathname.startsWith(`${adminBasePath}/select-rubric`)) return "select-rubric";
+      if (pathname.startsWith(`${adminBasePath}/onboarding`)) return "onboarding";
+      if (pathname === adminBasePath || pathname === `${adminBasePath}/`) return "overview";
+      return null;
+    };
+
+    return (
+      <>
+        {eventName && <SubNavigationHeader title={eventName} />}
+        <NavigationContainer level="sub" withTopBorder={!eventName}>
+          <Group justify="space-between" align="center" wrap="nowrap">
+            <NavigationTabs activeTab={getAdminActiveTab()} level="sub">
+              <NavigationTab
+                value="overview"
+                href={adminBasePath}
+                icon={<IconSettings size={16} />}
+                level="sub"
+              >
+                Overview
+              </NavigationTab>
+
+              {featureFlags?.featureApplicantVetting !== false && (
+                <NavigationTab
+                  value="applications"
+                  href={`${adminBasePath}/applications`}
+                  icon={<IconUsers size={16} />}
+                  level="sub"
+                >
+                  Applications
+                </NavigationTab>
+              )}
+
+              {featureFlags?.featureFloorManagement !== false && (
+                <NavigationTab
+                  value="floor-owners"
+                  href={`${adminBasePath}/floor-owners`}
+                  icon={<IconBuilding size={16} />}
+                  level="sub"
+                >
+                  Floor Owners
+                </NavigationTab>
+              )}
+
+              {featureFlags?.featureMentorVetting !== false && (
+                <NavigationTab
+                  value="mentors"
+                  href={`${adminBasePath}/mentors`}
+                  icon={<IconUserCheck size={16} />}
+                  level="sub"
+                >
+                  Mentors
+                </NavigationTab>
+              )}
+
+              {featureFlags?.featureSpeakerVetting !== false && (
+                <NavigationTab
+                  value="speakers"
+                  href={`${adminBasePath}/speakers`}
+                  icon={<IconMicrophone size={16} />}
+                  level="sub"
+                >
+                  Speakers
+                </NavigationTab>
+              )}
+
+              {featureFlags?.featureSponsorManagement !== false && (
+                <NavigationTab
+                  value="sponsors"
+                  href={`${adminBasePath}/sponsors`}
+                  icon={<IconBuilding size={16} />}
+                  level="sub"
+                >
+                  Sponsors
+                </NavigationTab>
+              )}
+
+              {featureFlags?.featureApplicantVetting !== false && (
+                <NavigationTab
+                  value="select-rubric"
+                  href={`${adminBasePath}/select-rubric`}
+                  icon={<IconClipboardList size={16} />}
+                  level="sub"
+                >
+                  Selection Rubric
+                </NavigationTab>
+              )}
+            </NavigationTabs>
+
+            <Link
+              href={basePath}
+              style={{ textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              <Group gap={4}>
+                <Text size="xs" c="dimmed">View as participant</Text>
+                <IconExternalLink size={14} style={{ opacity: 0.5 }} />
+              </Group>
+            </Link>
+          </Group>
+        </NavigationContainer>
+      </>
+    );
+  }
+
+  // --- User route: participant tabs ---
   const getActiveTab = () => {
-    // Check admin sub-paths first
-    if (adminBasePath && pathname.startsWith(`${adminBasePath}/floor-owners`)) {
-      return "floor-owners";
-    }
-    if (adminBasePath && (pathname === adminBasePath || pathname === `${adminBasePath}/`)) {
-      return "my-event";
-    }
     const match = /^\/events\/[^/]+(\/.*)?$/.exec(pathname);
     const subPath = match?.[1] ?? "";
     if (subPath.startsWith("/speakers")) return "speakers";
@@ -84,138 +202,133 @@ export default function EventSubNavigation({
     if (subPath.startsWith("/asks-offers")) return "asks-offers";
     if (subPath.startsWith("/participants")) return "participants";
     if (subPath.startsWith("/projects")) return "event-projects";
-    if (subPath === "" || subPath === "/") return "my-event";
+    if (subPath === "" || subPath === "/") return "dashboard";
     return null;
   };
-
-  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-  const isEffectiveFloorOwner = isFloorOwner || clientIsFloorOwner === true;
-  const showManageSchedule =
-    isEffectiveFloorOwner ||
-    (isAdmin && featureFlags?.featureScheduleManagement !== false);
-
-  const myEventHref = adminBasePath ?? basePath;
 
   return (
     <>
       {eventName && <SubNavigationHeader title={eventName} />}
       <NavigationContainer level="sub" withTopBorder={!eventName}>
-        <NavigationTabs activeTab={getActiveTab()} level="sub">
-          <NavigationTab
-            value="my-event"
-            href={myEventHref}
-            icon={<IconMapPin size={16} />}
-            level="sub"
-          >
-            Manage event
-          </NavigationTab>
-
-          {adminBasePath && (
+        <Group justify="space-between" align="center" wrap="nowrap">
+          <NavigationTabs activeTab={getActiveTab()} level="sub">
             <NavigationTab
-              value="floor-owners"
-              href={`${adminBasePath}/floor-owners`}
-              icon={<IconBuilding size={16} />}
+              value="dashboard"
+              href={basePath}
+              icon={<IconMapPin size={16} />}
               level="sub"
             >
-              Manage floor owners
+              Dashboard
             </NavigationTab>
-          )}
 
-          <NavigationTab
-            value="schedule"
-            href={`${basePath}/schedule`}
-            icon={<IconCalendarEvent size={16} />}
-            level="sub"
-          >
-            Schedule
-          </NavigationTab>
+            {showManageSchedule && (
+              <NavigationTab
+                value="manage-schedule"
+                href={`${basePath}/manage-schedule`}
+                icon={<IconSettings size={16} />}
+                level="sub"
+              >
+                Manage Floor Schedule
+              </NavigationTab>
+            )}
 
-          {featureFlags?.featureNewsfeed !== false && (
             <NavigationTab
-              value="latest"
-              href={`${basePath}/latest`}
-              icon={<IconNews size={16} />}
+              value="schedule"
+              href={`${basePath}/schedule`}
+              icon={<IconCalendarEvent size={16} />}
               level="sub"
             >
-              Latest
+              Schedule
             </NavigationTab>
-          )}
 
-          {featureFlags?.featureAsksOffers !== false && (
+            {featureFlags?.featureNewsfeed !== false && (
+              <NavigationTab
+                value="latest"
+                href={`${basePath}/latest`}
+                icon={<IconNews size={16} />}
+                level="sub"
+              >
+                Latest
+              </NavigationTab>
+            )}
+
+            {featureFlags?.featureAsksOffers !== false && (
+              <NavigationTab
+                value="asks-offers"
+                href={`${basePath}/asks-offers`}
+                icon={<IconHandStop size={16} />}
+                level="sub"
+              >
+                Asks & Offers
+              </NavigationTab>
+            )}
+
             <NavigationTab
-              value="asks-offers"
-              href={`${basePath}/asks-offers`}
-              icon={<IconHandStop size={16} />}
+              value="participants"
+              href={`${basePath}/participants`}
+              icon={<IconUsers size={16} />}
               level="sub"
             >
-              Asks & Offers
+              Participants
             </NavigationTab>
-          )}
 
-          <NavigationTab
-            value="participants"
-            href={`${basePath}/participants`}
-            icon={<IconUsers size={16} />}
-            level="sub"
-          >
-            Participants
-          </NavigationTab>
+            {featureFlags?.featureProjects !== false && (
+              <NavigationTab
+                value="event-projects"
+                href={`${basePath}/projects`}
+                icon={<IconBulb size={16} />}
+                level="sub"
+              >
+                Projects
+              </NavigationTab>
+            )}
 
-          {featureFlags?.featureProjects !== false && (
-            <NavigationTab
-              value="event-projects"
-              href={`${basePath}/projects`}
-              icon={<IconBulb size={16} />}
-              level="sub"
+            {featureFlags?.featurePraise !== false && (
+              <NavigationTab
+                value="praise"
+                href={`${basePath}/praise`}
+                icon={<IconSparkles size={16} />}
+                level="sub"
+              >
+                Praise
+              </NavigationTab>
+            )}
+
+            {featureFlags?.featureImpactAnalytics !== false && (
+              <NavigationTab
+                value="impact"
+                href={`${basePath}/impact`}
+                icon={<IconHeart size={16} />}
+                level="sub"
+              >
+                Impact
+              </NavigationTab>
+            )}
+
+            {showManageSchedule && featureFlags?.featureSpeakerVetting !== false && (
+              <NavigationTab
+                value="speakers"
+                href={`${basePath}/speakers`}
+                icon={<IconMicrophone size={16} />}
+                level="sub"
+              >
+                Speakers
+              </NavigationTab>
+            )}
+          </NavigationTabs>
+
+          {isAdmin && (
+            <Link
+              href={`/admin/events/${eventId}`}
+              style={{ textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
             >
-              Projects
-            </NavigationTab>
+              <Group gap={4}>
+                <Text size="xs" c="dimmed">Manage event</Text>
+                <IconExternalLink size={14} style={{ opacity: 0.5 }} />
+              </Group>
+            </Link>
           )}
-
-          {featureFlags?.featurePraise !== false && (
-            <NavigationTab
-              value="praise"
-              href={`${basePath}/praise`}
-              icon={<IconSparkles size={16} />}
-              level="sub"
-            >
-              Praise
-            </NavigationTab>
-          )}
-
-          {featureFlags?.featureImpactAnalytics !== false && (
-            <NavigationTab
-              value="impact"
-              href={`${basePath}/impact`}
-              icon={<IconHeart size={16} />}
-              level="sub"
-            >
-              Impact
-            </NavigationTab>
-          )}
-
-          {showManageSchedule && (
-            <NavigationTab
-              value="manage-schedule"
-              href={`${basePath}/manage-schedule`}
-              icon={<IconSettings size={16} />}
-              level="sub"
-            >
-              Manage Floors
-            </NavigationTab>
-          )}
-
-          {showManageSchedule && featureFlags?.featureSpeakerVetting !== false && (
-            <NavigationTab
-              value="speakers"
-              href={`${basePath}/speakers`}
-              icon={<IconMicrophone size={16} />}
-              level="sub"
-            >
-              Speakers
-            </NavigationTab>
-          )}
-        </NavigationTabs>
+        </Group>
       </NavigationContainer>
     </>
   );
