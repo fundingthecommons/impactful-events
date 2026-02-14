@@ -171,9 +171,10 @@ export default function EventPage({ params }: EventPageProps) {
   // Check if user is accepted for this specific event
   const isAcceptedForThisEvent = userApplication?.status === "ACCEPTED";
   const isAdmin = session.user.role === "admin" || session.user.role === "staff";
+  const hasSpeakerApplication = userApplication?.applicationType === "SPEAKER";
 
   // Determine if user can view this page
-  const canViewPage = isAcceptedForThisEvent || isAdmin || hasLatePassAccess || !!isMentor || !!isSpeaker || !!isFloorOwner;
+  const canViewPage = isAcceptedForThisEvent || isAdmin || hasLatePassAccess || !!isMentor || !!isSpeaker || !!isFloorOwner || hasSpeakerApplication;
 
   // Check if applications are closed (no late pass, no admin/mentor/speaker privileges)
   const applicationsAreClosed = !hasLatePassAccess && !isAdmin && !isMentor && !isSpeaker && !isFloorOwner;
@@ -186,6 +187,7 @@ export default function EventPage({ params }: EventPageProps) {
     isSpeaker,
     isFloorOwner,
     isConference,
+    hasSpeakerApplication,
     canViewPage,
     userApplication: userApplication?.status,
     applicationsAreClosed,
@@ -225,7 +227,7 @@ export default function EventPage({ params }: EventPageProps) {
   }
   
   // Show conference dashboard for conference events
-  if (isConference && (isAdmin || !!isSpeaker || !!isFloorOwner)) {
+  if (isConference && (isAdmin || !!isSpeaker || !!isFloorOwner || hasSpeakerApplication)) {
     return (
       <ConferenceDashboard
         eventId={eventId}
