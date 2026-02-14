@@ -240,6 +240,7 @@ model Event {
   // Schedule system relations
   scheduleVenues       ScheduleVenue[]
   scheduleSessionTypes ScheduleSessionType[]
+  scheduleTracks       ScheduleTrack[]
   scheduleSessions     ScheduleSession[]
 
   // Venue ownership relations (floor owners)
@@ -2149,6 +2150,23 @@ model ScheduleSessionType {
   @@index([order])
 }
 
+model ScheduleTrack {
+  id        String   @id @default(cuid())
+  eventId   String
+  name      String
+  color     String   @default("#8b5cf6")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event    Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sessions ScheduleSession[]
+
+  @@unique([eventId, name])
+  @@index([eventId])
+  @@index([order])
+}
+
 model ScheduleSession {
   id            String   @id @default(cuid())
   eventId       String
@@ -2159,6 +2177,7 @@ model ScheduleSession {
   speakers      String[]
   venueId       String?
   sessionTypeId String?
+  trackId       String?
   order         Int      @default(0)
   isPublished   Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -2167,12 +2186,14 @@ model ScheduleSession {
   event           Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
   venue           ScheduleVenue?       @relation(fields: [venueId], references: [id], onDelete: SetNull)
   sessionType     ScheduleSessionType? @relation(fields: [sessionTypeId], references: [id], onDelete: SetNull)
+  track           ScheduleTrack?       @relation(fields: [trackId], references: [id], onDelete: SetNull)
   sessionSpeakers SessionSpeaker[]
 
   @@index([eventId])
   @@index([startTime])
   @@index([venueId])
   @@index([sessionTypeId])
+  @@index([trackId])
   @@index([isPublished])
 }
 
@@ -2180,6 +2201,7 @@ model SessionSpeaker {
   id        String   @id @default(cuid())
   sessionId String
   userId    String
+  role      String   @default("Speaker")
   order     Int      @default(0)
   createdAt DateTime @default(now())
 

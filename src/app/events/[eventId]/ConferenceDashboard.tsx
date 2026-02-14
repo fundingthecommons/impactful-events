@@ -300,6 +300,18 @@ export default function ConferenceDashboard({
                                   {session.sessionType.name}
                                 </Badge>
                               )}
+                              {session.track && (
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  style={{
+                                    backgroundColor: `${session.track.color}20`,
+                                    color: session.track.color,
+                                  }}
+                                >
+                                  {session.track.name}
+                                </Badge>
+                              )}
                             </Group>
                             <Group gap="md">
                               <Text size="xs" c="dimmed">
@@ -316,8 +328,12 @@ export default function ConferenceDashboard({
                             </Group>
                             {session.sessionSpeakers.length > 1 && (
                               <Text size="xs" c="dimmed">
-                                Co-speakers: {session.sessionSpeakers
-                                  .map((s) => getDisplayName(s.user, "Unknown"))
+                                Participants: {session.sessionSpeakers
+                                  .map((s) =>
+                                    s.role !== "Speaker"
+                                      ? `${getDisplayName(s.user, "Unknown")} (${s.role})`
+                                      : getDisplayName(s.user, "Unknown"),
+                                  )
                                   .join(", ")}
                               </Text>
                             )}

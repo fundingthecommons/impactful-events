@@ -17,6 +17,15 @@ import {
 import { getEmailService } from "~/server/email/emailService";
 import { captureEmailError } from "~/utils/errorCapture";
 
+const PARTICIPANT_ROLES = [
+  "Speaker",
+  "Facilitator",
+  "Moderator",
+  "Presenter",
+  "Panelist",
+  "Host",
+] as const;
+
 const eventSelect = {
   id: true,
   name: true,
@@ -71,6 +80,7 @@ export const scheduleRouter = createTRPCRouter({
         include: {
           venue: { select: { id: true, name: true } },
           sessionType: { select: { id: true, name: true, color: true } },
+          track: { select: { id: true, name: true, color: true } },
           sessionSpeakers: {
             include: { user: { select: userSelectFields } },
             orderBy: { order: "asc" },
@@ -82,13 +92,13 @@ export const scheduleRouter = createTRPCRouter({
       return { event, sessions };
     }),
 
-  // Public: Get filter options (venues + session types) for an event
+  // Public: Get filter options (venues + session types + tracks) for an event
   getEventScheduleFilters: publicProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
       const event = await resolveEventId(ctx.db, input.eventId);
 
-      const [venues, sessionTypes] = await Promise.all([
+      const [venues, sessionTypes, tracks] = await Promise.all([
         ctx.db.scheduleVenue.findMany({
           where: { eventId: event.id },
           orderBy: { order: "asc" },
@@ -97,9 +107,13 @@ export const scheduleRouter = createTRPCRouter({
           where: { eventId: event.id },
           orderBy: { order: "asc" },
         }),
+        ctx.db.scheduleTrack.findMany({
+          where: { eventId: event.id },
+          orderBy: { order: "asc" },
+        }),
       ]);
 
-      return { venues, sessionTypes };
+      return { venues, sessionTypes, tracks };
     }),
 
   // ──────────────────────────────────────────
@@ -116,9 +130,17 @@ export const scheduleRouter = createTRPCRouter({
         startTime: z.coerce.date(),
         endTime: z.coerce.date(),
         speakers: z.array(z.string()).default([]),
-        linkedSpeakerIds: z.array(z.string()).optional(),
+        linkedSpeakers: z
+          .array(
+            z.object({
+              userId: z.string(),
+              role: z.enum(PARTICIPANT_ROLES).default("Speaker"),
+            }),
+          )
+          .optional(),
         venueId: z.string().optional(),
         sessionTypeId: z.string().optional(),
+        trackId: z.string().optional(),
         order: z.number().default(0),
         isPublished: z.boolean().default(true),
       }),
@@ -138,14 +160,15 @@ export const scheduleRouter = createTRPCRouter({
         });
       }
 
-      const { linkedSpeakerIds, ...sessionData } = input;
+      const { linkedSpeakers, ...sessionData } = input;
       const session = await ctx.db.scheduleSession.create({ data: sessionData });
 
-      if (linkedSpeakerIds && linkedSpeakerIds.length > 0) {
+      if (linkedSpeakers && linkedSpeakers.length > 0) {
         await ctx.db.sessionSpeaker.createMany({
-          data: linkedSpeakerIds.map((userId, index) => ({
+          data: linkedSpeakers.map((speaker, index) => ({
             sessionId: session.id,
-            userId,
+            userId: speaker.userId,
+            role: speaker.role,
             order: index,
           })),
         });
@@ -164,15 +187,23 @@ export const scheduleRouter = createTRPCRouter({
         startTime: z.coerce.date().optional(),
         endTime: z.coerce.date().optional(),
         speakers: z.array(z.string()).optional(),
-        linkedSpeakerIds: z.array(z.string()).optional(),
+        linkedSpeakers: z
+          .array(
+            z.object({
+              userId: z.string(),
+              role: z.enum(PARTICIPANT_ROLES).default("Speaker"),
+            }),
+          )
+          .optional(),
         venueId: z.string().nullable().optional(),
         sessionTypeId: z.string().nullable().optional(),
+        trackId: z.string().nullable().optional(),
         order: z.number().optional(),
         isPublished: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, linkedSpeakerIds, ...data } = input;
+      const { id, linkedSpeakers, ...data } = input;
 
       // Check permission on the existing session
       await assertCanManageSession(
@@ -195,13 +226,14 @@ export const scheduleRouter = createTRPCRouter({
       const session = await ctx.db.scheduleSession.update({ where: { id }, data });
 
       // Sync linked speakers if explicitly provided
-      if (linkedSpeakerIds !== undefined) {
+      if (linkedSpeakers !== undefined) {
         await ctx.db.sessionSpeaker.deleteMany({ where: { sessionId: id } });
-        if (linkedSpeakerIds.length > 0) {
+        if (linkedSpeakers.length > 0) {
           await ctx.db.sessionSpeaker.createMany({
-            data: linkedSpeakerIds.map((userId, index) => ({
+            data: linkedSpeakers.map((speaker, index) => ({
               sessionId: id,
-              userId,
+              userId: speaker.userId,
+              role: speaker.role,
               order: index,
             })),
           });
@@ -321,6 +353,43 @@ export const scheduleRouter = createTRPCRouter({
     }),
 
   // ──────────────────────────────────────────
+  // Track mutations (admin only)
+  // ──────────────────────────────────────────
+
+  // Admin only: Create a track
+  createTrack: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        name: z.string().min(1),
+        color: z.string().default("#8b5cf6"),
+        order: z.number().default(0),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!isAdminOrStaff(ctx.session.user.role)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Admin access required to create tracks",
+        });
+      }
+      return ctx.db.scheduleTrack.create({ data: input });
+    }),
+
+  // Admin only: Delete a track
+  deleteTrack: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      if (!isAdminOrStaff(ctx.session.user.role)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Admin access required to delete tracks",
+        });
+      }
+      return ctx.db.scheduleTrack.delete({ where: { id: input.id } });
+    }),
+
+  // ──────────────────────────────────────────
   // Floor owner queries
   // ──────────────────────────────────────────
 
@@ -387,6 +456,7 @@ export const scheduleRouter = createTRPCRouter({
         include: {
           venue: { select: { id: true, name: true } },
           sessionType: { select: { id: true, name: true, color: true } },
+          track: { select: { id: true, name: true, color: true } },
           sessionSpeakers: {
             include: { user: { select: userSelectFields } },
             orderBy: { order: "asc" },
@@ -526,6 +596,7 @@ export const scheduleRouter = createTRPCRouter({
         include: {
           venue: { select: { id: true, name: true } },
           sessionType: { select: { id: true, name: true, color: true } },
+          track: { select: { id: true, name: true, color: true } },
           sessionSpeakers: {
             include: { user: { select: userSelectFields } },
             orderBy: { order: "asc" },

@@ -50,6 +50,20 @@ interface SelectedSpeaker {
   image: string | null;
 }
 
+interface SelectedSpeakerWithRole {
+  user: SelectedSpeaker;
+  role: string;
+}
+
+const PARTICIPANT_ROLES = [
+  "Speaker",
+  "Facilitator",
+  "Moderator",
+  "Presenter",
+  "Panelist",
+  "Host",
+];
+
 type FloorSession = {
   id: string;
   title: string;
@@ -59,11 +73,14 @@ type FloorSession = {
   speakers: string[];
   venueId: string | null;
   sessionTypeId: string | null;
+  trackId: string | null;
   order: number;
   isPublished: boolean;
   venue: { id: string; name: string } | null;
   sessionType: { id: string; name: string; color: string } | null;
+  track: { id: string; name: string; color: string } | null;
   sessionSpeakers: Array<{
+    role: string;
     user: SelectedSpeaker;
   }>;
 };
@@ -302,6 +319,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
           eventId={eventId}
           venueId={venueId}
           sessionTypes={filterData?.sessionTypes ?? []}
+          tracks={filterData?.tracks ?? []}
         />
       </Group>
 
@@ -327,6 +345,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
               eventId={eventId}
               venueId={venueId}
               sessionTypes={filterData?.sessionTypes ?? []}
+              tracks={filterData?.tracks ?? []}
               onDelete={() => deleteSessionMutation.mutate({ id: session.id })}
               isDeleting={deleteSessionMutation.isPending}
               isAdmin={isAdmin}
@@ -347,12 +366,13 @@ interface SessionCardProps {
   eventId: string;
   venueId: string;
   sessionTypes: { id: string; name: string; color: string }[];
+  tracks: { id: string; name: string; color: string }[];
   onDelete: () => void;
   isDeleting: boolean;
   isAdmin: boolean;
 }
 
-function SessionCard({ session, eventId, venueId, sessionTypes, onDelete, isDeleting }: SessionCardProps) {
+function SessionCard({ session, eventId, venueId, sessionTypes, tracks, onDelete, isDeleting }: SessionCardProps) {
   const [editing, { open: openEdit, close: closeEdit }] = useDisclosure(false);
 
   const startTime = new Date(session.startTime);
@@ -380,6 +400,15 @@ function SessionCard({ session, eventId, venueId, sessionTypes, onDelete, isDele
                   {session.sessionType.name}
                 </Badge>
               )}
+              {session.track && (
+                <Badge
+                  size="xs"
+                  variant="light"
+                  style={{ backgroundColor: `${session.track.color}20`, color: session.track.color }}
+                >
+                  {session.track.name}
+                </Badge>
+              )}
             </Group>
             <Text size="sm" c="dimmed">
               <IconClock size={12} style={{ verticalAlign: "middle" }} /> {dateStr} {timeStr}
@@ -388,7 +417,11 @@ function SessionCard({ session, eventId, venueId, sessionTypes, onDelete, isDele
               <Text size="sm" c="dimmed">
                 <IconUsers size={12} style={{ verticalAlign: "middle" }} />{" "}
                 {[
-                  ...session.sessionSpeakers.map((s) => getDisplayName(s.user, "Unknown")),
+                  ...session.sessionSpeakers.map((s) =>
+                    s.role !== "Speaker"
+                      ? `${getDisplayName(s.user, "Unknown")} (${s.role})`
+                      : getDisplayName(s.user, "Unknown"),
+                  ),
                   ...session.speakers,
                 ].join(", ")}
               </Text>
@@ -420,6 +453,7 @@ function SessionCard({ session, eventId, venueId, sessionTypes, onDelete, isDele
         eventId={eventId}
         venueId={venueId}
         sessionTypes={sessionTypes}
+        tracks={tracks}
       />
     </>
   );
@@ -430,9 +464,10 @@ function SessionCard({ session, eventId, venueId, sessionTypes, onDelete, isDele
 // ──────────────────────────────────────────
 
 interface SpeakerSelectorProps {
-  linkedSpeakers: SelectedSpeaker[];
+  linkedSpeakers: SelectedSpeakerWithRole[];
   onAddLinkedSpeaker: (user: SelectedSpeaker) => void;
   onRemoveLinkedSpeaker: (userId: string) => void;
+  onChangeSpeakerRole: (userId: string, role: string) => void;
   textSpeakers: string;
   onTextSpeakersChange: (value: string) => void;
 }
@@ -441,44 +476,57 @@ function SpeakerSelector({
   linkedSpeakers,
   onAddLinkedSpeaker,
   onRemoveLinkedSpeaker,
+  onChangeSpeakerRole,
   textSpeakers,
   onTextSpeakersChange,
 }: SpeakerSelectorProps) {
   return (
     <Stack gap="xs">
       <div>
-        <Text size="sm" fw={500} mb={4}>Speakers</Text>
+        <Text size="sm" fw={500} mb={4}>Participants</Text>
         <UserSearchSelect
           onSelect={onAddLinkedSpeaker}
-          excludeUserIds={linkedSpeakers.map((s) => s.id)}
-          placeholder="Search speakers by name or email..."
+          excludeUserIds={linkedSpeakers.map((s) => s.user.id)}
+          placeholder="Search by name or email..."
         />
       </div>
       {linkedSpeakers.length > 0 && (
-        <Group gap="xs">
-          {linkedSpeakers.map((speaker) => (
-            <Badge
-              key={speaker.id}
-              variant="light"
-              size="lg"
-              rightSection={
-                <ActionIcon
-                  size="xs"
-                  variant="transparent"
-                  onClick={() => onRemoveLinkedSpeaker(speaker.id)}
-                >
-                  <IconX size={12} />
-                </ActionIcon>
-              }
-            >
-              {getDisplayName(speaker, "Unknown")}
-            </Badge>
+        <Stack gap={6}>
+          {linkedSpeakers.map((speakerWithRole) => (
+            <Group key={speakerWithRole.user.id} gap="xs" wrap="nowrap">
+              <Badge
+                variant="light"
+                size="lg"
+                rightSection={
+                  <ActionIcon
+                    size="xs"
+                    variant="transparent"
+                    onClick={() => onRemoveLinkedSpeaker(speakerWithRole.user.id)}
+                  >
+                    <IconX size={12} />
+                  </ActionIcon>
+                }
+                style={{ flex: 1, maxWidth: "fit-content" }}
+              >
+                {getDisplayName(speakerWithRole.user, "Unknown")}
+              </Badge>
+              <Select
+                size="xs"
+                w={130}
+                data={PARTICIPANT_ROLES}
+                value={speakerWithRole.role}
+                onChange={(val) => {
+                  if (val) onChangeSpeakerRole(speakerWithRole.user.id, val);
+                }}
+                allowDeselect={false}
+              />
+            </Group>
           ))}
-        </Group>
+        </Stack>
       )}
       <TextInput
-        label="Additional Speakers"
-        description="Comma-separated names for speakers not in the system"
+        label="Additional Names"
+        description="Comma-separated names for people not in the system (no role assignment)"
         value={textSpeakers}
         onChange={(e) => onTextSpeakersChange(e.currentTarget.value)}
       />
@@ -494,9 +542,10 @@ interface CreateSessionButtonProps {
   eventId: string;
   venueId: string;
   sessionTypes: { id: string; name: string; color: string }[];
+  tracks: { id: string; name: string; color: string }[];
 }
 
-function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionButtonProps) {
+function CreateSessionButton({ eventId, venueId, sessionTypes, tracks }: CreateSessionButtonProps) {
   const [opened, { open, close }] = useDisclosure(false);
   const utils = api.useUtils();
 
@@ -504,9 +553,10 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
   const [description, setDescription] = useState("");
   const [startTime, setStartTime] = useState<Date | null>(new Date(2025, 2, 14, 12, 0));
   const [endTime, setEndTime] = useState<Date | null>(new Date(2025, 2, 14, 12, 0));
-  const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeaker[]>([]);
+  const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeakerWithRole[]>([]);
   const [textSpeakers, setTextSpeakers] = useState("");
   const [sessionTypeId, setSessionTypeId] = useState<string | null>(null);
+  const [trackId, setTrackId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(true);
 
   const createMutation = api.schedule.createSession.useMutation({
@@ -530,6 +580,7 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
     setLinkedSpeakers([]);
     setTextSpeakers("");
     setSessionTypeId(null);
+    setTrackId(null);
     setIsPublished(true);
   };
 
@@ -545,9 +596,13 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
       startTime,
       endTime,
       speakers: textSpeakers ? textSpeakers.split(",").map((s) => s.trim()).filter(Boolean) : [],
-      linkedSpeakerIds: linkedSpeakers.map((s) => s.id),
+      linkedSpeakers: linkedSpeakers.map((s) => ({
+        userId: s.user.id,
+        role: s.role,
+      })),
       venueId,
       sessionTypeId: sessionTypeId ?? undefined,
+      trackId: trackId ?? undefined,
       isPublished,
     });
   };
@@ -589,8 +644,17 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
           </Group>
           <SpeakerSelector
             linkedSpeakers={linkedSpeakers}
-            onAddLinkedSpeaker={(user) => setLinkedSpeakers((prev) => [...prev, user])}
-            onRemoveLinkedSpeaker={(userId) => setLinkedSpeakers((prev) => prev.filter((s) => s.id !== userId))}
+            onAddLinkedSpeaker={(user) =>
+              setLinkedSpeakers((prev) => [...prev, { user, role: "Speaker" }])
+            }
+            onRemoveLinkedSpeaker={(userId) =>
+              setLinkedSpeakers((prev) => prev.filter((s) => s.user.id !== userId))
+            }
+            onChangeSpeakerRole={(userId, role) =>
+              setLinkedSpeakers((prev) =>
+                prev.map((s) => (s.user.id === userId ? { ...s, role } : s)),
+              )
+            }
             textSpeakers={textSpeakers}
             onTextSpeakersChange={setTextSpeakers}
           />
@@ -604,6 +668,19 @@ function CreateSessionButton({ eventId, venueId, sessionTypes }: CreateSessionBu
               }))}
               value={sessionTypeId}
               onChange={setSessionTypeId}
+              clearable
+            />
+          )}
+          {tracks.length > 0 && (
+            <Select
+              label="Track"
+              placeholder="Select track"
+              data={tracks.map((t) => ({
+                value: t.id,
+                label: t.name,
+              }))}
+              value={trackId}
+              onChange={setTrackId}
               clearable
             />
           )}
@@ -636,6 +713,7 @@ interface EditSessionModalProps {
   eventId: string;
   venueId: string;
   sessionTypes: { id: string; name: string; color: string }[];
+  tracks: { id: string; name: string; color: string }[];
 }
 
 function EditSessionModal({
@@ -645,6 +723,7 @@ function EditSessionModal({
   eventId,
   venueId,
   sessionTypes,
+  tracks,
 }: EditSessionModalProps) {
   const utils = api.useUtils();
 
@@ -652,11 +731,12 @@ function EditSessionModal({
   const [description, setDescription] = useState(session.description ?? "");
   const [startTime, setStartTime] = useState<Date | null>(new Date(session.startTime));
   const [endTime, setEndTime] = useState<Date | null>(new Date(session.endTime));
-  const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeaker[]>(
-    session.sessionSpeakers.map((s) => s.user),
+  const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeakerWithRole[]>(
+    session.sessionSpeakers.map((s) => ({ user: s.user, role: s.role })),
   );
   const [textSpeakers, setTextSpeakers] = useState(session.speakers.join(", "));
   const [sessionTypeId, setSessionTypeId] = useState<string | null>(session.sessionTypeId);
+  const [trackId, setTrackId] = useState<string | null>(session.trackId);
   const [isPublished, setIsPublished] = useState(session.isPublished);
 
   const updateMutation = api.schedule.updateSession.useMutation({
@@ -683,8 +763,12 @@ function EditSessionModal({
       startTime,
       endTime,
       speakers: textSpeakers ? textSpeakers.split(",").map((s) => s.trim()).filter(Boolean) : [],
-      linkedSpeakerIds: linkedSpeakers.map((s) => s.id),
+      linkedSpeakers: linkedSpeakers.map((s) => ({
+        userId: s.user.id,
+        role: s.role,
+      })),
       sessionTypeId: sessionTypeId ?? null,
+      trackId: trackId ?? null,
       isPublished,
     });
   };
@@ -721,8 +805,17 @@ function EditSessionModal({
         </Group>
         <SpeakerSelector
           linkedSpeakers={linkedSpeakers}
-          onAddLinkedSpeaker={(user) => setLinkedSpeakers((prev) => [...prev, user])}
-          onRemoveLinkedSpeaker={(userId) => setLinkedSpeakers((prev) => prev.filter((s) => s.id !== userId))}
+          onAddLinkedSpeaker={(user) =>
+            setLinkedSpeakers((prev) => [...prev, { user, role: "Speaker" }])
+          }
+          onRemoveLinkedSpeaker={(userId) =>
+            setLinkedSpeakers((prev) => prev.filter((s) => s.user.id !== userId))
+          }
+          onChangeSpeakerRole={(userId, role) =>
+            setLinkedSpeakers((prev) =>
+              prev.map((s) => (s.user.id === userId ? { ...s, role } : s)),
+            )
+          }
           textSpeakers={textSpeakers}
           onTextSpeakersChange={setTextSpeakers}
         />
@@ -736,6 +829,19 @@ function EditSessionModal({
             }))}
             value={sessionTypeId}
             onChange={setSessionTypeId}
+            clearable
+          />
+        )}
+        {tracks.length > 0 && (
+          <Select
+            label="Track"
+            placeholder="Select track"
+            data={tracks.map((t) => ({
+              value: t.id,
+              label: t.name,
+            }))}
+            value={trackId}
+            onChange={setTrackId}
             clearable
           />
         )}

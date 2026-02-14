@@ -29,9 +29,12 @@ type ScheduleSession = {
   speakers: string[];
   venueId: string | null;
   sessionTypeId: string | null;
+  trackId: string | null;
   venue: { id: string; name: string } | null;
   sessionType: { id: string; name: string; color: string } | null;
+  track: { id: string; name: string; color: string } | null;
   sessionSpeakers: Array<{
+    role: string;
     user: {
       id: string;
       firstName: string | null;
@@ -51,6 +54,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
   const [searchQuery, setSearchQuery] = useState("");
   const [activeVenueId, setActiveVenueId] = useState<string | null>(null);
   const [activeSessionTypes, setActiveSessionTypes] = useState<string[]>([]);
+  const [activeTracks, setActiveTracks] = useState<string[]>([]);
 
   const { data: scheduleData, isLoading: scheduleLoading } =
     api.schedule.getEventSchedule.useQuery({ eventId });
@@ -84,6 +88,14 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
         activeSessionTypes.length > 0 &&
         session.sessionTypeId &&
         !activeSessionTypes.includes(session.sessionTypeId)
+      ) {
+        return false;
+      }
+      // Track filter
+      if (
+        activeTracks.length > 0 &&
+        session.trackId &&
+        !activeTracks.includes(session.trackId)
       ) {
         return false;
       }
@@ -124,7 +136,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
       days: Array.from(byDay.keys()),
       groupedByDay: groupedByDayResult,
     };
-  }, [sessions, searchQuery, activeVenueId, activeSessionTypes]);
+  }, [sessions, searchQuery, activeVenueId, activeSessionTypes, activeTracks]);
 
   const [activeDay, setActiveDay] = useState<string | null>(null);
   const selectedDay = activeDay ?? days[0] ?? null;
@@ -134,6 +146,14 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
       prev.includes(typeId)
         ? prev.filter((id) => id !== typeId)
         : [...prev, typeId]
+    );
+  };
+
+  const toggleTrack = (trackId: string) => {
+    setActiveTracks((prev) =>
+      prev.includes(trackId)
+        ? prev.filter((id) => id !== trackId)
+        : [...prev, trackId]
     );
   };
 
@@ -239,10 +259,26 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
                             {session.sessionType.name}
                           </Text>
                         )}
+                        {session.track && (
+                          <Badge
+                            size="xs"
+                            variant="light"
+                            style={{
+                              backgroundColor: `${session.track.color}20`,
+                              color: session.track.color,
+                            }}
+                          >
+                            {session.track.name}
+                          </Badge>
+                        )}
                         {(session.sessionSpeakers.length > 0 || session.speakers.length > 0) && (
                           <Text size="xs" c="dimmed" mt={2}>
                             {[
-                              ...session.sessionSpeakers.map((s) => getDisplayName(s.user, "Unknown")),
+                              ...session.sessionSpeakers.map((s) =>
+                                s.role !== "Speaker"
+                                  ? `${getDisplayName(s.user, "Unknown")} (${s.role})`
+                                  : getDisplayName(s.user, "Unknown"),
+                              ),
                               ...session.speakers,
                             ].join(" \u2022 ")}
                           </Text>
@@ -319,6 +355,37 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
                             }}
                           />
                           <Text size="sm">{type.name}</Text>
+                        </Group>
+                      }
+                    />
+                  ))}
+                </Stack>
+              </div>
+            )}
+
+            {filterData?.tracks && filterData.tracks.length > 0 && (
+              <div className="schedule-filter-section">
+                <Text fw={600} size="sm" mb="xs">
+                  Filter By Track
+                </Text>
+                <Stack gap={6}>
+                  {filterData.tracks.map((track) => (
+                    <Checkbox
+                      key={track.id}
+                      checked={activeTracks.includes(track.id)}
+                      onChange={() => toggleTrack(track.id)}
+                      label={
+                        <Group gap={8}>
+                          <div
+                            style={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: "50%",
+                              backgroundColor: track.color,
+                              flexShrink: 0,
+                            }}
+                          />
+                          <Text size="sm">{track.name}</Text>
                         </Group>
                       }
                     />
