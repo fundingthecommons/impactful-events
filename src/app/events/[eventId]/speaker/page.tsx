@@ -19,6 +19,22 @@ export default async function SpeakerApplicationPage({
     invitationToken = invitationToken.split("?invitation=")[0];
   }
 
+  // Fetch invitation details for form pre-population
+  let invitationData: { email: string; firstName?: string } | undefined;
+  if (invitationToken) {
+    const invitation = await db.invitation.findUnique({
+      where: { token: invitationToken },
+    });
+    if (invitation) {
+      // @ts-expect-error: inviteeName field added to schema, run `prisma generate` after migration
+      const inviteeName = invitation.inviteeName as string | null | undefined;
+      invitationData = {
+        email: invitation.email,
+        firstName: inviteeName ?? undefined,
+      };
+    }
+  }
+
   // Fetch event details - try by slug first, then by id
   let event = await db.event.findFirst({
     where: { slug: eventId },
@@ -86,6 +102,7 @@ export default async function SpeakerApplicationPage({
       initialUserApplication={userApplication}
       initialUserId={session?.user?.id}
       invitationToken={invitationToken}
+      invitationData={invitationData}
     />
   );
 }

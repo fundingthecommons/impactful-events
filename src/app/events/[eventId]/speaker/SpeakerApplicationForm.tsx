@@ -527,6 +527,7 @@ export default function SpeakerApplicationForm({
           {/* Navigation Buttons */}
           <Group justify="space-between" mt="xl">
             <Button
+              type="button"
               variant="light"
               onClick={prevStep}
               disabled={currentStep === 1}
@@ -535,7 +536,7 @@ export default function SpeakerApplicationForm({
             </Button>
 
             {currentStep < 3 ? (
-              <Button color="teal" onClick={nextStep}>
+              <Button type="button" color="teal" onClick={nextStep}>
                 Next Step
               </Button>
             ) : (

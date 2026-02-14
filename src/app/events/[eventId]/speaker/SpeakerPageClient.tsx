@@ -35,6 +35,7 @@ interface SpeakerPageClientProps {
   initialUserApplication?: ExtendedApplication | null;
   initialUserId?: string;
   invitationToken?: string;
+  invitationData?: { email: string; firstName?: string };
 }
 
 export default function SpeakerPageClient({
@@ -42,6 +43,7 @@ export default function SpeakerPageClient({
   initialUserApplication: _initialUserApplication,
   initialUserId,
   invitationToken,
+  invitationData,
 }: SpeakerPageClientProps) {
   const { data: session, status } = useSession();
   const [showApplication, setShowApplication] = useState(false);
@@ -203,6 +205,7 @@ export default function SpeakerPageClient({
                 {/* Auth Form */}
                 <AuthForm
                   callbackUrl={`/events/${event.slug ?? event.id}/speaker${invitationToken ? `?invitation=${invitationToken}` : ""}`}
+                  initialValues={invitationData}
                 />
               </Stack>
             </div>

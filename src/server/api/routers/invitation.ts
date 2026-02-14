@@ -498,11 +498,16 @@ export const invitationRouter = createTRPCRouter({
         checkAdminAccess(ctx.session.user.role);
       }
 
-      // For floor owners, scope invitations to those with matching venueId
-      let venueFilter: { venueId?: { in: string[] } } | undefined;
+      // For floor owners, scope invitations to those with matching venueId OR created by them
+      let venueFilter: object | undefined;
       if (resolvedEventId && !isAdminOrStaff(ctx.session.user.role)) {
         const ownedVenueIds = await getUserOwnedVenueIds(ctx.db, ctx.session.user.id, resolvedEventId);
-        venueFilter = { venueId: { in: ownedVenueIds } };
+        venueFilter = {
+          OR: [
+            { venueId: { in: ownedVenueIds } },
+            { invitedBy: ctx.session.user.id },
+          ],
+        };
       }
 
       const invitations = await ctx.db.invitation.findMany({

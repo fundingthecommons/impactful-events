@@ -24,6 +24,10 @@ import { api } from "~/trpc/react";
 interface AuthFormProps {
   callbackUrl?: string;
   className?: string;
+  initialValues?: {
+    firstName?: string;
+    email?: string;
+  };
 }
 
 interface SignInFormData {
@@ -57,7 +61,7 @@ function getPasswordStrengthColor(strength: number): string {
   return "green";
 }
 
-export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
+export default function AuthForm({ callbackUrl, className, initialValues }: AuthFormProps) {
   const [activeTab, setActiveTab] = useState<string | null>("signup");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +87,7 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
 
   const signInForm = useForm<SignInFormData>({
     initialValues: {
-      email: "",
+      email: initialValues?.email ?? "",
       password: "",
       rememberMe: false,
     },
@@ -95,9 +99,9 @@ export default function AuthForm({ callbackUrl, className }: AuthFormProps) {
 
   const signUpForm = useForm<SignUpFormData>({
     initialValues: {
-      firstName: "",
+      firstName: initialValues?.firstName ?? "",
       surname: "",
-      email: "",
+      email: initialValues?.email ?? "",
       password: "",
       confirmPassword: "",
       agreeToTerms: false,
