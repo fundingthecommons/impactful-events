@@ -10,6 +10,7 @@ import {
   IconCalendarEvent,
   IconSettings,
   IconMicrophone,
+  IconSparkles,
 } from "@tabler/icons-react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
@@ -27,11 +28,14 @@ interface EventSubNavigationProps {
     featureProjects: boolean;
     featureNewsfeed: boolean;
     featureImpactAnalytics: boolean;
+    featurePraise?: boolean;
     featureScheduleManagement?: boolean;
     featureSpeakerVetting?: boolean;
   };
   isFloorOwner?: boolean;
   isAdmin?: boolean;
+  /** When provided, renders the "My Event" tab linking to this admin path */
+  adminBasePath?: string;
 }
 
 export default function EventSubNavigation({
@@ -40,6 +44,7 @@ export default function EventSubNavigation({
   featureFlags,
   isFloorOwner,
   isAdmin,
+  adminBasePath,
 }: EventSubNavigationProps) {
   const pathname = usePathname();
   const basePath = `/events/${eventId}`;
@@ -58,8 +63,12 @@ export default function EventSubNavigation({
   );
 
   // Determine active tab based on current path
-  // Use path segments after /events/[eventId]/ to handle both ID and slug URLs
+  // Handles both /events/[eventId]/ and /admin/events/[eventId]/ paths
   const getActiveTab = () => {
+    // Check admin path first
+    if (adminBasePath && (pathname === adminBasePath || pathname === `${adminBasePath}/`)) {
+      return "my-event";
+    }
     const match = /^\/events\/[^/]+(\/.*)?$/.exec(pathname);
     const subPath = match?.[1] ?? "";
     if (subPath.startsWith("/speakers")) return "speakers";
@@ -67,6 +76,7 @@ export default function EventSubNavigation({
     if (subPath.startsWith("/schedule")) return "schedule";
     if (subPath.startsWith("/impact")) return "impact";
     if (subPath.startsWith("/latest")) return "latest";
+    if (subPath.startsWith("/praise")) return "praise";
     if (subPath.startsWith("/asks-offers")) return "asks-offers";
     if (subPath.startsWith("/participants")) return "participants";
     if (subPath.startsWith("/projects")) return "event-projects";
@@ -80,11 +90,22 @@ export default function EventSubNavigation({
     isEffectiveFloorOwner ||
     (isAdmin && featureFlags?.featureScheduleManagement !== false);
 
+  const myEventHref = adminBasePath ?? basePath;
+
   return (
     <>
       {eventName && <SubNavigationHeader title={eventName} />}
       <NavigationContainer level="sub" withTopBorder={!eventName}>
         <NavigationTabs activeTab={getActiveTab()} level="sub">
+          <NavigationTab
+            value="my-event"
+            href={myEventHref}
+            icon={<IconMapPin size={16} />}
+            level="sub"
+          >
+            My Event
+          </NavigationTab>
+
           <NavigationTab
             value="schedule"
             href={`${basePath}/schedule`}
@@ -116,16 +137,14 @@ export default function EventSubNavigation({
             </NavigationTab>
           )}
 
-          {isAdmin && (
-            <NavigationTab
-              value="participants"
-              href={`${basePath}/participants`}
-              icon={<IconUsers size={16} />}
-              level="sub"
-            >
-              Participants
-            </NavigationTab>
-          )}
+          <NavigationTab
+            value="participants"
+            href={`${basePath}/participants`}
+            icon={<IconUsers size={16} />}
+            level="sub"
+          >
+            Participants
+          </NavigationTab>
 
           {featureFlags?.featureProjects !== false && (
             <NavigationTab
@@ -138,7 +157,18 @@ export default function EventSubNavigation({
             </NavigationTab>
           )}
 
-          {isAdmin && featureFlags?.featureImpactAnalytics !== false && (
+          {featureFlags?.featurePraise !== false && (
+            <NavigationTab
+              value="praise"
+              href={`${basePath}/praise`}
+              icon={<IconSparkles size={16} />}
+              level="sub"
+            >
+              Praise
+            </NavigationTab>
+          )}
+
+          {featureFlags?.featureImpactAnalytics !== false && (
             <NavigationTab
               value="impact"
               href={`${basePath}/impact`}
@@ -170,15 +200,6 @@ export default function EventSubNavigation({
               Speakers
             </NavigationTab>
           )}
-
-          <NavigationTab
-            value="my-event"
-            href={basePath}
-            icon={<IconMapPin size={16} />}
-            level="sub"
-          >
-            My Event
-          </NavigationTab>
         </NavigationTabs>
       </NavigationContainer>
     </>

@@ -18,6 +18,7 @@ export default async function EventLayout({ children, params }: EventLayoutProps
     featureAsksOffers: true,
     featureProjects: true,
     featureNewsfeed: true,
+    featurePraise: true,
     featureImpactAnalytics: true,
     featureScheduleManagement: true,
     featureSpeakerVetting: true,

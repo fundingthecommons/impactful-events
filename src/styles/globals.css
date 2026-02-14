@@ -4,16 +4,6 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 
-  /* Navigation Design Tokens */
-  --color-nav-bg-main: #f8fafc;
-  --color-nav-bg-sub: #ffffff;
-  --color-nav-border: #e2e8f0;
-  --color-nav-tab-active-bg: #eff6ff;
-  --color-nav-tab-active-border: #3b82f6;
-  --color-nav-tab-hover: #f1f5f9;
-  --color-nav-text: #334155;
-  --color-nav-text-active: #1e40af;
-  --color-nav-text-muted: #64748b;
 }
 
 /* Theme-aware CSS custom properties */

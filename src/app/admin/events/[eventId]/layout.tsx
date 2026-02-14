@@ -1,5 +1,5 @@
 import { db } from "~/server/db";
-import AdminEventSubNavigation from "~/app/admin/events/AdminEventSubNavigation";
+import EventSubNavigation from "~/app/_components/EventSubNavigation";
 
 interface AdminEventLayoutProps {
   children: React.ReactNode;
@@ -10,11 +10,15 @@ export default async function AdminEventLayout({ children, params }: AdminEventL
   const { eventId } = await params;
 
   const featureFlagSelect = {
+    name: true,
+    slug: true,
     featureAsksOffers: true,
     featureProjects: true,
     featureNewsfeed: true,
     featurePraise: true,
     featureImpactAnalytics: true,
+    featureScheduleManagement: true,
+    featureSpeakerVetting: true,
   } as const;
 
   let event = await db.event.findUnique({
@@ -27,9 +31,17 @@ export default async function AdminEventLayout({ children, params }: AdminEventL
     select: featureFlagSelect,
   });
 
+  const slug = event?.slug ?? eventId;
+
   return (
     <>
-      <AdminEventSubNavigation eventId={eventId} featureFlags={event ?? undefined} />
+      <EventSubNavigation
+        eventId={slug}
+        eventName={event?.name}
+        featureFlags={event ?? undefined}
+        isAdmin={true}
+        adminBasePath={`/admin/events/${eventId}`}
+      />
       {children}
     </>
   );
