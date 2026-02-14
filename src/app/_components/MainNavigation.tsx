@@ -15,6 +15,7 @@ import { NavigationTab } from "./nav/NavigationTab";
 interface AcceptedEvent {
   id: string;
   name: string;
+  slug: string | null;
 }
 
 interface MainNavigationProps {
@@ -31,9 +32,12 @@ export default function MainNavigation({ acceptedEvents = [] }: MainNavigationPr
     if (pathname.startsWith("/profiles")) return "profiles";
     if (pathname.startsWith("/projects")) return "projects";
 
-    // Check if on an event page
+    // Check if on an event page (match by id or slug)
     for (const event of acceptedEvents) {
-      if (pathname.startsWith(`/events/${event.id}`)) {
+      if (
+        pathname.startsWith(`/events/${event.id}`) ||
+        (event.slug && pathname.startsWith(`/events/${event.slug}`))
+      ) {
         return `event-${event.id}`;
       }
     }
@@ -81,7 +85,7 @@ export default function MainNavigation({ acceptedEvents = [] }: MainNavigationPr
           <NavigationTab
             key={event.id}
             value={`event-${event.id}`}
-            href={`/events/${event.id}`}
+            href={`/events/${event.slug ?? event.id}`}
             icon={<IconCalendarEvent size={18} />}
           >
             {event.name}

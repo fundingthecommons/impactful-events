@@ -12,7 +12,7 @@ export default function AdminNavigation() {
   // Determine active tab based on current path
   const getActiveTab = () => {
     if (pathname === "/admin" || pathname === "/admin/") return "dashboard";
-    if (pathname.startsWith("/admin/events")) return "events";
+    if (pathname.startsWith("/admin/events") || pathname.startsWith("/events/")) return "events";
     if (pathname.startsWith("/admin/users") || pathname.startsWith("/admin/communications")) return "users";
     if (pathname.startsWith("/impact-reports")) return "impact-reports";
     return null;

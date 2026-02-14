@@ -10,6 +10,7 @@ import MainNavigation from "~/app/_components/MainNavigation";
 interface AcceptedEvent {
   id: string;
   name: string;
+  slug: string | null;
 }
 
 export default async function HeaderBar() {
@@ -34,6 +35,7 @@ export default async function HeaderBar() {
             select: {
               id: true,
               name: true,
+              slug: true,
             },
           },
         },
@@ -53,6 +55,7 @@ export default async function HeaderBar() {
             select: {
               id: true,
               name: true,
+              slug: true,
             },
           },
         },
@@ -65,6 +68,7 @@ export default async function HeaderBar() {
         eventMap.set(app.event.id, {
           id: app.event.id,
           name: app.event.name,
+          slug: app.event.slug,
         });
       }
 
@@ -72,6 +76,7 @@ export default async function HeaderBar() {
         eventMap.set(role.event.id, {
           id: role.event.id,
           name: role.event.name,
+          slug: role.event.slug,
         });
       }
 
