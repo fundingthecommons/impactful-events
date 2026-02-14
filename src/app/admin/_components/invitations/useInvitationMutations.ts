@@ -27,12 +27,20 @@ export function useInvitationMutations({
   const label = capitalize(roleName);
 
   const createInvitation = api.invitation.create.useMutation({
-    onSuccess: () => {
-      notifications.show({
-        title: "Success",
-        message: `${label} invitation sent`,
-        color: "green",
-      });
+    onSuccess: (result) => {
+      if (result._emailSent === false) {
+        notifications.show({
+          title: "Invitation Created",
+          message: `Invitation created but email failed to send. Use "Resend" to try again.`,
+          color: "yellow",
+        });
+      } else {
+        notifications.show({
+          title: "Success",
+          message: `${label} invitation sent`,
+          color: "green",
+        });
+      }
       onCreateSuccess?.();
     },
     onError: (error) => {
@@ -81,12 +89,20 @@ export function useInvitationMutations({
   });
 
   const resendInvitation = api.invitation.resend.useMutation({
-    onSuccess: () => {
-      notifications.show({
-        title: "Success",
-        message: `${label} invitation resent`,
-        color: "green",
-      });
+    onSuccess: (result) => {
+      if (result._emailSent === false) {
+        notifications.show({
+          title: "Resend Failed",
+          message: `Invitation updated but email failed to send. Try again later.`,
+          color: "yellow",
+        });
+      } else {
+        notifications.show({
+          title: "Success",
+          message: `${label} invitation resent`,
+          color: "green",
+        });
+      }
       onResendSuccess?.();
     },
     onError: (error) => {

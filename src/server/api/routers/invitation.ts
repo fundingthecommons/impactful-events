@@ -6,7 +6,7 @@ import {
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
-import { sendInvitationEmail } from "~/lib/email";
+import { sendInvitationEmail, type SendEmailResult } from "~/lib/email";
 import { acceptPendingInvitations } from "~/server/auth/acceptInvitations";
 import { assertAdminOrEventFloorOwner } from "~/server/api/utils/scheduleAuth";
 
@@ -26,6 +26,63 @@ function getInviterName(user: { firstName?: string | null; surname?: string | nu
     return `${user.firstName ?? ''} ${user.surname ?? ''}`.trim();
   }
   return user.name ?? user.email ?? "Event Admin";
+}
+
+// Helper function to send invitation email based on invitation type
+async function sendInvitationEmailForType(params: {
+  invitation: {
+    email: string;
+    type: string;
+    token: string;
+    expiresAt: Date;
+    eventId: string | null;
+    globalRole: string | null;
+    event?: { name: string; description: string | null; slug: string | null } | null;
+    role?: { name: string } | null;
+  };
+  inviterName: string;
+  venueName?: string | null;
+}): Promise<SendEmailResult> {
+  const { invitation, inviterName, venueName } = params;
+
+  if (invitation.type === "EVENT_ROLE") {
+    return sendInvitationEmail({
+      email: invitation.email,
+      eventName: invitation.event?.name ?? "Event",
+      eventDescription: invitation.event?.description ?? "Join us for this exciting event!",
+      roleName: invitation.role?.name ?? "Participant",
+      inviterName,
+      invitationToken: invitation.token,
+      expiresAt: invitation.expiresAt,
+      eventId: invitation.eventId ?? undefined,
+    });
+  } else if (invitation.type === "VENUE_OWNER") {
+    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    const eventSlug = invitation.event?.slug ?? invitation.eventId;
+    return sendInvitationEmail({
+      email: invitation.email,
+      eventName: invitation.event?.name ?? "Event",
+      eventDescription: `You've been invited as a Floor Owner for "${venueName ?? "Venue"}" at ${invitation.event?.name ?? "Event"}. You'll be able to manage the schedule for this floor.`,
+      roleName: `Floor Owner - ${venueName ?? "Venue"}`,
+      inviterName,
+      invitationToken: invitation.token,
+      expiresAt: invitation.expiresAt,
+      eventId: invitation.eventId ?? undefined,
+      signupUrl: `${baseUrl}/events/${String(eventSlug)}`,
+    });
+  } else {
+    return sendInvitationEmail({
+      email: invitation.email,
+      eventName: "Platform Administration",
+      eventDescription: `You've been invited to join as a ${invitation.globalRole} administrator for the entire platform.`,
+      roleName: invitation.globalRole ?? "Administrator",
+      inviterName,
+      invitationToken: invitation.token,
+      expiresAt: invitation.expiresAt,
+      isGlobalRole: true,
+      globalRole: invitation.globalRole ?? undefined,
+    });
+  }
 }
 
 // Schema definitions
@@ -211,7 +268,22 @@ export const invitationRouter = createTRPCRouter({
       }
 
       if (existing) {
-        return existing;
+        // Send the email even for existing invitations - previous attempt may have failed
+        let emailSent = false;
+        try {
+          const emailResult = await sendInvitationEmailForType({
+            invitation: existing,
+            inviterName: getInviterName(ctx.session.user),
+            venueName: venue?.name,
+          });
+          emailSent = emailResult.success;
+          if (!emailSent) {
+            console.error("Failed to send invitation email for existing invitation:", emailResult.error);
+          }
+        } catch (error) {
+          console.error("Failed to send invitation email for existing invitation:", error);
+        }
+        return { ...existing, _emailSent: emailSent };
       }
 
       // Set default expiration to 30 days from now
@@ -236,52 +308,22 @@ export const invitationRouter = createTRPCRouter({
       });
 
       // Send invitation email
+      let emailSent = false;
       try {
-        if (input.type === "EVENT_ROLE") {
-          await sendInvitationEmail({
-            email: invitation.email,
-            eventName: invitation.event!.name,
-            eventDescription: invitation.event!.description ?? "Join us for this exciting event!",
-            roleName: invitation.role!.name,
-            inviterName: getInviterName(ctx.session.user),
-            invitationToken: invitation.token,
-            expiresAt: invitation.expiresAt,
-            eventId: invitation.eventId ?? undefined,
-          });
-        } else if (input.type === "VENUE_OWNER") {
-          const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-          const eventSlug = invitation.event!.slug ?? invitation.eventId;
-          await sendInvitationEmail({
-            email: invitation.email,
-            eventName: invitation.event!.name,
-            eventDescription: `You've been invited as a Floor Owner for "${venue?.name ?? "Venue"}" at ${invitation.event!.name}. You'll be able to manage the schedule for this floor.`,
-            roleName: `Floor Owner - ${venue?.name ?? "Venue"}`,
-            inviterName: getInviterName(ctx.session.user),
-            invitationToken: invitation.token,
-            expiresAt: invitation.expiresAt,
-            eventId: invitation.eventId ?? undefined,
-            signupUrl: `${baseUrl}/events/${eventSlug}`,
-          });
-        } else {
-          // Send global admin invitation email
-          await sendInvitationEmail({
-            email: invitation.email,
-            eventName: "Platform Administration",
-            eventDescription: `You've been invited to join as a ${invitation.globalRole} administrator for the entire platform.`,
-            roleName: invitation.globalRole ?? "Administrator",
-            inviterName: getInviterName(ctx.session.user),
-            invitationToken: invitation.token,
-            expiresAt: invitation.expiresAt,
-            isGlobalRole: true,
-            globalRole: invitation.globalRole ?? undefined,
-          });
+        const emailResult = await sendInvitationEmailForType({
+          invitation,
+          inviterName: getInviterName(ctx.session.user),
+          venueName: venue?.name,
+        });
+        emailSent = emailResult.success;
+        if (!emailSent) {
+          console.error("Failed to send invitation email:", emailResult.error);
         }
       } catch (error) {
         console.error("Failed to send invitation email:", error);
-        // Don't throw error - invitation was created, email failure is not critical
       }
 
-      return invitation;
+      return { ...invitation, _emailSent: emailSent };
     }),
 
   // Bulk create invitations
@@ -384,40 +426,22 @@ export const invitationRouter = createTRPCRouter({
       // Send invitation emails
       const emailPromises = createdInvitations.map(async (invitation) => {
         try {
-          if (invitation.type === "EVENT_ROLE") {
-            await sendInvitationEmail({
-              email: invitation.email,
-              eventName: invitation.event?.name ?? "Event",
-              eventDescription: invitation.event?.description ?? "Join us for this exciting event!",
-              roleName: invitation.role?.name ?? "Participant",
-              inviterName: getInviterName(ctx.session.user),
-              invitationToken: invitation.token,
-              expiresAt: invitation.expiresAt,
-              eventId: invitation.eventId ?? undefined,
-            });
-          } else {
-            await sendInvitationEmail({
-              email: invitation.email,
-              eventName: "Platform Administration",
-              eventDescription: `You've been invited to join as a ${invitation.globalRole} administrator for the entire platform.`,
-              roleName: invitation.globalRole ?? "Administrator",
-              inviterName: getInviterName(ctx.session.user),
-              invitationToken: invitation.token,
-              expiresAt: invitation.expiresAt,
-              isGlobalRole: true,
-              globalRole: invitation.globalRole ?? undefined,
-            });
-          }
-          return { email: invitation.email, success: true };
+          const emailResult = await sendInvitationEmailForType({
+            invitation,
+            inviterName: getInviterName(ctx.session.user),
+          });
+          return { email: invitation.email, success: emailResult.success };
         } catch (error) {
           console.error(`Failed to send invitation email to ${invitation.email}:`, error);
-          return { email: invitation.email, success: false, error };
+          return { email: invitation.email, success: false };
         }
       });
 
       // Wait for all emails to be sent (but don't fail if some emails fail)
       const emailResults = await Promise.allSettled(emailPromises);
-      const emailSuccesses = emailResults.filter(result => result.status === 'fulfilled').length;
+      const emailSuccesses = emailResults.filter(
+        result => result.status === 'fulfilled' && result.value.success
+      ).length;
 
       return {
         created: createdInvitations,
@@ -674,51 +698,22 @@ export const invitationRouter = createTRPCRouter({
       });
 
       // Resend invitation email
+      let emailSent = false;
       try {
-        if (updatedInvitation.type === "EVENT_ROLE") {
-          await sendInvitationEmail({
-            email: updatedInvitation.email,
-            eventName: updatedInvitation.event?.name ?? "Event",
-            eventDescription: updatedInvitation.event?.description ?? "Join us for this exciting event!",
-            roleName: updatedInvitation.role?.name ?? "Participant",
-            inviterName: getInviterName(ctx.session.user),
-            invitationToken: updatedInvitation.token,
-            expiresAt: updatedInvitation.expiresAt,
-            eventId: updatedInvitation.eventId ?? undefined,
-          });
-        } else if (updatedInvitation.type === "VENUE_OWNER") {
-          const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-          const eventSlug = updatedInvitation.event?.slug ?? updatedInvitation.eventId;
-          await sendInvitationEmail({
-            email: updatedInvitation.email,
-            eventName: updatedInvitation.event?.name ?? "Event",
-            eventDescription: `You've been invited as a Floor Owner for "${updatedInvitation.venue?.name ?? "Venue"}" at ${updatedInvitation.event?.name ?? "Event"}. You'll be able to manage the schedule for this floor.`,
-            roleName: `Floor Owner - ${updatedInvitation.venue?.name ?? "Venue"}`,
-            inviterName: getInviterName(ctx.session.user),
-            invitationToken: updatedInvitation.token,
-            expiresAt: updatedInvitation.expiresAt,
-            eventId: updatedInvitation.eventId ?? undefined,
-            signupUrl: `${baseUrl}/events/${eventSlug}`,
-          });
-        } else {
-          await sendInvitationEmail({
-            email: updatedInvitation.email,
-            eventName: "Platform Administration",
-            eventDescription: `You've been invited to join as a ${updatedInvitation.globalRole} administrator for the entire platform.`,
-            roleName: updatedInvitation.globalRole ?? "Administrator",
-            inviterName: getInviterName(ctx.session.user),
-            invitationToken: updatedInvitation.token,
-            expiresAt: updatedInvitation.expiresAt,
-            isGlobalRole: true,
-            globalRole: updatedInvitation.globalRole ?? undefined,
-          });
+        const emailResult = await sendInvitationEmailForType({
+          invitation: updatedInvitation,
+          inviterName: getInviterName(ctx.session.user),
+          venueName: updatedInvitation.venue?.name,
+        });
+        emailSent = emailResult.success;
+        if (!emailSent) {
+          console.error("Failed to resend invitation email:", emailResult.error);
         }
       } catch (error) {
         console.error("Failed to resend invitation email:", error);
-        // Don't throw error - invitation was updated, email failure is not critical
       }
 
-      return updatedInvitation;
+      return { ...updatedInvitation, _emailSent: emailSent };
     }),
 
   // Get invitation statistics
