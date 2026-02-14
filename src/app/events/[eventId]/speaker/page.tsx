@@ -26,8 +26,7 @@ export default async function SpeakerApplicationPage({
       where: { token: invitationToken },
     });
     if (invitation) {
-      // @ts-expect-error: inviteeName field added to schema, run `prisma generate` after migration
-      const inviteeName = invitation.inviteeName as string | null | undefined;
+      const inviteeName = invitation.inviteeName;
       invitationData = {
         email: invitation.email,
         firstName: inviteeName ?? undefined,
