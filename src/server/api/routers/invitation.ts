@@ -299,7 +299,6 @@ export const invitationRouter = createTRPCRouter({
       const invitation = await ctx.db.invitation.create({
         data: {
           email: input.email,
-          // @ts-expect-error: inviteeName field added to schema, run `prisma generate` after migration
           inviteeName: input.inviteeName,
           type: input.type,
           eventId: resolvedEventId,
