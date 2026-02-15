@@ -64,6 +64,37 @@ const userSelectFields = {
   image: true,
 } as const;
 
+/**
+ * Validate that all linked speaker user IDs are floor applicants for the given venue.
+ * Only enforced for non-admin users.
+ */
+async function validateSpeakersAreFloorApplicants(
+  db: PrismaClient,
+  userRole: string | undefined | null,
+  venueId: string,
+  speakerUserIds: string[],
+): Promise<void> {
+  if (isAdminOrStaff(userRole)) return;
+  if (speakerUserIds.length === 0) return;
+
+  const validApplicantCount = await db.applicationVenue.count({
+    where: {
+      venueId,
+      application: {
+        userId: { in: speakerUserIds },
+      },
+    },
+  });
+
+  if (validApplicantCount < speakerUserIds.length) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message:
+        "One or more selected participants have not applied for this floor. Floor leads can only add applicants for their floor.",
+    });
+  }
+}
+
 export const scheduleRouter = createTRPCRouter({
   // ──────────────────────────────────────────
   // Public endpoints
@@ -219,6 +250,17 @@ export const scheduleRouter = createTRPCRouter({
       }
 
       const { linkedSpeakers, ...sessionData } = input;
+
+      // Validate linked speakers are floor applicants (for non-admin users)
+      if (linkedSpeakers && linkedSpeakers.length > 0 && input.venueId) {
+        await validateSpeakersAreFloorApplicants(
+          ctx.db,
+          ctx.session.user.role,
+          input.venueId,
+          linkedSpeakers.map((s) => s.userId),
+        );
+      }
+
       const session = await ctx.db.scheduleSession.create({ data: sessionData });
 
       if (linkedSpeakers && linkedSpeakers.length > 0) {
@@ -279,6 +321,26 @@ export const scheduleRouter = createTRPCRouter({
           ctx.session.user.role,
           data.venueId,
         );
+      }
+
+      // Validate linked speakers are floor applicants (for non-admin users)
+      if (linkedSpeakers !== undefined && linkedSpeakers.length > 0) {
+        let effectiveVenueId = data.venueId;
+        if (effectiveVenueId === undefined) {
+          const currentSession = await ctx.db.scheduleSession.findUnique({
+            where: { id },
+            select: { venueId: true },
+          });
+          effectiveVenueId = currentSession?.venueId ?? null;
+        }
+        if (effectiveVenueId) {
+          await validateSpeakersAreFloorApplicants(
+            ctx.db,
+            ctx.session.user.role,
+            effectiveVenueId,
+            linkedSpeakers.map((s) => s.userId),
+          );
+        }
       }
 
       const session = await ctx.db.scheduleSession.update({ where: { id }, data });
@@ -524,6 +586,53 @@ export const scheduleRouter = createTRPCRouter({
       });
 
       return { event, sessions };
+    }),
+
+  // Search users who have applied for a specific venue/floor
+  searchFloorApplicants: protectedProcedure
+    .input(
+      z.object({
+        venueId: z.string(),
+        query: z.string().min(1),
+        limit: z.number().min(1).max(20).default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await assertCanManageVenue(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.venueId,
+      );
+
+      const users = await ctx.db.user.findMany({
+        where: {
+          AND: [
+            {
+              applications: {
+                some: {
+                  venues: {
+                    some: { venueId: input.venueId },
+                  },
+                  userId: { not: null },
+                },
+              },
+            },
+            {
+              OR: [
+                { firstName: { contains: input.query, mode: "insensitive" } },
+                { surname: { contains: input.query, mode: "insensitive" } },
+                { email: { contains: input.query, mode: "insensitive" } },
+              ],
+            },
+          ],
+        },
+        select: userSelectFields,
+        take: input.limit,
+        orderBy: { firstName: "asc" },
+      });
+
+      return users;
     }),
 
   // ──────────────────────────────────────────
