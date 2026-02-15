@@ -6,15 +6,36 @@ import { NavigationContainer } from "~/app/_components/nav/NavigationContainer";
 import { NavigationTabs } from "~/app/_components/nav/NavigationTabs";
 import { NavigationTab } from "~/app/_components/nav/NavigationTab";
 
-export default function AdminNavigation() {
+interface AcceptedEvent {
+  id: string;
+  name: string;
+  slug: string | null;
+}
+
+interface AdminNavigationProps {
+  acceptedEvents?: AcceptedEvent[];
+}
+
+export default function AdminNavigation({ acceptedEvents = [] }: AdminNavigationProps) {
   const pathname = usePathname();
 
   // Determine active tab based on current path
   const getActiveTab = () => {
     if (pathname === "/admin" || pathname === "/admin/") return "dashboard";
-    if (pathname.startsWith("/admin/events") || pathname.startsWith("/events/")) return "events";
+    if (pathname.startsWith("/admin/events")) return "events";
     if (pathname.startsWith("/admin/users") || pathname.startsWith("/admin/communications")) return "users";
     if (pathname.startsWith("/impact-reports")) return "impact-reports";
+
+    // Check if on an event page (match by id or slug)
+    for (const event of acceptedEvents) {
+      if (
+        pathname.startsWith(`/events/${event.id}`) ||
+        (event.slug && pathname.startsWith(`/events/${event.slug}`))
+      ) {
+        return `event-${event.id}`;
+      }
+    }
+
     return null;
   };
 
@@ -52,6 +73,18 @@ export default function AdminNavigation() {
         >
           Impact Reports
         </NavigationTab>
+
+        {/* Dynamic event tabs */}
+        {acceptedEvents.map((event) => (
+          <NavigationTab
+            key={event.id}
+            value={`event-${event.id}`}
+            href={`/events/${event.slug ?? event.id}`}
+            icon={<IconCalendarEvent size={18} />}
+          >
+            {event.name}
+          </NavigationTab>
+        ))}
       </NavigationTabs>
     </NavigationContainer>
   );
