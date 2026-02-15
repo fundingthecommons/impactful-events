@@ -92,6 +92,7 @@ export default function EventSubNavigation({
       if (pathname.startsWith(`${adminBasePath}/sponsors`)) return "sponsors";
       if (pathname.startsWith(`${adminBasePath}/select-rubric`)) return "select-rubric";
       if (pathname.startsWith(`${adminBasePath}/onboarding`)) return "onboarding";
+      if (pathname.startsWith(`${basePath}/schedule`)) return "schedule";
       if (pathname === adminBasePath || pathname === `${adminBasePath}/`) return "overview";
       return null;
     };
@@ -176,6 +177,15 @@ export default function EventSubNavigation({
                   Selection Rubric
                 </NavigationTab>
               )}
+
+              <NavigationTab
+                value="schedule"
+                href={`${basePath}/schedule`}
+                icon={<IconCalendarEvent size={16} />}
+                level="sub"
+              >
+                Schedule
+              </NavigationTab>
             </NavigationTabs>
 
             <Link
