@@ -10,7 +10,7 @@ interface TimetableViewProps {
 }
 
 const FIFTEEN_MIN_MS = 15 * 60 * 1000;
-const ROW_HEIGHT_PX = 20;
+const ROW_HEIGHT_PX = 40;
 
 function formatTime(date: Date): string {
   return new Date(date).toLocaleTimeString("en-US", {
@@ -20,13 +20,23 @@ function formatTime(date: Date): string {
   });
 }
 
+function formatTimeShort(date: Date): string {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  if (minutes === 0) {
+    // Show "10:00" style for hour marks
+    return `${hours}:00`;
+  }
+  return `${hours}:${String(minutes).padStart(2, "0")}`;
+}
+
 export default function TimetableView({ sessions, venues }: TimetableViewProps) {
   const { timeSlots, sessionsGrid, slotCount } = useMemo(() => {
     if (sessions.length === 0) {
       return { timeSlots: [], sessionsGrid: [], slotCount: 0 };
     }
 
-    // Find earliest start and latest end
+    // Find earliest start and latest end from sessions
     let earliest = Infinity;
     let latest = -Infinity;
     for (const s of sessions) {
@@ -36,11 +46,21 @@ export default function TimetableView({ sessions, venues }: TimetableViewProps) 
       if (end > latest) latest = end;
     }
 
-    // Round earliest down and latest up to 15-min boundaries
-    const roundedEarliest = Math.floor(earliest / FIFTEEN_MIN_MS) * FIFTEEN_MIN_MS;
-    const roundedLatest = Math.ceil(latest / FIFTEEN_MIN_MS) * FIFTEEN_MIN_MS;
+    // Pad to full conference day: min(earliest, 9:30 AM) to max(latest, 7:00 PM)
+    const referenceDate = new Date(earliest);
+    const dayStart = new Date(referenceDate);
+    dayStart.setHours(9, 30, 0, 0);
+    const dayEnd = new Date(referenceDate);
+    dayEnd.setHours(19, 0, 0, 0);
 
-    // Generate time slot labels
+    const paddedEarliest = Math.min(earliest, dayStart.getTime());
+    const paddedLatest = Math.max(latest, dayEnd.getTime());
+
+    // Round to 15-min boundaries
+    const roundedEarliest = Math.floor(paddedEarliest / FIFTEEN_MIN_MS) * FIFTEEN_MIN_MS;
+    const roundedLatest = Math.ceil(paddedLatest / FIFTEEN_MIN_MS) * FIFTEEN_MIN_MS;
+
+    // Generate time slot array
     const slots: Array<{ time: Date; row: number }> = [];
     let current = roundedEarliest;
     let row = 1;
@@ -105,26 +125,32 @@ export default function TimetableView({ sessions, venues }: TimetableViewProps) 
           </div>
         ))}
 
-        {/* Time labels — show every 15 minutes, with hour labels bolder */}
-        {timeSlots.map((slot) => {
-          const minutes = slot.time.getMinutes();
-          const isHour = minutes === 0;
-          return (
-            <div
-              key={slot.row}
-              className="timetable-time-label"
-              style={{ gridRow: slot.row + 1, gridColumn: 1 }}
-            >
-              <Text size="xs" fw={isHour ? 600 : 400} c="dimmed">
-                {formatTime(slot.time)}
-              </Text>
-            </div>
-          );
-        })}
-
-        {/* Horizontal gridlines — every 30 minutes (on the hour and half hour) */}
+        {/* Time labels — hour and half-hour only */}
         {timeSlots
           .filter((slot) => slot.time.getMinutes() % 30 === 0)
+          .map((slot) => {
+            const isHour = slot.time.getMinutes() === 0;
+            return (
+              <div
+                key={slot.row}
+                className="timetable-time-label"
+                style={{ gridRow: slot.row + 1, gridColumn: 1 }}
+              >
+                <Text
+                  size="xs"
+                  fw={isHour ? 700 : 400}
+                  c="dimmed"
+                  style={isHour ? { fontSize: 13 } : { fontSize: 11 }}
+                >
+                  {formatTimeShort(slot.time)}
+                </Text>
+              </div>
+            );
+          })}
+
+        {/* Horizontal gridlines — every hour */}
+        {timeSlots
+          .filter((slot) => slot.time.getMinutes() === 0)
           .map((slot) => (
             <div
               key={`line-${slot.row}`}

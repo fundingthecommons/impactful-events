@@ -173,3 +173,83 @@
 .timetable-session-block:hover {
   filter: brightness(0.92);
 }
+
+/* ============================================
+   EXPANDED VIEW
+   ============================================ */
+
+:root,
+[data-theme="light"] {
+  --expanded-card-bg: #ffffff;
+  --expanded-card-border: #e2e8f0;
+  --expanded-card-hover: #f8fafc;
+  --expanded-speakers-bg: #f8fafc;
+  --expanded-badge-text: #475569;
+}
+
+[data-theme="dark"] {
+  --expanded-card-bg: #25262b;
+  --expanded-card-border: #373a40;
+  --expanded-card-hover: #2c2e33;
+  --expanded-speakers-bg: #2c2e33;
+  --expanded-badge-text: #c1c2c5;
+}
+
+.expanded-session-card {
+  background: var(--expanded-card-bg);
+  border: 1px solid var(--expanded-card-border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: background-color 0.15s ease;
+}
+
+.expanded-session-card:hover {
+  background: var(--expanded-card-hover);
+}
+
+.expanded-session-header {
+  height: 6px;
+  width: 100%;
+}
+
+.expanded-session-body {
+  padding: 1rem 1.25rem;
+}
+
+.expanded-speakers-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--expanded-card-border);
+}
+
+/* ============================================
+   BY FLOOR VIEW
+   ============================================ */
+
+.by-floor-venue-group {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .by-floor-venue-group {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
+
+.by-floor-venue-label {
+  padding-top: 0.5rem;
+}
+
+.by-floor-session-bar {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: filter 0.15s ease;
+}
+
+.by-floor-session-bar:hover {
+  filter: brightness(0.92);
+}

@@ -82,7 +82,21 @@ export const scheduleRouter = createTRPCRouter({
           sessionType: { select: { id: true, name: true, color: true } },
           track: { select: { id: true, name: true, color: true } },
           sessionSpeakers: {
-            include: { user: { select: userSelectFields } },
+            include: {
+              user: {
+                select: {
+                  ...userSelectFields,
+                  profile: {
+                    select: {
+                      bio: true,
+                      jobTitle: true,
+                      company: true,
+                      avatarUrl: true,
+                    },
+                  },
+                },
+              },
+            },
             orderBy: { order: "asc" },
           },
         },

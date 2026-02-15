@@ -14,12 +14,15 @@ import {
   Center,
   Tabs,
   Badge,
-  SegmentedControl,
+  Menu,
+  Button,
 } from "@mantine/core";
-import { IconSearch, IconList, IconLayoutGrid } from "@tabler/icons-react";
+import { IconSearch, IconEye, IconCheck } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { getDisplayName } from "~/utils/userDisplay";
 import TimetableView from "./TimetableView";
+import ExpandedView from "./ExpandedView";
+import ByFloorView from "./ByFloorView";
 import "./schedule.css";
 
 export type ScheduleSession = {
@@ -44,6 +47,12 @@ export type ScheduleSession = {
       name: string | null;
       email: string | null;
       image: string | null;
+      profile: {
+        bio: string | null;
+        jobTitle: string | null;
+        company: string | null;
+        avatarUrl: string | null;
+      } | null;
     };
   }>;
 };
@@ -53,7 +62,7 @@ interface SchedulePageClientProps {
 }
 
 export default function SchedulePageClient({ eventId }: SchedulePageClientProps) {
-  const [viewMode, setViewMode] = useState<"agenda" | "timetable">("agenda");
+  const [viewMode, setViewMode] = useState<"simple" | "expanded" | "grid" | "by-floor">("simple");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeVenueId, setActiveVenueId] = useState<string | null>(null);
   const [activeSessionTypes, setActiveSessionTypes] = useState<string[]>([]);
@@ -201,30 +210,39 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
             </Text>
           )}
         </Stack>
-        <SegmentedControl
-          value={viewMode}
-          onChange={(value) => setViewMode(value as "agenda" | "timetable")}
-          data={[
-            {
-              label: (
-                <Group gap={6} wrap="nowrap">
-                  <IconList size={16} />
-                  <span>Agenda</span>
-                </Group>
-              ),
-              value: "agenda",
-            },
-            {
-              label: (
-                <Group gap={6} wrap="nowrap">
-                  <IconLayoutGrid size={16} />
-                  <span>Timetable</span>
-                </Group>
-              ),
-              value: "timetable",
-            },
-          ]}
-        />
+        <Menu shadow="md" width={180}>
+          <Menu.Target>
+            <Button variant="default" leftSection={<IconEye size={16} />} size="sm">
+              View
+            </Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item
+              onClick={() => setViewMode("simple")}
+              rightSection={viewMode === "simple" ? <IconCheck size={14} /> : null}
+            >
+              Simple
+            </Menu.Item>
+            <Menu.Item
+              onClick={() => setViewMode("expanded")}
+              rightSection={viewMode === "expanded" ? <IconCheck size={14} /> : null}
+            >
+              Expanded
+            </Menu.Item>
+            <Menu.Item
+              onClick={() => setViewMode("grid")}
+              rightSection={viewMode === "grid" ? <IconCheck size={14} /> : null}
+            >
+              Grid
+            </Menu.Item>
+            <Menu.Item
+              onClick={() => setViewMode("by-floor")}
+              rightSection={viewMode === "by-floor" ? <IconCheck size={14} /> : null}
+            >
+              By Floor
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
       </Group>
 
       {/* Day tabs (shared between both views) */}
@@ -252,7 +270,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
       )}
 
       {/* View-specific content */}
-      {viewMode === "agenda" ? (
+      {viewMode === "simple" ? (
         <div className="schedule-layout">
           {/* Main schedule area */}
           <div>
@@ -471,9 +489,200 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
             </Stack>
           </div>
         </div>
-      ) : (
+      ) : viewMode === "expanded" ? (
+        <div className="schedule-layout">
+          <ExpandedView sessions={daySessions} />
+          {/* Filter sidebar */}
+          <div className="schedule-sidebar">
+            <Stack gap="md">
+              <div className="schedule-filter-section">
+                <TextInput
+                  placeholder="Schedule or people"
+                  leftSection={<IconSearch size={16} />}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                  styles={{
+                    input: {
+                      backgroundColor: "var(--schedule-search-bg)",
+                    },
+                  }}
+                />
+              </div>
+
+              {filterData?.venues && filterData.venues.length > 0 && (
+                <div className="schedule-filter-section">
+                  <Text fw={600} size="sm" mb="xs">
+                    Filter By Venue
+                  </Text>
+                  <Select
+                    placeholder="All venues"
+                    data={filterData.venues.map((v) => ({
+                      value: v.id,
+                      label: v.name,
+                    }))}
+                    value={activeVenueId}
+                    onChange={setActiveVenueId}
+                    clearable
+                    styles={{
+                      input: {
+                        backgroundColor: "var(--schedule-search-bg)",
+                      },
+                    }}
+                  />
+                </div>
+              )}
+
+              {filterData?.sessionTypes && filterData.sessionTypes.length > 0 && (
+                <div className="schedule-filter-section">
+                  <Text fw={600} size="sm" mb="xs">
+                    Filter By Type
+                  </Text>
+                  <Stack gap={6}>
+                    {filterData.sessionTypes.map((type) => (
+                      <Checkbox
+                        key={type.id}
+                        checked={activeSessionTypes.includes(type.id)}
+                        onChange={() => toggleSessionType(type.id)}
+                        label={
+                          <Group gap={8}>
+                            <div
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                backgroundColor: type.color,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Text size="sm">{type.name}</Text>
+                          </Group>
+                        }
+                      />
+                    ))}
+                  </Stack>
+                </div>
+              )}
+
+              {filterData?.tracks && filterData.tracks.length > 0 && (
+                <div className="schedule-filter-section">
+                  <Text fw={600} size="sm" mb="xs">
+                    Filter By Track
+                  </Text>
+                  <Stack gap={6}>
+                    {filterData.tracks.map((track) => (
+                      <Checkbox
+                        key={track.id}
+                        checked={activeTracks.includes(track.id)}
+                        onChange={() => toggleTrack(track.id)}
+                        label={
+                          <Group gap={8}>
+                            <div
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                backgroundColor: track.color,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Text size="sm">{track.name}</Text>
+                          </Group>
+                        }
+                      />
+                    ))}
+                  </Stack>
+                </div>
+              )}
+            </Stack>
+          </div>
+        </div>
+      ) : viewMode === "grid" ? (
         <TimetableView sessions={daySessions} venues={venues} />
-      )}
+      ) : viewMode === "by-floor" ? (
+        <div className="schedule-layout">
+          <ByFloorView sessions={daySessions} venues={venues} />
+          {/* Filter sidebar */}
+          <div className="schedule-sidebar">
+            <Stack gap="md">
+              <div className="schedule-filter-section">
+                <TextInput
+                  placeholder="Schedule or people"
+                  leftSection={<IconSearch size={16} />}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                  styles={{
+                    input: {
+                      backgroundColor: "var(--schedule-search-bg)",
+                    },
+                  }}
+                />
+              </div>
+
+              {filterData?.sessionTypes && filterData.sessionTypes.length > 0 && (
+                <div className="schedule-filter-section">
+                  <Text fw={600} size="sm" mb="xs">
+                    Filter By Type
+                  </Text>
+                  <Stack gap={6}>
+                    {filterData.sessionTypes.map((type) => (
+                      <Checkbox
+                        key={type.id}
+                        checked={activeSessionTypes.includes(type.id)}
+                        onChange={() => toggleSessionType(type.id)}
+                        label={
+                          <Group gap={8}>
+                            <div
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                backgroundColor: type.color,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Text size="sm">{type.name}</Text>
+                          </Group>
+                        }
+                      />
+                    ))}
+                  </Stack>
+                </div>
+              )}
+
+              {filterData?.tracks && filterData.tracks.length > 0 && (
+                <div className="schedule-filter-section">
+                  <Text fw={600} size="sm" mb="xs">
+                    Filter By Track
+                  </Text>
+                  <Stack gap={6}>
+                    {filterData.tracks.map((track) => (
+                      <Checkbox
+                        key={track.id}
+                        checked={activeTracks.includes(track.id)}
+                        onChange={() => toggleTrack(track.id)}
+                        label={
+                          <Group gap={8}>
+                            <div
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                backgroundColor: track.color,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Text size="sm">{track.name}</Text>
+                          </Group>
+                        }
+                      />
+                    ))}
+                  </Stack>
+                </div>
+              )}
+            </Stack>
+          </div>
+        </div>
+      ) : null}
     </Container>
   );
 }
