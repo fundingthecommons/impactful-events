@@ -216,14 +216,16 @@ export default function EventSubNavigation({
       <NavigationContainer level="sub" withTopBorder={!eventName}>
         <Group justify="space-between" align="center" wrap="nowrap">
           <NavigationTabs activeTab={getActiveTab()} level="sub">
-            <NavigationTab
-              value="dashboard"
-              href={basePath}
-              icon={<IconMapPin size={16} />}
-              level="sub"
-            >
-              Dashboard
-            </NavigationTab>
+            {session?.user && (
+              <NavigationTab
+                value="dashboard"
+                href={basePath}
+                icon={<IconMapPin size={16} />}
+                level="sub"
+              >
+                Dashboard
+              </NavigationTab>
+            )}
 
             {showManageSchedule && (
               <NavigationTab
