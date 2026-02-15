@@ -61,6 +61,24 @@ export default async function HeaderBar() {
         },
       });
 
+      // Query all floor manager (venue owner) assignments
+      const floorManagerEvents = await db.venueOwner.findMany({
+        where: {
+          userId: session.user.id,
+        },
+        select: {
+          eventId: true,
+          event: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+        distinct: ['eventId'],
+      });
+
       // Combine and deduplicate events
       const eventMap = new Map<string, AcceptedEvent>();
 
@@ -77,6 +95,14 @@ export default async function HeaderBar() {
           id: role.event.id,
           name: role.event.name,
           slug: role.event.slug,
+        });
+      }
+
+      for (const vo of floorManagerEvents) {
+        eventMap.set(vo.event.id, {
+          id: vo.event.id,
+          name: vo.event.name,
+          slug: vo.event.slug,
         });
       }
 
