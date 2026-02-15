@@ -37,6 +37,27 @@ bun run format:write    # Format code with Prettier
 - **ALWAYS prefer editing an existing file to creating a new one**
 - **NEVER proactively create documentation files (*.md) or README files** - Only create documentation files if explicitly requested by the User
 
+## Issue Tracking with Beads (bd)
+
+**CRITICAL: Use `bd` (beads) for ALL task and issue tracking. Do NOT use TodoWrite or markdown files for tracking work.**
+
+- **Create before coding** - create a bead (`bd create`) BEFORE starting implementation
+- **Track status** - `bd update <id> --status=in_progress` when starting, `bd close <id>` when done
+- **Check for work** - run `bd ready` at session start to find unblocked work
+- **Sync at session end** - always run `bd sync` before committing and pushing
+- **Do NOT use `bd edit`** - it opens $EDITOR interactively; use `bd update <id> --field=value` instead
+- Priority: 0=critical, 1=high, 2=medium, 3=low, 4=backlog
+- Types: task, bug, feature
+- Run `bd prime` for full workflow context
+
+```bash
+bd ready                                            # Find available work
+bd create --title="..." --type=task --priority=2    # Create issue
+bd update <id> --status=in_progress                 # Claim work
+bd close <id>                                       # Complete work
+bd sync                                             # Sync with git
+```
+
 ## HYBRID AUTO-LEARNING CODE QUALITY SYSTEM
 
 **CRITICAL: All generated code must pass ESLint rules on first try using live configuration and learned patterns.**
