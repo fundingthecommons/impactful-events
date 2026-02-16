@@ -6,7 +6,11 @@ import { type ScheduleSession } from "./SchedulePageClient";
 
 interface ByFloorViewProps {
   sessions: ScheduleSession[];
-  venues: Array<{ id: string; name: string }>;
+  venues: Array<{
+    id: string;
+    name: string;
+    rooms: Array<{ id: string; name: string }>;
+  }>;
 }
 
 function formatTimeShort(date: Date): string {
@@ -60,6 +64,8 @@ export default function ByFloorView({ sessions, venues }: ByFloorViewProps) {
         const venueSessions = sessionsByVenue.get(venue.id) ?? [];
         if (venueSessions.length === 0) return null;
 
+        const hasRooms = venue.rooms.length > 0;
+
         return (
           <div key={venue.id} className="by-floor-venue-group">
             <Text
@@ -70,35 +76,66 @@ export default function ByFloorView({ sessions, venues }: ByFloorViewProps) {
             >
               {venue.name}
             </Text>
-            <Stack gap={4}>
-              {venueSessions.map((session) => {
-                const color =
-                  session.sessionType?.color ?? "#94a3b8";
-
-                return (
-                  <div
-                    key={session.id}
-                    className="by-floor-session-bar"
-                    style={{ backgroundColor: `${color}50` }}
-                  >
-                    <Text fw={500} size="sm">
-                      <Text
-                        span
-                        fw={700}
-                        size="sm"
-                      >
-                        {formatTimeShort(session.startTime)}
-                      </Text>
-                      {" \u2022 "}
-                      {session.title}
-                    </Text>
-                  </div>
-                );
-              })}
+            <Stack gap={hasRooms ? "sm" : 4}>
+              {hasRooms ? (
+                <>
+                  {venue.rooms.map((room) => {
+                    const roomSessions = venueSessions.filter(
+                      (s) => s.roomId === room.id,
+                    );
+                    if (roomSessions.length === 0) return null;
+                    return (
+                      <div key={room.id}>
+                        <Text size="xs" fw={500} c="dimmed" mb={2}>
+                          {room.name}
+                        </Text>
+                        <Stack gap={4}>
+                          {roomSessions.map((session) => (
+                            <SessionBar key={session.id} session={session} />
+                          ))}
+                        </Stack>
+                      </div>
+                    );
+                  })}
+                  {/* Sessions without a room assignment */}
+                  {venueSessions.some((s) => !s.roomId) && (
+                    <Stack gap={4}>
+                      {venueSessions
+                        .filter((s) => !s.roomId)
+                        .map((session) => (
+                          <SessionBar key={session.id} session={session} />
+                        ))}
+                    </Stack>
+                  )}
+                </>
+              ) : (
+                venueSessions.map((session) => (
+                  <SessionBar key={session.id} session={session} />
+                ))
+              )}
             </Stack>
           </div>
         );
       })}
     </Stack>
+  );
+}
+
+function SessionBar({ session }: { session: ScheduleSession }) {
+  const color = session.sessionType?.color ?? "#94a3b8";
+
+  return (
+    <div
+      className="by-floor-session-bar"
+      style={{ backgroundColor: `${color}50` }}
+    >
+      <Text fw={500} size="sm">
+        <Text span fw={700} size="sm">
+          {formatTimeShort(session.startTime)}
+        </Text>
+        {" \u2022 "}
+        {session.title}
+      </Text>
+    </div>
   );
 }

@@ -139,6 +139,15 @@
   z-index: 2;
 }
 
+.timetable-room-header {
+  padding: 0.25rem 0.5rem;
+  background: var(--timetable-header-bg);
+  border-bottom: 2px solid var(--timetable-header-border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 .timetable-time-label {
   padding: 0 8px 0 0;
   text-align: right;

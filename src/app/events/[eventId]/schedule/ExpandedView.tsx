@@ -100,7 +100,7 @@ export default function ExpandedView({ sessions }: ExpandedViewProps) {
                     <Text size="sm" c="dimmed">
                       {formatTime(session.startTime)} -{" "}
                       {formatTime(session.endTime)}
-                      {session.venue ? ` \u2022 ${session.venue.name}` : ""}
+                      {session.venue ? ` \u2022 ${session.venue.name}${session.room ? ` \u2014 ${session.room.name}` : ""}` : ""}
                     </Text>
 
                     {/* Description */}

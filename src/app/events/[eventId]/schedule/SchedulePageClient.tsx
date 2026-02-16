@@ -198,7 +198,11 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
   }
 
   const daySessions = selectedDay ? sessionsByDay.get(selectedDay) ?? [] : [];
-  const venues = filterData?.venues?.map((v) => ({ id: v.id, name: v.name })) ?? [];
+  const venues = filterData?.venues?.map((v) => ({
+    id: v.id,
+    name: v.name,
+    rooms: v.rooms ?? [],
+  })) ?? [];
 
   return (
     <Container size="xl" py="xl">
@@ -314,6 +318,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
                                 ? `${session.sessionType.name} - `
                                 : ""}
                               {session.venue.name}
+                              {session.room ? ` \u2014 ${session.room.name}` : ""}
                             </Text>
                           )}
                           {!session.venue && session.sessionType && (
