@@ -33,6 +33,7 @@ import {
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import ApplicationDetailsDrawer from "../applications/ApplicationDetailsDrawer";
+import { AddSpeakerModal } from "~/app/events/[eventId]/AddSpeakerModal";
 import {
   getApplicationStatusColor,
   getApplicationStatusIcon,
@@ -74,6 +75,7 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
   const [bulkStatusModalOpen, setBulkStatusModalOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<"ACCEPTED" | "REJECTED" | null>(null);
   const [viewDrawerOpened, { open: openViewDrawer, close: closeViewDrawer }] = useDisclosure(false);
+  const [addSpeakerOpened, { open: openAddSpeaker, close: closeAddSpeaker }] = useDisclosure(false);
   const [viewingApplication, setViewingApplication] = useState<{ id: string } | null>(null);
 
   // ── Invitations (via shared hook) ──
@@ -170,6 +172,9 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
           </Group>
           <Text c="dimmed" mb="xs">{inv.event?.name ?? "Loading..."}</Text>
         </div>
+        <Button leftSection={<IconUserPlus size={16} />} onClick={openAddSpeaker}>
+          Add Speaker
+        </Button>
       </Group>
 
       {/* Top-level Statistics */}
@@ -422,6 +427,13 @@ export default function AdminSpeakerManagementClient({ eventId }: Props) {
         applicationId={viewingApplication?.id ?? null}
         opened={viewDrawerOpened}
         onClose={closeViewDrawer}
+      />
+
+      {/* Add Speaker Modal */}
+      <AddSpeakerModal
+        eventId={eventId}
+        opened={addSpeakerOpened}
+        onClose={closeAddSpeaker}
       />
     </Container>
   );

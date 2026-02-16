@@ -26,7 +26,8 @@ import {
   IconCalendar,
   IconMapPin,
   IconPlus,
-  IconEye
+  IconEye,
+  IconChecklist
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -278,7 +279,16 @@ export default function DefaultUserDashboard() {
             There are many ways to contribute to the Funding the Commons ecosystem beyond just attending events.
           </Text>
           
-          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+          <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }} spacing="lg">
+            <OpportunityCard
+              title="Projects & Tasks"
+              description="Explore active projects and tasks across the Funding the Commons ecosystem. Find ways to contribute and track progress."
+              icon={IconChecklist}
+              color="pink"
+              action="https://www.exponential.im/w/cl/projects-tasks"
+              actionText="View Projects"
+            />
+
             <OpportunityCard
               title="Become a Mentor"
               description="Share your expertise and guide builders working on public goods projects. Help shape the next generation of impact-driven technologies."
