@@ -33,9 +33,11 @@ export type ScheduleSession = {
   endTime: Date;
   speakers: string[];
   venueId: string | null;
+  roomId: string | null;
   sessionTypeId: string | null;
   trackId: string | null;
   venue: { id: string; name: string } | null;
+  room: { id: string; name: string } | null;
   sessionType: { id: string; name: string; color: string } | null;
   track: { id: string; name: string; color: string } | null;
   sessionSpeakers: Array<{

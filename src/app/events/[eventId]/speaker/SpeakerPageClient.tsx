@@ -50,10 +50,12 @@ export default function SpeakerPageClient({
   const [justAuthenticated, setJustAuthenticated] = useState(false);
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
     if (status === "authenticated" && !showApplication) {
       if (!initialUserId) {
         setJustAuthenticated(true);
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           setShowApplication(true);
           setJustAuthenticated(false);
         }, 1500);
@@ -64,7 +66,12 @@ export default function SpeakerPageClient({
       setShowApplication(false);
       setJustAuthenticated(false);
     }
-  }, [status, initialUserId, showApplication]);
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, initialUserId]);
 
   if (status === "loading") {
     return (

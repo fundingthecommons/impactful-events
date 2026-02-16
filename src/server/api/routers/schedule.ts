@@ -110,6 +110,7 @@ export const scheduleRouter = createTRPCRouter({
         where: { eventId: event.id, isPublished: true },
         include: {
           venue: { select: { id: true, name: true } },
+          room: { select: { id: true, name: true } },
           sessionType: { select: { id: true, name: true, color: true } },
           track: { select: { id: true, name: true, color: true } },
           sessionSpeakers: {
@@ -148,6 +149,10 @@ export const scheduleRouter = createTRPCRouter({
           where: { eventId: event.id },
           orderBy: { order: "asc" },
           include: {
+            rooms: {
+              orderBy: { order: "asc" },
+              select: { id: true, name: true },
+            },
             owners: {
               include: {
                 user: {
@@ -228,6 +233,7 @@ export const scheduleRouter = createTRPCRouter({
           )
           .optional(),
         venueId: z.string().optional(),
+        roomId: z.string().optional(),
         sessionTypeId: z.string().optional(),
         trackId: z.string().optional(),
         order: z.number().default(0),
@@ -247,6 +253,20 @@ export const scheduleRouter = createTRPCRouter({
           code: "FORBIDDEN",
           message: "Only admins can create sessions without a venue",
         });
+      }
+
+      // Validate room belongs to the session's venue
+      if (input.roomId) {
+        if (!input.venueId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot assign a room without a venue" });
+        }
+        const room = await ctx.db.scheduleRoom.findUnique({
+          where: { id: input.roomId },
+          select: { venueId: true },
+        });
+        if (!room || room.venueId !== input.venueId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Room does not belong to the selected floor" });
+        }
       }
 
       const { linkedSpeakers, ...sessionData } = input;
@@ -296,6 +316,7 @@ export const scheduleRouter = createTRPCRouter({
           )
           .optional(),
         venueId: z.string().nullable().optional(),
+        roomId: z.string().nullable().optional(),
         sessionTypeId: z.string().nullable().optional(),
         trackId: z.string().nullable().optional(),
         order: z.number().optional(),
@@ -321,6 +342,32 @@ export const scheduleRouter = createTRPCRouter({
           ctx.session.user.role,
           data.venueId,
         );
+        // Clear room when changing to a different venue (room belongs to old venue)
+        const currentSession = await ctx.db.scheduleSession.findUnique({
+          where: { id },
+          select: { venueId: true },
+        });
+        if (currentSession?.venueId !== data.venueId) {
+          data.roomId = null;
+        }
+      }
+
+      // Validate room belongs to the effective venue
+      if (data.roomId !== undefined && data.roomId !== null) {
+        const effectiveVenue = data.venueId ?? (await ctx.db.scheduleSession.findUnique({
+          where: { id },
+          select: { venueId: true },
+        }))?.venueId;
+        if (!effectiveVenue) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot assign a room without a venue" });
+        }
+        const room = await ctx.db.scheduleRoom.findUnique({
+          where: { id: data.roomId },
+          select: { venueId: true },
+        });
+        if (!room || room.venueId !== effectiveVenue) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Room does not belong to the selected floor" });
+        }
       }
 
       // Validate linked speakers are floor applicants (for non-admin users)
@@ -436,6 +483,88 @@ export const scheduleRouter = createTRPCRouter({
     }),
 
   // ──────────────────────────────────────────
+  // Room mutations (floor lead or admin)
+  // ──────────────────────────────────────────
+
+  // Create a room within a venue (max 3 per venue)
+  createRoom: protectedProcedure
+    .input(
+      z.object({
+        venueId: z.string(),
+        name: z.string().min(1),
+        capacity: z.number().optional(),
+        order: z.number().default(0),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertCanManageVenue(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.venueId,
+      );
+
+      const roomCount = await ctx.db.scheduleRoom.count({
+        where: { venueId: input.venueId },
+      });
+      if (roomCount >= 3) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Maximum of 3 rooms per floor",
+        });
+      }
+
+      return ctx.db.scheduleRoom.create({ data: input });
+    }),
+
+  // Update room metadata (floor lead or admin)
+  updateRoom: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1).optional(),
+        capacity: z.number().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const room = await ctx.db.scheduleRoom.findUnique({
+        where: { id: input.id },
+        select: { venueId: true },
+      });
+      if (!room) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
+      }
+      await assertCanManageVenue(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        room.venueId,
+      );
+      const { id, ...data } = input;
+      return ctx.db.scheduleRoom.update({ where: { id }, data });
+    }),
+
+  // Delete a room (floor lead or admin). Sessions revert to roomId=null.
+  deleteRoom: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const room = await ctx.db.scheduleRoom.findUnique({
+        where: { id: input.id },
+        select: { venueId: true },
+      });
+      if (!room) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Room not found" });
+      }
+      await assertCanManageVenue(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        room.venueId,
+      );
+      return ctx.db.scheduleRoom.delete({ where: { id: input.id } });
+    }),
+
+  // ──────────────────────────────────────────
   // Session type mutations (admin only)
   // ──────────────────────────────────────────
 
@@ -543,6 +672,10 @@ export const scheduleRouter = createTRPCRouter({
       const venues = await ctx.db.scheduleVenue.findMany({
         where: whereClause,
         include: {
+          rooms: {
+            orderBy: { order: "asc" },
+            select: { id: true, name: true, capacity: true, order: true },
+          },
           owners: {
             include: { user: { select: userSelectFields } },
           },
@@ -575,6 +708,7 @@ export const scheduleRouter = createTRPCRouter({
         where: { eventId: event.id, venueId: input.venueId },
         include: {
           venue: { select: { id: true, name: true } },
+          room: { select: { id: true, name: true } },
           sessionType: { select: { id: true, name: true, color: true } },
           track: { select: { id: true, name: true, color: true } },
           sessionSpeakers: {
@@ -816,6 +950,7 @@ export const scheduleRouter = createTRPCRouter({
         },
         include: {
           venue: { select: { id: true, name: true } },
+          room: { select: { id: true, name: true } },
           sessionType: { select: { id: true, name: true, color: true } },
           track: { select: { id: true, name: true, color: true } },
           sessionSpeakers: {

@@ -2133,12 +2133,30 @@ model ScheduleVenue {
 
   event        Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
   sessions     ScheduleSession[]
+  rooms        ScheduleRoom[]
   owners       VenueOwner[]
   invitations  Invitation[]
   applications ApplicationVenue[]
 
   @@unique([eventId, name])
   @@index([eventId])
+  @@index([order])
+}
+
+model ScheduleRoom {
+  id        String   @id @default(cuid())
+  venueId   String
+  name      String
+  capacity  Int?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  venue    ScheduleVenue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  sessions ScheduleSession[]
+
+  @@unique([venueId, name])
+  @@index([venueId])
   @@index([order])
 }
 
@@ -2185,6 +2203,7 @@ model ScheduleSession {
   endTime       DateTime
   speakers      String[]
   venueId       String?
+  roomId        String?
   sessionTypeId String?
   trackId       String?
   order         Int      @default(0)
@@ -2194,6 +2213,7 @@ model ScheduleSession {
 
   event           Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
   venue           ScheduleVenue?       @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  room            ScheduleRoom?        @relation(fields: [roomId], references: [id], onDelete: SetNull)
   sessionType     ScheduleSessionType? @relation(fields: [sessionTypeId], references: [id], onDelete: SetNull)
   track           ScheduleTrack?       @relation(fields: [trackId], references: [id], onDelete: SetNull)
   sessionSpeakers SessionSpeaker[]
@@ -2201,6 +2221,7 @@ model ScheduleSession {
   @@index([eventId])
   @@index([startTime])
   @@index([venueId])
+  @@index([roomId])
   @@index([sessionTypeId])
   @@index([trackId])
   @@index([isPublished])

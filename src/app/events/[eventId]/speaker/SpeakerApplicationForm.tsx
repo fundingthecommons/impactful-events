@@ -19,6 +19,8 @@ import {
   Badge,
   Alert,
   Progress,
+  Center,
+  Loader,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -97,20 +99,56 @@ export default function SpeakerApplicationForm({
   const [selectedVenueIds, setSelectedVenueIds] = useState<string[]>([]);
   const [invitedByValue, setInvitedByValue] = useState<string | null>(null);
   const [invitedByOtherText, setInvitedByOtherText] = useState("");
-  const { data: config } = api.config.getPublicConfig.useQuery();
+  const [hasInitializedVenues, setHasInitializedVenues] = useState(false);
+  const { data: config } = api.config.getPublicConfig.useQuery(
+    undefined,
+    { refetchOnWindowFocus: false },
+  );
 
   // Fetch available venues/floors for this event
-  const { data: scheduleFilters } = api.schedule.getEventScheduleFilters.useQuery({ eventId });
-  const venues = useMemo(() => scheduleFilters?.venues ?? [], [scheduleFilters?.venues]);
+  const { data: scheduleFilters, isLoading: isLoadingFilters } =
+    api.schedule.getEventScheduleFilters.useQuery(
+      { eventId },
+      { refetchOnWindowFocus: false },
+    );
+
+  // Stabilize useMemo deps with stringified ID keys to prevent cascading re-renders on refetch
+  const venueIdKey = scheduleFilters?.venues?.map(v => v.id).join(',') ?? '';
+  const fmIdKey = scheduleFilters?.floorManagers?.map(fm => fm.id).join(',') ?? '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const venues = useMemo(() => scheduleFilters?.venues ?? [], [venueIdKey]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const floorManagers = useMemo(() => scheduleFilters?.floorManagers ?? [], [fmIdKey]);
 
   // If invited, fetch inviter's venues for pre-selection
   const { data: inviterVenues } = api.application.getInviterVenues.useQuery(
     { invitationToken: invitationToken!, eventId },
-    { enabled: !!invitationToken },
+    { enabled: !!invitationToken, refetchOnWindowFocus: false },
+  );
+
+  // Memoize venue select data to avoid creating new arrays every render
+  const venueSelectData = useMemo(
+    () =>
+      venues.map((venue) => ({
+        value: venue.id,
+        label: `${venue.name}${inviterVenues?.some((v) => v.id === venue.id) ? " (invited)" : ""}`,
+      })),
+    [venues, inviterVenues],
+  );
+
+  // Memoize session type select data
+  const sessionTypeSelectData = useMemo(
+    () =>
+      (scheduleFilters?.sessionTypes ?? []).length > 0
+        ? scheduleFilters!.sessionTypes.map((st) => ({
+            value: st.name,
+            label: st.name,
+          }))
+        : talkFormatOptions,
+    [scheduleFilters],
   );
 
   // Build "Who invited you?" dropdown options from floor leads
-  const floorManagers = useMemo(() => scheduleFilters?.floorManagers ?? [], [scheduleFilters?.floorManagers]);
   const inviterOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
 
@@ -135,20 +173,26 @@ export default function SpeakerApplicationForm({
     return options;
   }, [floorManagers, venues]);
 
-  // Pre-select inviter's venues and floor lead when arriving via invitation
+  // Pre-select inviter's venues and floor lead once when arriving via invitation
   useEffect(() => {
-    if (inviterVenues && inviterVenues.length > 0 && selectedVenueIds.length === 0) {
+    if (
+      !hasInitializedVenues &&
+      inviterVenues &&
+      inviterVenues.length > 0 &&
+      floorManagers.length > 0
+    ) {
+      setHasInitializedVenues(true);
       setSelectedVenueIds([inviterVenues[0]!.id]);
 
       // Auto-select the inviting floor lead
       const inviterManager = floorManagers.find((fm) =>
         inviterVenues.some((v) => fm.venueIds.includes(v.id)),
       );
-      if (inviterManager && !invitedByValue) {
+      if (inviterManager) {
         setInvitedByValue(inviterManager.id);
       }
     }
-  }, [inviterVenues, floorManagers]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hasInitializedVenues, inviterVenues, floorManagers]);
 
   const createApplication = api.application.createApplication.useMutation();
   const submitApplication = api.application.submitApplication.useMutation();
@@ -238,13 +282,24 @@ export default function SpeakerApplicationForm({
     }
   };
 
+  const getStepFields = (step: number): (keyof SpeakerApplicationData)[] => {
+    switch (step) {
+      case 1: return ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic'];
+      case 2: return ['bio'];
+      default: return [];
+    }
+  };
+
   const nextStep = () => {
     if (currentStep < 3) {
       const isValid = getStepValidation(currentStep);
       if (isValid) {
         setCurrentStep((prev) => prev + 1);
       } else {
-        form.validate();
+        // Only validate current step's fields, not the entire form
+        for (const field of getStepFields(currentStep)) {
+          form.validateField(field);
+        }
       }
     }
   };
@@ -277,6 +332,18 @@ export default function SpeakerApplicationForm({
   const renderStep = () => {
     switch (currentStep) {
       case 1:
+        if (isLoadingFilters) {
+          return (
+            <Card shadow="sm" padding="xl" radius="md" withBorder>
+              <Center h={200}>
+                <Stack align="center" gap="md">
+                  <Loader size="md" />
+                  <Text c="dimmed" size="sm">Loading form data...</Text>
+                </Stack>
+              </Center>
+            </Card>
+          );
+        }
         return (
           <Card shadow="sm" padding="xl" radius="md" withBorder>
             <Stack gap="lg">
@@ -329,14 +396,7 @@ export default function SpeakerApplicationForm({
                   <Select
                     label="Session Type"
                     placeholder="Select the session type"
-                    data={
-                      (scheduleFilters?.sessionTypes ?? []).length > 0
-                        ? scheduleFilters!.sessionTypes.map((st) => ({
-                            value: st.name,
-                            label: st.name,
-                          }))
-                        : talkFormatOptions
-                    }
+                    data={sessionTypeSelectData}
                     {...form.getInputProps("talkFormat")}
                     required
                   />
@@ -404,10 +464,7 @@ export default function SpeakerApplicationForm({
                       label="Where were you invited to speak?"
                       placeholder="Select a floor"
                       description="Select the floor where you&apos;d like to present"
-                      data={venues.map((venue) => ({
-                        value: venue.id,
-                        label: `${venue.name}${inviterVenues?.some((v) => v.id === venue.id) ? " (invited)" : ""}`,
-                      }))}
+                      data={venueSelectData}
                       value={selectedVenueIds[0] ?? null}
                       onChange={(val) => setSelectedVenueIds(val ? [val] : [])}
                       clearable

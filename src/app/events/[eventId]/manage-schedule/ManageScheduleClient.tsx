@@ -37,6 +37,7 @@ import {
   IconSearch,
   IconFileText,
   IconDownload,
+  IconDoor,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
@@ -117,11 +118,13 @@ type FloorSession = {
   endTime: Date;
   speakers: string[];
   venueId: string | null;
+  roomId: string | null;
   sessionTypeId: string | null;
   trackId: string | null;
   order: number;
   isPublished: boolean;
   venue: { id: string; name: string } | null;
+  room: { id: string; name: string } | null;
   sessionType: { id: string; name: string; color: string } | null;
   track: { id: string; name: string; color: string } | null;
   sessionSpeakers: Array<{
@@ -129,6 +132,8 @@ type FloorSession = {
     user: SelectedSpeaker;
   }>;
 };
+
+type VenueRoom = { id: string; name: string; capacity: number | null; order: number };
 
 export default function ManageScheduleClient({ eventId }: ManageScheduleClientProps) {
   const [activeVenueId, setActiveVenueId] = useState<string | null>(null);
@@ -226,6 +231,7 @@ interface FloorManagerProps {
     name: string;
     description: string | null;
     capacity: number | null;
+    rooms: VenueRoom[];
     owners: { user: { id: string; firstName: string | null; surname: string | null; name: string | null; email: string | null; image: string | null } }[];
   };
   isAdmin: boolean;
@@ -250,11 +256,35 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
   const { data: applicationsData } =
     api.schedule.getFloorApplications.useQuery({ eventId, venueId });
 
+  const [newRoomName, setNewRoomName] = useState("");
+
   const updateVenueMutation = api.schedule.updateVenue.useMutation({
     onSuccess: () => {
       notifications.show({ title: "Updated", message: "Floor info updated", color: "green" });
       setEditingMeta(false);
       void utils.schedule.getMyFloors.invalidate({ eventId });
+    },
+    onError: (err) => {
+      notifications.show({ title: "Error", message: err.message, color: "red" });
+    },
+  });
+
+  const createRoomMutation = api.schedule.createRoom.useMutation({
+    onSuccess: () => {
+      notifications.show({ title: "Created", message: "Room added", color: "green" });
+      setNewRoomName("");
+      void utils.schedule.getMyFloors.invalidate({ eventId });
+    },
+    onError: (err) => {
+      notifications.show({ title: "Error", message: err.message, color: "red" });
+    },
+  });
+
+  const deleteRoomMutation = api.schedule.deleteRoom.useMutation({
+    onSuccess: () => {
+      notifications.show({ title: "Deleted", message: "Room removed", color: "green" });
+      void utils.schedule.getMyFloors.invalidate({ eventId });
+      void utils.schedule.getFloorSessions.invalidate({ eventId, venueId });
     },
     onError: (err) => {
       notifications.show({ title: "Error", message: err.message, color: "red" });
@@ -362,6 +392,74 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
         )}
       </Paper>
 
+      {/* Rooms */}
+      <Paper p="md" withBorder>
+        <Group justify="space-between" mb="sm">
+          <Group gap="xs">
+            <IconDoor size={18} />
+            <Title order={4}>Rooms</Title>
+            <Badge size="sm" variant="light">
+              {venue?.rooms?.length ?? 0} / 3
+            </Badge>
+          </Group>
+        </Group>
+        {venue?.rooms && venue.rooms.length > 0 ? (
+          <Stack gap="xs" mb="sm">
+            {venue.rooms.map((room) => (
+              <Group key={room.id} justify="space-between">
+                <Group gap="xs">
+                  <Text size="sm" fw={500}>{room.name}</Text>
+                  {room.capacity != null && (
+                    <Text size="xs" c="dimmed">(capacity: {room.capacity})</Text>
+                  )}
+                </Group>
+                <ActionIcon
+                  variant="subtle"
+                  color="red"
+                  size="sm"
+                  onClick={() => deleteRoomMutation.mutate({ id: room.id })}
+                  loading={deleteRoomMutation.isPending}
+                >
+                  <IconTrash size={14} />
+                </ActionIcon>
+              </Group>
+            ))}
+          </Stack>
+        ) : (
+          <Text size="sm" c="dimmed" mb="sm">
+            No rooms. Sessions will be scheduled at the floor level.
+          </Text>
+        )}
+        {(venue?.rooms?.length ?? 0) < 3 && (
+          <Group gap="xs">
+            <TextInput
+              placeholder="Room name"
+              size="xs"
+              value={newRoomName}
+              onChange={(e) => setNewRoomName(e.currentTarget.value)}
+              style={{ flex: 1 }}
+            />
+            <Button
+              size="xs"
+              variant="light"
+              leftSection={<IconPlus size={14} />}
+              onClick={() => {
+                if (!newRoomName.trim()) return;
+                createRoomMutation.mutate({
+                  venueId,
+                  name: newRoomName.trim(),
+                  order: venue?.rooms?.length ?? 0,
+                });
+              }}
+              loading={createRoomMutation.isPending}
+              disabled={!newRoomName.trim()}
+            >
+              Add Room
+            </Button>
+          </Group>
+        )}
+      </Paper>
+
       {/* Floor Applications */}
       <FloorApplicationsList
         applicationsData={applicationsData ?? []}
@@ -379,6 +477,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
         <CreateSessionButton
           eventId={eventId}
           venueId={venueId}
+          rooms={venue?.rooms ?? []}
           sessionTypes={filterData?.sessionTypes ?? []}
           tracks={filterData?.tracks ?? []}
           isAdmin={isAdmin}
@@ -413,6 +512,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
               session={session as FloorSession}
               eventId={eventId}
               venueId={venueId}
+              rooms={venue?.rooms ?? []}
               sessionTypes={filterData?.sessionTypes ?? []}
               tracks={filterData?.tracks ?? []}
               onDelete={() => deleteSessionMutation.mutate({ id: session.id })}
@@ -434,6 +534,7 @@ interface SessionCardProps {
   session: FloorSession;
   eventId: string;
   venueId: string;
+  rooms: VenueRoom[];
   sessionTypes: { id: string; name: string; color: string }[];
   tracks: { id: string; name: string; color: string }[];
   onDelete: () => void;
@@ -441,7 +542,7 @@ interface SessionCardProps {
   isAdmin: boolean;
 }
 
-function SessionCard({ session, eventId, venueId, sessionTypes, tracks, onDelete, isDeleting, isAdmin }: SessionCardProps) {
+function SessionCard({ session, eventId, venueId, rooms, sessionTypes, tracks, onDelete, isDeleting, isAdmin }: SessionCardProps) {
   const [editing, { open: openEdit, close: closeEdit }] = useDisclosure(false);
 
   const startTime = new Date(session.startTime);
@@ -476,6 +577,11 @@ function SessionCard({ session, eventId, venueId, sessionTypes, tracks, onDelete
                   style={{ backgroundColor: `${session.track.color}20`, color: session.track.color }}
                 >
                   {session.track.name}
+                </Badge>
+              )}
+              {session.room && (
+                <Badge size="xs" variant="light" color="teal">
+                  {session.room.name}
                 </Badge>
               )}
             </Group>
@@ -521,6 +627,7 @@ function SessionCard({ session, eventId, venueId, sessionTypes, tracks, onDelete
         session={session}
         eventId={eventId}
         venueId={venueId}
+        rooms={rooms}
         sessionTypes={sessionTypes}
         tracks={tracks}
         isAdmin={isAdmin}
@@ -974,6 +1081,7 @@ function FloorApplicantSearchSelect({
 interface CreateSessionButtonProps {
   eventId: string;
   venueId: string;
+  rooms: VenueRoom[];
   sessionTypes: { id: string; name: string; color: string }[];
   tracks: { id: string; name: string; color: string }[];
   isAdmin: boolean;
@@ -986,6 +1094,7 @@ interface CreateSessionButtonProps {
 function CreateSessionButton({
   eventId,
   venueId,
+  rooms,
   sessionTypes,
   tracks,
   isAdmin,
@@ -1005,6 +1114,7 @@ function CreateSessionButton({
   const [endTime, setEndTime] = useState<Date | null>(new Date(2025, 2, 14, 12, 0));
   const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeakerWithRole[]>([]);
   const [textSpeakers, setTextSpeakers] = useState("");
+  const [roomId, setRoomId] = useState<string | null>(null);
   const [sessionTypeId, setSessionTypeId] = useState<string | null>(null);
   const [trackId, setTrackId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(true);
@@ -1040,6 +1150,7 @@ function CreateSessionButton({
     setEndTime(new Date(2025, 2, 14, 12, 0));
     setLinkedSpeakers([]);
     setTextSpeakers("");
+    setRoomId(null);
     setSessionTypeId(null);
     setTrackId(null);
     setIsPublished(true);
@@ -1092,6 +1203,7 @@ function CreateSessionButton({
         role: s.role,
       })),
       venueId,
+      roomId: roomId ?? undefined,
       sessionTypeId: sessionTypeId ?? undefined,
       trackId: trackId ?? undefined,
       isPublished,
@@ -1171,6 +1283,17 @@ function CreateSessionButton({
             venueId={venueId}
             isAdmin={isAdmin}
           />
+          {rooms.length > 0 && (
+            <Select
+              label="Room"
+              placeholder="Select room"
+              data={rooms.map((r) => ({ value: r.id, label: r.name }))}
+              value={roomId}
+              onChange={setRoomId}
+              clearable
+              leftSection={<IconDoor size={14} />}
+            />
+          )}
           {sessionTypes.length > 0 && (
             <Select
               label="Session Type"
@@ -1225,6 +1348,7 @@ interface EditSessionModalProps {
   session: FloorSession;
   eventId: string;
   venueId: string;
+  rooms: VenueRoom[];
   sessionTypes: { id: string; name: string; color: string }[];
   tracks: { id: string; name: string; color: string }[];
   isAdmin: boolean;
@@ -1236,6 +1360,7 @@ function EditSessionModal({
   session,
   eventId,
   venueId,
+  rooms,
   sessionTypes,
   tracks,
   isAdmin,
@@ -1250,6 +1375,7 @@ function EditSessionModal({
     session.sessionSpeakers.map((s) => ({ user: s.user, role: s.role as ParticipantRole })),
   );
   const [textSpeakers, setTextSpeakers] = useState(session.speakers.join(", "));
+  const [roomId, setRoomId] = useState<string | null>(session.roomId);
   const [sessionTypeId, setSessionTypeId] = useState<string | null>(session.sessionTypeId);
   const [trackId, setTrackId] = useState<string | null>(session.trackId);
   const [isPublished, setIsPublished] = useState(session.isPublished);
@@ -1282,6 +1408,7 @@ function EditSessionModal({
         userId: s.user.id,
         role: s.role,
       })),
+      roomId: roomId ?? null,
       sessionTypeId: sessionTypeId ?? null,
       trackId: trackId ?? null,
       isPublished,
@@ -1336,6 +1463,17 @@ function EditSessionModal({
           venueId={venueId}
           isAdmin={isAdmin}
         />
+        {rooms.length > 0 && (
+          <Select
+            label="Room"
+            placeholder="Select room"
+            data={rooms.map((r) => ({ value: r.id, label: r.name }))}
+            value={roomId}
+            onChange={setRoomId}
+            clearable
+            leftSection={<IconDoor size={14} />}
+          />
+        )}
         {sessionTypes.length > 0 && (
           <Select
             label="Session Type"
