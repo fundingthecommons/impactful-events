@@ -57,14 +57,15 @@ export default function EntrepreneurInResidencyPage() {
                 </Text>
 
                 <Group mt="md">
-                  <Button 
+                  <Button
+                    component={Link}
+                    href="/events/eir/apply"
                     size="lg"
                     variant="filled"
                     color="purple"
-                    disabled
                     leftSection={<IconRocket size={20} />}
                   >
-                    Coming Soon
+                    Apply Now
                   </Button>
                   <Button 
                     component={Link}
@@ -301,20 +302,17 @@ export default function EntrepreneurInResidencyPage() {
               </Text>
               
               <Group justify="center" gap="md">
-                <Button 
+                <Button
+                  component={Link}
+                  href="/events/eir/apply"
                   size="xl"
                   variant="filled"
                   color="purple"
-                  disabled
                   leftSection={<IconRocket size={20} />}
                 >
-                  Apply Now - Coming Soon
+                  Apply Now
                 </Button>
               </Group>
-
-              <Text size="sm" c="dimmed">
-                👉 Apply now at platform.fundingthecommons.io
-              </Text>
             </Stack>
           </Paper>
         </Stack>
