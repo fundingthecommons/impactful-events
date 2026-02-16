@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "@mantine/form";
 import { zodResolver } from "mantine-form-zod-resolver";
 import { z } from "zod";
-import { useEffect } from "react";
 import {
   Container,
   Title,
@@ -20,7 +19,6 @@ import {
   Badge,
   Alert,
   Progress,
-  Checkbox,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -39,15 +37,16 @@ import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
 
 const speakerApplicationSchema = z.object({
-  // Talk details
-  talkTitle: z.string().min(1, "Talk title is required").max(200),
+  // Session details
+  talkTitle: z.string().min(1, "Session name is required").max(200),
   talkAbstract: z
     .string()
-    .min(50, "Please provide at least 50 characters for your abstract")
+    .min(50, "Please provide at least 50 characters for your description")
     .max(2000),
-  talkFormat: z.string().min(1, "Please select a talk format"),
-  talkDuration: z.string().min(1, "Please select a preferred duration"),
+  talkFormat: z.string().min(1, "Please select a session type"),
+  talkDuration: z.string().min(1, "Please select a session length"),
   talkTopic: z.string().min(1, "Please specify the topic or track"),
+  entityName: z.string().max(200).optional().or(z.literal("")),
   // Speaker info
   bio: z.string().min(20, "Please provide at least 20 characters for your bio").max(1000),
   previousSpeakingExperience: z.string().max(2000).optional().or(z.literal("")),
@@ -64,22 +63,21 @@ const speakerApplicationSchema = z.object({
 type SpeakerApplicationData = z.infer<typeof speakerApplicationSchema>;
 
 export const talkFormatOptions = [
-  { value: "Keynote", label: "Keynote" },
-  { value: "Talk", label: "Talk" },
-  { value: "Panel Discussion", label: "Panel Discussion" },
+  { value: "Art Installation", label: "Art Installation" },
+  { value: "Demonstration", label: "Demonstration" },
   { value: "Workshop", label: "Workshop" },
-  { value: "Lightning Talk", label: "Lightning Talk" },
-  { value: "Fireside Chat", label: "Fireside Chat" },
+  { value: "Panel Discussion", label: "Panel Discussion" },
+  { value: "Talk / Presentation", label: "Talk / Presentation" },
+  { value: "Music Performance", label: "Music Performance" },
+  { value: "Other", label: "Other" },
 ];
 
 export const talkDurationOptions = [
-  { value: "5", label: "5 minutes" },
-  { value: "10", label: "10 minutes" },
-  { value: "15", label: "15 minutes" },
-  { value: "20", label: "20 minutes" },
-  { value: "30", label: "30 minutes" },
+  { value: "multi-hour", label: "multi-hour" },
+  { value: "90", label: "1.5 hours" },
   { value: "45", label: "45 minutes" },
-  { value: "60", label: "60 minutes" },
+  { value: "60", label: "1 hour" },
+  { value: "30", label: "30 minutes" },
 ];
 
 interface SpeakerApplicationFormProps {
@@ -97,11 +95,13 @@ export default function SpeakerApplicationForm({
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedVenueIds, setSelectedVenueIds] = useState<string[]>([]);
+  const [invitedByValue, setInvitedByValue] = useState<string | null>(null);
+  const [invitedByOtherText, setInvitedByOtherText] = useState("");
   const { data: config } = api.config.getPublicConfig.useQuery();
 
   // Fetch available venues/floors for this event
   const { data: scheduleFilters } = api.schedule.getEventScheduleFilters.useQuery({ eventId });
-  const venues = scheduleFilters?.venues ?? [];
+  const venues = useMemo(() => scheduleFilters?.venues ?? [], [scheduleFilters?.venues]);
 
   // If invited, fetch inviter's venues for pre-selection
   const { data: inviterVenues } = api.application.getInviterVenues.useQuery(
@@ -109,12 +109,46 @@ export default function SpeakerApplicationForm({
     { enabled: !!invitationToken },
   );
 
-  // Pre-select inviter's venues when data loads
+  // Build "Who invited you?" dropdown options from floor managers
+  const floorManagers = useMemo(() => scheduleFilters?.floorManagers ?? [], [scheduleFilters?.floorManagers]);
+  const inviterOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+
+    for (const fm of floorManagers) {
+      const displayName = fm.firstName
+        ? `${fm.firstName}${fm.surname ? ` ${fm.surname}` : ""}`
+        : fm.name ?? "Unknown";
+
+      const managerVenueNames = venues
+        .filter((v) => fm.venueIds.includes(v.id))
+        .map((v) => v.name);
+
+      const label =
+        managerVenueNames.length > 0
+          ? `${displayName} (${managerVenueNames.join(", ")})`
+          : displayName;
+
+      options.push({ value: fm.id, label });
+    }
+
+    options.push({ value: "other", label: "Other" });
+    return options;
+  }, [floorManagers, venues]);
+
+  // Pre-select inviter's venues and floor manager when arriving via invitation
   useEffect(() => {
     if (inviterVenues && inviterVenues.length > 0 && selectedVenueIds.length === 0) {
-      setSelectedVenueIds(inviterVenues.map((v) => v.id));
+      setSelectedVenueIds([inviterVenues[0]!.id]);
+
+      // Auto-select the inviting floor manager
+      const inviterManager = floorManagers.find((fm) =>
+        inviterVenues.some((v) => fm.venueIds.includes(v.id)),
+      );
+      if (inviterManager && !invitedByValue) {
+        setInvitedByValue(inviterManager.id);
+      }
     }
-  }, [inviterVenues]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [inviterVenues, floorManagers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const createApplication = api.application.createApplication.useMutation();
   const submitApplication = api.application.submitApplication.useMutation();
@@ -128,6 +162,7 @@ export default function SpeakerApplicationForm({
       talkFormat: "",
       talkDuration: "",
       talkTopic: "",
+      entityName: "",
       bio: "",
       previousSpeakingExperience: "",
       jobTitle: "",
@@ -166,12 +201,15 @@ export default function SpeakerApplicationForm({
         speakerTalkTopic: values.talkTopic,
         speakerPreviousExperience: values.previousSpeakingExperience,
         speakerPastTalkUrl: values.pastTalkUrl,
+        speakerEntityName: values.entityName,
       });
 
       // Step 3: Submit the application (DRAFT → SUBMITTED) with venue selections
       await submitApplication.mutateAsync({
         applicationId: application.id,
         venueIds: selectedVenueIds.length > 0 ? selectedVenueIds : undefined,
+        speakerInvitedByUserId: invitedByValue && invitedByValue !== "other" ? invitedByValue : undefined,
+        speakerInvitedByOther: invitedByValue === "other" ? invitedByOtherText : undefined,
       });
 
       // All steps succeeded - show success and redirect
@@ -248,9 +286,9 @@ export default function SpeakerApplicationForm({
                   color="var(--mantine-color-teal-6)"
                 />
                 <div>
-                  <Title order={3}>Talk Details</Title>
+                  <Title order={3}>Session Details</Title>
                   <Text size="sm" c="dimmed">
-                    Tell us about what you&apos;d like to present
+                    Tell us about your session
                   </Text>
                 </div>
               </Group>
@@ -258,19 +296,28 @@ export default function SpeakerApplicationForm({
               <Grid>
                 <Grid.Col span={12}>
                   <TextInput
-                    label="Talk Title"
-                    placeholder="Enter the title of your proposed talk"
-                    description="A clear, descriptive title for your presentation"
+                    label="Session Name"
+                    placeholder="Enter the name of your proposed session"
+                    description="A clear, descriptive name for your session"
                     {...form.getInputProps("talkTitle")}
                     required
                   />
                 </Grid.Col>
 
                 <Grid.Col span={12}>
+                  <TextInput
+                    label="Name of Artist, Entity, or Group"
+                    placeholder="Enter the name as you want it to appear in scheduling and descriptions"
+                    description="If the name of the entity hosting the session is different than your name, please type it below as you want it to appear in scheduling and descriptions."
+                    {...form.getInputProps("entityName")}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={12}>
                   <Textarea
-                    label="Talk Abstract"
-                    placeholder="Describe what your talk will cover, key takeaways for the audience, and why this topic matters..."
-                    description="Provide a detailed description of your talk (minimum 50 characters)"
+                    label="Session Description"
+                    placeholder="Describe what your session will cover, key takeaways for the audience, and why this topic matters..."
+                    description="Provide a detailed description of your session (minimum 50 characters)"
                     minRows={5}
                     maxRows={10}
                     {...form.getInputProps("talkAbstract")}
@@ -297,8 +344,8 @@ export default function SpeakerApplicationForm({
 
                 <Grid.Col span={{ base: 12, sm: 6 }}>
                   <Select
-                    label="Preferred Duration"
-                    placeholder="Select duration"
+                    label="Session Length"
+                    placeholder="Select session length"
                     data={talkDurationOptions}
                     {...form.getInputProps("talkDuration")}
                     required
@@ -315,33 +362,57 @@ export default function SpeakerApplicationForm({
                   />
                 </Grid.Col>
 
+                {inviterOptions.length > 1 && (
+                  <Grid.Col span={12}>
+                    <Select
+                      label="Who invited you?"
+                      placeholder="Select who invited you"
+                      description="If you were invited by a floor manager, please select their name"
+                      data={inviterOptions}
+                      value={invitedByValue}
+                      onChange={(val) => {
+                        setInvitedByValue(val);
+                        if (val !== "other") {
+                          setInvitedByOtherText("");
+                          // Auto-select the inviter's venue
+                          const fm = floorManagers.find((m) => m.id === val);
+                          if (fm && fm.venueIds.length > 0) {
+                            setSelectedVenueIds([fm.venueIds[0]!]);
+                          }
+                        }
+                      }}
+                      clearable
+                      searchable
+                    />
+                  </Grid.Col>
+                )}
+
+                {invitedByValue === "other" && (
+                  <Grid.Col span={12}>
+                    <TextInput
+                      label="Who invited you? (please specify)"
+                      placeholder="Enter the name of the person who invited you"
+                      value={invitedByOtherText}
+                      onChange={(e) => setInvitedByOtherText(e.currentTarget.value)}
+                    />
+                  </Grid.Col>
+                )}
+
                 {venues.length > 0 && (
                   <Grid.Col span={12}>
-                    <Stack gap="xs">
-                      <Group gap="xs" align="center">
-                        <IconBuilding size={16} color="var(--mantine-color-teal-6)" />
-                        <Text fw={500} size="sm">
-                          Which floor(s) would you like to speak on?
-                        </Text>
-                      </Group>
-                      <Text size="xs" c="dimmed">
-                        Select one or more floors where you&apos;d like to present
-                      </Text>
-                      <Checkbox.Group
-                        value={selectedVenueIds}
-                        onChange={setSelectedVenueIds}
-                      >
-                        <Stack gap="xs">
-                          {venues.map((venue) => (
-                            <Checkbox
-                              key={venue.id}
-                              value={venue.id}
-                              label={`${venue.name}${inviterVenues?.some((v) => v.id === venue.id) ? " (invited)" : ""}`}
-                            />
-                          ))}
-                        </Stack>
-                      </Checkbox.Group>
-                    </Stack>
+                    <Select
+                      label="Where were you invited to speak?"
+                      placeholder="Select a floor"
+                      description="Select the floor where you&apos;d like to present"
+                      data={venues.map((venue) => ({
+                        value: venue.id,
+                        label: `${venue.name}${inviterVenues?.some((v) => v.id === venue.id) ? " (invited)" : ""}`,
+                      }))}
+                      value={selectedVenueIds[0] ?? null}
+                      onChange={(val) => setSelectedVenueIds(val ? [val] : [])}
+                      clearable
+                      leftSection={<IconBuilding size={16} color="var(--mantine-color-teal-6)" />}
+                    />
                   </Grid.Col>
                 )}
               </Grid>
@@ -506,7 +577,7 @@ export default function SpeakerApplicationForm({
                   variant={currentStep >= 1 ? "filled" : "light"}
                   color="teal"
                 >
-                  Talk Details
+                  Session Details
                 </Badge>
                 <Badge
                   size="sm"

@@ -876,18 +876,15 @@ async function main() {
   if (iatfEvent) {
     console.log('🏢 Creating floors for Intelligence at the Frontier...')
     const floors = [
-      { name: 'Floor 1', order: 1 },
-      { name: 'Floor 2', order: 2 },
-      { name: 'Floor 3', order: 3 },
-      { name: 'Floor 4', order: 4 },
-      { name: 'Floor 5', order: 5 },
-      { name: 'Floor 6', order: 6 },
-      { name: 'Floor 7', order: 7 },
-      { name: 'Floor 8', order: 8 },
-      { name: 'Floor 9', order: 9 },
-      { name: 'Floor 10', order: 10 },
-      { name: 'Floor 11', order: 11 },
-      { name: 'Floor 12', order: 12 },
+      { name: 'Floor 14 (Flourishing)', order: 1 },
+      { name: 'Floor 12 (Ethereum & Decentralized Tech)', order: 2 },
+      { name: 'Floor 9 (AI & Autonomous Systems)', order: 3 },
+      { name: 'Floor 8 (Neuro & Biotech)', order: 4 },
+      { name: 'Floor 7 (Maker Space)', order: 5 },
+      { name: 'Floor 6 (Arts & Music)', order: 6 },
+      { name: 'Floor 4 (Robotics & Hard Tech)', order: 7 },
+      { name: 'Floor 2 (Funding the Commons)', order: 8 },
+      { name: 'Common Spaces, Lounges, Other', order: 9 },
     ]
 
     for (const floor of floors) {

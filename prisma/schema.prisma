@@ -159,6 +159,9 @@ model User {
 
   // Session speaker relations
   sessionSpeakers       SessionSpeaker[]    @relation("SessionSpeakers")
+
+  // Speaker invitation tracking
+  speakerInvitations    Application[]       @relation("SpeakerInvitedBy")
 }
 
 model VerificationToken {
@@ -515,6 +518,10 @@ model Application {
   // Invitation linkage
   invitationId  String?  // Links to the invitation that led to this application
 
+  // Speaker invitation tracking (who verbally invited them)
+  speakerInvitedByUserId  String?   // VenueOwner userId who invited the speaker
+  speakerInvitedByOther   String?   // Free-text name if "Other" selected
+
   // Legacy data tracking
   googleFormId  String?  // If migrated from Google Forms
   notionPageId  String?  // If migrated from Notion Forms
@@ -522,6 +529,7 @@ model Application {
   user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   invitation    Invitation? @relation(fields: [invitationId], references: [id])
+  speakerInvitedByUser User? @relation("SpeakerInvitedBy", fields: [speakerInvitedByUserId], references: [id], onDelete: SetNull)
   responses     ApplicationResponse[]
   communications Communication[]  // Communications related to this application
   emails        Email[]  // Legacy: Emails related to this application (for backward compatibility)
@@ -1180,6 +1188,7 @@ model UserProfile {
   speakerTalkTopic      String?             // Topic or track
   speakerPreviousExperience String? @db.Text // Previous speaking experience
   speakerPastTalkUrl    String?             // Link to past talk recording
+  speakerEntityName     String?             // Name of artist, entity, or group
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

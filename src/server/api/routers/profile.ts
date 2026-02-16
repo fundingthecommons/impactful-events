@@ -64,6 +64,7 @@ const profileUpdateSchema = z.object({
   speakerTalkTopic: z.string().max(200).optional(),
   speakerPreviousExperience: z.string().max(2000).optional(),
   speakerPastTalkUrl: z.string().max(500).optional().or(z.literal("")),
+  speakerEntityName: z.string().max(200).optional(),
 });
 
 const projectCreateSchema = z.object({

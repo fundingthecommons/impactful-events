@@ -106,10 +106,17 @@ function getNextStepsGuidance(status: string): string {
 }
 
 const talkFormatLabels: Record<string, string> = {
+  "Art Installation": "Art Installation",
+  "Demonstration": "Demonstration",
+  "Workshop": "Workshop",
+  "Panel Discussion": "Panel Discussion",
+  "Talk / Presentation": "Talk / Presentation",
+  "Music Performance": "Music Performance",
+  "Other": "Other",
+  // Legacy values
   keynote: "Keynote",
   talk: "Talk",
   panel: "Panel Discussion",
-  workshop: "Workshop",
   lightning: "Lightning Talk",
   fireside: "Fireside Chat",
 };
@@ -215,7 +222,7 @@ export default function ConferenceDashboard({
 
                     <div>
                       <Text size="xs" c="dimmed" fw={500} tt="uppercase">
-                        Talk Title
+                        Session Name
                       </Text>
                       <Text size="sm" fw={600}>
                         {myProfile.speakerTalkTitle}

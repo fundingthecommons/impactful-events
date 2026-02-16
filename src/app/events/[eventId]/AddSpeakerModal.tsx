@@ -31,11 +31,12 @@ const formSchema = z.object({
   email: z.string().email("Valid email is required"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().optional(),
-  talkTitle: z.string().min(1, "Talk title is required").max(200),
-  talkAbstract: z.string().min(50, "Abstract must be at least 50 characters").max(2000),
-  talkFormat: z.string().min(1, "Talk format is required"),
-  talkDuration: z.string().min(1, "Duration is required"),
+  talkTitle: z.string().min(1, "Session name is required").max(200),
+  talkAbstract: z.string().min(50, "Description must be at least 50 characters").max(2000),
+  talkFormat: z.string().min(1, "Session type is required"),
+  talkDuration: z.string().min(1, "Session length is required"),
   talkTopic: z.string().min(1, "Topic is required"),
+  entityName: z.string().max(200).optional().or(z.literal("")),
   bio: z.string().min(20, "Bio must be at least 20 characters").max(1000),
   jobTitle: z.string().max(100).optional(),
   company: z.string().max(100).optional(),
@@ -115,6 +116,7 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
       talkFormat: "",
       talkDuration: "",
       talkTopic: "",
+      entityName: "",
       bio: "",
       jobTitle: "",
       company: "",
@@ -227,6 +229,7 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
       talkFormat: values.talkFormat,
       talkDuration: values.talkDuration,
       talkTopic: values.talkTopic.trim(),
+      speakerEntityName: values.entityName?.trim() || undefined,
       venueIds: selectedVenueIds.length > 0 ? selectedVenueIds : undefined,
       bio: values.bio.trim(),
       jobTitle: values.jobTitle?.trim() || undefined,
@@ -290,18 +293,25 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
             />
           </Group>
 
-          <Divider label="Talk Details" labelPosition="center" />
+          <Divider label="Session Details" labelPosition="center" />
 
           <TextInput
-            label="Talk Title"
-            placeholder="Enter the talk title"
+            label="Session Name"
+            placeholder="Enter the session name"
             required
             maxLength={200}
             {...form.getInputProps("talkTitle")}
           />
+          <TextInput
+            label="Name of Artist, Entity, or Group"
+            placeholder="Enter the name as it should appear in scheduling"
+            description="If different from the speaker's name"
+            maxLength={200}
+            {...form.getInputProps("entityName")}
+          />
           <Textarea
-            label="Talk Abstract"
-            placeholder="Describe the talk (min 50 characters)"
+            label="Session Description"
+            placeholder="Describe the session (min 50 characters)"
             required
             minRows={3}
             maxLength={2000}
@@ -323,8 +333,8 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
               {...form.getInputProps("talkFormat")}
             />
             <Select
-              label="Preferred Duration"
-              placeholder="Select duration"
+              label="Session Length"
+              placeholder="Select session length"
               data={talkDurationOptions}
               required
               {...form.getInputProps("talkDuration")}

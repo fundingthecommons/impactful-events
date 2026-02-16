@@ -52,6 +52,8 @@ const UpdateApplicationResponseSchema = z.object({
 const SubmitApplicationSchema = z.object({
   applicationId: z.string(),
   venueIds: z.array(z.string()).optional(), // Floor/venue selections for speaker applications
+  speakerInvitedByUserId: z.string().optional(), // VenueOwner userId who invited the speaker
+  speakerInvitedByOther: z.string().max(200).optional(), // Free-text name if "Other" selected
 });
 
 const UpdateApplicationStatusSchema = z.object({
@@ -127,6 +129,8 @@ const CreateSpeakerOnBehalfSchema = z.object({
   linkedinUrl: z.string().url().optional().or(z.literal("")),
   twitterUrl: z.string().url().optional().or(z.literal("")),
   pastTalkUrl: z.string().url().optional().or(z.literal("")),
+  // Entity name
+  speakerEntityName: z.string().max(200).optional(),
   // Headshot
   headshotUrl: z.string().optional(),
   headshotFileName: z.string().optional(),
@@ -682,6 +686,8 @@ export const applicationRouter = createTRPCRouter({
         data: {
           status: "SUBMITTED",
           submittedAt: new Date(),
+          speakerInvitedByUserId: input.speakerInvitedByUserId ?? null,
+          speakerInvitedByOther: input.speakerInvitedByOther ?? null,
         },
         include: {
           event: true,
@@ -2693,6 +2699,7 @@ export const applicationRouter = createTRPCRouter({
           speakerTalkTopic: input.talkTopic,
           speakerPreviousExperience: input.previousSpeakingExperience ?? null,
           speakerPastTalkUrl: input.pastTalkUrl ?? null,
+          speakerEntityName: input.speakerEntityName ?? null,
           bio: input.bio,
           jobTitle: input.jobTitle ?? null,
           company: input.company ?? null,
@@ -2709,6 +2716,7 @@ export const applicationRouter = createTRPCRouter({
           speakerTalkTopic: input.talkTopic,
           speakerPreviousExperience: input.previousSpeakingExperience ?? null,
           speakerPastTalkUrl: input.pastTalkUrl ?? null,
+          speakerEntityName: input.speakerEntityName ?? null,
           bio: input.bio,
           jobTitle: input.jobTitle ?? null,
           company: input.company ?? null,
