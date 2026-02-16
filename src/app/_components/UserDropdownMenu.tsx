@@ -61,6 +61,25 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
     void signOut();
   };
 
+  // Compute role badges with loading/error fallback
+  const roleBadges: string[] = (() => {
+    if (eventId && eventRoles && eventRoles.length > 0) {
+      return eventRoles;
+    }
+    if (eventId && !eventRoles) {
+      // Event page but roles still loading/errored — show global role as fallback
+      if (session.user.role && session.user.role !== "user") {
+        return [session.user.role];
+      }
+      return [];
+    }
+    // Not on event page — show global role
+    if (!eventId && session.user.role && session.user.role !== "user") {
+      return [session.user.role];
+    }
+    return [];
+  })();
+
   // Determine avatar URL with priority logic
   const avatarUrl = getAvatarUrl({
     customAvatarUrl: profile?.avatarUrl,
@@ -87,20 +106,14 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
                 {avatarInitials}
               </Avatar>
             </Group>
-            {eventRoles && eventRoles.length > 0 ? (
+            {roleBadges.length > 0 && (
               <Group gap={4}>
-                {eventRoles.map((role) => (
+                {roleBadges.map((role) => (
                   <Badge key={role} size="xs" color={getRoleColor(role)} variant="light">
                     {role.toUpperCase()}
                   </Badge>
                 ))}
               </Group>
-            ) : (
-              !eventId && session.user.role && session.user.role !== "user" && (
-                <Badge size="xs" color={getRoleColor(session.user.role)} variant="light">
-                  {session.user.role.toUpperCase()}
-                </Badge>
-              )
             )}
           </Stack>
         </Group>

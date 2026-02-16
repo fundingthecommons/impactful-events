@@ -556,12 +556,30 @@ export const roleRouter = createTRPCRouter({
         roles.push("floor manager");
       }
 
-      // 4. Accepted application = resident
-      const acceptedApp = await ctx.db.application.findFirst({
+      // 4. Accepted applications — map by application type
+      const acceptedApps = await ctx.db.application.findMany({
         where: { userId, eventId: resolvedEventId, status: "ACCEPTED" },
+        select: { applicationType: true },
       });
-      if (acceptedApp && !roles.includes("resident")) {
-        roles.push("resident");
+      for (const app of acceptedApps) {
+        if (app.applicationType === "SPEAKER" && !roles.includes("speaker")) {
+          roles.push("speaker");
+        } else if (app.applicationType === "MENTOR" && !roles.includes("mentor")) {
+          roles.push("mentor");
+        } else if (app.applicationType === "RESIDENT" && !roles.includes("resident")) {
+          roles.push("resident");
+        }
+      }
+
+      // 5. Speaker from SessionSpeaker table
+      const sessionSpeaker = await ctx.db.sessionSpeaker.findFirst({
+        where: {
+          userId,
+          session: { eventId: resolvedEventId },
+        },
+      });
+      if (sessionSpeaker && !roles.includes("speaker")) {
+        roles.push("speaker");
       }
 
       return roles;
