@@ -21,6 +21,7 @@ import {
   Select,
   Switch,
   Avatar,
+  Collapse,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
@@ -34,6 +35,8 @@ import {
   IconUsers,
   IconX,
   IconSearch,
+  IconFileText,
+  IconDownload,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
@@ -66,6 +69,44 @@ type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
 interface SelectedSpeakerWithRole {
   user: SelectedSpeaker;
   role: ParticipantRole;
+}
+
+interface SessionPrefillData {
+  title: string;
+  description: string;
+  speaker: SelectedSpeaker;
+  sessionTypeId: string | null;
+  trackId: string | null;
+}
+
+function findMatchingSessionType(
+  talkFormat: string | null | undefined,
+  sessionTypes: { id: string; name: string }[],
+): string | null {
+  if (!talkFormat) return null;
+  const lower = talkFormat.toLowerCase();
+  return sessionTypes.find((st) => st.name.toLowerCase() === lower)?.id ?? null;
+}
+
+function findMatchingTrack(
+  talkTopic: string | null | undefined,
+  tracks: { id: string; name: string }[],
+): string | null {
+  if (!talkTopic) return null;
+  const lower = talkTopic.toLowerCase();
+  return tracks.find((t) => t.name.toLowerCase() === lower)?.id ?? null;
+}
+
+function formatDuration(duration: string | null | undefined): string {
+  if (!duration) return "";
+  const map: Record<string, string> = {
+    "multi-hour": "Multi-hour",
+    "90": "1.5 hours",
+    "60": "1 hour",
+    "45": "45 min",
+    "30": "30 min",
+  };
+  return map[duration] ?? duration;
 }
 
 type FloorSession = {
@@ -195,6 +236,8 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
   const [metaName, setMetaName] = useState(venue?.name ?? "");
   const [metaDescription, setMetaDescription] = useState(venue?.description ?? "");
   const [metaCapacity, setMetaCapacity] = useState<number | "">(venue?.capacity ?? "");
+  const [prefillData, setPrefillData] = useState<SessionPrefillData | null>(null);
+  const [createModalOpened, setCreateModalOpened] = useState(false);
 
   const utils = api.useUtils();
 
@@ -203,6 +246,9 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
 
   const { data: filterData } =
     api.schedule.getEventScheduleFilters.useQuery({ eventId });
+
+  const { data: applicationsData } =
+    api.schedule.getFloorApplications.useQuery({ eventId, venueId });
 
   const updateVenueMutation = api.schedule.updateVenue.useMutation({
     onSuccess: () => {
@@ -316,6 +362,17 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
         )}
       </Paper>
 
+      {/* Floor Applications */}
+      <FloorApplicationsList
+        applicationsData={applicationsData ?? []}
+        sessionTypes={filterData?.sessionTypes ?? []}
+        tracks={filterData?.tracks ?? []}
+        onCreateFromApplication={(data) => {
+          setPrefillData(data);
+          setCreateModalOpened(true);
+        }}
+      />
+
       {/* Sessions */}
       <Group justify="space-between">
         <Title order={4}>Sessions</Title>
@@ -325,6 +382,13 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
           sessionTypes={filterData?.sessionTypes ?? []}
           tracks={filterData?.tracks ?? []}
           isAdmin={isAdmin}
+          applicationsData={applicationsData ?? []}
+          prefillData={prefillData}
+          externalOpened={createModalOpened}
+          onExternalClose={() => {
+            setCreateModalOpened(false);
+            setPrefillData(null);
+          }}
         />
       </Group>
 
@@ -462,6 +526,193 @@ function SessionCard({ session, eventId, venueId, sessionTypes, tracks, onDelete
         isAdmin={isAdmin}
       />
     </>
+  );
+}
+
+// ──────────────────────────────────────────
+// FloorApplicationsList
+// ──────────────────────────────────────────
+
+type FloorApplicationData = {
+  id: string;
+  status: string;
+  applicationType: string;
+  createdAt: Date;
+  user: {
+    id: string;
+    firstName: string | null;
+    surname: string | null;
+    name: string | null;
+    email: string | null;
+    image: string | null;
+    profile: {
+      speakerTalkTitle: string | null;
+      speakerTalkAbstract: string | null;
+      speakerTalkFormat: string | null;
+      speakerTalkDuration: string | null;
+      speakerTalkTopic: string | null;
+      speakerEntityName: string | null;
+      bio: string | null;
+      jobTitle: string | null;
+      company: string | null;
+    } | null;
+  } | null;
+};
+
+interface FloorApplicationsListProps {
+  applicationsData: FloorApplicationData[];
+  sessionTypes: { id: string; name: string; color: string }[];
+  tracks: { id: string; name: string; color: string }[];
+  onCreateFromApplication: (data: SessionPrefillData) => void;
+}
+
+function FloorApplicationsList({
+  applicationsData,
+  sessionTypes,
+  tracks,
+  onCreateFromApplication,
+}: FloorApplicationsListProps) {
+  const [expanded, { toggle }] = useDisclosure(false);
+
+  if (applicationsData.length === 0) return null;
+
+  return (
+    <Stack gap="xs">
+      <Group
+        justify="space-between"
+        onClick={toggle}
+        style={{ cursor: "pointer" }}
+      >
+        <Group gap="xs">
+          <IconFileText size={18} />
+          <Title order={4}>Floor Applications</Title>
+          <Badge size="sm" variant="light" circle>
+            {applicationsData.length}
+          </Badge>
+        </Group>
+        <Text size="sm" c="dimmed">
+          {expanded ? "Hide" : "Show"}
+        </Text>
+      </Group>
+
+      <Collapse in={expanded}>
+        <Stack gap="xs">
+          {applicationsData.map((app) => (
+            <ApplicationCard
+              key={app.id}
+              application={app}
+              sessionTypes={sessionTypes}
+              tracks={tracks}
+              onCreateSession={onCreateFromApplication}
+            />
+          ))}
+        </Stack>
+      </Collapse>
+    </Stack>
+  );
+}
+
+// ──────────────────────────────────────────
+// ApplicationCard
+// ──────────────────────────────────────────
+
+interface ApplicationCardProps {
+  application: FloorApplicationData;
+  sessionTypes: { id: string; name: string; color: string }[];
+  tracks: { id: string; name: string; color: string }[];
+  onCreateSession: (data: SessionPrefillData) => void;
+}
+
+function ApplicationCard({
+  application,
+  sessionTypes,
+  tracks,
+  onCreateSession,
+}: ApplicationCardProps) {
+  const user = application.user;
+  if (!user) return null;
+
+  const profile = user.profile;
+  const talkTitle = profile?.speakerTalkTitle;
+  const talkAbstract = profile?.speakerTalkAbstract;
+  const talkFormat = profile?.speakerTalkFormat;
+  const talkDuration = profile?.speakerTalkDuration;
+  const entityName = profile?.speakerEntityName;
+
+  const handleCreate = () => {
+    onCreateSession({
+      title: talkTitle ?? entityName ?? "",
+      description: talkAbstract ?? "",
+      speaker: {
+        id: user.id,
+        firstName: user.firstName,
+        surname: user.surname,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+      },
+      sessionTypeId: findMatchingSessionType(talkFormat, sessionTypes),
+      trackId: findMatchingTrack(profile?.speakerTalkTopic, tracks),
+    });
+  };
+
+  const statusColor =
+    application.status === "ACCEPTED" ? "green" : "blue";
+
+  return (
+    <Paper p="sm" withBorder>
+      <Group justify="space-between" wrap="nowrap" align="flex-start">
+        <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          <Avatar src={user.image} alt={getDisplayName(user, "User")} size="sm" />
+          <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+            <Group gap="xs" wrap="wrap">
+              <Text size="sm" fw={600} truncate>
+                {getDisplayName(user, "Unknown")}
+              </Text>
+              {entityName && (
+                <Text size="xs" c="dimmed" truncate>
+                  ({entityName})
+                </Text>
+              )}
+              <Badge size="xs" color={statusColor} variant="light">
+                {application.status}
+              </Badge>
+              {application.applicationType !== "SPEAKER" && (
+                <Badge size="xs" variant="outline">
+                  {application.applicationType}
+                </Badge>
+              )}
+            </Group>
+            {talkTitle && (
+              <Text size="sm" fw={500} lineClamp={1}>
+                {talkTitle}
+              </Text>
+            )}
+            <Group gap="xs" wrap="wrap">
+              {talkFormat && (
+                <Badge size="xs" variant="light" color="violet">
+                  {talkFormat}
+                </Badge>
+              )}
+              {talkDuration && (
+                <Badge size="xs" variant="light" color="gray">
+                  {formatDuration(talkDuration)}
+                </Badge>
+              )}
+            </Group>
+          </Stack>
+        </Group>
+        <Button
+          size="xs"
+          variant="light"
+          leftSection={<IconPlus size={14} />}
+          onClick={handleCreate}
+          style={{ flexShrink: 0 }}
+        >
+          Create Session
+        </Button>
+      </Group>
+    </Paper>
   );
 }
 
@@ -726,11 +977,27 @@ interface CreateSessionButtonProps {
   sessionTypes: { id: string; name: string; color: string }[];
   tracks: { id: string; name: string; color: string }[];
   isAdmin: boolean;
+  applicationsData?: FloorApplicationData[];
+  prefillData?: SessionPrefillData | null;
+  externalOpened?: boolean;
+  onExternalClose?: () => void;
 }
 
-function CreateSessionButton({ eventId, venueId, sessionTypes, tracks, isAdmin }: CreateSessionButtonProps) {
-  const [opened, { open, close }] = useDisclosure(false);
+function CreateSessionButton({
+  eventId,
+  venueId,
+  sessionTypes,
+  tracks,
+  isAdmin,
+  applicationsData,
+  prefillData,
+  externalOpened,
+  onExternalClose,
+}: CreateSessionButtonProps) {
+  const [internalOpened, { open: internalOpen, close: internalClose }] = useDisclosure(false);
   const utils = api.useUtils();
+
+  const modalOpened = externalOpened ?? internalOpened;
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -742,13 +1009,24 @@ function CreateSessionButton({ eventId, venueId, sessionTypes, tracks, isAdmin }
   const [trackId, setTrackId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(true);
 
+  // Apply prefill data when modal opens with prefill
+  useEffect(() => {
+    if (prefillData && externalOpened) {
+      setTitle(prefillData.title);
+      setDescription(prefillData.description);
+      setLinkedSpeakers([{ user: prefillData.speaker, role: "Speaker" }]);
+      setSessionTypeId(prefillData.sessionTypeId);
+      setTrackId(prefillData.trackId);
+    }
+  }, [prefillData, externalOpened]);
+
   const createMutation = api.schedule.createSession.useMutation({
     onSuccess: () => {
       notifications.show({ title: "Created", message: "Session created", color: "green" });
       void utils.schedule.getFloorSessions.invalidate({ eventId, venueId });
       void utils.schedule.getMyFloors.invalidate({ eventId });
       resetForm();
-      close();
+      handleClose();
     },
     onError: (err) => {
       notifications.show({ title: "Error", message: err.message, color: "red" });
@@ -765,6 +1043,36 @@ function CreateSessionButton({ eventId, venueId, sessionTypes, tracks, isAdmin }
     setSessionTypeId(null);
     setTrackId(null);
     setIsPublished(true);
+  };
+
+  const handleClose = () => {
+    if (onExternalClose) {
+      onExternalClose();
+    }
+    internalClose();
+    resetForm();
+  };
+
+  const handleImportApplication = (appId: string | null) => {
+    if (!appId || !applicationsData) return;
+    const app = applicationsData.find((a) => a.id === appId);
+    if (!app?.user) return;
+    const profile = app.user.profile;
+    setTitle(profile?.speakerTalkTitle ?? profile?.speakerEntityName ?? "");
+    setDescription(profile?.speakerTalkAbstract ?? "");
+    setLinkedSpeakers([{
+      user: {
+        id: app.user.id,
+        firstName: app.user.firstName,
+        surname: app.user.surname,
+        name: app.user.name,
+        email: app.user.email,
+        image: app.user.image,
+      },
+      role: "Speaker",
+    }]);
+    setSessionTypeId(findMatchingSessionType(profile?.speakerTalkFormat, sessionTypes));
+    setTrackId(findMatchingTrack(profile?.speakerTalkTopic, tracks));
   };
 
   const handleSubmit = () => {
@@ -790,14 +1098,34 @@ function CreateSessionButton({ eventId, venueId, sessionTypes, tracks, isAdmin }
     });
   };
 
+  const importOptions = (applicationsData ?? []).flatMap((a) => {
+    if (!a.user) return [];
+    const user = a.user;
+    return [{
+      value: a.id,
+      label: `${getDisplayName(user, "Unknown")}${user.profile?.speakerTalkTitle ? ` — ${user.profile.speakerTalkTitle}` : ""}`,
+    }];
+  });
+
   return (
     <>
-      <Button leftSection={<IconPlus size={16} />} onClick={open}>
+      <Button leftSection={<IconPlus size={16} />} onClick={internalOpen}>
         Add Session
       </Button>
 
-      <Modal opened={opened} onClose={close} title="Create Session" size="lg">
+      <Modal opened={modalOpened} onClose={handleClose} title="Create Session" size="lg">
         <Stack gap="sm">
+          {!isAdmin && importOptions.length > 0 && (
+            <Select
+              label="Import from Application"
+              placeholder="Select an application to auto-fill..."
+              data={importOptions}
+              onChange={handleImportApplication}
+              leftSection={<IconDownload size={16} />}
+              clearable
+              searchable
+            />
+          )}
           <TextInput
             label="Title"
             value={title}
@@ -876,7 +1204,7 @@ function CreateSessionButton({ eventId, venueId, sessionTypes, tracks, isAdmin }
             onChange={(e) => setIsPublished(e.currentTarget.checked)}
           />
           <Group justify="flex-end">
-            <Button variant="subtle" onClick={close}>Cancel</Button>
+            <Button variant="subtle" onClick={handleClose}>Cancel</Button>
             <Button onClick={handleSubmit} loading={createMutation.isPending}>
               Create Session
             </Button>

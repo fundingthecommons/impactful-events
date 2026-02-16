@@ -635,6 +635,60 @@ export const scheduleRouter = createTRPCRouter({
       return users;
     }),
 
+  // Get applications linked to a specific venue/floor (for floor leads to create sessions from)
+  getFloorApplications: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        venueId: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const event = await resolveEventId(ctx.db, input.eventId);
+      await assertCanManageVenue(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.venueId,
+      );
+
+      const applications = await ctx.db.application.findMany({
+        where: {
+          eventId: event.id,
+          venues: { some: { venueId: input.venueId } },
+          status: { in: ["SUBMITTED", "ACCEPTED"] },
+          userId: { not: null },
+        },
+        select: {
+          id: true,
+          status: true,
+          applicationType: true,
+          createdAt: true,
+          user: {
+            select: {
+              ...userSelectFields,
+              profile: {
+                select: {
+                  speakerTalkTitle: true,
+                  speakerTalkAbstract: true,
+                  speakerTalkFormat: true,
+                  speakerTalkDuration: true,
+                  speakerTalkTopic: true,
+                  speakerEntityName: true,
+                  bio: true,
+                  jobTitle: true,
+                  company: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return applications;
+    }),
+
   // ──────────────────────────────────────────
   // Venue owner management (admin only)
   // ──────────────────────────────────────────
