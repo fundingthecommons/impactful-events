@@ -142,7 +142,7 @@ export default function QuickstartPage() {
         For Venue Partners
       </h2>
       <p className="docs-text">
-        If you have been assigned as a floor owner for a venue, you have
+        If you have been assigned as a floor lead for a venue, you have
         additional capabilities:
       </p>
       <ol className="docs-list">

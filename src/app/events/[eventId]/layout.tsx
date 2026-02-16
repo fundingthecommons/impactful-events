@@ -35,7 +35,7 @@ export default async function EventLayout({ children, params }: EventLayoutProps
     select: featureFlagSelect,
   });
 
-  // Check floor owner status for current user
+  // Check floor lead status for current user
   let isFloorOwner = false;
   const isAdmin = session?.user?.role === "admin" || session?.user?.role === "staff";
 

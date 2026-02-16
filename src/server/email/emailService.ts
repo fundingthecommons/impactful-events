@@ -391,7 +391,7 @@ export class EmailService {
           : `💬 Someone responded to your ${typeLabel}`;
       }
       case 'floorOwnerAssigned':
-        return `You've been assigned as a Floor Owner for ${(data as FloorOwnerAssignedProps).eventName}`;
+        return `You've been assigned as a Floor Lead for ${(data as FloorOwnerAssignedProps).eventName}`;
       default:
         return 'Notification from Funding the Commons';
     }

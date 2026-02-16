@@ -117,7 +117,7 @@ export default function ManageScheduleClient({ eventId }: ManageScheduleClientPr
             <Title order={3}>No Floors Assigned</Title>
             <Text c="dimmed" ta="center">
               You don&apos;t have any floors assigned to manage.
-              Contact an admin to get floor ownership.
+              Contact an admin to get floor lead access.
             </Text>
           </Stack>
         </Center>
@@ -174,7 +174,7 @@ export default function ManageScheduleClient({ eventId }: ManageScheduleClientPr
 }
 
 // ──────────────────────────────────────────
-// FloorManager: manages a single floor
+// FloorLead: manages a single floor
 // ──────────────────────────────────────────
 
 interface FloorManagerProps {

@@ -60,7 +60,7 @@ export default function FeaturesOverviewPage() {
           floor management
         </Link>{" "}
         system allows venue partners to manage their own spaces independently.
-        Floor owners can create and edit sessions, update venue details, and
+        Floor leads can create and edit sessions, update venue details, and
         coordinate with event organisers &ndash; all without needing full admin
         access.
       </p>
@@ -102,7 +102,7 @@ export default function FeaturesOverviewPage() {
         gives you full control over events, applications, schedules, and
         participants. You can also{" "}
         <Link href="/docs/organizers/floor-owners" className="docs-link">
-          assign floor owners
+          assign floor leads
         </Link>{" "}
         to delegate venue management to partners.
       </p>

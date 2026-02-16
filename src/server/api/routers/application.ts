@@ -733,7 +733,7 @@ export const applicationRouter = createTRPCRouter({
       return questions;
     }),
 
-  // Admin/Floor Manager: Get all applications for an event
+  // Admin/Floor Lead: Get all applications for an event
   getEventApplications: protectedProcedure
     .input(z.object({
       eventId: z.string(), // Can be ID or slug
@@ -747,7 +747,7 @@ export const applicationRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
       }
 
-      // Allow admin/staff OR floor managers for the event
+      // Allow admin/staff OR floor leads for the event
       await assertAdminOrEventFloorOwner(
         ctx.db,
         ctx.session.user.id,
@@ -755,7 +755,7 @@ export const applicationRouter = createTRPCRouter({
         resolvedEventId,
       );
 
-      // For floor owners, scope to applications with matching venue associations
+      // For floor leads, scope to applications with matching venue associations
       let venueFilter: Prisma.ApplicationWhereInput | undefined;
       if (!isAdminOrStaff(ctx.session.user.role)) {
         const ownedVenueIds = await getUserOwnedVenueIds(ctx.db, ctx.session.user.id, resolvedEventId);
@@ -948,11 +948,11 @@ export const applicationRouter = createTRPCRouter({
       return applicationsWithScores;
     }),
 
-  // Admin/Floor Manager: Update application status
+  // Admin/Floor Lead: Update application status
   updateApplicationStatus: protectedProcedure
     .input(UpdateApplicationStatusSchema)
     .mutation(async ({ ctx, input }) => {
-      // Fetch eventId for floor manager auth check
+      // Fetch eventId for floor lead auth check
       const appForAuth = await ctx.db.application.findUnique({
         where: { id: input.applicationId },
         select: { eventId: true },
@@ -1160,11 +1160,11 @@ export const applicationRouter = createTRPCRouter({
       return application;
     }),
 
-  // Admin/Floor Manager: Bulk update application status
+  // Admin/Floor Lead: Bulk update application status
   bulkUpdateApplicationStatus: protectedProcedure
     .input(BulkUpdateApplicationStatusSchema)
     .mutation(async ({ ctx, input }) => {
-      // Fetch eventId from first application for floor manager auth check
+      // Fetch eventId from first application for floor lead auth check
       const firstApp = await ctx.db.application.findFirst({
         where: { id: { in: input.applicationIds } },
         select: { eventId: true },
@@ -2630,17 +2630,17 @@ export const applicationRouter = createTRPCRouter({
       return ownedVenues.map((vo) => vo.venue);
     }),
 
-  // Create speaker application on behalf of a speaker (floor manager or admin)
+  // Create speaker application on behalf of a speaker (floor lead or admin)
   createSpeakerOnBehalf: protectedProcedure
     .input(CreateSpeakerOnBehalfSchema)
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.session.user.id;
       const userRole = ctx.session.user.role;
 
-      // Authorization: must be admin/staff or floor owner for this event
+      // Authorization: must be admin/staff or floor lead for this event
       await assertAdminOrEventFloorOwner(ctx.db, userId, userRole, input.eventId);
 
-      // If floor owner (not admin), verify selected venues belong to them
+      // If floor lead (not admin), verify selected venues belong to them
       if (!isAdminOrStaff(userRole) && input.venueIds?.length) {
         const ownedVenueIds = await getUserOwnedVenueIds(ctx.db, userId, input.eventId);
         const unauthorized = input.venueIds.filter((id) => !ownedVenueIds.includes(id));

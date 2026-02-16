@@ -154,7 +154,7 @@ model User {
   forumThreadLikes      ForumThreadLike[]   @relation("ForumThreadLikes")
   forumCommentLikes     ForumCommentLike[]  @relation("ForumCommentLikes")
 
-  // Venue ownership relations (floor owners)
+  // Venue ownership relations (floor leads)
   venueOwnerships       VenueOwner[]        @relation("VenueOwners")
 
   // Session speaker relations
@@ -246,7 +246,7 @@ model Event {
   scheduleTracks       ScheduleTrack[]
   scheduleSessions     ScheduleSession[]
 
-  // Venue ownership relations (floor owners)
+  // Venue ownership relations (floor leads)
   venueOwners          VenueOwner[]
 
   @@index([slug])
@@ -701,7 +701,7 @@ enum EmailType {
   INVITATION_EVENT_ROLE
   INVITATION_ADMIN
 
-  // Floor owner related
+  // Floor lead related
   FLOOR_OWNER_ASSIGNED
 
   // Authentication related

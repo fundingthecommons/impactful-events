@@ -104,7 +104,7 @@ export async function acceptPendingInvitations(
 
       acceptedRoles.push({
         eventName: invitation.event?.name ?? "Event",
-        roleName: `Floor Owner - ${venue?.name ?? "Venue"}`,
+        roleName: `Floor Lead - ${venue?.name ?? "Venue"}`,
       });
     }
 

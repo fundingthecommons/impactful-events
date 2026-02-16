@@ -4,8 +4,8 @@ import { auth } from "~/server/auth";
 import FloorOwnersClient from "./FloorOwnersClient";
 
 export const metadata: Metadata = {
-  title: "Floor Owners",
-  description: "Manage floor owner assignments for this event",
+  title: "Floor Leads",
+  description: "Manage floor lead assignments for this event",
 };
 
 interface Props {

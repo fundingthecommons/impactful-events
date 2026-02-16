@@ -6,29 +6,29 @@ export default function FloorOwnersPage() {
     <>
       <DocsBreadcrumb />
 
-      <h1 className="docs-page-title">Managing Floor Owners</h1>
+      <h1 className="docs-page-title">Managing Floor Leads</h1>
       <p className="docs-page-subtitle">
         A guide for organisers on assigning venue partners and delegating
         schedule management.
       </p>
 
-      <h2 id="what-are-floor-owners" className="docs-heading-h2">
-        What Are Floor Owners?
+      <h2 id="what-are-floor-leads" className="docs-heading-h2">
+        What Are Floor Leads?
       </h2>
       <p className="docs-text">
-        Floor owners are people or organisations responsible for managing a
-        specific venue or floor within your event. By assigning floor owners, you
+        Floor leads are people or organisations responsible for managing a
+        specific venue or floor within your event. By assigning floor leads, you
         delegate the day-to-day management of that space &ndash; they can create
         sessions, update venue details, and keep their schedule current without
         needing full admin access.
       </p>
 
-      <h2 id="assigning-floor-owners" className="docs-heading-h2">
-        Assigning Floor Owners
+      <h2 id="assigning-floor-leads" className="docs-heading-h2">
+        Assigning Floor Leads
       </h2>
       <p className="docs-text">
         Navigate to your event in the admin panel and open the
-        &ldquo;Floor Owners&rdquo; tab. From here, you have two options:
+        &ldquo;Floor Leads&rdquo; tab. From here, you have two options:
       </p>
 
       <h3 id="assign-existing-user" className="docs-heading-h3">
@@ -55,7 +55,7 @@ export default function FloorOwnersPage() {
         Viewing Current Assignments
       </h2>
       <p className="docs-text">
-        The Floor Owners tab shows all current assignments grouped by venue. For
+        The Floor Leads tab shows all current assignments grouped by venue. For
         each venue, you can see who is assigned, when they were added, and remove
         them if needed.
       </p>
@@ -64,24 +64,24 @@ export default function FloorOwnersPage() {
         Enabling Schedule Management
       </h2>
       <p className="docs-text">
-        For floor owners to see the &ldquo;Manage Floors&rdquo; tab, the
+        For floor leads to see the &ldquo;Manage Floors&rdquo; tab, the
         schedule management feature flag must be enabled for your event. You can
         toggle this from the event settings page in the admin panel.
       </p>
 
       <div className="docs-callout">
         <p className="docs-callout-text">
-          <strong>Note:</strong> The Floor Owners admin tab is always visible
+          <strong>Note:</strong> The Floor Leads admin tab is always visible
           regardless of the feature flag. This lets you set up assignments before
-          enabling the feature for floor owners.
+          enabling the feature for floor leads.
         </p>
       </div>
 
-      <h2 id="what-floor-owners-can-do" className="docs-heading-h2">
-        What Floor Owners Can Do
+      <h2 id="what-floor-leads-can-do" className="docs-heading-h2">
+        What Floor Leads Can Do
       </h2>
       <p className="docs-text">
-        Once assigned, floor owners can:
+        Once assigned, floor leads can:
       </p>
       <ul className="docs-list">
         <li>Create, edit, and delete sessions on their assigned venue</li>
@@ -90,24 +90,24 @@ export default function FloorOwnersPage() {
         <li>View other sessions on their floor</li>
       </ul>
 
-      <h2 id="what-floor-owners-cannot-do" className="docs-heading-h2">
-        What Floor Owners Cannot Do
+      <h2 id="what-floor-leads-cannot-do" className="docs-heading-h2">
+        What Floor Leads Cannot Do
       </h2>
       <p className="docs-text">
-        Floor owners have focused permissions. They cannot:
+        Floor leads have focused permissions. They cannot:
       </p>
       <ul className="docs-list">
         <li>Create or delete venues</li>
-        <li>Assign other floor owners</li>
+        <li>Assign other floor leads</li>
         <li>Modify sessions on other venues</li>
         <li>Access event admin settings</li>
       </ul>
 
-      <h2 id="removing-a-floor-owner" className="docs-heading-h2">
-        Removing a Floor Owner
+      <h2 id="removing-a-floor-lead" className="docs-heading-h2">
+        Removing a Floor Lead
       </h2>
       <p className="docs-text">
-        To remove a floor owner, go to the Floor Owners tab, find the
+        To remove a floor lead, go to the Floor Leads tab, find the
         assignment, and click the remove button. The person will lose access to
         the &ldquo;Manage Floors&rdquo; tab for that venue, but their account
         and any sessions they created will remain.
@@ -116,7 +116,7 @@ export default function FloorOwnersPage() {
       <hr className="docs-divider" />
 
       <p className="docs-text">
-        For the floor owner&apos;s perspective, see the{" "}
+        For the floor lead&apos;s perspective, see the{" "}
         <Link href="/docs/features/floor-management" className="docs-link">
           Floor Management guide
         </Link>

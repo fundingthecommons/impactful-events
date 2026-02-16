@@ -111,7 +111,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
       ) {
         return false;
       }
-      // Floor manager filter
+      // Floor lead filter
       if (activeFloorManagerId && filterData?.floorManagers) {
         const manager = filterData.floorManagers.find(
           (fm) => fm.id === activeFloorManagerId,
@@ -395,10 +395,10 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
               {filterData?.floorManagers && filterData.floorManagers.length > 0 && (
                 <div className="schedule-filter-section">
                   <Text fw={600} size="sm" mb="xs">
-                    Filter By Floor Manager
+                    Filter By Floor Lead
                   </Text>
                   <Select
-                    placeholder="All floor managers"
+                    placeholder="All floor leads"
                     data={filterData.floorManagers.map((fm) => ({
                       value: fm.id,
                       label: getDisplayName(fm, "Unknown"),

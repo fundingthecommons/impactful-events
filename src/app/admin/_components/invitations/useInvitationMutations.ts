@@ -2,7 +2,7 @@ import { notifications } from "@mantine/notifications";
 import { api } from "~/trpc/react";
 
 interface UseInvitationMutationsConfig {
-  /** Display name used in notification messages (e.g. "speaker", "mentor", "floor owner") */
+  /** Display name used in notification messages (e.g. "speaker", "mentor", "floor lead") */
   roleName: string;
   /** Called after successful single invitation creation */
   onCreateSuccess?: () => void;

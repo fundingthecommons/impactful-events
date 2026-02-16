@@ -64,7 +64,7 @@ export default function EventSubNavigation({
   const isConference = normalizeEventType(eventType) === "CONFERENCE";
   const { data: session } = useSession();
 
-  // Client-side fallback: only fires when server-side check missed floor ownership
+  // Client-side fallback: only fires when server-side check missed floor lead status
   const shouldCheckClientSide =
     !isFloorOwner &&
     !isAdmin &&
@@ -130,7 +130,7 @@ export default function EventSubNavigation({
                   icon={<IconBuilding size={16} />}
                   level="sub"
                 >
-                  Floor Owners
+                  Floor Leads
                 </NavigationTab>
               )}
 

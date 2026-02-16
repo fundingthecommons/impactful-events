@@ -66,8 +66,8 @@ async function sendInvitationEmailForType(params: {
       email: invitation.email,
       inviteeName,
       eventName: invitation.event?.name ?? "Event",
-      eventDescription: `You've been invited as a Floor Owner for "${venueName ?? "Venue"}" at ${invitation.event?.name ?? "Event"}. You'll be able to manage the schedule for this floor.`,
-      roleName: `Floor Owner - ${venueName ?? "Venue"}`,
+      eventDescription: `You've been invited as a Floor Lead for "${venueName ?? "Venue"}" at ${invitation.event?.name ?? "Event"}. You'll be able to manage the schedule for this floor.`,
+      roleName: `Floor Lead - ${venueName ?? "Venue"}`,
       inviterName,
       invitationToken: invitation.token,
       expiresAt: invitation.expiresAt,
@@ -173,7 +173,7 @@ export const invitationRouter = createTRPCRouter({
           });
         }
 
-        // Allow admin/staff OR floor managers for the event
+        // Allow admin/staff OR floor leads for the event
         await assertAdminOrEventFloorOwner(
           ctx.db,
           ctx.session.user.id,
@@ -354,7 +354,7 @@ export const invitationRouter = createTRPCRouter({
         });
       }
 
-      // Allow admin/staff OR floor managers for the event
+      // Allow admin/staff OR floor leads for the event
       await assertAdminOrEventFloorOwner(
         ctx.db,
         ctx.session.user.id,
@@ -458,7 +458,7 @@ export const invitationRouter = createTRPCRouter({
       };
     }),
 
-  // Get all invitations (admin or floor manager with eventId)
+  // Get all invitations (admin or floor lead with eventId)
   getAll: protectedProcedure
     .input(z.object({
       eventId: z.string().optional(),
@@ -485,7 +485,7 @@ export const invitationRouter = createTRPCRouter({
         }
       }
 
-      // When eventId is provided, allow floor managers; otherwise require admin
+      // When eventId is provided, allow floor leads; otherwise require admin
       if (resolvedEventId) {
         await assertAdminOrEventFloorOwner(
           ctx.db,
@@ -497,7 +497,7 @@ export const invitationRouter = createTRPCRouter({
         checkAdminAccess(ctx.session.user.role);
       }
 
-      // For floor owners, scope invitations to those with matching venueId OR created by them
+      // For floor leads, scope invitations to those with matching venueId OR created by them
       let venueFilter: object | undefined;
       if (resolvedEventId && !isAdminOrStaff(ctx.session.user.role)) {
         const ownedVenueIds = await getUserOwnedVenueIds(ctx.db, ctx.session.user.id, resolvedEventId);
@@ -633,7 +633,7 @@ export const invitationRouter = createTRPCRouter({
         });
       }
 
-      // Allow admin/staff OR floor managers for the invitation's event
+      // Allow admin/staff OR floor leads for the invitation's event
       if (invitation.eventId) {
         await assertAdminOrEventFloorOwner(
           ctx.db,
@@ -684,7 +684,7 @@ export const invitationRouter = createTRPCRouter({
         });
       }
 
-      // Allow admin/staff OR floor managers for the invitation's event
+      // Allow admin/staff OR floor leads for the invitation's event
       if (invitation.eventId) {
         await assertAdminOrEventFloorOwner(
           ctx.db,

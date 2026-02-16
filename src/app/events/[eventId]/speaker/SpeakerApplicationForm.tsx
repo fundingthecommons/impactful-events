@@ -109,7 +109,7 @@ export default function SpeakerApplicationForm({
     { enabled: !!invitationToken },
   );
 
-  // Build "Who invited you?" dropdown options from floor managers
+  // Build "Who invited you?" dropdown options from floor leads
   const floorManagers = useMemo(() => scheduleFilters?.floorManagers ?? [], [scheduleFilters?.floorManagers]);
   const inviterOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
@@ -135,12 +135,12 @@ export default function SpeakerApplicationForm({
     return options;
   }, [floorManagers, venues]);
 
-  // Pre-select inviter's venues and floor manager when arriving via invitation
+  // Pre-select inviter's venues and floor lead when arriving via invitation
   useEffect(() => {
     if (inviterVenues && inviterVenues.length > 0 && selectedVenueIds.length === 0) {
       setSelectedVenueIds([inviterVenues[0]!.id]);
 
-      // Auto-select the inviting floor manager
+      // Auto-select the inviting floor lead
       const inviterManager = floorManagers.find((fm) =>
         inviterVenues.some((v) => fm.venueIds.includes(v.id)),
       );
@@ -367,7 +367,7 @@ export default function SpeakerApplicationForm({
                     <Select
                       label="Who invited you?"
                       placeholder="Select who invited you"
-                      description="If you were invited by a floor manager, please select their name"
+                      description="If you were invited by a floor lead, please select their name"
                       data={inviterOptions}
                       value={invitedByValue}
                       onChange={(val) => {

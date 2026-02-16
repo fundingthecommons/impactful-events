@@ -548,12 +548,12 @@ export const roleRouter = createTRPCRouter({
         }
       }
 
-      // 3. Floor owner from VenueOwner table
+      // 3. Floor lead from VenueOwner table
       const venueOwner = await ctx.db.venueOwner.findFirst({
         where: { userId, eventId: resolvedEventId },
       });
-      if (venueOwner && !roles.includes("floor manager")) {
-        roles.push("floor manager");
+      if (venueOwner && !roles.includes("floor lead")) {
+        roles.push("floor lead");
       }
 
       // 4. Accepted applications — map by application type

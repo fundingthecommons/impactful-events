@@ -52,7 +52,7 @@ export async function getUserOwnedVenueIds(
 }
 
 /**
- * Assert user is admin/staff OR a floor owner for the given event.
+ * Assert user is admin/staff OR a floor lead for the given event.
  * Throws FORBIDDEN if neither.
  */
 export async function assertAdminOrEventFloorOwner(
@@ -67,7 +67,7 @@ export async function assertAdminOrEventFloorOwner(
   if (!floorOwner) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Admin or floor manager access required",
+      message: "Admin or floor lead access required",
     });
   }
 }

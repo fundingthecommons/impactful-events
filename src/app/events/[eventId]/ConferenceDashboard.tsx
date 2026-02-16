@@ -560,7 +560,7 @@ export default function ConferenceDashboard({
                 <Text c="dimmed" size="sm">
                   {hasSpeakerApplication && !isSpeaker
                     ? "Your sessions will appear here once organizers finalize the schedule."
-                    : "No sessions linked to your account yet. Floor managers will assign you to sessions."}
+                    : "No sessions linked to your account yet. Floor leads will assign you to sessions."}
                 </Text>
               ) : (
                 <Stack gap="xs">
@@ -640,7 +640,7 @@ export default function ConferenceDashboard({
           </Card>
         )}
 
-        {/* Floor Manager: Manage Floors */}
+        {/* Floor Lead: Manage Floors */}
         {(isFloorOwner || isAdmin) && (
           <Card withBorder>
             <Stack gap="sm">

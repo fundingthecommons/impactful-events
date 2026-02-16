@@ -19,7 +19,7 @@ export default function FloorManagementPage() {
         Floor management is a feature designed for venue partners &ndash; the
         people and organisations who provide physical spaces for conference
         sessions. Instead of coordinating everything through the event
-        organisers, floor owners can log in and manage their own venue directly.
+        organisers, floor leads can log in and manage their own venue directly.
       </p>
       <p className="docs-text">
         This means you can create sessions, update your space&apos;s details,
@@ -27,11 +27,11 @@ export default function FloorManagementPage() {
         changes on your behalf.
       </p>
 
-      <h2 id="becoming-a-floor-owner" className="docs-heading-h2">
-        Becoming a Floor Owner
+      <h2 id="becoming-a-floor-lead" className="docs-heading-h2">
+        Becoming a Floor Lead
       </h2>
       <p className="docs-text">
-        Floor owners are assigned by event organisers. There are two ways this
+        Floor leads are assigned by event organisers. There are two ways this
         can happen:
       </p>
       <ul className="docs-list">
@@ -138,16 +138,16 @@ export default function FloorManagementPage() {
         advance and publish everything at once when you are ready.
       </p>
 
-      <h2 id="what-floor-owners-cannot-do" className="docs-heading-h2">
-        What Floor Owners Cannot Do
+      <h2 id="what-floor-leads-cannot-do" className="docs-heading-h2">
+        What Floor Leads Cannot Do
       </h2>
       <p className="docs-text">
-        Floor ownership is focused on managing your own space. A few things are
+        Floor lead access is focused on managing your own space. A few things are
         reserved for event organisers:
       </p>
       <ul className="docs-list">
         <li>Creating or deleting venues (only organisers can do this)</li>
-        <li>Assigning other people as floor owners</li>
+        <li>Assigning other people as floor leads</li>
         <li>Modifying sessions on other people&apos;s floors</li>
         <li>Changing event-level settings</li>
       </ul>
@@ -169,9 +169,9 @@ export default function FloorManagementPage() {
         </li>
         <li>
           <Link href="/docs/organizers/floor-owners" className="docs-link">
-            Managing Floor Owners
+            Managing Floor Leads
           </Link>{" "}
-          &ndash; A guide for organisers on assigning and managing floor owners.
+          &ndash; A guide for organisers on assigning and managing floor leads.
         </li>
         <li>
           <Link href="/docs/organizers/admin-panel" className="docs-link">

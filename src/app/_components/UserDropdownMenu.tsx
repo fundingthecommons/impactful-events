@@ -28,7 +28,7 @@ const ROLE_COLORS: Record<string, string> = {
   admin: "red",
   staff: "orange",
   organizer: "violet",
-  "floor manager": "teal",
+  "floor lead": "teal",
   speaker: "blue",
   mentor: "green",
   sponsor: "yellow",

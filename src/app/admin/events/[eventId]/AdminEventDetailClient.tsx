@@ -138,13 +138,13 @@ const FEATURE_FLAGS: {
   {
     key: "featureScheduleManagement",
     label: "Schedule Management",
-    description: "Allow floor owners to manage their floor schedules",
+    description: "Allow floor leads to manage their floor schedules",
     icon: IconSettings,
   },
   {
     key: "featureFloorManagement",
-    label: "Floor Managers",
-    description: "Enable floor manager assignments and venue management",
+    label: "Floor Leads",
+    description: "Enable floor lead assignments and venue management",
     icon: IconMapPin,
   },
 ];
@@ -296,8 +296,8 @@ export default function AdminEventDetailClient({ event }: AdminEventDetailClient
               visible: event.featureApplicantVetting,
             },
             {
-              label: "Floor Managers",
-              description: "Manage floor assignments and venue owners",
+              label: "Floor Leads",
+              description: "Manage floor assignments and venue leads",
               icon: IconMapPin,
               color: "cyan",
               href: `/admin/events/${eventIdentifier}/floor-owners`,

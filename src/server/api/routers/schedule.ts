@@ -173,7 +173,7 @@ export const scheduleRouter = createTRPCRouter({
         }),
       ]);
 
-      // Derive unique floor managers with their venue IDs
+      // Derive unique floor leads with their venue IDs
       const floorManagerMap = new Map<
         string,
         {
@@ -206,10 +206,10 @@ export const scheduleRouter = createTRPCRouter({
     }),
 
   // ──────────────────────────────────────────
-  // Session mutations (admin or floor owner)
+  // Session mutations (admin or floor lead)
   // ──────────────────────────────────────────
 
-  // Create a session (admin or floor owner of the target venue)
+  // Create a session (admin or floor lead of the target venue)
   createSession: protectedProcedure
     .input(
       z.object({
@@ -277,7 +277,7 @@ export const scheduleRouter = createTRPCRouter({
       return session;
     }),
 
-  // Update a session (admin or floor owner of the session's venue)
+  // Update a session (admin or floor lead of the session's venue)
   updateSession: protectedProcedure
     .input(
       z.object({
@@ -363,7 +363,7 @@ export const scheduleRouter = createTRPCRouter({
       return session;
     }),
 
-  // Delete a session (admin or floor owner of the session's venue)
+  // Delete a session (admin or floor lead of the session's venue)
   deleteSession: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
@@ -401,7 +401,7 @@ export const scheduleRouter = createTRPCRouter({
       return ctx.db.scheduleVenue.create({ data: input });
     }),
 
-  // Admin or floor owner: Update venue metadata
+  // Admin or floor lead: Update venue metadata
   updateVenue: protectedProcedure
     .input(
       z.object({
@@ -510,10 +510,10 @@ export const scheduleRouter = createTRPCRouter({
     }),
 
   // ──────────────────────────────────────────
-  // Floor owner queries
+  // Floor lead queries
   // ──────────────────────────────────────────
 
-  // Check if current user is a floor owner for an event
+  // Check if current user is a floor lead for an event
   isFloorOwner: protectedProcedure
     .input(z.object({ eventId: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -639,7 +639,7 @@ export const scheduleRouter = createTRPCRouter({
   // Venue owner management (admin only)
   // ──────────────────────────────────────────
 
-  // Admin: Assign a floor owner to a venue
+  // Admin: Assign a floor lead to a venue
   assignVenueOwner: protectedProcedure
     .input(
       z.object({
@@ -682,7 +682,7 @@ export const scheduleRouter = createTRPCRouter({
         },
       });
 
-      // Send floor owner assignment notification email
+      // Send floor lead assignment notification email
       if (user.email) {
         try {
           const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
@@ -720,7 +720,7 @@ export const scheduleRouter = createTRPCRouter({
       return venueOwner;
     }),
 
-  // Admin: Remove a floor owner from a venue
+  // Admin: Remove a floor lead from a venue
   removeVenueOwner: protectedProcedure
     .input(
       z.object({

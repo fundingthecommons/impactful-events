@@ -66,7 +66,7 @@ export default function SchedulePage() {
       </h2>
       <p className="docs-text">
         Only published sessions appear on the public schedule. Organisers and
-        floor owners may have draft sessions that are still being planned
+        floor leads may have draft sessions that are still being planned
         &ndash; these will appear once they are finalised and made public.
       </p>
 
@@ -78,7 +78,7 @@ export default function SchedulePage() {
       <p className="docs-text">
         If you are a{" "}
         <Link href="/docs/features/floor-management" className="docs-link">
-          floor owner
+          floor lead
         </Link>
         , you can create and edit sessions on your assigned venue directly from
         the platform. See the{" "}

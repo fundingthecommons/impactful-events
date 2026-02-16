@@ -39,7 +39,7 @@ export default function InvitationsPage() {
           <strong>Venue ownership</strong> &ndash; An invitation to manage a
           floor or venue as a{" "}
           <Link href="/docs/features/floor-management" className="docs-link">
-            floor owner
+            floor lead
           </Link>
           .
         </li>

@@ -151,7 +151,7 @@ export default function EventPage({ params }: EventPageProps) {
     { enabled: !!session?.user && !!resolvedEventId }
   );
 
-  // Check if user is a floor owner for this event
+  // Check if user is a floor lead for this event
   const { data: isFloorOwner, isLoading: isFloorOwnerLoading } = api.schedule.isFloorOwner.useQuery(
     { eventId: resolvedEventId },
     { enabled: !!session?.user && !!resolvedEventId }
@@ -219,7 +219,7 @@ export default function EventPage({ params }: EventPageProps) {
           >
             <Text c="white" size="md">
               {isConference
-                ? "This event page is only accessible to registered speakers, floor managers, and administrators."
+                ? "This event page is only accessible to registered speakers, floor leads, and administrators."
                 : "This event page is only accessible to accepted residents. If you have a late pass code, please use the provided link."}
             </Text>
           </Alert>

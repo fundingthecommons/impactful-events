@@ -21,23 +21,23 @@ export const FloorOwnerAssignedTemplate: React.FC<FloorOwnerAssignedProps> = ({
   assignedByName,
   manageFloorUrl,
 }) => {
-  const previewText = `You've been assigned as a Floor Owner for ${eventName}`;
+  const previewText = `You've been assigned as a Floor Lead for ${eventName}`;
 
   return (
     <BaseTemplate previewText={previewText}>
       <Section style={content}>
-        <Text style={heading}>Floor Owner Assignment</Text>
+        <Text style={heading}>Floor Lead Assignment</Text>
 
         <Text style={paragraph}>
           Hi {floorOwnerName},
         </Text>
 
         <Text style={paragraph}>
-          {assignedByName} has assigned you as a <strong>Floor Owner</strong> for <strong>{venueName}</strong> at <strong>{eventName}</strong>.
+          {assignedByName} has assigned you as a <strong>Floor Lead</strong> for <strong>{venueName}</strong> at <strong>{eventName}</strong>.
         </Text>
 
         <Text style={paragraph}>
-          As a Floor Owner, you can manage the schedule for your assigned floor, including adding and editing sessions.
+          As a Floor Lead, you can manage the schedule for your assigned floor, including adding and editing sessions.
         </Text>
 
         <Section style={detailsBox}>

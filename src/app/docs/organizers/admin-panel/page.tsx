@@ -66,7 +66,7 @@ export default function AdminPanelPage() {
         when it is ready. You can also delegate this work to venue partners by
         assigning them as{" "}
         <Link href="/docs/organizers/floor-owners" className="docs-link">
-          floor owners
+          floor leads
         </Link>
         .
       </p>
@@ -99,7 +99,7 @@ export default function AdminPanelPage() {
       <p className="docs-text">
         For help with delegating venue management, see{" "}
         <Link href="/docs/organizers/floor-owners" className="docs-link">
-          Managing Floor Owners
+          Managing Floor Leads
         </Link>
         .
       </p>

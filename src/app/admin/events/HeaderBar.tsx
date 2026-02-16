@@ -80,7 +80,7 @@ export default async function HeaderBar() {
       },
     });
 
-    // Query all floor manager (venue owner) assignments
+    // Query all floor lead (venue owner) assignments
     const floorManagerEvents = await db.venueOwner.findMany({
       where: {
         userId: session.user.id,

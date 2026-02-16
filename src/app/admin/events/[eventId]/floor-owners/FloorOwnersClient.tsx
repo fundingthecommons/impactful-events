@@ -79,16 +79,16 @@ export default function FloorOwnersClient({ eventId }: FloorOwnersClientProps) {
     <Container size="lg" py="xl">
       <Stack gap="lg">
         <div>
-          <Title order={2}>Floor Owners</Title>
+          <Title order={2}>Floor Leads</Title>
           <Text c="dimmed" size="sm">
-            Assign users to manage floor schedules. Floor owners can add, edit, and delete sessions on their assigned floors.
+            Assign users to manage floor schedules. Floor leads can add, edit, and delete sessions on their assigned floors.
           </Text>
         </div>
 
-        {/* Assign new floor owner */}
+        {/* Assign new floor lead */}
         <AssignFloorOwnerForm eventId={eventId} venues={venues} />
 
-        {/* Invite external floor owner */}
+        {/* Invite external floor lead */}
         <InviteFloorOwnerForm eventId={eventId} venues={venues} />
 
         <Divider />
@@ -101,7 +101,7 @@ export default function FloorOwnersClient({ eventId }: FloorOwnersClientProps) {
             <Center>
               <Stack align="center" gap="sm">
                 <IconBuilding size={32} color="var(--mantine-color-dimmed)" />
-                <Text c="dimmed">No venues created yet. Create venues first to assign floor owners.</Text>
+                <Text c="dimmed">No venues created yet. Create venues first to assign floor leads.</Text>
               </Stack>
             </Center>
           </Paper>
@@ -128,7 +128,7 @@ export default function FloorOwnersClient({ eventId }: FloorOwnersClientProps) {
 }
 
 // ──────────────────────────────────────────
-// AssignFloorOwnerForm
+// AssignFloorLeadForm
 // ──────────────────────────────────────────
 
 interface AssignFormProps {
@@ -154,7 +154,7 @@ function AssignFloorOwnerForm({ eventId, venues }: AssignFormProps) {
     onSuccess: () => {
       notifications.show({
         title: "Assigned",
-        message: "Floor owner assigned successfully",
+        message: "Floor lead assigned successfully",
         color: "green",
       });
       setSelectedUserId(null);
@@ -242,7 +242,7 @@ function AssignFloorOwnerForm({ eventId, venues }: AssignFormProps) {
 }
 
 // ──────────────────────────────────────────
-// InviteFloorOwnerForm
+// InviteFloorLeadForm
 // ──────────────────────────────────────────
 
 function InviteFloorOwnerForm({ eventId, venues }: AssignFormProps) {
@@ -251,7 +251,7 @@ function InviteFloorOwnerForm({ eventId, venues }: AssignFormProps) {
   const utils = api.useUtils();
 
   const mutations = useInvitationMutations({
-    roleName: "floor owner",
+    roleName: "floor lead",
     onCreateSuccess: () => {
       setEmail("");
       setSelectedVenueId(null);
@@ -349,7 +349,7 @@ function VenueOwnerCard({ venue, owners, pendingInvitations, eventId }: VenueOwn
     onSuccess: () => {
       notifications.show({
         title: "Removed",
-        message: "Floor owner removed",
+        message: "Floor lead removed",
         color: "green",
       });
       void utils.schedule.getVenueOwners.invalidate({ eventId });
@@ -360,7 +360,7 @@ function VenueOwnerCard({ venue, owners, pendingInvitations, eventId }: VenueOwn
   });
 
   const invitationMutations = useInvitationMutations({
-    roleName: "floor owner",
+    roleName: "floor lead",
     onCancelSuccess: () => {
       void utils.invitation.getAll.invalidate({ eventId });
     },

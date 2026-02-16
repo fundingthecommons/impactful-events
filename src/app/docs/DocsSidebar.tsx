@@ -137,7 +137,7 @@ export default function DocsSidebar() {
           />
           <SidebarItem
             icon={<IconUsers size={18} />}
-            label="Managing Floor Owners"
+            label="Managing Floor Leads"
             href="/docs/organizers/floor-owners"
             active={isActive("/docs/organizers/floor-owners")}
           />

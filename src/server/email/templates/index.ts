@@ -23,7 +23,7 @@ export const templates = {
   // Invitation templates
   invitation: InvitationTemplate,
 
-  // Floor owner templates
+  // Floor lead templates
   floorOwnerAssigned: FloorOwnerAssignedTemplate,
 
   // Authentication templates

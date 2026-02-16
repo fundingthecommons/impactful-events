@@ -202,7 +202,7 @@ export default function IntroductionPage() {
       </h3>
       <p className="docs-text">
         If you are running a conference or managing a venue, this section covers
-        the admin panel, floor owner assignments, and everything else you need to
+        the admin panel, floor lead assignments, and everything else you need to
         coordinate a successful event.{" "}
         <Link href="/docs/organizers/admin-panel" className="docs-link">
           Organizer guides &rarr;

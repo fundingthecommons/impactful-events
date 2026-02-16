@@ -67,7 +67,7 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
 
   const utils = api.useUtils();
 
-  // Fetch floor manager's venues
+  // Fetch floor lead's venues
   const { data: floorsData } = api.schedule.getMyFloors.useQuery(
     { eventId },
     { enabled: opened },
@@ -80,7 +80,7 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
     { enabled: opened },
   );
 
-  // Pre-select floor manager's venues on first load
+  // Pre-select floor lead's venues on first load
   const [venuesInitialized, setVenuesInitialized] = useState(false);
   if (venues.length > 0 && !venuesInitialized && selectedVenueIds.length === 0) {
     setSelectedVenueIds(venues.map((v) => v.id));
