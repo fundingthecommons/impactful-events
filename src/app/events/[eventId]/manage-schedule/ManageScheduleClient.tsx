@@ -384,7 +384,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
           isAdmin={isAdmin}
           applicationsData={applicationsData ?? []}
           prefillData={prefillData}
-          externalOpened={createModalOpened}
+          externalOpened={createModalOpened ? true : undefined}
           onExternalClose={() => {
             setCreateModalOpened(false);
             setPrefillData(null);
