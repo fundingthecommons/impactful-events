@@ -59,9 +59,9 @@ const profileUpdateSchema = z.object({
   // Speaker-specific fields
   speakerTalkTitle: z.string().max(200).optional(),
   speakerTalkAbstract: z.string().max(2000).optional(),
-  speakerTalkFormat: z.string().max(50).optional(),
+  speakerTalkFormat: z.string().max(200).optional(),
   speakerTalkDuration: z.string().max(50).optional(),
-  speakerTalkTopic: z.string().max(200).optional(),
+  speakerTalkTopic: z.string().max(500).optional(),
   speakerPreviousExperience: z.string().max(2000).optional(),
   speakerPastTalkUrl: z.string().max(500).optional().or(z.literal("")),
   speakerEntityName: z.string().max(200).optional(),

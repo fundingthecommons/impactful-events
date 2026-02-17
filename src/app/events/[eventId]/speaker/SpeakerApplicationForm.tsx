@@ -15,6 +15,7 @@ import {
   TextInput,
   Textarea,
   Select,
+  MultiSelect,
   Grid,
   Badge,
   Alert,
@@ -45,7 +46,7 @@ const speakerApplicationSchema = z.object({
     .string()
     .min(50, "Please provide at least 50 characters for your description")
     .max(2000),
-  talkFormat: z.string().min(1, "Please select a session type"),
+  talkFormat: z.array(z.string()).min(1, "Please select at least one session type"),
   talkDuration: z.string().min(1, "Please select a session length"),
   talkTopic: z.string().min(1, "Please specify the topic or track"),
   entityName: z.string().max(200).optional().or(z.literal("")),
@@ -82,6 +83,15 @@ export const talkDurationOptions = [
   { value: "30", label: "30 minutes" },
 ];
 
+export const ftcTopicOptions = [
+  { value: "AI Governance and Coordination", label: "AI Governance and Coordination" },
+  { value: "Economic Futures: Public Goods in the Age of AI", label: "Economic Futures: Public Goods in the Age of AI" },
+  { value: "AI-Assisted Funding and Resource Allocation", label: "AI-Assisted Funding and Resource Allocation" },
+  { value: "Open Infrastructure for Collective Intelligence", label: "Open Infrastructure for Collective Intelligence" },
+  { value: "Applied Human-AI Collaboration", label: "Applied Human-AI Collaboration" },
+  { value: "Other", label: "Other" },
+];
+
 interface SpeakerApplicationFormProps {
   eventId: string;
   eventName: string;
@@ -100,6 +110,8 @@ export default function SpeakerApplicationForm({
   const [invitedByValue, setInvitedByValue] = useState<string | null>(null);
   const [invitedByOtherText, setInvitedByOtherText] = useState("");
   const [hasInitializedVenues, setHasInitializedVenues] = useState(false);
+  const [ftcTopicValues, setFtcTopicValues] = useState<string[]>([]);
+  const [ftcTopicOtherText, setFtcTopicOtherText] = useState("");
   const { data: config } = api.config.getPublicConfig.useQuery(
     undefined,
     { refetchOnWindowFocus: false },
@@ -173,6 +185,13 @@ export default function SpeakerApplicationForm({
     return options;
   }, [floorManagers, venues]);
 
+  // Check if the selected venue is a "Funding the Commons" floor
+  const isFtcVenue = useMemo(() => {
+    if (selectedVenueIds.length === 0) return false;
+    const selectedVenue = venues.find((v) => v.id === selectedVenueIds[0]);
+    return selectedVenue?.name.toLowerCase().includes("funding the commons") ?? false;
+  }, [selectedVenueIds, venues]);
+
   // Pre-select inviter's venues and floor lead once when arriving via invitation
   useEffect(() => {
     if (
@@ -194,6 +213,19 @@ export default function SpeakerApplicationForm({
     }
   }, [hasInitializedVenues, inviterVenues, floorManagers]);
 
+  // Sync FtC multi-select topic values into the form's talkTopic string field
+  useEffect(() => {
+    if (!isFtcVenue) return;
+    const topics = ftcTopicValues.filter((v) => v !== "Other");
+    if (ftcTopicValues.includes("Other") && ftcTopicOtherText.trim()) {
+      topics.push(`Other: ${ftcTopicOtherText.trim()}`);
+    } else if (ftcTopicValues.includes("Other")) {
+      topics.push("Other");
+    }
+    form.setFieldValue("talkTopic", topics.join(", "));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFtcVenue, ftcTopicValues, ftcTopicOtherText]);
+
   const createApplication = api.application.createApplication.useMutation();
   const submitApplication = api.application.submitApplication.useMutation();
   const updateProfile = api.profile.updateProfile.useMutation();
@@ -203,7 +235,7 @@ export default function SpeakerApplicationForm({
     initialValues: {
       talkTitle: "",
       talkAbstract: "",
-      talkFormat: "",
+      talkFormat: [],
       talkDuration: "",
       talkTopic: "",
       entityName: "",
@@ -240,7 +272,7 @@ export default function SpeakerApplicationForm({
         twitterUrl: values.twitterUrl,
         speakerTalkTitle: values.talkTitle,
         speakerTalkAbstract: values.talkAbstract,
-        speakerTalkFormat: values.talkFormat,
+        speakerTalkFormat: values.talkFormat.join(", "),
         speakerTalkDuration: values.talkDuration,
         speakerTalkTopic: values.talkTopic,
         speakerPreviousExperience: values.previousSpeakingExperience,
@@ -318,7 +350,9 @@ export default function SpeakerApplicationForm({
           form.values.talkAbstract.length >= 50 &&
           form.values.talkFormat.length > 0 &&
           form.values.talkDuration.length > 0 &&
-          form.values.talkTopic.length > 0
+          form.values.talkTopic.length > 0 &&
+          // If FtC venue with "Other" selected, require the fill-in text
+          (!isFtcVenue || !ftcTopicValues.includes("Other") || ftcTopicOtherText.trim().length > 0)
         );
       case 2:
         return form.values.bio.length >= 20;
@@ -365,7 +399,7 @@ export default function SpeakerApplicationForm({
                   <TextInput
                     label="Session Name"
                     placeholder="Enter the name of your proposed session"
-                    description="A clear, descriptive name for your session"
+                    description="This can be changed later, but please put a title broadly describing what your session will be about"
                     {...form.getInputProps("talkTitle")}
                     required
                   />
@@ -384,7 +418,7 @@ export default function SpeakerApplicationForm({
                   <Textarea
                     label="Session Description"
                     placeholder="Describe what your session will cover, key takeaways for the audience, and why this topic matters..."
-                    description="Provide a detailed description of your session (minimum 50 characters)"
+                    description="This can be changed later, but please provide a brief description of what your session will cover (minimum 50 characters)"
                     minRows={5}
                     maxRows={10}
                     {...form.getInputProps("talkAbstract")}
@@ -393,9 +427,10 @@ export default function SpeakerApplicationForm({
                 </Grid.Col>
 
                 <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <Select
+                  <MultiSelect
                     label="Session Type"
-                    placeholder="Select the session type"
+                    placeholder="Select session types"
+                    description="Select the type of session you may be interested in"
                     data={sessionTypeSelectData}
                     {...form.getInputProps("talkFormat")}
                     required
@@ -408,16 +443,6 @@ export default function SpeakerApplicationForm({
                     placeholder="Select session length"
                     data={talkDurationOptions}
                     {...form.getInputProps("talkDuration")}
-                    required
-                  />
-                </Grid.Col>
-
-                <Grid.Col span={12}>
-                  <TextInput
-                    label="Topic / Track"
-                    placeholder="e.g., DeFi, Public Goods, AI, Governance, Infrastructure"
-                    description="What topic area or conference track does your talk fit into?"
-                    {...form.getInputProps("talkTopic")}
                     required
                   />
                 </Grid.Col>
@@ -466,12 +491,53 @@ export default function SpeakerApplicationForm({
                       description="Select the floor where you&apos;d like to present"
                       data={venueSelectData}
                       value={selectedVenueIds[0] ?? null}
-                      onChange={(val) => setSelectedVenueIds(val ? [val] : [])}
+                      onChange={(val) => {
+                        setSelectedVenueIds(val ? [val] : []);
+                        // Reset topic fields when venue changes
+                        form.setFieldValue("talkTopic", "");
+                        setFtcTopicValues([]);
+                        setFtcTopicOtherText("");
+                      }}
                       clearable
                       leftSection={<IconBuilding size={16} color="var(--mantine-color-teal-6)" />}
                     />
                   </Grid.Col>
                 )}
+
+                <Grid.Col span={12}>
+                  {isFtcVenue ? (
+                    <>
+                      <MultiSelect
+                        label="Topic / Track"
+                        placeholder="Select topics that apply"
+                        description="Please select which of the following topics your proposed session fits into"
+                        data={ftcTopicOptions}
+                        value={ftcTopicValues}
+                        onChange={setFtcTopicValues}
+                        required
+                        error={form.errors.talkTopic}
+                      />
+                      {ftcTopicValues.includes("Other") && (
+                        <TextInput
+                          label="Other topic (please specify)"
+                          placeholder="Describe your topic"
+                          value={ftcTopicOtherText}
+                          onChange={(e) => setFtcTopicOtherText(e.currentTarget.value)}
+                          mt="sm"
+                          required
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <TextInput
+                      label="Topic / Track"
+                      placeholder="Please share which topic areas your proposed session fits into"
+                      description="If you are presenting on another floor, please share which topic areas your proposed session fits into"
+                      {...form.getInputProps("talkTopic")}
+                      required
+                    />
+                  )}
+                </Grid.Col>
               </Grid>
             </Stack>
           </Card>

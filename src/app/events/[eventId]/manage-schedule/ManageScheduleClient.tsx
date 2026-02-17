@@ -86,7 +86,16 @@ function findMatchingSessionType(
 ): string | null {
   if (!talkFormat) return null;
   const lower = talkFormat.toLowerCase();
-  return sessionTypes.find((st) => st.name.toLowerCase() === lower)?.id ?? null;
+  // Try exact match first
+  const exact = sessionTypes.find((st) => st.name.toLowerCase() === lower)?.id;
+  if (exact) return exact;
+  // Try matching first comma-separated value (for multi-select values)
+  const parts = talkFormat.split(",").map((p) => p.trim().toLowerCase());
+  for (const part of parts) {
+    const match = sessionTypes.find((st) => st.name.toLowerCase() === part)?.id;
+    if (match) return match;
+  }
+  return null;
 }
 
 function findMatchingTrack(
@@ -95,7 +104,16 @@ function findMatchingTrack(
 ): string | null {
   if (!talkTopic) return null;
   const lower = talkTopic.toLowerCase();
-  return tracks.find((t) => t.name.toLowerCase() === lower)?.id ?? null;
+  // Try exact match first
+  const exact = tracks.find((t) => t.name.toLowerCase() === lower)?.id;
+  if (exact) return exact;
+  // Try matching any comma-separated topic (for multi-select values)
+  const parts = talkTopic.split(",").map((p) => p.trim().toLowerCase());
+  for (const part of parts) {
+    const match = tracks.find((t) => t.name.toLowerCase() === part)?.id;
+    if (match) return match;
+  }
+  return null;
 }
 
 function formatDuration(duration: string | null | undefined): string {
