@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Text } from "@mantine/core";
+import Link from "next/link";
 import { type ScheduleSession } from "./SchedulePageClient";
 
 interface TimetableViewProps {
@@ -11,6 +12,7 @@ interface TimetableViewProps {
     name: string;
     rooms: Array<{ id: string; name: string }>;
   }>;
+  eventId: string;
 }
 
 type Column = { venueId: string; roomId: string | null; label: string };
@@ -23,19 +25,21 @@ function formatTime(date: Date): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: "UTC",
   });
 }
 
 function formatTimeShort(date: Date): string {
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
+  const d = new Date(date);
+  const hours = d.getUTCHours();
+  const minutes = d.getUTCMinutes();
   if (minutes === 0) {
     return `${hours}:00`;
   }
   return `${hours}:${String(minutes).padStart(2, "0")}`;
 }
 
-export default function TimetableView({ sessions, venues }: TimetableViewProps) {
+export default function TimetableView({ sessions, venues, eventId }: TimetableViewProps) {
   // Compute flat column list: venues with rooms expand to room-per-column
   const { columns, hasAnyRooms, venueSpans } = useMemo(() => {
     const cols: Column[] = [];
@@ -56,8 +60,16 @@ export default function TimetableView({ sessions, venues }: TimetableViewProps) 
       }
     }
 
+    // Add "General" column for sessions without a venue
+    const hasUnassigned = sessions.some((s) => !s.venueId);
+    if (hasUnassigned) {
+      const startCol = cols.length;
+      cols.push({ venueId: "__unassigned__", roomId: null, label: "General" });
+      spans.push({ venueId: "__unassigned__", name: "General", startCol, span: 1 });
+    }
+
     return { columns: cols, hasAnyRooms: anyRooms, venueSpans: spans };
-  }, [venues]);
+  }, [venues, sessions]);
 
   const headerRows = hasAnyRooms ? 2 : 1;
 
@@ -77,9 +89,9 @@ export default function TimetableView({ sessions, venues }: TimetableViewProps) 
 
     const referenceDate = new Date(earliest);
     const dayStart = new Date(referenceDate);
-    dayStart.setHours(9, 30, 0, 0);
+    dayStart.setUTCHours(9, 30, 0, 0);
     const dayEnd = new Date(referenceDate);
-    dayEnd.setHours(19, 0, 0, 0);
+    dayEnd.setUTCHours(19, 0, 0, 0);
 
     const paddedEarliest = Math.min(earliest, dayStart.getTime());
     const paddedLatest = Math.max(latest, dayEnd.getTime());
@@ -97,7 +109,6 @@ export default function TimetableView({ sessions, venues }: TimetableViewProps) 
     }
 
     const grid = sessions
-      .filter((s) => s.venueId !== null)
       .map((session) => {
         const startMs = new Date(session.startTime).getTime();
         const endMs = new Date(session.endTime).getTime();
@@ -116,7 +127,7 @@ export default function TimetableView({ sessions, venues }: TimetableViewProps) 
     };
   }, [sessions, headerRows]);
 
-  if (sessions.length === 0 || venues.length === 0) {
+  if (sessions.length === 0) {
     return (
       <Text c="dimmed" ta="center" py="xl">
         No sessions to display in timetable view.
@@ -174,9 +185,9 @@ export default function TimetableView({ sessions, venues }: TimetableViewProps) 
 
         {/* Time labels — hour and half-hour only */}
         {timeSlots
-          .filter((slot) => slot.time.getMinutes() % 30 === 0)
+          .filter((slot) => slot.time.getUTCMinutes() % 30 === 0)
           .map((slot) => {
-            const isHour = slot.time.getMinutes() === 0;
+            const isHour = slot.time.getUTCMinutes() === 0;
             return (
               <div
                 key={slot.row}
@@ -197,7 +208,7 @@ export default function TimetableView({ sessions, venues }: TimetableViewProps) 
 
         {/* Horizontal gridlines — every hour */}
         {timeSlots
-          .filter((slot) => slot.time.getMinutes() === 0)
+          .filter((slot) => slot.time.getUTCMinutes() === 0)
           .map((slot) => (
             <div
               key={`line-${slot.row}`}
@@ -215,22 +226,28 @@ export default function TimetableView({ sessions, venues }: TimetableViewProps) 
           let colIndex: number;
           if (session.roomId) {
             colIndex = columns.findIndex((col) => col.roomId === session.roomId);
-          } else {
+          } else if (session.venueId) {
             // No room assigned: place in the first column of the venue
             colIndex = columns.findIndex((col) => col.venueId === session.venueId);
+          } else {
+            // No venue assigned: place in the "General" column
+            colIndex = columns.findIndex((col) => col.venueId === "__unassigned__");
           }
           if (colIndex === -1) return null;
           const color = session.sessionType?.color ?? session.track?.color ?? "#94a3b8";
 
           return (
-            <div
+            <Link
               key={session.id}
+              href={`/events/${eventId}/schedule/${session.id}`}
               className="timetable-session-block"
               style={{
                 gridRow: `${startRow} / ${endRow}`,
                 gridColumn: colIndex + 2,
                 backgroundColor: `${color}30`,
                 borderLeft: `3px solid ${color}`,
+                textDecoration: "none",
+                color: "inherit",
               }}
             >
               <Text fw={600} size="xs" lineClamp={3} style={{ lineHeight: 1.3 }}>
@@ -239,7 +256,7 @@ export default function TimetableView({ sessions, venues }: TimetableViewProps) 
               <Text size="xs" c="dimmed" style={{ fontSize: 10, lineHeight: 1.2 }}>
                 {formatTime(session.startTime)} - {formatTime(session.endTime)}
               </Text>
-            </div>
+            </Link>
           );
         })}
       </div>

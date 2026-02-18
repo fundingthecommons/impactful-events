@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Text, Stack } from "@mantine/core";
+import Link from "next/link";
 import { type ScheduleSession } from "./SchedulePageClient";
 
 interface ByFloorViewProps {
@@ -11,6 +12,7 @@ interface ByFloorViewProps {
     name: string;
     rooms: Array<{ id: string; name: string }>;
   }>;
+  eventId: string;
 }
 
 function formatTimeShort(date: Date): string {
@@ -18,10 +20,11 @@ function formatTimeShort(date: Date): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: false,
+    timeZone: "UTC",
   });
 }
 
-export default function ByFloorView({ sessions, venues }: ByFloorViewProps) {
+export default function ByFloorView({ sessions, venues, eventId }: ByFloorViewProps) {
   const sessionsByVenue = useMemo(() => {
     const byVenue = new Map<string, ScheduleSession[]>();
 
@@ -50,7 +53,13 @@ export default function ByFloorView({ sessions, venues }: ByFloorViewProps) {
     return byVenue;
   }, [sessions, venues]);
 
-  if (sessions.length === 0 || venues.length === 0) {
+  const unassignedSessions = useMemo(() => {
+    return sessions
+      .filter((s) => !s.venueId)
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }, [sessions]);
+
+  if (sessions.length === 0) {
     return (
       <Text c="dimmed" ta="center" py="xl">
         No sessions to display.
@@ -91,7 +100,7 @@ export default function ByFloorView({ sessions, venues }: ByFloorViewProps) {
                         </Text>
                         <Stack gap={4}>
                           {roomSessions.map((session) => (
-                            <SessionBar key={session.id} session={session} />
+                            <SessionBar key={session.id} session={session} eventId={eventId} />
                           ))}
                         </Stack>
                       </div>
@@ -103,31 +112,49 @@ export default function ByFloorView({ sessions, venues }: ByFloorViewProps) {
                       {venueSessions
                         .filter((s) => !s.roomId)
                         .map((session) => (
-                          <SessionBar key={session.id} session={session} />
+                          <SessionBar key={session.id} session={session} eventId={eventId} />
                         ))}
                     </Stack>
                   )}
                 </>
               ) : (
                 venueSessions.map((session) => (
-                  <SessionBar key={session.id} session={session} />
+                  <SessionBar key={session.id} session={session} eventId={eventId} />
                 ))
               )}
             </Stack>
           </div>
         );
       })}
+      {unassignedSessions.length > 0 && (
+        <div className="by-floor-venue-group">
+          <Text
+            className="by-floor-venue-label"
+            fw={600}
+            size="sm"
+            c="dimmed"
+          >
+            General
+          </Text>
+          <Stack gap={4}>
+            {unassignedSessions.map((session) => (
+              <SessionBar key={session.id} session={session} eventId={eventId} />
+            ))}
+          </Stack>
+        </div>
+      )}
     </Stack>
   );
 }
 
-function SessionBar({ session }: { session: ScheduleSession }) {
+function SessionBar({ session, eventId }: { session: ScheduleSession; eventId: string }) {
   const color = session.sessionType?.color ?? "#94a3b8";
 
   return (
-    <div
+    <Link
+      href={`/events/${eventId}/schedule/${session.id}`}
       className="by-floor-session-bar"
-      style={{ backgroundColor: `${color}50` }}
+      style={{ backgroundColor: `${color}50`, textDecoration: "none", color: "inherit", display: "block" }}
     >
       <Text fw={500} size="sm">
         <Text span fw={700} size="sm">
@@ -136,6 +163,6 @@ function SessionBar({ session }: { session: ScheduleSession }) {
         {" \u2022 "}
         {session.title}
       </Text>
-    </div>
+    </Link>
   );
 }

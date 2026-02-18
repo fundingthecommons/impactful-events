@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Container,
   Title,
@@ -22,6 +22,13 @@ import {
   Switch,
   Avatar,
   Collapse,
+  Table,
+  Stepper,
+  FileInput,
+  Checkbox,
+  Alert,
+  ScrollArea,
+  Tooltip,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
@@ -38,7 +45,11 @@ import {
   IconFileText,
   IconDownload,
   IconDoor,
+  IconUpload,
+  IconCheck,
+  IconAlertCircle,
 } from "@tabler/icons-react";
+import Papa from "papaparse";
 import { api } from "~/trpc/react";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
 import { getDisplayName } from "~/utils/userDisplay";
@@ -126,6 +137,243 @@ function formatDuration(duration: string | null | undefined): string {
     "30": "30 min",
   };
   return map[duration] ?? duration;
+}
+
+// ──────────────────────────────────────────
+// CSV Import Types & Utilities
+// ──────────────────────────────────────────
+
+interface ParsedCsvSession {
+  rowIndex: number;
+  title: string;
+  description: string;
+  startTime: Date | null;
+  endTime: Date | null;
+  presenterNames: string[];
+  matchedSpeakers: SelectedSpeakerWithRole[];
+  unmatchedSpeakers: string[];
+  sessionTypeName: string | null;
+  sessionTypeId: string | null;
+  trackName: string | null;
+  trackId: string | null;
+  order: number;
+  status: "ready" | "warning" | "error";
+  warnings: string[];
+  errors: string[];
+  included: boolean;
+}
+
+interface ColumnMapping {
+  title: string | null;
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  presenters: string | null;
+  type: string | null;
+  curator: string | null;
+  description: string | null;
+  facilitator: string | null;
+  order: string | null;
+}
+
+const COLUMN_ALIASES: Record<keyof ColumnMapping, string[]> = {
+  title: ["talk title", "title", "session title", "name", "session name", "session"],
+  date: ["date", "day", "session date"],
+  startTime: ["start time", "start", "begin", "from"],
+  endTime: ["end time", "end", "to", "until"],
+  presenters: ["presenter(s) names", "presenters", "speakers", "speaker", "speaker name", "speaker names"],
+  type: ["type", "session type", "format", "talk type", "category"],
+  curator: ["curator", "track", "topic", "stream"],
+  description: ["description", "abstract", "summary", "details"],
+  facilitator: ["facilitator / moderator", "facilitator", "moderator", "chair"],
+  order: ["sort order", "order", "position", "#", "no"],
+};
+
+function detectColumns(headers: string[]): ColumnMapping {
+  const mapping: ColumnMapping = {
+    title: null,
+    date: null,
+    startTime: null,
+    endTime: null,
+    presenters: null,
+    type: null,
+    curator: null,
+    description: null,
+    facilitator: null,
+    order: null,
+  };
+
+  for (const header of headers) {
+    const lowerHeader = header.toLowerCase().trim();
+    for (const [field, aliases] of Object.entries(COLUMN_ALIASES) as Array<
+      [keyof ColumnMapping, string[]]
+    >) {
+      if (mapping[field]) continue; // Already mapped
+      if (aliases.some((alias) => lowerHeader === alias)) {
+        mapping[field] = header;
+        break;
+      }
+    }
+  }
+
+  return mapping;
+}
+
+const MONTH_NAMES: Record<string, number> = {
+  january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+  july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+  jan: 0, feb: 1, mar: 2, apr: 3, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+};
+
+function parseCsvDateTime(
+  dateStr: string | undefined,
+  timeStr: string | undefined,
+  year: number,
+): Date | null {
+  if (!dateStr || !timeStr) return null;
+
+  const dateTrimmed = dateStr.trim();
+  const timeTrimmed = timeStr.trim();
+
+  // Parse date: "March 14", "Mar 14", "3/14", "03/14"
+  let month: number | null = null;
+  let day: number | null = null;
+
+  // Try "Month Day" format (March 14)
+  const monthDayMatch = /^(\w+)\s+(\d{1,2})$/.exec(dateTrimmed);
+  if (monthDayMatch) {
+    const monthName = monthDayMatch[1]!.toLowerCase();
+    month = MONTH_NAMES[monthName] ?? null;
+    day = parseInt(monthDayMatch[2]!, 10);
+  }
+
+  // Try "M/D" or "MM/DD" format
+  if (month === null) {
+    const slashMatch = /^(\d{1,2})[/-](\d{1,2})$/.exec(dateTrimmed);
+    if (slashMatch) {
+      month = parseInt(slashMatch[1]!, 10) - 1; // 0-indexed
+      day = parseInt(slashMatch[2]!, 10);
+    }
+  }
+
+  if (month === null || day === null) return null;
+
+  // Parse time: "10:00 AM", "3:50 PM", "14:30"
+  const timeMatch = /^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i.exec(timeTrimmed);
+  if (!timeMatch) return null;
+
+  let hours = parseInt(timeMatch[1]!, 10);
+  const minutes = parseInt(timeMatch[2]!, 10);
+  const ampm = timeMatch[3]?.toUpperCase();
+
+  if (ampm === "PM" && hours !== 12) hours += 12;
+  if (ampm === "AM" && hours === 12) hours = 0;
+
+  const date = new Date(year, month, day, hours, minutes, 0, 0);
+  if (isNaN(date.getTime())) return null;
+  return date;
+}
+
+function extractPresenterNames(raw: string | undefined): string[] {
+  if (!raw) return [];
+  // Handle entries like "Metagov curation (incl. Joshua Tan (Public AI / Metagov), Aviv Ovadya)"
+  // Split on comma but be careful with parentheses
+  return raw
+    .split(/,(?![^(]*\))/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function parseCsvRows(
+  rawData: Record<string, string>[],
+  mapping: ColumnMapping,
+  year: number,
+  sessionTypes: { id: string; name: string }[],
+  tracks: { id: string; name: string }[],
+  existingSessions: { title: string; startTime: Date; endTime: Date }[],
+): ParsedCsvSession[] {
+  return rawData.map((row, index) => {
+    const warnings: string[] = [];
+    const errors: string[] = [];
+
+    // Title
+    const rawTitle = mapping.title ? row[mapping.title]?.trim() : undefined;
+    let title = rawTitle ?? "";
+    if (!title || title === "—" || title === "\u2014" || title === "-") {
+      const presenter = mapping.presenters ? row[mapping.presenters]?.trim() : undefined;
+      title = presenter ?? "TBD";
+      if (!rawTitle) warnings.push("No title found, using presenter name or TBD");
+    }
+
+    // Date/Time
+    const dateStr = mapping.date ? row[mapping.date] : undefined;
+    const startTimeStr = mapping.startTime ? row[mapping.startTime] : undefined;
+    const endTimeStr = mapping.endTime ? row[mapping.endTime] : undefined;
+    const startTime = parseCsvDateTime(dateStr, startTimeStr, year);
+    const endTime = parseCsvDateTime(dateStr, endTimeStr, year);
+
+    if (!startTime) errors.push("Could not parse start time");
+    if (!endTime) errors.push("Could not parse end time");
+
+    // Presenters
+    const presenterRaw = mapping.presenters ? row[mapping.presenters] : undefined;
+    const presenterNames = extractPresenterNames(presenterRaw);
+
+    // Session type
+    const typeName = mapping.type ? row[mapping.type]?.trim() : null;
+    const sessionTypeId = findMatchingSessionType(typeName, sessionTypes);
+    if (typeName && !sessionTypeId) {
+      warnings.push(`Session type "${typeName}" not found — will be created`);
+    }
+
+    // Track (curator)
+    const trackName = mapping.curator ? row[mapping.curator]?.trim() : null;
+    const trackId = findMatchingTrack(trackName, tracks);
+    if (trackName && !trackId) {
+      warnings.push(`Track "${trackName}" not found — will be created`);
+    }
+
+    // Description
+    const description = mapping.description ? row[mapping.description]?.trim() ?? "" : "";
+
+    // Order
+    const orderStr = mapping.order ? row[mapping.order] : undefined;
+    const order = orderStr ? Math.floor(parseFloat(orderStr)) || 0 : index;
+
+    // Duplicate detection
+    const isDuplicate = startTime
+      ? existingSessions.some(
+          (s) =>
+            s.title.toLowerCase() === title.toLowerCase() &&
+            Math.abs(new Date(s.startTime).getTime() - startTime.getTime()) < 60000,
+        )
+      : false;
+    if (isDuplicate) warnings.push("Possible duplicate of existing session");
+
+    const status: "ready" | "warning" | "error" =
+      errors.length > 0 ? "error" : warnings.length > 0 ? "warning" : "ready";
+
+    return {
+      rowIndex: index,
+      title,
+      description,
+      startTime,
+      endTime,
+      presenterNames,
+      matchedSpeakers: [],
+      unmatchedSpeakers: presenterNames,
+      sessionTypeName: typeName ?? null,
+      sessionTypeId,
+      trackName: trackName ?? null,
+      trackId,
+      order,
+      status,
+      warnings,
+      errors,
+      included: !isDuplicate && errors.length === 0,
+    };
+  });
 }
 
 type FloorSession = {
@@ -492,21 +740,35 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
       {/* Sessions */}
       <Group justify="space-between">
         <Title order={4}>Sessions</Title>
-        <CreateSessionButton
-          eventId={eventId}
-          venueId={venueId}
-          rooms={venue?.rooms ?? []}
-          sessionTypes={filterData?.sessionTypes ?? []}
-          tracks={filterData?.tracks ?? []}
-          isAdmin={isAdmin}
-          applicationsData={applicationsData ?? []}
-          prefillData={prefillData}
-          externalOpened={createModalOpened ? true : undefined}
-          onExternalClose={() => {
-            setCreateModalOpened(false);
-            setPrefillData(null);
-          }}
-        />
+        <Group gap="xs">
+          <CsvUploadButton
+            eventId={eventId}
+            venueId={venueId}
+            sessionTypes={filterData?.sessionTypes ?? []}
+            tracks={filterData?.tracks ?? []}
+            existingSessions={(sessionsData?.sessions ?? []).map((s) => ({
+              title: s.title,
+              startTime: s.startTime,
+              endTime: s.endTime,
+            }))}
+            eventYear={sessionsData?.event?.startDate ? new Date(sessionsData.event.startDate).getFullYear() : new Date().getFullYear()}
+          />
+          <CreateSessionButton
+            eventId={eventId}
+            venueId={venueId}
+            rooms={venue?.rooms ?? []}
+            sessionTypes={filterData?.sessionTypes ?? []}
+            tracks={filterData?.tracks ?? []}
+            isAdmin={isAdmin}
+            applicationsData={applicationsData ?? []}
+            prefillData={prefillData}
+            externalOpened={createModalOpened ? true : undefined}
+            onExternalClose={() => {
+              setCreateModalOpened(false);
+              setPrefillData(null);
+            }}
+          />
+        </Group>
       </Group>
 
       {sessionsLoading ? (
@@ -1531,6 +1793,651 @@ function EditSessionModal({
           </Button>
         </Group>
       </Stack>
+    </Modal>
+  );
+}
+
+// ──────────────────────────────────────────
+// CSV Upload
+// ──────────────────────────────────────────
+
+interface CsvUploadButtonProps {
+  eventId: string;
+  venueId: string;
+  sessionTypes: { id: string; name: string; color: string }[];
+  tracks: { id: string; name: string; color: string }[];
+  existingSessions: { title: string; startTime: Date; endTime: Date }[];
+  eventYear: number;
+}
+
+function CsvUploadButton({
+  eventId,
+  venueId,
+  sessionTypes,
+  tracks,
+  existingSessions,
+  eventYear,
+}: CsvUploadButtonProps) {
+  const [opened, { open, close }] = useDisclosure(false);
+
+  return (
+    <>
+      <Button
+        variant="light"
+        leftSection={<IconUpload size={16} />}
+        onClick={open}
+      >
+        Upload CSV
+      </Button>
+      <CsvUploadModal
+        opened={opened}
+        onClose={close}
+        eventId={eventId}
+        venueId={venueId}
+        sessionTypes={sessionTypes}
+        tracks={tracks}
+        existingSessions={existingSessions}
+        eventYear={eventYear}
+      />
+    </>
+  );
+}
+
+interface CsvUploadModalProps {
+  opened: boolean;
+  onClose: () => void;
+  eventId: string;
+  venueId: string;
+  sessionTypes: { id: string; name: string; color: string }[];
+  tracks: { id: string; name: string; color: string }[];
+  existingSessions: { title: string; startTime: Date; endTime: Date }[];
+  eventYear: number;
+}
+
+function CsvUploadModal({
+  opened,
+  onClose,
+  eventId,
+  venueId,
+  sessionTypes,
+  tracks,
+  existingSessions,
+  eventYear,
+}: CsvUploadModalProps) {
+  const [activeStep, setActiveStep] = useState(0);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [rawHeaders, setRawHeaders] = useState<string[]>([]);
+  const [rawData, setRawData] = useState<Record<string, string>[]>([]);
+  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
+    title: null, date: null, startTime: null, endTime: null,
+    presenters: null, type: null, curator: null,
+    description: null, facilitator: null, order: null,
+  });
+  const [parsedSessions, setParsedSessions] = useState<ParsedCsvSession[]>([]);
+  const [newTypesToCreate, setNewTypesToCreate] = useState<
+    { name: string; color: string; create: boolean }[]
+  >([]);
+  const [newTracksToCreate, setNewTracksToCreate] = useState<
+    { name: string; color: string; create: boolean }[]
+  >([]);
+
+  const utils = api.useUtils();
+
+  const bulkCreateMutation = api.schedule.bulkCreateSessions.useMutation({
+    onSuccess: (data) => {
+      notifications.show({
+        title: "Import Complete",
+        message: `Created ${data.created} sessions successfully`,
+        color: "green",
+      });
+      void utils.schedule.getFloorSessions.invalidate({ eventId, venueId });
+      void utils.schedule.getMyFloors.invalidate({ eventId });
+      void utils.schedule.getEventScheduleFilters.invalidate({ eventId });
+      handleClose();
+    },
+    onError: (err) => {
+      notifications.show({
+        title: "Import Failed",
+        message: err.message,
+        color: "red",
+      });
+    },
+  });
+
+  // Collect unique speaker names for fuzzy matching
+  const speakerNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const session of parsedSessions) {
+      for (const name of session.presenterNames) {
+        names.add(name);
+      }
+    }
+    return Array.from(names);
+  }, [parsedSessions]);
+
+  // Fuzzy match speakers when we have parsed sessions
+  const { data: speakerMatches } = api.schedule.fuzzyMatchSpeakers.useQuery(
+    { eventId, names: speakerNames },
+    { enabled: speakerNames.length > 0 && activeStep >= 1 },
+  );
+
+  // Apply speaker matches to parsed sessions when they arrive
+  useEffect(() => {
+    if (!speakerMatches) return;
+    setParsedSessions((prev) =>
+      prev.map((session) => {
+        const matched: SelectedSpeakerWithRole[] = [];
+        const unmatched: string[] = [];
+        for (const name of session.presenterNames) {
+          const matches = speakerMatches[name];
+          const exactMatch = matches?.find((m) => m.confidence === "exact");
+          if (exactMatch) {
+            matched.push({
+              user: {
+                id: exactMatch.userId,
+                firstName: exactMatch.firstName,
+                surname: exactMatch.surname,
+                name: exactMatch.name,
+                email: exactMatch.email,
+                image: exactMatch.image,
+              },
+              role: "Speaker",
+            });
+          } else {
+            unmatched.push(name);
+          }
+        }
+        return { ...session, matchedSpeakers: matched, unmatchedSpeakers: unmatched };
+      }),
+    );
+  }, [speakerMatches]);
+
+  const handleClose = () => {
+    setActiveStep(0);
+    setCsvFile(null);
+    setRawHeaders([]);
+    setRawData([]);
+    setColumnMapping({
+      title: null, date: null, startTime: null, endTime: null,
+      presenters: null, type: null, curator: null,
+      description: null, facilitator: null, order: null,
+    });
+    setParsedSessions([]);
+    setNewTypesToCreate([]);
+    setNewTracksToCreate([]);
+    onClose();
+  };
+
+  const handleFileChange = useCallback((file: File | null) => {
+    setCsvFile(file);
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result;
+      if (typeof text !== "string") return;
+
+      const result = Papa.parse<Record<string, string>>(text, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (h: string) => h.trim(),
+      });
+
+      if (result.errors.length > 0 && result.data.length === 0) {
+        notifications.show({
+          title: "Parse Error",
+          message: "Could not parse CSV file. Check the format.",
+          color: "red",
+        });
+        return;
+      }
+
+      const headers = result.meta.fields ?? [];
+      setRawHeaders(headers);
+      setRawData(result.data);
+
+      const detected = detectColumns(headers);
+      setColumnMapping(detected);
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const handleParseAndPreview = useCallback(() => {
+    const parsed = parseCsvRows(
+      rawData,
+      columnMapping,
+      eventYear,
+      sessionTypes,
+      tracks,
+      existingSessions,
+    );
+    setParsedSessions(parsed);
+
+    // Detect new types/tracks needed
+    const unmatchedTypes = new Set<string>();
+    const unmatchedTracks = new Set<string>();
+    for (const s of parsed) {
+      if (s.sessionTypeName && !s.sessionTypeId) unmatchedTypes.add(s.sessionTypeName);
+      if (s.trackName && !s.trackId) unmatchedTracks.add(s.trackName);
+    }
+    setNewTypesToCreate(
+      Array.from(unmatchedTypes).map((name) => ({
+        name,
+        color: "#4299e1",
+        create: true,
+      })),
+    );
+    setNewTracksToCreate(
+      Array.from(unmatchedTracks).map((name) => ({
+        name,
+        color: "#8b5cf6",
+        create: true,
+      })),
+    );
+
+    setActiveStep(1);
+  }, [rawData, columnMapping, eventYear, sessionTypes, tracks, existingSessions]);
+
+  const handleImport = useCallback(() => {
+    const toImport = parsedSessions.filter((s) => s.included && s.status !== "error");
+    if (toImport.length === 0) {
+      notifications.show({
+        title: "Nothing to Import",
+        message: "No sessions selected for import",
+        color: "orange",
+      });
+      return;
+    }
+
+    const typesToCreate = newTypesToCreate.filter((t) => t.create);
+    const tracksToCreate = newTracksToCreate.filter((t) => t.create);
+
+    bulkCreateMutation.mutate({
+      eventId,
+      venueId,
+      sessions: toImport.map((s) => ({
+        title: s.title,
+        description: s.description || undefined,
+        startTime: s.startTime!,
+        endTime: s.endTime!,
+        speakers: s.unmatchedSpeakers,
+        linkedSpeakers: s.matchedSpeakers.map((ms) => ({
+          userId: ms.user.id,
+          role: ms.role,
+        })),
+        sessionTypeId: s.sessionTypeId ?? undefined,
+        trackId: s.trackId ?? undefined,
+        order: s.order,
+        isPublished: true,
+      })),
+      newSessionTypes: typesToCreate.length > 0 ? typesToCreate.map((t) => ({ name: t.name, color: t.color })) : undefined,
+      newTracks: tracksToCreate.length > 0 ? tracksToCreate.map((t) => ({ name: t.name, color: t.color })) : undefined,
+    });
+  }, [parsedSessions, newTypesToCreate, newTracksToCreate, eventId, venueId, bulkCreateMutation]);
+
+  const includedCount = parsedSessions.filter((s) => s.included).length;
+  const readyCount = parsedSessions.filter((s) => s.status === "ready").length;
+  const warningCount = parsedSessions.filter((s) => s.status === "warning").length;
+  const errorCount = parsedSessions.filter((s) => s.status === "error").length;
+
+  const columnOptions = rawHeaders.map((h) => ({ value: h, label: h }));
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={handleClose}
+      title="Import Schedule from CSV"
+      size="xl"
+    >
+      <Stepper active={activeStep} allowNextStepsSelect={false} size="sm">
+        {/* Step 1: Upload & Map */}
+        <Stepper.Step label="Upload" description="Select CSV file">
+          <Stack gap="md" mt="md">
+            <FileInput
+              label="CSV File"
+              placeholder="Choose a .csv file"
+              accept=".csv,.tsv,.txt"
+              value={csvFile}
+              onChange={handleFileChange}
+              leftSection={<IconUpload size={16} />}
+            />
+
+            {rawData.length > 0 && (
+              <>
+                <Alert variant="light" color="blue" icon={<IconCheck size={16} />}>
+                  Parsed {rawData.length} rows with {rawHeaders.length} columns
+                </Alert>
+
+                <Text fw={600} size="sm">Column Mapping</Text>
+                <Text size="xs" c="dimmed">
+                  Auto-detected columns are shown below. Override any that are incorrect.
+                </Text>
+
+                <Group grow>
+                  <Select
+                    label="Title"
+                    data={columnOptions}
+                    value={columnMapping.title}
+                    onChange={(v) => setColumnMapping((m) => ({ ...m, title: v }))}
+                    clearable
+                    size="xs"
+                  />
+                  <Select
+                    label="Date"
+                    data={columnOptions}
+                    value={columnMapping.date}
+                    onChange={(v) => setColumnMapping((m) => ({ ...m, date: v }))}
+                    clearable
+                    size="xs"
+                  />
+                </Group>
+                <Group grow>
+                  <Select
+                    label="Start Time"
+                    data={columnOptions}
+                    value={columnMapping.startTime}
+                    onChange={(v) => setColumnMapping((m) => ({ ...m, startTime: v }))}
+                    clearable
+                    size="xs"
+                  />
+                  <Select
+                    label="End Time"
+                    data={columnOptions}
+                    value={columnMapping.endTime}
+                    onChange={(v) => setColumnMapping((m) => ({ ...m, endTime: v }))}
+                    clearable
+                    size="xs"
+                  />
+                </Group>
+                <Group grow>
+                  <Select
+                    label="Presenters"
+                    data={columnOptions}
+                    value={columnMapping.presenters}
+                    onChange={(v) => setColumnMapping((m) => ({ ...m, presenters: v }))}
+                    clearable
+                    size="xs"
+                  />
+                  <Select
+                    label="Session Type"
+                    data={columnOptions}
+                    value={columnMapping.type}
+                    onChange={(v) => setColumnMapping((m) => ({ ...m, type: v }))}
+                    clearable
+                    size="xs"
+                  />
+                </Group>
+                <Group grow>
+                  <Select
+                    label="Track / Curator"
+                    data={columnOptions}
+                    value={columnMapping.curator}
+                    onChange={(v) => setColumnMapping((m) => ({ ...m, curator: v }))}
+                    clearable
+                    size="xs"
+                  />
+                  <Select
+                    label="Description"
+                    data={columnOptions}
+                    value={columnMapping.description}
+                    onChange={(v) => setColumnMapping((m) => ({ ...m, description: v }))}
+                    clearable
+                    size="xs"
+                  />
+                </Group>
+
+                <Group justify="flex-end">
+                  <Button onClick={handleParseAndPreview}>
+                    Preview Import
+                  </Button>
+                </Group>
+              </>
+            )}
+          </Stack>
+        </Stepper.Step>
+
+        {/* Step 2: Preview */}
+        <Stepper.Step label="Preview" description="Review sessions">
+          <Stack gap="md" mt="md">
+            <Group gap="md">
+              <Badge color="green" variant="light">{readyCount} ready</Badge>
+              {warningCount > 0 && (
+                <Badge color="yellow" variant="light">{warningCount} warnings</Badge>
+              )}
+              {errorCount > 0 && (
+                <Badge color="red" variant="light">{errorCount} errors</Badge>
+              )}
+              <Badge variant="light">{includedCount} selected</Badge>
+            </Group>
+
+            {newTypesToCreate.length > 0 && (
+              <Alert
+                variant="light"
+                color="yellow"
+                icon={<IconAlertCircle size={16} />}
+                title="New session types to create"
+              >
+                <Stack gap="xs">
+                  {newTypesToCreate.map((t, i) => (
+                    <Checkbox
+                      key={t.name}
+                      label={t.name}
+                      checked={t.create}
+                      onChange={(e) =>
+                        setNewTypesToCreate((prev) =>
+                          prev.map((p, j) =>
+                            i === j ? { ...p, create: e.currentTarget.checked } : p,
+                          ),
+                        )
+                      }
+                      size="xs"
+                    />
+                  ))}
+                </Stack>
+              </Alert>
+            )}
+
+            {newTracksToCreate.length > 0 && (
+              <Alert
+                variant="light"
+                color="yellow"
+                icon={<IconAlertCircle size={16} />}
+                title="New tracks to create"
+              >
+                <Stack gap="xs">
+                  {newTracksToCreate.map((t, i) => (
+                    <Checkbox
+                      key={t.name}
+                      label={t.name}
+                      checked={t.create}
+                      onChange={(e) =>
+                        setNewTracksToCreate((prev) =>
+                          prev.map((p, j) =>
+                            i === j ? { ...p, create: e.currentTarget.checked } : p,
+                          ),
+                        )
+                      }
+                      size="xs"
+                    />
+                  ))}
+                </Stack>
+              </Alert>
+            )}
+
+            <ScrollArea h={400}>
+              <Table striped highlightOnHover withTableBorder withColumnBorders>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w={40}></Table.Th>
+                    <Table.Th>Title</Table.Th>
+                    <Table.Th>Time</Table.Th>
+                    <Table.Th>Type</Table.Th>
+                    <Table.Th>Track</Table.Th>
+                    <Table.Th>Speakers</Table.Th>
+                    <Table.Th w={80}>Status</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {parsedSessions.map((session, idx) => (
+                    <Table.Tr
+                      key={idx}
+                      style={{
+                        opacity: session.included ? 1 : 0.5,
+                      }}
+                    >
+                      <Table.Td>
+                        <Checkbox
+                          checked={session.included}
+                          disabled={session.status === "error"}
+                          onChange={(e) =>
+                            setParsedSessions((prev) =>
+                              prev.map((s, i) =>
+                                i === idx
+                                  ? { ...s, included: e.currentTarget.checked }
+                                  : s,
+                              ),
+                            )
+                          }
+                          size="xs"
+                        />
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" lineClamp={1}>{session.title}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        {session.startTime && session.endTime ? (
+                          <Text size="xs">
+                            {session.startTime.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
+                            {session.startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            {" – "}
+                            {session.endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                          </Text>
+                        ) : (
+                          <Text size="xs" c="red">Invalid</Text>
+                        )}
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs">{session.sessionTypeName ?? "—"}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="xs">{session.trackName ?? "—"}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Stack gap={2}>
+                          {session.matchedSpeakers.map((ms) => (
+                            <Group key={ms.user.id} gap={4}>
+                              <Avatar src={ms.user.image} size={16} radius="xl" />
+                              <Text size="xs">
+                                {getDisplayName(ms.user, "Unknown")}
+                              </Text>
+                            </Group>
+                          ))}
+                          {session.unmatchedSpeakers.map((name) => (
+                            <Text key={name} size="xs" c="dimmed" fs="italic">
+                              {name}
+                            </Text>
+                          ))}
+                        </Stack>
+                      </Table.Td>
+                      <Table.Td>
+                        {session.status === "ready" && (
+                          <Badge size="xs" color="green" variant="light">Ready</Badge>
+                        )}
+                        {session.status === "warning" && (
+                          <Tooltip label={session.warnings.join("; ")}>
+                            <Badge size="xs" color="yellow" variant="light">
+                              Warning
+                            </Badge>
+                          </Tooltip>
+                        )}
+                        {session.status === "error" && (
+                          <Tooltip label={session.errors.join("; ")}>
+                            <Badge size="xs" color="red" variant="light">
+                              Error
+                            </Badge>
+                          </Tooltip>
+                        )}
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+
+            <Group justify="space-between">
+              <Button variant="subtle" onClick={() => setActiveStep(0)}>
+                Back
+              </Button>
+              <Button
+                onClick={() => setActiveStep(2)}
+                disabled={includedCount === 0}
+              >
+                Continue ({includedCount} sessions)
+              </Button>
+            </Group>
+          </Stack>
+        </Stepper.Step>
+
+        {/* Step 3: Confirm */}
+        <Stepper.Step label="Import" description="Confirm & create">
+          <Stack gap="md" mt="md">
+            <Paper p="md" withBorder>
+              <Stack gap="sm">
+                <Text fw={600}>Import Summary</Text>
+                <Text size="sm">
+                  Creating <strong>{includedCount}</strong> sessions
+                </Text>
+                {newTypesToCreate.filter((t) => t.create).length > 0 && (
+                  <Text size="sm">
+                    New session types:{" "}
+                    {newTypesToCreate
+                      .filter((t) => t.create)
+                      .map((t) => t.name)
+                      .join(", ")}
+                  </Text>
+                )}
+                {newTracksToCreate.filter((t) => t.create).length > 0 && (
+                  <Text size="sm">
+                    New tracks:{" "}
+                    {newTracksToCreate
+                      .filter((t) => t.create)
+                      .map((t) => t.name)
+                      .join(", ")}
+                  </Text>
+                )}
+                {parsedSessions.some((s) => s.matchedSpeakers.length > 0) && (
+                  <Text size="sm">
+                    Matched speakers:{" "}
+                    {new Set(
+                      parsedSessions
+                        .filter((s) => s.included)
+                        .flatMap((s) =>
+                          s.matchedSpeakers.map((ms) =>
+                            getDisplayName(ms.user, "Unknown"),
+                          ),
+                        ),
+                    ).size}{" "}
+                    users linked
+                  </Text>
+                )}
+              </Stack>
+            </Paper>
+
+            <Group justify="space-between">
+              <Button variant="subtle" onClick={() => setActiveStep(1)}>
+                Back
+              </Button>
+              <Button
+                onClick={handleImport}
+                loading={bulkCreateMutation.isPending}
+                leftSection={<IconCheck size={16} />}
+              >
+                Import {includedCount} Sessions
+              </Button>
+            </Group>
+          </Stack>
+        </Stepper.Step>
+      </Stepper>
     </Modal>
   );
 }

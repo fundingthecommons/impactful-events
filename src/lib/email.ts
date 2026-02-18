@@ -195,7 +195,7 @@ export async function sendEmail(params: SendEmailParams & {
     );
     
     const response = await postmarkClient.sendEmail({
-      From: env.ADMIN_EMAIL,
+      From: `Funding the Commons <${env.ADMIN_EMAIL}>`,
       To: finalRecipient,
       Subject: finalSubject,
       HtmlBody: finalHtmlContent,

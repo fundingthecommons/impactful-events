@@ -186,6 +186,17 @@ export default function EventSubNavigation({
               >
                 Schedule
               </NavigationTab>
+
+              {featureFlags?.featureScheduleManagement !== false && (
+                <NavigationTab
+                  value="manage-schedule"
+                  href={`${basePath}/manage-schedule`}
+                  icon={<IconSettings size={16} />}
+                  level="sub"
+                >
+                  Manage Schedule
+                </NavigationTab>
+              )}
             </NavigationTabs>
 
             <Link

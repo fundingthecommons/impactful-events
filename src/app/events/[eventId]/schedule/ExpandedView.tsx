@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { Text, Badge, Group, Avatar, Stack } from "@mantine/core";
+import Link from "next/link";
 import { getDisplayName } from "~/utils/userDisplay";
 import { type ScheduleSession } from "./SchedulePageClient";
 
 interface ExpandedViewProps {
   sessions: ScheduleSession[];
+  eventId: string;
 }
 
 function formatTime(date: Date): string {
@@ -14,6 +16,7 @@ function formatTime(date: Date): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: "UTC",
   });
 }
 
@@ -41,7 +44,7 @@ function SpeakerBio({ bio }: { bio: string }) {
   );
 }
 
-export default function ExpandedView({ sessions }: ExpandedViewProps) {
+export default function ExpandedView({ sessions, eventId }: ExpandedViewProps) {
   if (sessions.length === 0) {
     return (
       <Text c="dimmed" ta="center" py="xl">
@@ -57,6 +60,7 @@ export default function ExpandedView({ sessions }: ExpandedViewProps) {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
+      timeZone: "UTC",
     });
     const existing = byTime.get(timeKey) ?? [];
     existing.push(session);
@@ -83,7 +87,12 @@ export default function ExpandedView({ sessions }: ExpandedViewProps) {
                 session.sessionSpeakers.length > 0 || session.speakers.length > 0;
 
               return (
-                <div key={session.id} className="expanded-session-card">
+                <Link
+                  key={session.id}
+                  href={`/events/${eventId}/schedule/${session.id}`}
+                  className="expanded-session-card"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
                   {/* Color header bar */}
                   <div
                     className="expanded-session-header"
@@ -236,7 +245,7 @@ export default function ExpandedView({ sessions }: ExpandedViewProps) {
                       )}
                     </Group>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </Stack>

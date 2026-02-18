@@ -247,11 +247,14 @@ export const applicationRouter = createTRPCRouter({
         });
 
         const now = new Date();
+        // Token is sufficient proof of invitation - don't require email match
+        // (user may sign in with different email than invitation was sent to)
+        // Allow both PENDING and ACCEPTED status (invitation may have been
+        // accepted during account creation but application not yet submitted)
         if (invitation &&
-            invitation.status === "PENDING" &&
+            (invitation.status === "PENDING" || invitation.status === "ACCEPTED") &&
             invitation.expiresAt > now &&
-            invitation.eventId === input.eventId &&
-            invitation.email.toLowerCase() === ctx.session.user.email?.toLowerCase()) {
+            invitation.eventId === input.eventId) {
           hasValidInvitation = true;
           validInvitationId = invitation.id;
           console.log('✅ Valid invitation token found for user');
@@ -260,9 +263,6 @@ export const applicationRouter = createTRPCRouter({
             status: invitation.status,
             expired: invitation.expiresAt <= now,
             wrongEvent: invitation.eventId !== input.eventId,
-            wrongEmail: invitation.email.toLowerCase() !== ctx.session.user.email?.toLowerCase(),
-            invitationEmail: invitation.email.toLowerCase(),
-            userEmail: ctx.session.user.email?.toLowerCase()
           });
         } else {
           console.log('❌ Invitation not found with token:', input.invitationToken);

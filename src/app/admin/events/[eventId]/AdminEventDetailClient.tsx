@@ -303,6 +303,14 @@ export default function AdminEventDetailClient({ event }: AdminEventDetailClient
               href: `/admin/events/${eventIdentifier}/floor-owners`,
               visible: event.featureFloorManagement,
             },
+            {
+              label: "Manage Schedule",
+              description: "Create and manage sessions, floors, and tracks",
+              icon: IconCalendarEvent,
+              color: "indigo",
+              href: `/events/${eventIdentifier}/manage-schedule`,
+              visible: event.featureScheduleManagement,
+            },
           ].filter((card) => card.visible !== false).map((card) => {
             const CardIcon = card.icon;
             return (

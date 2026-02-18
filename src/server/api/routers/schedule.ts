@@ -138,6 +138,46 @@ export const scheduleRouter = createTRPCRouter({
       return { event, sessions };
     }),
 
+  // Public: Get a single session by ID
+  getSession: publicProcedure
+    .input(z.object({ sessionId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const session = await ctx.db.scheduleSession.findUnique({
+        where: { id: input.sessionId },
+        include: {
+          event: { select: { id: true, name: true, slug: true } },
+          venue: { select: { id: true, name: true } },
+          room: { select: { id: true, name: true } },
+          sessionType: { select: { id: true, name: true, color: true } },
+          track: { select: { id: true, name: true, color: true } },
+          sessionSpeakers: {
+            include: {
+              user: {
+                select: {
+                  ...userSelectFields,
+                  profile: {
+                    select: {
+                      bio: true,
+                      jobTitle: true,
+                      company: true,
+                      avatarUrl: true,
+                    },
+                  },
+                },
+              },
+            },
+            orderBy: { order: "asc" },
+          },
+        },
+      });
+
+      if (!session) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Session not found" });
+      }
+
+      return session;
+    }),
+
   // Public: Get filter options (venues + session types + tracks) for an event
   getEventScheduleFilters: publicProcedure
     .input(z.object({ eventId: z.string() }))
@@ -241,6 +281,9 @@ export const scheduleRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Resolve slug to real event ID
+      const event = await resolveEventId(ctx.db, input.eventId);
+
       if (input.venueId) {
         await assertCanManageVenue(
           ctx.db,
@@ -281,7 +324,9 @@ export const scheduleRouter = createTRPCRouter({
         );
       }
 
-      const session = await ctx.db.scheduleSession.create({ data: sessionData });
+      const session = await ctx.db.scheduleSession.create({
+        data: { ...sessionData, eventId: event.id },
+      });
 
       if (linkedSpeakers && linkedSpeakers.length > 0) {
         await ctx.db.sessionSpeaker.createMany({
@@ -295,6 +340,227 @@ export const scheduleRouter = createTRPCRouter({
       }
 
       return session;
+    }),
+
+  // Bulk create sessions from CSV import (admin or floor lead of the target venue)
+  bulkCreateSessions: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        venueId: z.string(),
+        sessions: z.array(
+          z.object({
+            title: z.string().min(1),
+            description: z.string().optional(),
+            startTime: z.coerce.date(),
+            endTime: z.coerce.date(),
+            speakers: z.array(z.string()).default([]),
+            linkedSpeakers: z
+              .array(
+                z.object({
+                  userId: z.string(),
+                  role: z.enum(PARTICIPANT_ROLES).default("Speaker"),
+                }),
+              )
+              .optional(),
+            sessionTypeId: z.string().optional(),
+            trackId: z.string().optional(),
+            order: z.number().default(0),
+            isPublished: z.boolean().default(true),
+          }),
+        ),
+        newSessionTypes: z
+          .array(z.object({ name: z.string().min(1), color: z.string() }))
+          .optional(),
+        newTracks: z
+          .array(z.object({ name: z.string().min(1), color: z.string() }))
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const event = await resolveEventId(ctx.db, input.eventId);
+      await assertCanManageVenue(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.venueId,
+      );
+
+      // Collect all unique linked speaker user IDs for validation
+      const allSpeakerUserIds = [
+        ...new Set(
+          input.sessions.flatMap((s) =>
+            s.linkedSpeakers?.map((ls) => ls.userId) ?? [],
+          ),
+        ),
+      ];
+      if (allSpeakerUserIds.length > 0) {
+        await validateSpeakersAreFloorApplicants(
+          ctx.db,
+          ctx.session.user.role,
+          input.venueId,
+          allSpeakerUserIds,
+        );
+      }
+
+      const result = await ctx.db.$transaction(async (tx) => {
+        const newTypeIds: Record<string, string> = {};
+        const newTrackIds: Record<string, string> = {};
+
+        // Create new session types (skip if already exists)
+        if (input.newSessionTypes && input.newSessionTypes.length > 0) {
+          for (const st of input.newSessionTypes) {
+            const existing = await tx.scheduleSessionType.findUnique({
+              where: { eventId_name: { eventId: event.id, name: st.name } },
+            });
+            if (existing) {
+              newTypeIds[st.name] = existing.id;
+            } else {
+              const created = await tx.scheduleSessionType.create({
+                data: { eventId: event.id, name: st.name, color: st.color },
+              });
+              newTypeIds[st.name] = created.id;
+            }
+          }
+        }
+
+        // Create new tracks (skip if already exists)
+        if (input.newTracks && input.newTracks.length > 0) {
+          for (const tr of input.newTracks) {
+            const existing = await tx.scheduleTrack.findUnique({
+              where: { eventId_name: { eventId: event.id, name: tr.name } },
+            });
+            if (existing) {
+              newTrackIds[tr.name] = existing.id;
+            } else {
+              const created = await tx.scheduleTrack.create({
+                data: { eventId: event.id, name: tr.name, color: tr.color },
+              });
+              newTrackIds[tr.name] = created.id;
+            }
+          }
+        }
+
+        // Create sessions
+        let createdCount = 0;
+        for (const sessionInput of input.sessions) {
+          const { linkedSpeakers, ...sessionData } = sessionInput;
+          const session = await tx.scheduleSession.create({
+            data: {
+              ...sessionData,
+              eventId: event.id,
+              venueId: input.venueId,
+            },
+          });
+
+          if (linkedSpeakers && linkedSpeakers.length > 0) {
+            await tx.sessionSpeaker.createMany({
+              data: linkedSpeakers.map((speaker, index) => ({
+                sessionId: session.id,
+                userId: speaker.userId,
+                role: speaker.role,
+                order: index,
+              })),
+            });
+          }
+          createdCount++;
+        }
+
+        return { created: createdCount, newTypeIds, newTrackIds };
+      });
+
+      return result;
+    }),
+
+  // Fuzzy match speaker names to platform users for CSV import
+  fuzzyMatchSpeakers: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        names: z.array(z.string()).min(1).max(200),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const event = await resolveEventId(ctx.db, input.eventId);
+      const results: Record<
+        string,
+        Array<{
+          userId: string;
+          firstName: string | null;
+          surname: string | null;
+          name: string | null;
+          email: string | null;
+          image: string | null;
+          confidence: "exact" | "partial";
+        }>
+      > = {};
+
+      for (const rawName of input.names) {
+        // Strip parenthetical org annotation: "Tom Kalil (Renaissance Philanthropy)" → "Tom Kalil"
+        const cleanName = rawName.replace(/\s*\([^)]*\)\s*/g, "").trim();
+        if (!cleanName) {
+          results[rawName] = [];
+          continue;
+        }
+
+        const parts = cleanName.split(/\s+/);
+        const firstName = parts[0] ?? "";
+        const surname = parts.length > 1 ? parts.slice(1).join(" ") : "";
+
+        const orConditions = [];
+        if (firstName) {
+          orConditions.push(
+            { firstName: { contains: firstName, mode: "insensitive" as const } },
+          );
+        }
+        if (surname) {
+          orConditions.push(
+            { surname: { contains: surname, mode: "insensitive" as const } },
+          );
+        }
+        // Also try full name match on the "name" field
+        orConditions.push(
+          { name: { contains: cleanName, mode: "insensitive" as const } },
+        );
+
+        const users = await ctx.db.user.findMany({
+          where: {
+            AND: [
+              {
+                applications: {
+                  some: {
+                    eventId: event.id,
+                    userId: { not: null },
+                  },
+                },
+              },
+              { OR: orConditions },
+            ],
+          },
+          select: userSelectFields,
+          take: 3,
+        });
+
+        results[rawName] = users.map((u) => {
+          // Determine confidence: exact if first+last both match
+          const uFirst = (u.firstName ?? "").toLowerCase();
+          const uSurname = (u.surname ?? "").toLowerCase();
+          const isExact =
+            uFirst === firstName.toLowerCase() &&
+            uSurname === surname.toLowerCase();
+          return {
+            userId: u.id,
+            firstName: u.firstName,
+            surname: u.surname,
+            name: u.name,
+            email: u.email,
+            image: u.image,
+            confidence: isExact ? ("exact" as const) : ("partial" as const),
+          };
+        });
+      }
+
+      return results;
     }),
 
   // Update a session (admin or floor lead of the session's venue)
@@ -445,7 +711,9 @@ export const scheduleRouter = createTRPCRouter({
           message: "Admin access required to create venues",
         });
       }
-      return ctx.db.scheduleVenue.create({ data: input });
+      // Resolve slug to real event ID
+      const event = await resolveEventId(ctx.db, input.eventId);
+      return ctx.db.scheduleVenue.create({ data: { ...input, eventId: event.id } });
     }),
 
   // Admin or floor lead: Update venue metadata
@@ -585,7 +853,9 @@ export const scheduleRouter = createTRPCRouter({
           message: "Admin access required to create session types",
         });
       }
-      return ctx.db.scheduleSessionType.create({ data: input });
+      // Resolve slug to real event ID
+      const event = await resolveEventId(ctx.db, input.eventId);
+      return ctx.db.scheduleSessionType.create({ data: { ...input, eventId: event.id } });
     }),
 
   // Admin only: Delete a session type
@@ -622,7 +892,9 @@ export const scheduleRouter = createTRPCRouter({
           message: "Admin access required to create tracks",
         });
       }
-      return ctx.db.scheduleTrack.create({ data: input });
+      // Resolve slug to real event ID
+      const event = await resolveEventId(ctx.db, input.eventId);
+      return ctx.db.scheduleTrack.create({ data: { ...input, eventId: event.id } });
     }),
 
   // Admin only: Delete a track

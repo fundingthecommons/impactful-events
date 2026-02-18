@@ -18,6 +18,7 @@ import {
   Button,
 } from "@mantine/core";
 import { IconSearch, IconEye, IconCheck } from "@tabler/icons-react";
+import Link from "next/link";
 import { api } from "~/trpc/react";
 import { getDisplayName } from "~/utils/userDisplay";
 import TimetableView from "./TimetableView";
@@ -134,6 +135,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
         weekday: "long",
         month: "long",
         day: "numeric",
+        timeZone: "UTC",
       });
       const existing = byDay.get(dayKey) ?? [];
       existing.push(session);
@@ -157,6 +159,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
+        timeZone: "UTC",
       });
       const existing = byTime.get(timeKey) ?? [];
       existing.push(session);
@@ -299,47 +302,30 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
                     </div>
                     <Stack gap={4}>
                       {timeSessions.map((session) => (
-                        <div
+                        <Link
                           key={session.id}
+                          href={`/events/${eventId}/schedule/${session.id}`}
                           className="schedule-session-card"
                           style={{
                             borderLeft: `4px solid ${session.sessionType?.color ?? "#94a3b8"}`,
                             backgroundColor: session.sessionType?.color
                               ? `${session.sessionType.color}12`
                               : undefined,
+                            textDecoration: "none",
+                            color: "inherit",
+                            display: "block",
                           }}
                         >
                           <Text fw={600} size="sm">
                             {session.title}
                           </Text>
-                          {session.venue && (
-                            <Text size="xs" c="dimmed">
-                              {session.sessionType?.name
-                                ? `${session.sessionType.name} - `
-                                : ""}
-                              {session.venue.name}
-                              {session.room ? ` \u2014 ${session.room.name}` : ""}
-                            </Text>
-                          )}
-                          {!session.venue && session.sessionType && (
+                          {session.sessionType && (
                             <Text size="xs" c="dimmed">
                               {session.sessionType.name}
                             </Text>
                           )}
-                          {session.track && (
-                            <Badge
-                              size="xs"
-                              variant="light"
-                              style={{
-                                backgroundColor: `${session.track.color}20`,
-                                color: session.track.color,
-                              }}
-                            >
-                              {session.track.name}
-                            </Badge>
-                          )}
                           {(session.sessionSpeakers.length > 0 || session.speakers.length > 0) && (
-                            <Text size="xs" c="dimmed" mt={2}>
+                            <Text size="xs" c="dimmed">
                               {[
                                 ...session.sessionSpeakers.map((s) =>
                                   s.role !== "Speaker"
@@ -350,7 +336,13 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
                               ].join(" \u2022 ")}
                             </Text>
                           )}
-                        </div>
+                          {session.venue && (
+                            <Text size="xs" c="dimmed">
+                              {session.venue.name}
+                              {session.room ? ` \u2014 ${session.room.name}` : ""}
+                            </Text>
+                          )}
+                        </Link>
                       ))}
                     </Stack>
                   </div>
@@ -498,7 +490,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
         </div>
       ) : viewMode === "expanded" ? (
         <div className="schedule-layout">
-          <ExpandedView sessions={daySessions} />
+          <ExpandedView sessions={daySessions} eventId={eventId} />
           {/* Filter sidebar */}
           <div className="schedule-sidebar">
             <Stack gap="md">
@@ -604,10 +596,10 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
           </div>
         </div>
       ) : viewMode === "grid" ? (
-        <TimetableView sessions={daySessions} venues={venues} />
+        <TimetableView sessions={daySessions} venues={venues} eventId={eventId} />
       ) : viewMode === "by-floor" ? (
         <div className="schedule-layout">
-          <ByFloorView sessions={daySessions} venues={venues} />
+          <ByFloorView sessions={daySessions} venues={venues} eventId={eventId} />
           {/* Filter sidebar */}
           <div className="schedule-sidebar">
             <Stack gap="md">

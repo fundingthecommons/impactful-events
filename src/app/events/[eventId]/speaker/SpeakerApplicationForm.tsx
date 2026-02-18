@@ -68,10 +68,13 @@ type SpeakerApplicationData = z.infer<typeof speakerApplicationSchema>;
 export const talkFormatOptions = [
   { value: "Art Installation", label: "Art Installation" },
   { value: "Demonstration", label: "Demonstration" },
-  { value: "Workshop", label: "Workshop" },
-  { value: "Panel Discussion", label: "Panel Discussion" },
-  { value: "Talk / Presentation", label: "Talk / Presentation" },
+  { value: "DJ Set", label: "DJ Set" },
+  { value: "Live Music", label: "Live Music" },
   { value: "Music Performance", label: "Music Performance" },
+  { value: "Panel Discussion", label: "Panel Discussion" },
+  { value: "Performance", label: "Performance" },
+  { value: "Talk / Presentation", label: "Talk / Presentation" },
+  { value: "Workshop", label: "Workshop" },
   { value: "Other", label: "Other" },
 ];
 
