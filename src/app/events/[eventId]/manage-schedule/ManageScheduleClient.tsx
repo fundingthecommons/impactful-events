@@ -29,6 +29,7 @@ import {
   Alert,
   ScrollArea,
   Tooltip,
+  SegmentedControl,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
@@ -48,17 +49,23 @@ import {
   IconUpload,
   IconCheck,
   IconAlertCircle,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 import Papa from "papaparse";
+import { useSession } from "next-auth/react";
 import { api } from "~/trpc/react";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
 import { getDisplayName } from "~/utils/userDisplay";
+import { SessionTableView } from "./SessionTableView";
+import { SessionTimeGrid } from "./SessionTimeGrid";
+import { SessionCommentDrawer } from "./SessionCommentDrawer";
+import "./manage-schedule.css";
 
 interface ManageScheduleClientProps {
   eventId: string;
 }
 
-interface SelectedSpeaker {
+export interface SelectedSpeaker {
   id: string;
   firstName?: string | null;
   surname?: string | null;
@@ -391,7 +398,7 @@ function parseCsvRows(
   });
 }
 
-type FloorSession = {
+export type FloorSession = {
   id: string;
   title: string;
   description: string | null;
@@ -412,9 +419,10 @@ type FloorSession = {
     role: string;
     user: SelectedSpeaker;
   }>;
+  _count?: { comments: number };
 };
 
-type VenueRoom = { id: string; name: string; capacity: number | null; order: number };
+export type VenueRoom = { id: string; name: string; capacity: number | null; order: number };
 
 export default function ManageScheduleClient({ eventId }: ManageScheduleClientProps) {
   const [activeVenueId, setActiveVenueId] = useState<string | null>(null);
@@ -525,6 +533,12 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
   const [metaCapacity, setMetaCapacity] = useState<number | "">(venue?.capacity ?? "");
   const [prefillData, setPrefillData] = useState<SessionPrefillData | null>(null);
   const [createModalOpened, setCreateModalOpened] = useState(false);
+  const [sessionView, setSessionView] = useState<"cards" | "table" | "grid">("cards");
+  const [commentSessionId, setCommentSessionId] = useState<string | null>(null);
+  const [commentSessionTitle, setCommentSessionTitle] = useState("");
+
+  const { data: authSession } = useSession();
+  const currentUserId = authSession?.user?.id ?? "";
 
   const utils = api.useUtils();
 
@@ -753,8 +767,20 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
       />
 
       {/* Sessions */}
-      <Group justify="space-between">
-        <Title order={4}>Sessions</Title>
+      <Group justify="space-between" wrap="wrap">
+        <Group gap="sm">
+          <Title order={4}>Sessions</Title>
+          <SegmentedControl
+            size="xs"
+            value={sessionView}
+            onChange={(v) => setSessionView(v as "cards" | "table" | "grid")}
+            data={[
+              { label: "Cards", value: "cards" },
+              { label: "Table", value: "table" },
+              { label: "Grid", value: "grid" },
+            ]}
+          />
+        </Group>
         <Group gap="xs">
           <CsvUploadButton
             eventId={eventId}
@@ -800,23 +826,71 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
           </Center>
         </Paper>
       ) : (
-        <Stack gap="xs">
-          {sessionsData.sessions.map((session) => (
-            <SessionCard
-              key={session.id}
-              session={session as FloorSession}
-              eventId={eventId}
-              venueId={venueId}
+        <>
+          {sessionView === "cards" && (
+            <Stack gap="xs">
+              {sessionsData.sessions.map((session) => (
+                <SessionCard
+                  key={session.id}
+                  session={session as FloorSession}
+                  eventId={eventId}
+                  venueId={venueId}
+                  rooms={venue?.rooms ?? []}
+                  sessionTypes={filterData?.sessionTypes ?? []}
+                  tracks={filterData?.tracks ?? []}
+                  onDelete={() => deleteSessionMutation.mutate({ id: session.id })}
+                  isDeleting={deleteSessionMutation.isPending}
+                  isAdmin={isAdmin}
+                  onOpenComments={(id, title) => {
+                    setCommentSessionId(id);
+                    setCommentSessionTitle(title);
+                  }}
+                />
+              ))}
+            </Stack>
+          )}
+
+          {sessionView === "table" && (
+            <SessionTableView
+              sessions={sessionsData.sessions as FloorSession[]}
               rooms={venue?.rooms ?? []}
               sessionTypes={filterData?.sessionTypes ?? []}
               tracks={filterData?.tracks ?? []}
-              onDelete={() => deleteSessionMutation.mutate({ id: session.id })}
+              onEdit={() => {
+                setSessionView("cards");
+              }}
+              onDelete={(id) => deleteSessionMutation.mutate({ id })}
+              onOpenComments={(id, title) => {
+                setCommentSessionId(id);
+                setCommentSessionTitle(title);
+              }}
               isDeleting={deleteSessionMutation.isPending}
-              isAdmin={isAdmin}
             />
-          ))}
-        </Stack>
+          )}
+
+          {sessionView === "grid" && (
+            <SessionTimeGrid
+              sessions={sessionsData.sessions as FloorSession[]}
+              rooms={venue?.rooms ?? []}
+              eventId={eventId}
+              venueId={venueId}
+              venueName={venue?.name ?? "Floor"}
+              onOpenComments={(id, title) => {
+                setCommentSessionId(id);
+                setCommentSessionTitle(title);
+              }}
+            />
+          )}
+        </>
       )}
+
+      {/* Session Comment Drawer */}
+      <SessionCommentDrawer
+        sessionId={commentSessionId}
+        sessionTitle={commentSessionTitle}
+        onClose={() => setCommentSessionId(null)}
+        currentUserId={currentUserId}
+      />
     </Stack>
   );
 }
@@ -835,9 +909,10 @@ interface SessionCardProps {
   onDelete: () => void;
   isDeleting: boolean;
   isAdmin: boolean;
+  onOpenComments?: (sessionId: string, sessionTitle: string) => void;
 }
 
-function SessionCard({ session, eventId, venueId, rooms, sessionTypes, tracks, onDelete, isDeleting, isAdmin }: SessionCardProps) {
+function SessionCard({ session, eventId, venueId, rooms, sessionTypes, tracks, onDelete, isDeleting, isAdmin, onOpenComments }: SessionCardProps) {
   const [editing, { open: openEdit, close: closeEdit }] = useDisclosure(false);
 
   const startTime = new Date(session.startTime);
@@ -901,6 +976,22 @@ function SessionCard({ session, eventId, venueId, rooms, sessionTypes, tracks, o
             )}
           </Stack>
           <Group gap={4}>
+            {onOpenComments && (
+              <Tooltip label={`${String(session._count?.comments ?? 0)} comments`}>
+                <ActionIcon
+                  variant="subtle"
+                  color={session._count?.comments ? "blue" : "gray"}
+                  onClick={() => onOpenComments(session.id, session.title)}
+                >
+                  <Group gap={2} wrap="nowrap">
+                    <IconMessageCircle size={16} />
+                    {(session._count?.comments ?? 0) > 0 && (
+                      <Text size="xs" fw={600}>{session._count?.comments}</Text>
+                    )}
+                  </Group>
+                </ActionIcon>
+              </Tooltip>
+            )}
             <ActionIcon variant="subtle" color="blue" onClick={openEdit}>
               <IconEdit size={16} />
             </ActionIcon>

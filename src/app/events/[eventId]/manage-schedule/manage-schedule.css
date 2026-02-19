@@ -1,0 +1,219 @@
+/* ============================================
+   MANAGE SCHEDULE - Theme Variables
+
+   CRITICAL: Define ALL colors in BOTH theme blocks.
+   Never use hardcoded hex values in the styles below.
+   ============================================ */
+
+:root,
+[data-theme="light"] {
+  /* DnD states */
+  --ms-drop-highlight: rgba(59, 130, 246, 0.1);
+  --ms-drop-border: #3b82f6;
+  --ms-drag-ghost-bg: rgba(59, 130, 246, 0.15);
+  --ms-conflict-bg: rgba(239, 68, 68, 0.1);
+  --ms-conflict-border: #ef4444;
+
+  /* Time grid */
+  --ms-grid-bg: #ffffff;
+  --ms-grid-line: #e5e7eb;
+  --ms-grid-line-hour: #d1d5db;
+  --ms-time-label: #6b7280;
+  --ms-header-bg: #f9fafb;
+  --ms-header-border: #e5e7eb;
+
+  /* Session blocks */
+  --ms-session-shadow: rgba(0, 0, 0, 0.1);
+  --ms-session-hover-shadow: rgba(0, 0, 0, 0.15);
+
+  /* Comment badge */
+  --ms-comment-badge-bg: #dbeafe;
+  --ms-comment-badge-text: #1d4ed8;
+}
+
+[data-theme="dark"] {
+  /* DnD states */
+  --ms-drop-highlight: rgba(59, 130, 246, 0.2);
+  --ms-drop-border: #60a5fa;
+  --ms-drag-ghost-bg: rgba(59, 130, 246, 0.25);
+  --ms-conflict-bg: rgba(239, 68, 68, 0.15);
+  --ms-conflict-border: #f87171;
+
+  /* Time grid */
+  --ms-grid-bg: #1a1a1a;
+  --ms-grid-line: #2d2d2d;
+  --ms-grid-line-hour: #404040;
+  --ms-time-label: #9ca3af;
+  --ms-header-bg: #111111;
+  --ms-header-border: rgba(255, 255, 255, 0.1);
+
+  /* Session blocks */
+  --ms-session-shadow: rgba(0, 0, 0, 0.3);
+  --ms-session-hover-shadow: rgba(0, 0, 0, 0.4);
+
+  /* Comment badge */
+  --ms-comment-badge-bg: rgba(59, 130, 246, 0.2);
+  --ms-comment-badge-text: #93c5fd;
+}
+
+/* ============================================
+   DnD States
+   ============================================ */
+
+.ms-droppable-active {
+  background: var(--ms-drop-highlight);
+  outline: 2px dashed var(--ms-drop-border);
+  outline-offset: -2px;
+  transition: background 0.15s ease, outline 0.15s ease;
+}
+
+.ms-dragging {
+  opacity: 0.4;
+  transition: opacity 0.15s ease;
+}
+
+.ms-drag-overlay {
+  box-shadow: 0 8px 24px var(--ms-session-shadow);
+  transform: scale(1.02);
+  cursor: grabbing;
+}
+
+.ms-conflict-highlight {
+  background: var(--ms-conflict-bg) !important;
+  outline: 2px solid var(--ms-conflict-border);
+  outline-offset: -2px;
+}
+
+/* ============================================
+   Interactive Time Grid
+   ============================================ */
+
+.ms-grid-wrapper {
+  overflow: auto;
+  border: 1px solid var(--ms-header-border);
+  border-radius: 8px;
+  background: var(--ms-grid-bg);
+}
+
+.ms-grid {
+  display: grid;
+  position: relative;
+  min-width: 500px;
+}
+
+.ms-grid-corner {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--ms-header-bg);
+  border-bottom: 1px solid var(--ms-header-border);
+  border-right: 1px solid var(--ms-header-border);
+}
+
+.ms-grid-venue-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  background: var(--ms-header-bg);
+  border-bottom: 1px solid var(--ms-header-border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.ms-grid-room-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: var(--ms-header-bg);
+  border-bottom: 1px solid var(--ms-header-border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.ms-grid-time-label {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 2px 8px 0 0;
+  background: var(--ms-grid-bg);
+  border-right: 1px solid var(--ms-header-border);
+  color: var(--ms-time-label);
+}
+
+.ms-grid-line {
+  border-top: 1px solid var(--ms-grid-line);
+  pointer-events: none;
+}
+
+.ms-grid-line-hour {
+  border-top: 1px solid var(--ms-grid-line-hour);
+  pointer-events: none;
+}
+
+/* Droppable cell overlay */
+.ms-grid-cell {
+  position: relative;
+  min-height: 40px;
+}
+
+.ms-grid-cell:hover {
+  background: var(--ms-drop-highlight);
+}
+
+/* Session block in grid */
+.ms-grid-session {
+  position: relative;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: grab;
+  overflow: hidden;
+  transition: box-shadow 0.15s ease;
+  z-index: 1;
+}
+
+.ms-grid-session:hover {
+  box-shadow: 0 2px 8px var(--ms-session-hover-shadow);
+}
+
+.ms-grid-session:active {
+  cursor: grabbing;
+}
+
+/* Comment badge */
+.ms-comment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--ms-comment-badge-bg);
+  color: var(--ms-comment-badge-text);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.ms-comment-badge:hover {
+  opacity: 0.8;
+}
+
+/* ============================================
+   Data Table Overrides
+   ============================================ */
+
+.ms-table-container .mantine-datatable {
+  border: 1px solid var(--ms-header-border);
+  border-radius: 8px;
+}
+
+.ms-table-container .mantine-datatable-header {
+  background: var(--ms-header-bg);
+}
