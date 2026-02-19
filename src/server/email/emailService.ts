@@ -16,6 +16,7 @@ import type {
   ForumCommentNotificationProps,
   AskOfferCommentNotificationProps,
   FloorOwnerAssignedProps,
+  SpeakerInvitedProps,
 } from './templates';
 
 type TemplateProps =
@@ -30,7 +31,8 @@ type TemplateProps =
   | UpdateCommentNotificationProps
   | ForumCommentNotificationProps
   | AskOfferCommentNotificationProps
-  | FloorOwnerAssignedProps;
+  | FloorOwnerAssignedProps
+  | SpeakerInvitedProps;
 
 // Strongly typed application data interface
 interface ApplicationWithUserAndEvent {
@@ -38,6 +40,7 @@ interface ApplicationWithUserAndEvent {
   eventId: string;
   userId?: string | null;
   email: string;
+  applicationType?: string | null;
   user?: {
     id: string;
     firstName?: string | null;
@@ -52,6 +55,8 @@ interface ApplicationWithUserAndEvent {
     startDate: Date;
     endDate: Date;
     location?: string | null;
+    slug?: string | null;
+    type: string;
   };
 }
 
@@ -192,28 +197,36 @@ export class EmailService {
     const applicantEmail = application.user?.email ?? application.email;
 
     switch (status) {
-      case 'ACCEPTED':
+      case 'ACCEPTED': {
+        const eventSlug = application.event.slug ?? application.eventId;
+        const startStr = application.event.startDate.toLocaleDateString('en-US', {
+          month: 'long', day: 'numeric', year: 'numeric',
+        });
+        const endStr = application.event.endDate.toLocaleDateString('en-US', {
+          month: 'long', day: 'numeric', year: 'numeric',
+        });
+        const isSpeaker = application.applicationType === 'SPEAKER';
+
         templateName = 'applicationAccepted';
         templateData = {
           applicantName,
           eventName: application.event.name,
-          programDates: 'October 24 - November 14, 2025',
-          location: 'Buenos Aires, Argentina',
-          _stipend: '$2,000 USD',
-          _nextStepsUrl: dashboardUrl,
-          confirmationDeadline: 'October 7th, 2025',
+          programDates: `${startStr} – ${endStr}`,
+          location: application.event.location ?? 'TBD',
+          dashboardUrl: `${baseUrl}/events/${eventSlug}`,
+          speakerProfileUrl: isSpeaker ? `${baseUrl}/events/${eventSlug}/apply` : undefined,
+          faqUrl: `${baseUrl}/events/${eventSlug}/faq`,
+          contactEmail: process.env.ADMIN_EMAIL ?? 'hello@fundingthecommons.io',
         } satisfies ApplicationAcceptedProps;
         break;
+      }
 
       case 'REJECTED':
         templateName = 'applicationRejected';
         templateData = {
           applicantName,
           eventName: application.event.name,
-          conferenceUrl: 'https://luma.com/ftc-ba-2025',
-          conferenceDate: 'November 19, 2025',
-          discountCode: 'REALFI-FRIENDS',
-          newsletterUrl: 'https://www.fundingthecommons.io/newsletter',
+          contactEmail: process.env.ADMIN_EMAIL ?? 'hello@fundingthecommons.io',
         } satisfies ApplicationRejectedProps;
         break;
 
@@ -362,7 +375,7 @@ export class EmailService {
       case 'applicationAccepted':
         return `🎉 Congratulations! You've been accepted to ${(data as ApplicationAcceptedProps).eventName}`;
       case 'applicationRejected':
-        return `Thank you for your application to the Funding the Commons Residency`;
+        return `Thank you for your application to ${(data as ApplicationRejectedProps).eventName}`;
       case 'applicationWaitlisted':
         return `You're on the waitlist for ${(data as ApplicationWaitlistedProps).eventName}`;
       case 'applicationSubmitted':
@@ -392,6 +405,8 @@ export class EmailService {
       }
       case 'floorOwnerAssigned':
         return `You've been assigned as a Floor Lead for ${(data as FloorOwnerAssignedProps).eventName}`;
+      case 'speakerInvited':
+        return `You've been added as a speaker at ${(data as SpeakerInvitedProps).eventName}`;
       default:
         return 'Notification from Funding the Commons';
     }

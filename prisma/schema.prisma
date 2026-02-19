@@ -160,6 +160,10 @@ model User {
   // Session speaker relations
   sessionSpeakers       SessionSpeaker[]    @relation("SessionSpeakers")
 
+  // Session comment relations
+  sessionComments       SessionComment[]    @relation("UserSessionComments")
+  sessionCommentLikes   SessionCommentLike[] @relation("SessionCommentLikes")
+
   // Speaker invitation tracking
   speakerInvitations    Application[]       @relation("SpeakerInvitedBy")
 }
@@ -521,6 +525,10 @@ model Application {
   // Speaker invitation tracking (who verbally invited them)
   speakerInvitedByUserId  String?   // VenueOwner userId who invited the speaker
   speakerInvitedByOther   String?   // Free-text name if "Other" selected
+
+  // Speaker scheduling preferences (requested, NOT actual session times)
+  speakerPreferredDates   String?   // Comma-separated dates: "2026-03-14,2026-03-15"
+  speakerPreferredTimes   String?   // Comma-separated time slots: "09:00-10:00,14:00-15:00"
 
   // Legacy data tracking
   googleFormId  String?  // If migrated from Google Forms
@@ -2217,6 +2225,7 @@ model ScheduleSession {
   sessionType     ScheduleSessionType? @relation(fields: [sessionTypeId], references: [id], onDelete: SetNull)
   track           ScheduleTrack?       @relation(fields: [trackId], references: [id], onDelete: SetNull)
   sessionSpeakers SessionSpeaker[]
+  comments        SessionComment[] @relation("SessionComments")
 
   @@index([eventId])
   @@index([startTime])
@@ -2260,4 +2269,42 @@ model VenueOwner {
   @@index([userId, eventId])
   @@index([venueId])
   @@index([eventId])
+}
+
+// ──────────────────────────────────────────
+// Session Comments (private: admins + floor leads only)
+// ──────────────────────────────────────────
+
+model SessionComment {
+  id        String   @id @default(cuid())
+  sessionId String
+  userId    String
+  parentId  String?
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session ScheduleSession  @relation("SessionComments", fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User             @relation("UserSessionComments", fields: [userId], references: [id], onDelete: Cascade)
+  parent  SessionComment?  @relation("SessionCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies SessionComment[] @relation("SessionCommentReplies")
+  likes   SessionCommentLike[]
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model SessionCommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment SessionComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User           @relation("SessionCommentLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
 }

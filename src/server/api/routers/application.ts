@@ -54,6 +54,8 @@ const SubmitApplicationSchema = z.object({
   venueIds: z.array(z.string()).optional(), // Floor/venue selections for speaker applications
   speakerInvitedByUserId: z.string().optional(), // VenueOwner userId who invited the speaker
   speakerInvitedByOther: z.string().max(200).optional(), // Free-text name if "Other" selected
+  speakerPreferredDates: z.string().max(500).optional(), // Comma-separated preferred dates
+  speakerPreferredTimes: z.string().max(500).optional(), // Comma-separated preferred time slots
 });
 
 const UpdateApplicationStatusSchema = z.object({
@@ -134,6 +136,9 @@ const CreateSpeakerOnBehalfSchema = z.object({
   // Headshot
   headshotUrl: z.string().optional(),
   headshotFileName: z.string().optional(),
+  // Scheduling preferences
+  speakerPreferredDates: z.string().max(500).optional(),
+  speakerPreferredTimes: z.string().max(500).optional(),
 });
 
 // Helper function to check if user has admin/staff role
@@ -688,6 +693,8 @@ export const applicationRouter = createTRPCRouter({
           submittedAt: new Date(),
           speakerInvitedByUserId: input.speakerInvitedByUserId ?? null,
           speakerInvitedByOther: input.speakerInvitedByOther ?? null,
+          speakerPreferredDates: input.speakerPreferredDates ?? null,
+          speakerPreferredTimes: input.speakerPreferredTimes ?? null,
         },
         include: {
           event: true,
@@ -2739,6 +2746,8 @@ export const applicationRouter = createTRPCRouter({
           isComplete: true,
           completedAt: new Date(),
           submittedAt: new Date(),
+          speakerPreferredDates: input.speakerPreferredDates ?? null,
+          speakerPreferredTimes: input.speakerPreferredTimes ?? null,
         },
       });
 

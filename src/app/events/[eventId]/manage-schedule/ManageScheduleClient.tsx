@@ -139,6 +139,21 @@ function formatDuration(duration: string | null | undefined): string {
   return map[duration] ?? duration;
 }
 
+function formatTimeSlot(slot: string): string {
+  const parts = slot.split("-");
+  if (parts.length !== 2) return slot;
+  const [start, end] = parts;
+  if (!start || !end) return slot;
+  const startHour = parseInt(start.split(":")[0] ?? "0", 10);
+  const endHour = parseInt(end.split(":")[0] ?? "0", 10);
+  const formatHour = (h: number) => {
+    const suffix = h < 12 ? "am" : "pm";
+    const display = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    return `${String(display)}${suffix}`;
+  };
+  return `${formatHour(startHour)}-${formatHour(endHour)}`;
+}
+
 // ──────────────────────────────────────────
 // CSV Import Types & Utilities
 // ──────────────────────────────────────────
@@ -925,6 +940,8 @@ type FloorApplicationData = {
   status: string;
   applicationType: string;
   createdAt: Date;
+  speakerPreferredDates: string | null;
+  speakerPreferredTimes: string | null;
   user: {
     id: string;
     firstName: string | null;
@@ -1086,6 +1103,16 @@ function ApplicationCard({
                   {formatDuration(talkDuration)}
                 </Badge>
               )}
+              {application.speakerPreferredDates?.split(",").map((date) => (
+                <Badge key={date} size="xs" variant="light" color="teal">
+                  {date === "2026-03-14" ? "Mar 14" : date === "2026-03-15" ? "Mar 15" : date}
+                </Badge>
+              ))}
+              {application.speakerPreferredTimes?.split(",").map((slot) => (
+                <Badge key={slot} size="xs" variant="dot" color="orange">
+                  {formatTimeSlot(slot)}
+                </Badge>
+              ))}
             </Group>
           </Stack>
         </Group>

@@ -1070,6 +1070,8 @@ export const scheduleRouter = createTRPCRouter({
           status: true,
           applicationType: true,
           createdAt: true,
+          speakerPreferredDates: true,
+          speakerPreferredTimes: true,
           user: {
             select: {
               ...userSelectFields,
