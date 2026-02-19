@@ -16,6 +16,7 @@ import {
   Textarea,
   Select,
   MultiSelect,
+  Checkbox,
   Grid,
   Badge,
   Alert,
@@ -95,6 +96,24 @@ export const ftcTopicOptions = [
   { value: "Other", label: "Other" },
 ];
 
+export const speakerDateOptions = [
+  { value: "2026-03-14", label: "Saturday, March 14" },
+  { value: "2026-03-15", label: "Sunday, March 15" },
+];
+
+export const speakerTimeSlotOptions = [
+  { value: "09:00-10:00", label: "9:00 - 10:00 AM" },
+  { value: "10:00-11:00", label: "10:00 - 11:00 AM" },
+  { value: "11:00-12:00", label: "11:00 AM - 12:00 PM" },
+  { value: "12:00-13:00", label: "12:00 - 1:00 PM" },
+  { value: "13:00-14:00", label: "1:00 - 2:00 PM" },
+  { value: "14:00-15:00", label: "2:00 - 3:00 PM" },
+  { value: "15:00-16:00", label: "3:00 - 4:00 PM" },
+  { value: "16:00-17:00", label: "4:00 - 5:00 PM" },
+  { value: "17:00-18:00", label: "5:00 - 6:00 PM" },
+  { value: "18:00-19:00", label: "6:00 - 7:00 PM" },
+];
+
 interface SpeakerApplicationFormProps {
   eventId: string;
   eventName: string;
@@ -115,6 +134,8 @@ export default function SpeakerApplicationForm({
   const [hasInitializedVenues, setHasInitializedVenues] = useState(false);
   const [ftcTopicValues, setFtcTopicValues] = useState<string[]>([]);
   const [ftcTopicOtherText, setFtcTopicOtherText] = useState("");
+  const [preferredDates, setPreferredDates] = useState<string[]>([]);
+  const [preferredTimes, setPreferredTimes] = useState<string[]>([]);
   const { data: config } = api.config.getPublicConfig.useQuery(
     undefined,
     { refetchOnWindowFocus: false },
@@ -289,6 +310,8 @@ export default function SpeakerApplicationForm({
         venueIds: selectedVenueIds.length > 0 ? selectedVenueIds : undefined,
         speakerInvitedByUserId: invitedByValue && invitedByValue !== "other" ? invitedByValue : undefined,
         speakerInvitedByOther: invitedByValue === "other" ? invitedByOtherText : undefined,
+        speakerPreferredDates: preferredDates.length > 0 ? preferredDates.join(",") : undefined,
+        speakerPreferredTimes: preferredTimes.length > 0 ? preferredTimes.join(",") : undefined,
       });
 
       // All steps succeeded - show success and redirect
@@ -540,6 +563,44 @@ export default function SpeakerApplicationForm({
                       required
                     />
                   )}
+                </Grid.Col>
+
+                <Grid.Col span={12}>
+                  <Checkbox.Group
+                    label="Which day(s) are you available?"
+                    description="Select all days you could present (March 14-15, 2026)"
+                    value={preferredDates}
+                    onChange={setPreferredDates}
+                  >
+                    <Group gap="md" mt="xs">
+                      {speakerDateOptions.map((option) => (
+                        <Checkbox
+                          key={option.value}
+                          value={option.value}
+                          label={option.label}
+                        />
+                      ))}
+                    </Group>
+                  </Checkbox.Group>
+                </Grid.Col>
+
+                <Grid.Col span={12}>
+                  <Checkbox.Group
+                    label="What time(s) work best for you?"
+                    description="Select all time slots when you are available"
+                    value={preferredTimes}
+                    onChange={setPreferredTimes}
+                  >
+                    <Group gap="md" mt="xs" wrap="wrap">
+                      {speakerTimeSlotOptions.map((option) => (
+                        <Checkbox
+                          key={option.value}
+                          value={option.value}
+                          label={option.label}
+                        />
+                      ))}
+                    </Group>
+                  </Checkbox.Group>
                 </Grid.Col>
               </Grid>
             </Stack>

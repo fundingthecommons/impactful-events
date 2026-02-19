@@ -200,7 +200,7 @@ export default function ConferenceDashboard({
                 <Group>
                   <Button
                     component={Link}
-                    href={`/events/${eventSlug}/speaker`}
+                    href={`/events/${eventSlug}/apply`}
                     variant="light"
                     color="teal"
                     size="sm"
@@ -412,7 +412,7 @@ export default function ConferenceDashboard({
                   <Group>
                     <Button
                       component={Link}
-                      href={`/events/${eventSlug}/speaker`}
+                      href={`/events/${eventSlug}/apply`}
                       variant="light"
                       color="teal"
                       size="sm"

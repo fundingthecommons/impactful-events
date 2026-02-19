@@ -211,7 +211,7 @@ export default function SpeakerPageClient({
 
                 {/* Auth Form */}
                 <AuthForm
-                  callbackUrl={`/events/${event.slug ?? event.id}/speaker${invitationToken ? `?invitation=${invitationToken}` : ""}`}
+                  callbackUrl={`/events/${event.slug ?? event.id}/apply${invitationToken ? `?invitation=${invitationToken}` : ""}`}
                   initialValues={invitationData}
                 />
               </Stack>

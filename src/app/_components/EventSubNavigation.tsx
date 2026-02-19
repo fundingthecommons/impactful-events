@@ -218,6 +218,7 @@ export default function EventSubNavigation({
   const getActiveTab = () => {
     const match = /^\/events\/[^/]+(\/.*)?$/.exec(pathname);
     const subPath = match?.[1] ?? "";
+    if (subPath.startsWith("/apply")) return "apply";
     if (subPath.startsWith("/speakers")) return "speakers";
     if (subPath.startsWith("/manage-schedule")) return "manage-schedule";
     if (subPath.startsWith("/schedule")) return "schedule";
@@ -245,6 +246,17 @@ export default function EventSubNavigation({
                 level="sub"
               >
                 Dashboard
+              </NavigationTab>
+            )}
+
+            {session?.user && (
+              <NavigationTab
+                value="apply"
+                href={`${basePath}/apply`}
+                icon={<IconClipboardList size={16} />}
+                level="sub"
+              >
+                Apply
               </NavigationTab>
             )}
 

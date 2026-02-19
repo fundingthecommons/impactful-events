@@ -28,7 +28,9 @@ import {
   talkFormatOptions,
   talkDurationOptions,
   ftcTopicOptions,
-} from "./speaker/SpeakerApplicationForm";
+  speakerDateOptions,
+  speakerTimeSlotOptions,
+} from "./apply/SpeakerApplicationForm";
 
 const formSchema = z.object({
   email: z.string().email("Valid email is required"),

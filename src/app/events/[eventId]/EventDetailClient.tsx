@@ -58,6 +58,7 @@ type Application = {
 type Event = {
   id: string;
   name: string;
+  slug: string | null;
   description: string | null;
   startDate: Date;
   endDate: Date;
@@ -384,7 +385,7 @@ export default function EventDetailClient({
                       </Text>
                       <Button
                         component={Link}
-                        href={`/events/${event.id}/speaker`}
+                        href={`/events/${event.slug ?? event.id}/apply`}
                         size="lg"
                         color="teal"
                         leftSection={<IconMicrophone size={18} />}
@@ -506,7 +507,7 @@ export default function EventDetailClient({
                       </Text>
                       <Button
                         component={Link}
-                        href={`/events/${event.id}/speaker`}
+                        href={`/events/${event.slug ?? event.id}/apply`}
                         size="lg"
                         color="teal"
                         leftSection={<IconMicrophone size={18} />}

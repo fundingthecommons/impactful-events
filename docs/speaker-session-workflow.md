@@ -93,7 +93,7 @@ sequenceDiagram
         API-->>Platform: Success
         Note over Platform: Speaker application already exists — skip to Phase 5
     else Option B: Share Speaker Application Link
-        FloorMgr-->>Speaker: Share link: /events/{slug}/speaker (verbal, email, message, etc.)
+        FloorMgr-->>Speaker: Share link: /events/{slug}/apply (verbal, email, message, etc.)
         Note over FloorMgr, Speaker: Floor Manager tells speaker to apply
     end
     end
@@ -105,7 +105,7 @@ sequenceDiagram
     rect rgb(168, 85, 247, 0.08)
     note over Admin, Email: Phase 4 — Speaker Signs Up & Submits Application
 
-    Speaker->>Platform: Visit /events/[eventId]/speaker
+    Speaker->>Platform: Visit /events/[eventId]/apply
     Platform-->>Speaker: Show auth gate (Sign In / Sign Up)
 
     alt New User
