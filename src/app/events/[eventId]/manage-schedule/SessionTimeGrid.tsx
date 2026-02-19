@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Text, Tooltip, ActionIcon, Group, Loader, Center } from "@mantine/core";
+import { Text, Tooltip, ActionIcon, Group, Loader, Center, SegmentedControl } from "@mantine/core";
 import { IconMessageCircle } from "@tabler/icons-react";
 import {
   DndContext,
@@ -222,46 +222,85 @@ export function SessionTimeGrid({
   const hasRoomHeaders = rooms.length > 1;
   const headerRows = hasRoomHeaders ? 2 : 1;
 
-  // Compute time slots and session grid positions
-  const { timeSlots, sessionsGrid, slotCount } = useMemo(() => {
-    if (sessions.length === 0) {
-      return { timeSlots: [], sessionsGrid: [], slotCount: 0 };
+  // Get unique days from sessions for day picker
+  const uniqueDays = useMemo(() => {
+    const daySet = new Set<string>();
+    for (const s of sessions) {
+      const t = new Date(s.startTime).getTime();
+      if (!Number.isFinite(t) || t < 0) continue;
+      const d = new Date(t);
+      d.setUTCHours(0, 0, 0, 0);
+      daySet.add(d.toISOString());
+    }
+    return Array.from(daySet).sort().map((iso) => new Date(iso));
+  }, [sessions]);
+
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+
+  // Compute time slots and session grid positions for the selected day only
+  const { timeSlots, sessionsGrid, slotCount, dayFilteredSessions } = useMemo(() => {
+    if (sessions.length === 0 || uniqueDays.length === 0) {
+      return { timeSlots: [], sessionsGrid: [], slotCount: 0, dayFilteredSessions: [] };
+    }
+
+    const selectedDay = uniqueDays[Math.min(selectedDayIndex, uniqueDays.length - 1)];
+    if (!selectedDay) {
+      return { timeSlots: [], sessionsGrid: [], slotCount: 0, dayFilteredSessions: [] };
+    }
+
+    const dayStartMs = selectedDay.getTime();
+    const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+
+    // Filter sessions to the selected day only
+    const daySessions = sessions.filter((s) => {
+      const t = new Date(s.startTime).getTime();
+      return Number.isFinite(t) && t >= dayStartMs && t < dayEndMs;
+    });
+
+    if (daySessions.length === 0) {
+      return { timeSlots: [], sessionsGrid: [], slotCount: 0, dayFilteredSessions: [] };
     }
 
     let earliest = Infinity;
     let latest = -Infinity;
-    for (const s of sessions) {
+    for (const s of daySessions) {
       const start = new Date(s.startTime).getTime();
       const end = new Date(s.endTime).getTime();
-      if (start < earliest) earliest = start;
-      if (end > latest) latest = end;
+      if (Number.isFinite(start) && start < earliest) earliest = start;
+      if (Number.isFinite(end) && end > latest) latest = end;
     }
 
-    // Pad to reasonable day bounds
-    const referenceDate = new Date(earliest);
-    const dayStart = new Date(referenceDate);
-    dayStart.setUTCHours(8, 0, 0, 0);
-    const dayEnd = new Date(referenceDate);
-    dayEnd.setUTCHours(20, 0, 0, 0);
+    // Pad to reasonable day bounds (8am–8pm)
+    const dayBoundStart = new Date(selectedDay);
+    dayBoundStart.setUTCHours(8, 0, 0, 0);
+    const dayBoundEnd = new Date(selectedDay);
+    dayBoundEnd.setUTCHours(20, 0, 0, 0);
 
-    const paddedEarliest = Math.min(earliest, dayStart.getTime());
-    const paddedLatest = Math.max(latest, dayEnd.getTime());
+    const paddedEarliest = Math.min(earliest, dayBoundStart.getTime());
+    const paddedLatest = Math.max(latest, dayBoundEnd.getTime());
 
     const roundedEarliest =
       Math.floor(paddedEarliest / FIFTEEN_MIN_MS) * FIFTEEN_MIN_MS;
     const roundedLatest =
       Math.ceil(paddedLatest / FIFTEEN_MIN_MS) * FIFTEEN_MIN_MS;
 
+    // Safety cap: max 96 slots (24 hours of 15-min intervals)
+    const maxSlots = 96;
+    const cappedLatest = Math.min(
+      roundedLatest,
+      roundedEarliest + maxSlots * FIFTEEN_MIN_MS,
+    );
+
     const slots: Array<{ time: Date; row: number }> = [];
     let current = roundedEarliest;
     let row = 1;
-    while (current < roundedLatest) {
+    while (current < cappedLatest) {
       slots.push({ time: new Date(current), row });
       current += FIFTEEN_MIN_MS;
       row++;
     }
 
-    const grid = sessions.map((session) => {
+    const grid = daySessions.map((session) => {
       const startMs = new Date(session.startTime).getTime();
       const endMs = new Date(session.endTime).getTime();
       const startRow =
@@ -274,11 +313,14 @@ export function SessionTimeGrid({
           headerRows +
           1,
       );
-      return { session, startRow, endRow };
+      // Clamp rows to grid bounds
+      const clampedStartRow = Math.max(headerRows + 1, startRow);
+      const clampedEndRow = Math.min(row - 1 + headerRows + 1, endRow);
+      return { session, startRow: clampedStartRow, endRow: clampedEndRow };
     });
 
-    return { timeSlots: slots, sessionsGrid: grid, slotCount: row - 1 };
-  }, [sessions, headerRows]);
+    return { timeSlots: slots, sessionsGrid: grid, slotCount: row - 1, dayFilteredSessions: daySessions };
+  }, [sessions, headerRows, uniqueDays, selectedDayIndex]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as { session: FloorSession } | undefined;
@@ -309,6 +351,16 @@ export function SessionTimeGrid({
     );
   }
 
+  const dayPickerData = uniqueDays.map((d, i) => ({
+    value: String(i),
+    label: d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    }),
+  }));
+
   return (
     <DndContext
       sensors={sensors}
@@ -320,6 +372,22 @@ export function SessionTimeGrid({
           <Loader size="xs" />
         </Center>
       )}
+
+      {/* Day picker for multi-day events */}
+      {uniqueDays.length > 1 && (
+        <Group mb="sm">
+          <SegmentedControl
+            size="xs"
+            value={String(selectedDayIndex)}
+            onChange={(v) => setSelectedDayIndex(Number(v))}
+            data={dayPickerData}
+          />
+          <Text size="xs" c="dimmed">
+            {dayFilteredSessions.length} session{dayFilteredSessions.length !== 1 ? "s" : ""}
+          </Text>
+        </Group>
+      )}
+
       <div className="ms-grid-wrapper">
         <div
           className="ms-grid"
