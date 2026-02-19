@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Section,
   Text,
+  Button,
   Row,
   Column,
 } from '@react-email/components';
@@ -12,9 +13,10 @@ export interface ApplicationAcceptedProps {
   eventName: string;
   programDates: string;
   location: string;
-  _stipend?: string;
-  _nextStepsUrl: string;
-  confirmationDeadline?: string;
+  dashboardUrl: string;
+  speakerProfileUrl?: string;
+  faqUrl?: string;
+  contactEmail: string;
 }
 
 export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = ({
@@ -22,9 +24,10 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
   eventName,
   programDates,
   location,
-  _stipend,
-  _nextStepsUrl,
-  confirmationDeadline,
+  dashboardUrl,
+  speakerProfileUrl,
+  faqUrl,
+  contactEmail,
 }) => {
   const previewText = `🎉 Congratulations! You've been accepted to ${eventName}`;
 
@@ -33,69 +36,71 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
       <Section style={content}>
         <Text style={congratsEmoji}>🎉</Text>
         <Text style={heading}>Congratulations, {applicantName}!</Text>
-        
+
         <Text style={paragraph}>
-          We&apos;re thrilled to inform you that you&apos;ve been <strong>accepted</strong> to the {eventName}!
+          We&apos;re thrilled to inform you that you&apos;ve been <strong>accepted</strong> to {eventName}!
         </Text>
 
         <Text style={paragraph}>
-          After careful review of your application, we believe you&apos;ll be a valuable addition to our cohort 
-          and look forward to working with you.
+          After careful review of your application, we believe you&apos;ll be a great addition
+          and look forward to having you participate.
         </Text>
 
         <Section style={detailsBox}>
-          <Text style={detailsHeading}>Program Details</Text>
-          
+          <Text style={detailsHeading}>Event Details</Text>
+
           <Row style={detailRow}>
             <Column style={detailLabel}>📅 Dates:</Column>
             <Column style={detailValue}>{programDates}</Column>
           </Row>
-          
+
           <Row style={detailRow}>
             <Column style={detailLabel}>📍 Location:</Column>
             <Column style={detailValue}>{location}</Column>
           </Row>
-          
-          {/* {stipend && (
-            <Row style={detailRow}>
-              <Column style={detailLabel}>💰 Stipend:</Column>
-              <Column style={detailValue}>{stipend}</Column>
-            </Row>
-          )} */}
         </Section>
 
         <Text style={subheading}>Next Steps</Text>
-        
-        <Text style={paragraph}>
-          To secure your spot, please:
-        </Text>
-        
+
         <ol style={list}>
-          <li>Book your travel</li>
-          <li>Reply to this email with proof of travel</li>
-          <li>Join the telegram group {process.env.RESIDENCY_TELEGRAM_URL}</li>
+          {speakerProfileUrl && (
+            <li>
+              <a href={speakerProfileUrl} style={link}>Review and update your speaker profile and session details</a>
+            </li>
+          )}
+          {faqUrl && (
+            <li>
+              Check the <a href={faqUrl} style={link}>event FAQ</a> for important details
+            </li>
+          )}
+          <li>Mark your calendar for the event dates</li>
+          <li>
+            Visit your <a href={dashboardUrl} style={link}>event dashboard</a> for more information
+          </li>
         </ol>
 
-        {confirmationDeadline && (
-          <Text style={warning}>
-            ⏰ Please confirm your attendance with proof of travel by <strong>{confirmationDeadline}</strong> or your spot may be offered to someone on the waitlist.
-          </Text>
+        {speakerProfileUrl && (
+          <Section style={buttonContainer}>
+            <Button style={button} href={speakerProfileUrl}>
+              Update Your Speaker Profile
+            </Button>
+          </Section>
         )}
 
         <Text style={paragraph}>
           If you have any questions or concerns, please don&apos;t hesitate to reach out to us at{' '}
-          <a href={`mailto:${process.env.RESIDENCY_CONTACT_EMAIL}`} style={link}>
-            {process.env.RESIDENCY_CONTACT_EMAIL}
+          <a href={`mailto:${contactEmail}`} style={link}>
+            {contactEmail}
           </a>
         </Text>
 
         <Text style={paragraph}>
-          We can&apos;t wait to see what you&apos;ll build!
+          We look forward to seeing you there!
         </Text>
 
         <Text style={signature}>
           Best regards,<br />
-          James and the The {eventName} Team
+          The {eventName} Team
         </Text>
       </Section>
     </BaseTemplate>
@@ -175,32 +180,22 @@ const list = {
   paddingLeft: '20px',
 };
 
-const warning = {
-  backgroundColor: '#fef3c7',
-  border: '1px solid #fcd34d',
-  borderRadius: '6px',
-  padding: '12px 16px',
-  fontSize: '14px',
-  color: '#92400e',
-  margin: '24px 0',
+const buttonContainer = {
+  textAlign: 'center' as const,
+  margin: '32px 0',
 };
 
-// const buttonContainer = {
-//   textAlign: 'center' as const,
-//   margin: '32px 0',
-// };
-
-// const button = {
-//   backgroundColor: '#2563eb',
-//   borderRadius: '8px',
-//   color: '#fff',
-//   fontSize: '16px',
-//   fontWeight: 'bold',
-//   textDecoration: 'none',
-//   textAlign: 'center' as const,
-//   display: 'inline-block',
-//   padding: '12px 32px',
-// };
+const button = {
+  backgroundColor: '#2563eb',
+  borderRadius: '8px',
+  color: '#fff',
+  fontSize: '16px',
+  fontWeight: 'bold',
+  textDecoration: 'none',
+  textAlign: 'center' as const,
+  display: 'inline-block',
+  padding: '12px 32px',
+};
 
 const link = {
   color: '#2563eb',

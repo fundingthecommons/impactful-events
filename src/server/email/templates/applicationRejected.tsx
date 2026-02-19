@@ -8,53 +8,43 @@ import { BaseTemplate } from './base';
 export interface ApplicationRejectedProps {
   applicantName: string;
   eventName: string;
-  conferenceUrl: string;
-  conferenceDate: string;
-  discountCode: string;
-  newsletterUrl: string;
+  contactEmail: string;
 }
 
 export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = ({
   applicantName,
-  eventName: _eventName,
-  conferenceUrl,
-  conferenceDate,
-  discountCode,
-  newsletterUrl,
+  eventName,
+  contactEmail,
 }) => {
-  const previewText = `Thank you for your application to the Funding the Commons Residency`;
+  const previewText = `Thank you for your application to ${eventName}`;
 
   return (
     <BaseTemplate previewText={previewText}>
       <Section style={content}>
         <Text style={heading}>Dear {applicantName},</Text>
-        
+
         <Text style={paragraph}>
-          Thank you so much for applying to the Funding the Commons Buenos Aires Residency. We were deeply impressed by the thought, care, and vision reflected across the applications we received. This year&apos;s selection process was especially challenging—we had to make some very tough choices due to the limited number of spots available.
+          Thank you for applying to {eventName}. We received many strong applications and had to make some difficult decisions due to limited capacity.
         </Text>
 
         <Text style={paragraph}>
-          Although we&apos;re not able to offer you a place in this cohort, we want you to know how much we value the work you&apos;re doing. You&apos;re very much part of the broader community we&apos;re building, and we&apos;d love to stay in touch and keep finding ways to connect.
-        </Text>
-
-        <Section style={conferenceOfferBox}>
-          <Text style={conferenceHeading}>A Gift for You</Text>
-          <Text style={paragraph}>
-            As a small thank you, we&apos;d like to offer you a complimentary ticket to our conference in Buenos Aires on {conferenceDate}. If you&apos;ll be there, we&apos;d be delighted to see you in person. Just register with the same email you used for your residency application and enter the code <strong style={codeStyle}>{discountCode}</strong> here: <a href={conferenceUrl} style={link}>{conferenceUrl}</a>.
-          </Text>
-        </Section>
-
-        <Text style={paragraph}>
-          We&apos;ll also be sharing more opportunities, programs, and events in the months ahead. In the meantime, RealFi Hack is on—you can sign up <a href="https://realfi-hack.devspot.app/" style={link}>here</a> and shape solutions for the real world with bounties of $60k+. If you&apos;d like to stay updated, you can join our newsletter here: <a href={newsletterUrl} style={link}>{newsletterUrl}</a>.
+          Unfortunately, we are unable to offer you a spot at this time. This does not reflect on the quality of your work — the selection process was highly competitive.
         </Text>
 
         <Text style={paragraph}>
-          We hope you&apos;ll continue to engage with the community, whether that&apos;s through future residencies, upcoming programs, or simply staying in conversation with us.
+          We encourage you to stay connected with our community and apply to future events. If you have any questions, please don&apos;t hesitate to reach out to us at{' '}
+          <a href={`mailto:${contactEmail}`} style={link}>
+            {contactEmail}
+          </a>
+        </Text>
+
+        <Text style={paragraph}>
+          We hope to see you at future events and wish you all the best with your work.
         </Text>
 
         <Text style={signature}>
-          With gratitude,<br />
-          The Funding the Commons Residency Team
+          Best regards,<br />
+          The {eventName} Team
         </Text>
       </Section>
     </BaseTemplate>
@@ -80,33 +70,9 @@ const paragraph = {
   margin: '16px 0',
 };
 
-const conferenceOfferBox = {
-  backgroundColor: '#fef7ed',
-  borderRadius: '8px',
-  padding: '24px',
-  margin: '24px 0',
-  border: '1px solid #fed7aa',
-};
-
-const conferenceHeading = {
-  fontSize: '18px',
-  fontWeight: 'bold',
-  color: '#ea580c',
-  margin: '0 0 12px',
-};
-
-const codeStyle = {
-  backgroundColor: '#1f2937',
-  color: '#f9fafb',
-  padding: '2px 6px',
-  borderRadius: '4px',
-  fontFamily: 'monospace',
-  fontSize: '14px',
-};
-
 const link = {
   color: '#2563eb',
-  textDecoration: 'none',
+  textDecoration: 'underline',
 };
 
 const signature = {

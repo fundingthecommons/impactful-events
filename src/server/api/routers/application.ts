@@ -2790,6 +2790,47 @@ export const applicationRouter = createTRPCRouter({
         });
       }
 
+      // Send notification email to speaker
+      try {
+        const { getEmailService } = await import('~/server/email/emailService');
+        const emailService = getEmailService(ctx.db);
+        const event = await ctx.db.event.findUnique({ where: { id: input.eventId } });
+        const inviter = await ctx.db.user.findUnique({ where: { id: userId } });
+
+        // Get venue name if venues were selected
+        let venueName: string | undefined;
+        if (input.venueIds?.length) {
+          const venue = await ctx.db.scheduleVenue.findFirst({
+            where: { id: input.venueIds[0] },
+          });
+          venueName = venue?.name ?? undefined;
+        }
+
+        const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000';
+        const eventSlug = event?.slug ?? input.eventId;
+
+        await emailService.sendEmail({
+          to: input.email.toLowerCase(),
+          templateName: 'speakerInvited',
+          templateData: {
+            speakerName: input.firstName,
+            eventName: event?.name ?? 'Event',
+            talkTitle: input.talkTitle,
+            venueName,
+            invitedByName: inviter?.name ?? inviter?.firstName ?? 'The event team',
+            profileUrl: `${baseUrl}/events/${eventSlug}/apply`,
+            faqUrl: `${baseUrl}/events/${eventSlug}/faq`,
+            contactEmail: process.env.ADMIN_EMAIL ?? 'hello@fundingthecommons.io',
+          },
+          applicationId: application.id,
+          eventId: input.eventId,
+          userId: speakerUser.id,
+        });
+      } catch {
+        // Email failure should not block speaker creation
+        console.error('Failed to send speaker invitation email');
+      }
+
       return {
         application,
         user: {

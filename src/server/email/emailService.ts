@@ -185,8 +185,7 @@ export class EmailService {
     status: 'ACCEPTED' | 'REJECTED' | 'WAITLISTED' | 'UNDER_REVIEW'
   ) {
     const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000';
-    const dashboardUrl = `${baseUrl}/events/${application.eventId}`;
-    
+
     let templateName: TemplateName;
     let templateData: TemplateProps;
 
