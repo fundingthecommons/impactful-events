@@ -307,8 +307,11 @@ export const applicationRouter = createTRPCRouter({
         hasValidInvitation
       });
 
-      // If applications are closed and user is not admin/mentor/invited, they cannot apply
-      if (!applicationsOpen && !isAdmin && !isMentor && !hasValidInvitation) {
+      // Speaker applications bypass the deadline (speakers are recruited on a different timeline)
+      const isSpeakerApplication = input.applicationType === "SPEAKER";
+
+      // If applications are closed and user is not admin/mentor/invited/speaker, they cannot apply
+      if (!applicationsOpen && !isAdmin && !isMentor && !hasValidInvitation && !isSpeakerApplication) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Applications for this event are closed. A late pass is required to apply.",
