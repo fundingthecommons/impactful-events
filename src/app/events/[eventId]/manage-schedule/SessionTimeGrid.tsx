@@ -48,6 +48,10 @@ function formatTimeShort(date: Date): string {
   return `${String(hours)}:${String(minutes).padStart(2, "0")}`;
 }
 
+// Counter for droppable cell mount logging
+let droppableMountCount = 0;
+let droppableMountStart = 0;
+
 // Droppable cell for a time-slot/room intersection
 function DroppableCell({
   slotTime,
@@ -62,6 +66,15 @@ function DroppableCell({
   col: number;
   headerRows: number;
 }) {
+  if (droppableMountCount === 0) {
+    droppableMountStart = performance.now();
+    console.log("[DroppableCell] First cell mounting...");
+  }
+  droppableMountCount++;
+  if (droppableMountCount % 100 === 0) {
+    console.log(`[DroppableCell] ${String(droppableMountCount)} cells mounted so far, elapsed: ${String(Math.round(performance.now() - droppableMountStart))}ms`);
+  }
+
   const dropId = `cell-${slotTime.getTime()}-${roomId ?? "main"}`;
   const { isOver, setNodeRef } = useDroppable({ id: dropId, data: { slotTime, roomId } });
 
@@ -199,6 +212,13 @@ export function SessionTimeGrid({
   onOpenComments,
   isPending,
 }: SessionTimeGridProps) {
+  console.log("[SessionTimeGrid] RENDER START", {
+    sessionCount: sessions.length,
+    roomCount: rooms.length,
+    isPending,
+  });
+  const renderStart = performance.now();
+
   const [activeDragSession, setActiveDragSession] =
     useState<FloorSession | null>(null);
 
@@ -239,7 +259,15 @@ export function SessionTimeGrid({
 
   // Compute time slots and session grid positions for the selected day only
   const { timeSlots, sessionsGrid, slotCount, dayFilteredSessions } = useMemo(() => {
+    console.log("[SessionTimeGrid] useMemo START - computing time slots", {
+      totalSessions: sessions.length,
+      uniqueDaysCount: uniqueDays.length,
+      selectedDayIndex,
+    });
+    const memoStart = performance.now();
+
     if (sessions.length === 0 || uniqueDays.length === 0) {
+      console.log("[SessionTimeGrid] useMemo: no sessions or days, returning empty");
       return { timeSlots: [], sessionsGrid: [], slotCount: 0, dayFilteredSessions: [] };
     }
 
@@ -255,6 +283,11 @@ export function SessionTimeGrid({
     const daySessions = sessions.filter((s) => {
       const t = new Date(s.startTime).getTime();
       return Number.isFinite(t) && t >= dayStartMs && t < dayEndMs;
+    });
+
+    console.log("[SessionTimeGrid] day sessions filtered", {
+      daySessionCount: daySessions.length,
+      selectedDay: selectedDay.toISOString(),
     });
 
     if (daySessions.length === 0) {
@@ -291,6 +324,13 @@ export function SessionTimeGrid({
       roundedEarliest + maxSlots * FIFTEEN_MIN_MS,
     );
 
+    console.log("[SessionTimeGrid] time range computed", {
+      earliest: new Date(roundedEarliest).toISOString(),
+      latest: new Date(roundedLatest).toISOString(),
+      cappedLatest: new Date(cappedLatest).toISOString(),
+      estimatedSlots: (cappedLatest - roundedEarliest) / FIFTEEN_MIN_MS,
+    });
+
     const slots: Array<{ time: Date; row: number }> = [];
     let current = roundedEarliest;
     let row = 1;
@@ -319,8 +359,17 @@ export function SessionTimeGrid({
       return { session, startRow: clampedStartRow, endRow: clampedEndRow };
     });
 
+    const memoEnd = performance.now();
+    const totalDroppableCells = slots.length * (rooms.length > 0 ? rooms.length : 1);
+    console.log("[SessionTimeGrid] useMemo DONE", {
+      slotCount: slots.length,
+      gridItemCount: grid.length,
+      totalDroppableCells,
+      computeTimeMs: Math.round(memoEnd - memoStart),
+    });
+
     return { timeSlots: slots, sessionsGrid: grid, slotCount: row - 1, dayFilteredSessions: daySessions };
-  }, [sessions, headerRows, uniqueDays, selectedDayIndex]);
+  }, [sessions, headerRows, uniqueDays, selectedDayIndex, rooms.length]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as { session: FloorSession } | undefined;
@@ -360,6 +409,25 @@ export function SessionTimeGrid({
       timeZone: "UTC",
     }),
   }));
+
+  // Reset droppable counter for this render pass
+  droppableMountCount = 0;
+
+  const totalElements = timeSlots.length * columns.length  // droppable cells
+    + timeSlots.filter((s) => s.time.getUTCMinutes() % 30 === 0).length  // time labels
+    + timeSlots.filter((s) => s.time.getUTCMinutes() === 0).length  // hour gridlines
+    + timeSlots.filter((s) => s.time.getUTCMinutes() === 30).length  // half-hour gridlines
+    + sessionsGrid.length;  // session blocks
+
+  const renderEnd = performance.now();
+  console.log("[SessionTimeGrid] RENDER COMPLETE - about to return JSX", {
+    totalDOMElements: totalElements,
+    droppableCells: timeSlots.length * columns.length,
+    sessionBlocks: sessionsGrid.length,
+    columnCount: columns.length,
+    slotCount: timeSlots.length,
+    renderComputeTimeMs: Math.round(renderEnd - renderStart),
+  });
 
   return (
     <DndContext

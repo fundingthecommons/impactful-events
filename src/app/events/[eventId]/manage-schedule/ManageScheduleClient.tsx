@@ -542,8 +542,24 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
 
   const utils = api.useUtils();
 
-  const { data: sessionsData, isLoading: sessionsLoading } =
+  const { data: sessionsData, isLoading: sessionsLoading, error: sessionsError } =
     api.schedule.getFloorSessions.useQuery({ eventId, venueId });
+
+  if (sessionsError) {
+    console.error("[ManageSchedule] getFloorSessions ERROR:", sessionsError.message, sessionsError);
+  }
+  if (sessionsData) {
+    console.log("[ManageSchedule] getFloorSessions loaded:", {
+      sessionCount: sessionsData.sessions.length,
+      eventName: sessionsData.event?.name,
+      sampleSession: sessionsData.sessions[0] ? {
+        title: sessionsData.sessions[0].title,
+        startTime: sessionsData.sessions[0].startTime,
+        endTime: sessionsData.sessions[0].endTime,
+        roomId: sessionsData.sessions[0].roomId,
+      } : null,
+    });
+  }
 
   const { data: filterData } =
     api.schedule.getEventScheduleFilters.useQuery({ eventId });
@@ -773,7 +789,17 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
           <SegmentedControl
             size="xs"
             value={sessionView}
-            onChange={(v) => setSessionView(v as "cards" | "table" | "grid")}
+            onChange={(v) => {
+              console.log("[ManageSchedule] View switch clicked:", v, {
+                sessionCount: sessionsData?.sessions?.length,
+                roomCount: venue?.rooms?.length,
+              });
+              console.time("[ManageSchedule] view-switch-render");
+              setSessionView(v as "cards" | "table" | "grid");
+              requestAnimationFrame(() => {
+                console.timeEnd("[ManageSchedule] view-switch-render");
+              });
+            }}
             data={[
               { label: "Cards", value: "cards" },
               { label: "Table", value: "table" },
