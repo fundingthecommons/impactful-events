@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Alert,
   Container,
   Stack,
   Text,
@@ -20,6 +21,7 @@ import {
   IconBuildingBank,
   IconBrain,
   IconCalendarEvent,
+  IconBuilding,
 } from "@tabler/icons-react";
 import AuthForm from "~/app/_components/AuthForm";
 
@@ -57,6 +59,10 @@ function SignInContent() {
   const router = useRouter();
 
   const callbackUrl = searchParams?.get("callbackUrl") ?? "/";
+  const invitationContext = searchParams?.get("context");
+  const invitationEventName = searchParams?.get("eventName");
+  const invitationVenueName = searchParams?.get("venueName");
+  const isFloorLeadInvitation = invitationContext === "floor-lead";
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -182,7 +188,24 @@ function SignInContent() {
           {/* Right Side - Auth Form */}
           <div className="order-1 lg:order-2 flex justify-center">
             <div className="w-full max-w-md">
-              <AuthForm 
+              {isFloorLeadInvitation && (
+                <Alert
+                  color="blue"
+                  icon={<IconBuilding size={20} />}
+                  title="You&apos;ve been invited as a Floor Lead"
+                  mb="md"
+                  radius="md"
+                  variant="light"
+                >
+                  <Text size="sm">
+                    You&apos;ve been invited to manage the{" "}
+                    <strong>{invitationVenueName}</strong> floor at{" "}
+                    <strong>{invitationEventName}</strong>.
+                    Please create an account or sign in to get started.
+                  </Text>
+                </Alert>
+              )}
+              <AuthForm
                 callbackUrl={callbackUrl}
                 className="shadow-xl border-2 border-theme-light backdrop-blur-sm"
               />

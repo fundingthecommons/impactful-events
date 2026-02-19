@@ -62,17 +62,25 @@ async function sendInvitationEmailForType(params: {
   } else if (invitation.type === "VENUE_OWNER") {
     const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const eventSlug = invitation.event?.slug ?? invitation.eventId;
+    const eventNameValue = invitation.event?.name ?? "Event";
+    const venueNameValue = venueName ?? "Venue";
+    const signinParams = new URLSearchParams({
+      callbackUrl: `/events/${String(eventSlug)}/manage-schedule?welcome=true`,
+      context: "floor-lead",
+      eventName: eventNameValue,
+      venueName: venueNameValue,
+    });
     return sendInvitationEmail({
       email: invitation.email,
       inviteeName,
-      eventName: invitation.event?.name ?? "Event",
-      eventDescription: `You've been invited as a Floor Lead for "${venueName ?? "Venue"}" at ${invitation.event?.name ?? "Event"}. You'll be able to manage the schedule for this floor.`,
-      roleName: `Floor Lead - ${venueName ?? "Venue"}`,
+      eventName: eventNameValue,
+      eventDescription: `You've been invited as a Floor Lead for "${venueNameValue}" at ${eventNameValue}. You'll be able to manage the schedule for this floor.`,
+      roleName: `Floor Lead - ${venueNameValue}`,
       inviterName,
       invitationToken: invitation.token,
       expiresAt: invitation.expiresAt,
       eventId: invitation.eventId ?? undefined,
-      signupUrl: `${baseUrl}/events/${String(eventSlug)}`,
+      signupUrl: `${baseUrl}/signin?${signinParams.toString()}`,
     });
   } else {
     return sendInvitationEmail({

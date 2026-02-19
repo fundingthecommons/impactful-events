@@ -474,10 +474,11 @@ export function generateInvitationEmail(params: {
     expiresAt 
   } = params;
   
-  const signupWithTokenUrl = `${signupUrl}?invitation=${invitationToken}`;
+  const tokenSeparator = signupUrl.includes('?') ? '&' : '?';
+  const signupWithTokenUrl = `${signupUrl}${tokenSeparator}invitation=${invitationToken}`;
   const displayName = inviteeName ?? email.split('@')[0];
   const expirationDate = expiresAt.toLocaleDateString();
-  
+
   const subject = `You're Invited: Join ${eventName} as ${roleName}`;
   
   const htmlContent = `
@@ -602,7 +603,8 @@ export function generateGlobalAdminInvitationEmail(params: {
     expiresAt 
   } = params;
   
-  const signupWithTokenUrl = `${signupUrl}?invitation=${invitationToken}`;
+  const tokenSeparator = signupUrl.includes('?') ? '&' : '?';
+  const signupWithTokenUrl = `${signupUrl}${tokenSeparator}invitation=${invitationToken}`;
   const displayName = inviteeName ?? email.split('@')[0];
   const expirationDate = expiresAt.toLocaleDateString();
   const roleDisplayName = globalRole === "admin" ? "Administrator" : "Staff Member";

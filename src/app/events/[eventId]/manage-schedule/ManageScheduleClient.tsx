@@ -63,6 +63,7 @@ import "./manage-schedule.css";
 
 interface ManageScheduleClientProps {
   eventId: string;
+  showWelcome?: boolean;
 }
 
 export interface SelectedSpeaker {
@@ -424,7 +425,8 @@ export type FloorSession = {
 
 export type VenueRoom = { id: string; name: string; capacity: number | null; order: number };
 
-export default function ManageScheduleClient({ eventId }: ManageScheduleClientProps) {
+export default function ManageScheduleClient({ eventId, showWelcome }: ManageScheduleClientProps) {
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
   const [activeVenueId, setActiveVenueId] = useState<string | null>(null);
 
   const { data: floorsData, isLoading: floorsLoading } =
@@ -463,6 +465,22 @@ export default function ManageScheduleClient({ eventId }: ManageScheduleClientPr
   return (
     <Container size="lg" py="xl">
       <Stack gap="lg">
+        {showWelcome && !welcomeDismissed && (
+          <Alert
+            color="teal"
+            icon={<IconCheck size={20} />}
+            title="Welcome, Floor Lead!"
+            withCloseButton
+            onClose={() => setWelcomeDismissed(true)}
+            radius="md"
+            variant="light"
+          >
+            <Text size="sm">
+              Your Floor Lead access has been set up successfully. You can now manage
+              sessions, rooms, and speakers for your assigned floors below.
+            </Text>
+          </Alert>
+        )}
         <Group justify="space-between">
           <div>
             <Title order={2}>Manage Floors</Title>
