@@ -786,7 +786,13 @@ export default function SpeakerApplicationForm({
         </div>
 
         {/* Form Content */}
-        <form onSubmit={form.onSubmit(handleSubmit)}>
+        <form onSubmit={(e) => {
+          if (currentStep !== 3) {
+            e.preventDefault();
+            return;
+          }
+          form.onSubmit(handleSubmit)(e);
+        }}>
           {renderStep()}
 
           {/* Navigation Buttons */}
