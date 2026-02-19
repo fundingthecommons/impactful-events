@@ -100,6 +100,40 @@ interface SessionPrefillData {
   trackId: string | null;
 }
 
+/**
+ * Convert a local Date (from DateTimePicker) to a UTC-equivalent Date.
+ * When user picks "3:00 PM" in their local timezone, this ensures it's
+ * stored as 15:00 UTC so that all UTC-based displays show "3:00 PM".
+ */
+function localToUTC(date: Date): Date {
+  return new Date(
+    Date.UTC(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+      date.getHours(),
+      date.getMinutes(),
+      date.getSeconds(),
+    ),
+  );
+}
+
+/**
+ * Convert a UTC Date (from database) to a local-equivalent Date for DateTimePicker.
+ * When the database has 15:00 UTC, this creates a local Date that shows "3:00 PM"
+ * in the DateTimePicker regardless of the user's timezone.
+ */
+function utcToLocal(date: Date): Date {
+  return new Date(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+  );
+}
+
 function findMatchingSessionType(
   talkFormat: string | null | undefined,
   sessionTypes: { id: string; name: string }[],
@@ -1702,8 +1736,8 @@ function CreateSessionButton({
       eventId,
       title,
       description: description || undefined,
-      startTime,
-      endTime,
+      startTime: localToUTC(startTime),
+      endTime: localToUTC(endTime),
       speakers: textSpeakers ? textSpeakers.split(",").map((s) => s.trim()).filter(Boolean) : [],
       linkedSpeakers: linkedSpeakers.map((s) => ({
         userId: s.user.id,
@@ -1876,8 +1910,8 @@ function EditSessionModal({
 
   const [title, setTitle] = useState(session.title);
   const [description, setDescription] = useState(session.description ?? "");
-  const [startTime, setStartTime] = useState<Date | null>(new Date(session.startTime));
-  const [endTime, setEndTime] = useState<Date | null>(new Date(session.endTime));
+  const [startTime, setStartTime] = useState<Date | null>(utcToLocal(new Date(session.startTime)));
+  const [endTime, setEndTime] = useState<Date | null>(utcToLocal(new Date(session.endTime)));
   const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeakerWithRole[]>(
     session.sessionSpeakers.map((s) => ({ user: s.user, role: s.role as ParticipantRole })),
   );
@@ -1908,8 +1942,8 @@ function EditSessionModal({
       id: session.id,
       title,
       description: description || null,
-      startTime,
-      endTime,
+      startTime: localToUTC(startTime),
+      endTime: localToUTC(endTime),
       speakers: textSpeakers ? textSpeakers.split(",").map((s) => s.trim()).filter(Boolean) : [],
       linkedSpeakers: linkedSpeakers.map((s) => ({
         userId: s.user.id,
