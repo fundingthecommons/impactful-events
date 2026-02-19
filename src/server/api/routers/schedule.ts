@@ -13,6 +13,7 @@ import {
   assertCanManageSession,
   isEventFloorOwner,
   getUserOwnedVenueIds,
+  assertAdminOrEventFloorOwner,
 } from "~/server/api/utils/scheduleAuth";
 import { getEmailService } from "~/server/email/emailService";
 import { captureEmailError } from "~/utils/errorCapture";
@@ -1040,6 +1041,182 @@ export const scheduleRouter = createTRPCRouter({
       });
 
       return users;
+    }),
+
+  // Quick-create a speaker (find or create user + minimal application) for session linking
+  quickCreateSpeaker: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        email: z.string().email(),
+        firstName: z.string().min(1),
+        lastName: z.string().optional(),
+        venueId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const event = await resolveEventId(ctx.db, input.eventId);
+      await assertAdminOrEventFloorOwner(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        event.id,
+      );
+
+      // Floor leads must provide a venueId and own it
+      if (!isAdminOrStaff(ctx.session.user.role)) {
+        if (!input.venueId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Floor leads must specify a venue when creating speakers",
+          });
+        }
+        await assertCanManageVenue(
+          ctx.db,
+          ctx.session.user.id,
+          ctx.session.user.role,
+          input.venueId,
+        );
+      }
+
+      // Find or create user by email
+      let user = await ctx.db.user.findFirst({
+        where: { email: { equals: input.email.toLowerCase(), mode: "insensitive" } },
+        select: userSelectFields,
+      });
+
+      if (!user) {
+        const fullName = input.lastName
+          ? `${input.firstName} ${input.lastName}`
+          : input.firstName;
+        user = await ctx.db.user.create({
+          data: {
+            email: input.email.toLowerCase(),
+            firstName: input.firstName,
+            surname: input.lastName ?? null,
+            name: fullName,
+            role: "user",
+          },
+          select: userSelectFields,
+        });
+      }
+
+      // Find or create a minimal Application for this user+event
+      const existingApp = await ctx.db.application.findFirst({
+        where: { userId: user.id, eventId: event.id },
+      });
+
+      const application = existingApp ?? await ctx.db.application.create({
+        data: {
+          eventId: event.id,
+          userId: user.id,
+          email: input.email.toLowerCase(),
+          applicationType: "SPEAKER",
+          status: "SUBMITTED",
+          language: "en",
+          isComplete: false,
+          submittedAt: new Date(),
+        },
+      });
+
+      // Link to venue if provided
+      if (input.venueId) {
+        await ctx.db.applicationVenue.createMany({
+          data: [{ applicationId: application.id, venueId: input.venueId }],
+          skipDuplicates: true,
+        });
+      }
+
+      return user;
+    }),
+
+  // Check if the current user can manage a specific session (for showing admin controls)
+  canManageSession: protectedProcedure
+    .input(z.object({ sessionId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.session.user.id;
+      const userRole = ctx.session.user.role;
+
+      if (isAdminOrStaff(userRole)) return { canManage: true };
+
+      const session = await ctx.db.scheduleSession.findUnique({
+        where: { id: input.sessionId },
+        select: { venueId: true },
+      });
+
+      if (!session?.venueId) return { canManage: false };
+
+      const owns = await ctx.db.venueOwner.findUnique({
+        where: { userId_venueId: { userId, venueId: session.venueId } },
+      });
+
+      return { canManage: !!owns };
+    }),
+
+  // Link a user to a session as a speaker and optionally remove a text speaker name
+  linkSpeakerToSession: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string(),
+        userId: z.string(),
+        role: z.enum(PARTICIPANT_ROLES).default("Speaker"),
+        removeTextSpeaker: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertCanManageSession(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.sessionId,
+      );
+
+      // Create SessionSpeaker record (skip if already linked)
+      const existing = await ctx.db.sessionSpeaker.findUnique({
+        where: {
+          sessionId_userId: {
+            sessionId: input.sessionId,
+            userId: input.userId,
+          },
+        },
+      });
+
+      if (!existing) {
+        const maxOrder = await ctx.db.sessionSpeaker.aggregate({
+          where: { sessionId: input.sessionId },
+          _max: { order: true },
+        });
+
+        await ctx.db.sessionSpeaker.create({
+          data: {
+            sessionId: input.sessionId,
+            userId: input.userId,
+            role: input.role,
+            order: (maxOrder._max.order ?? -1) + 1,
+          },
+        });
+      }
+
+      // Remove text speaker name if provided
+      if (input.removeTextSpeaker) {
+        const session = await ctx.db.scheduleSession.findUnique({
+          where: { id: input.sessionId },
+          select: { speakers: true },
+        });
+
+        if (session) {
+          const updatedSpeakers = session.speakers.filter(
+            (name) => name.toLowerCase() !== input.removeTextSpeaker!.toLowerCase(),
+          );
+
+          await ctx.db.scheduleSession.update({
+            where: { id: input.sessionId },
+            data: { speakers: updatedSpeakers },
+          });
+        }
+      }
+
+      return { success: true };
     }),
 
   // Get applications linked to a specific venue/floor (for floor leads to create sessions from)

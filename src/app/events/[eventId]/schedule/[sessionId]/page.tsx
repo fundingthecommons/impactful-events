@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Container,
   Title,
@@ -12,12 +13,18 @@ import {
   Center,
   Anchor,
   Paper,
+  Button,
+  Tooltip,
 } from "@mantine/core";
-import { IconArrowLeft, IconClock, IconMapPin } from "@tabler/icons-react";
+import { useDisclosure } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
+import { IconArrowLeft, IconClock, IconMapPin, IconLink, IconUserPlus } from "@tabler/icons-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { api } from "~/trpc/react";
 import { getDisplayName } from "~/utils/userDisplay";
+import { QuickAddSpeakerModal, type QuickAddSpeakerResult } from "~/app/_components/QuickAddSpeakerModal";
 
 function formatDateTime(date: Date): string {
   return new Date(date).toLocaleDateString("en-US", {
@@ -39,9 +46,72 @@ function formatTime(date: Date): string {
 
 export default function SessionDetailPage() {
   const params = useParams<{ eventId: string; sessionId: string }>();
+  const { data: userSession } = useSession();
+  const utils = api.useUtils();
+
   const { data: session, isLoading } = api.schedule.getSession.useQuery({
     sessionId: params.sessionId,
   });
+
+  // Check if current user can manage this session (only when logged in)
+  const { data: permissions } = api.schedule.canManageSession.useQuery(
+    { sessionId: params.sessionId },
+    { enabled: !!userSession?.user },
+  );
+  const canManage = permissions?.canManage ?? false;
+
+  // Quick-add modal state
+  const [quickAddOpened, { open: openQuickAdd, close: closeQuickAdd }] = useDisclosure(false);
+  const [linkingTextSpeaker, setLinkingTextSpeaker] = useState<string | null>(null);
+
+  // Link speaker to session mutation
+  const linkMutation = api.schedule.linkSpeakerToSession.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Speaker linked",
+        message: "Speaker has been connected to this session",
+        color: "green",
+      });
+      void utils.schedule.getSession.invalidate({ sessionId: params.sessionId });
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  const handleSpeakerCreated = (user: QuickAddSpeakerResult) => {
+    // After creating/finding the user, link them to this session
+    linkMutation.mutate({
+      sessionId: params.sessionId,
+      userId: user.id,
+      removeTextSpeaker: linkingTextSpeaker ?? undefined,
+    });
+    setLinkingTextSpeaker(null);
+  };
+
+  const handleLinkTextSpeaker = (name: string) => {
+    setLinkingTextSpeaker(name);
+    openQuickAdd();
+  };
+
+  const handleAddNewSpeaker = () => {
+    setLinkingTextSpeaker(null);
+    openQuickAdd();
+  };
+
+  // Split a full name into first/last name parts (best-effort)
+  const splitName = (fullName: string) => {
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length <= 1) return { first: parts[0] ?? "", last: "" };
+    const last = parts.pop() ?? "";
+    return { first: parts.join(" "), last };
+  };
+
+  const prefillParts = linkingTextSpeaker ? splitName(linkingTextSpeaker) : null;
 
   if (isLoading) {
     return (
@@ -151,13 +221,25 @@ export default function SessionDetailPage() {
         )}
 
         {/* Speakers */}
-        {hasSpeakers && (
+        {(hasSpeakers || canManage) && (
           <Stack gap="md">
-            <Title order={3}>
-              {session.sessionSpeakers.length + session.speakers.length === 1
-                ? "Speaker"
-                : "Speakers"}
-            </Title>
+            <Group justify="space-between" align="center">
+              <Title order={3}>
+                {session.sessionSpeakers.length + session.speakers.length === 1
+                  ? "Speaker"
+                  : "Speakers"}
+              </Title>
+              {canManage && (
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  leftSection={<IconUserPlus size={14} />}
+                  onClick={handleAddNewSpeaker}
+                >
+                  Add speaker
+                </Button>
+              )}
+            </Group>
             {session.sessionSpeakers.map((speaker) => {
               const avatarSrc =
                 speaker.user.profile?.avatarUrl ??
@@ -210,19 +292,49 @@ export default function SessionDetailPage() {
             {/* Legacy text-only speakers */}
             {session.speakers.map((speakerName) => (
               <Paper key={speakerName} p="md" withBorder radius="md">
-                <Group gap="md" align="center">
-                  <Avatar size={64} radius="xl">
-                    {speakerName.charAt(0).toUpperCase()}
-                  </Avatar>
-                  <Text fw={700} size="lg">
-                    {speakerName}
-                  </Text>
+                <Group gap="md" align="center" justify="space-between">
+                  <Group gap="md" align="center">
+                    <Avatar size={64} radius="xl">
+                      {speakerName.charAt(0).toUpperCase()}
+                    </Avatar>
+                    <Text fw={700} size="lg">
+                      {speakerName}
+                    </Text>
+                  </Group>
+                  {canManage && (
+                    <Tooltip label="Connect to a user profile">
+                      <Button
+                        variant="light"
+                        size="xs"
+                        leftSection={<IconLink size={14} />}
+                        onClick={() => handleLinkTextSpeaker(speakerName)}
+                      >
+                        Link profile
+                      </Button>
+                    </Tooltip>
+                  )}
                 </Group>
               </Paper>
             ))}
           </Stack>
         )}
       </Stack>
+
+      {/* Quick Add Speaker Modal */}
+      {canManage && session.event && (
+        <QuickAddSpeakerModal
+          opened={quickAddOpened}
+          onClose={() => {
+            closeQuickAdd();
+            setLinkingTextSpeaker(null);
+          }}
+          eventId={session.event.id}
+          venueId={session.venue?.id}
+          onSpeakerCreated={handleSpeakerCreated}
+          prefillFirstName={prefillParts?.first}
+          prefillLastName={prefillParts?.last}
+        />
+      )}
     </Container>
   );
 }

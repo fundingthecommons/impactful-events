@@ -50,6 +50,8 @@ import {
   IconCheck,
   IconAlertCircle,
   IconMessageCircle,
+  IconUserPlus,
+  IconLink,
 } from "@tabler/icons-react";
 import Papa from "papaparse";
 import Link from "next/link";
@@ -57,6 +59,7 @@ import { useSession } from "next-auth/react";
 import { api } from "~/trpc/react";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
 import { getDisplayName } from "~/utils/userDisplay";
+import { QuickAddSpeakerModal } from "~/app/_components/QuickAddSpeakerModal";
 import { SessionTableView } from "./SessionTableView";
 import { SessionTimeGrid } from "./SessionTimeGrid";
 import { SessionCommentDrawer } from "./SessionCommentDrawer";
@@ -1377,6 +1380,7 @@ interface SpeakerSelectorProps {
   onTextSpeakersChange: (value: string) => void;
   venueId?: string;
   isAdmin?: boolean;
+  eventId: string;
 }
 
 function SpeakerSelector({
@@ -1388,8 +1392,43 @@ function SpeakerSelector({
   onTextSpeakersChange,
   venueId,
   isAdmin,
+  eventId,
 }: SpeakerSelectorProps) {
   const useFloorSearch = venueId && !isAdmin;
+  const [quickAddOpened, { open: openQuickAdd, close: closeQuickAdd }] = useDisclosure(false);
+  const [prefillName, setPrefillName] = useState<string | null>(null);
+
+  // Parse text speakers for linking UI
+  const textSpeakerNames = textSpeakers
+    ? textSpeakers.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  // Split a full name into first/last name parts (best-effort heuristic)
+  const splitName = (fullName: string) => {
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length <= 1) return { first: parts[0] ?? "", last: "" };
+    const last = parts.pop() ?? "";
+    return { first: parts.join(" "), last };
+  };
+
+  const handleQuickAddSuccess = (user: SelectedSpeaker) => {
+    onAddLinkedSpeaker(user);
+    // If triggered from a text speaker, remove that name from the text list
+    if (prefillName) {
+      const remaining = textSpeakerNames.filter(
+        (name) => name.toLowerCase() !== prefillName.toLowerCase(),
+      );
+      onTextSpeakersChange(remaining.join(", "));
+      setPrefillName(null);
+    }
+  };
+
+  const handleLinkTextSpeaker = (name: string) => {
+    setPrefillName(name);
+    openQuickAdd();
+  };
+
+  const prefillParts = prefillName ? splitName(prefillName) : null;
 
   return (
     <Stack gap="xs">
@@ -1409,6 +1448,18 @@ function SpeakerSelector({
             placeholder="Search by name or email..."
           />
         )}
+        <Button
+          variant="subtle"
+          size="xs"
+          leftSection={<IconUserPlus size={14} />}
+          onClick={() => {
+            setPrefillName(null);
+            openQuickAdd();
+          }}
+          mt={4}
+        >
+          Add new person
+        </Button>
       </div>
       {linkedSpeakers.length > 0 && (
         <Stack gap={6}>
@@ -1449,6 +1500,40 @@ function SpeakerSelector({
         description="Comma-separated names for people not in the system (no role assignment)"
         value={textSpeakers}
         onChange={(e) => onTextSpeakersChange(e.currentTarget.value)}
+      />
+      {textSpeakerNames.length > 0 && (
+        <Group gap={4} wrap="wrap">
+          {textSpeakerNames.map((name, idx) => (
+            <Badge
+              key={`${name}-${idx}`}
+              variant="outline"
+              size="sm"
+              rightSection={
+                <ActionIcon
+                  size="xs"
+                  variant="transparent"
+                  onClick={() => handleLinkTextSpeaker(name)}
+                  title={`Link "${name}" to a user account`}
+                >
+                  <IconLink size={10} />
+                </ActionIcon>
+              }
+            >
+              {name}
+            </Badge>
+          ))}
+          <Text size="xs" c="dimmed">Click to link to a user account</Text>
+        </Group>
+      )}
+
+      <QuickAddSpeakerModal
+        opened={quickAddOpened}
+        onClose={closeQuickAdd}
+        eventId={eventId}
+        venueId={venueId}
+        onSpeakerCreated={handleQuickAddSuccess}
+        prefillFirstName={prefillParts?.first}
+        prefillLastName={prefillParts?.last}
       />
     </Stack>
   );
@@ -1823,6 +1908,7 @@ function CreateSessionButton({
             onTextSpeakersChange={setTextSpeakers}
             venueId={venueId}
             isAdmin={isAdmin}
+            eventId={eventId}
           />
           {rooms.length > 0 && (
             <Select
@@ -2003,6 +2089,7 @@ function EditSessionModal({
           onTextSpeakersChange={setTextSpeakers}
           venueId={venueId}
           isAdmin={isAdmin}
+          eventId={eventId}
         />
         {rooms.length > 0 && (
           <Select
