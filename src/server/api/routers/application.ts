@@ -630,11 +630,56 @@ export const applicationRouter = createTRPCRouter({
       }
 
       if (application.status !== "DRAFT") {
-        console.log(`Submit attempt on non-DRAFT application: ${input.applicationId}, current status: ${application.status}, user: ${ctx.session.user.id}`);
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Application has already been submitted (current status: ${application.status})`,
+        // Allow SPEAKER applications created on behalf to be updated
+        // without changing their status (SUBMITTED/ACCEPTED/WAITLISTED)
+        const isOnBehalfSpeakerUpdate =
+          application.applicationType === "SPEAKER" &&
+          (application.status === "SUBMITTED" ||
+            application.status === "ACCEPTED" ||
+            application.status === "WAITLISTED");
+
+        if (!isOnBehalfSpeakerUpdate) {
+          console.log(`Submit attempt on non-DRAFT application: ${input.applicationId}, current status: ${application.status}, user: ${ctx.session.user.id}`);
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Application has already been submitted (current status: ${application.status})`,
+          });
+        }
+
+        // Update venue associations if provided
+        console.log(`Speaker updating on-behalf application: ${input.applicationId}, preserving status: ${application.status}`);
+        if (input.venueIds && input.venueIds.length > 0) {
+          await ctx.db.applicationVenue.deleteMany({
+            where: { applicationId: input.applicationId },
+          });
+          await ctx.db.applicationVenue.createMany({
+            data: input.venueIds.map((venueId) => ({
+              applicationId: input.applicationId,
+              venueId,
+            })),
+          });
+        }
+
+        // Update speaker-specific fields, preserve existing status
+        const updated = await ctx.db.application.update({
+          where: { id: input.applicationId },
+          data: {
+            speakerInvitedByUserId: input.speakerInvitedByUserId ?? application.speakerInvitedByUserId,
+            speakerInvitedByOther: input.speakerInvitedByOther ?? application.speakerInvitedByOther,
+            speakerPreferredDates: input.speakerPreferredDates ?? application.speakerPreferredDates,
+            speakerPreferredTimes: input.speakerPreferredTimes ?? application.speakerPreferredTimes,
+          },
+          include: {
+            event: true,
+            responses: {
+              include: {
+                question: true,
+              },
+            },
+          },
         });
+
+        return updated;
       }
 
       // Check required questions are answered (excluding conditional fields)

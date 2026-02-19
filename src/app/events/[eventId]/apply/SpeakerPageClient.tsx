@@ -20,10 +20,12 @@ import type {
   Application,
   ApplicationResponse,
   ApplicationQuestion,
+  ApplicationVenue,
 } from "@prisma/client";
 
 interface ExtendedApplication extends Application {
   responses?: Array<ApplicationResponse & { question: ApplicationQuestion }>;
+  venues?: ApplicationVenue[];
 }
 
 interface ExtendedEvent extends Event {
@@ -40,7 +42,7 @@ interface SpeakerPageClientProps {
 
 export default function SpeakerPageClient({
   event,
-  initialUserApplication: _initialUserApplication,
+  initialUserApplication,
   initialUserId,
   invitationToken,
   invitationData,
@@ -235,6 +237,8 @@ export default function SpeakerPageClient({
             eventId={event.id}
             eventName={event.name}
             invitationToken={invitationToken}
+            existingApplicationStatus={initialUserApplication?.status}
+            existingVenueIds={initialUserApplication?.venues?.map(v => v.venueId)}
           />
         </div>
       )}

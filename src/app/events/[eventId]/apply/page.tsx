@@ -50,6 +50,7 @@ export default async function SpeakerApplicationPage({
                   question: true,
                 },
               },
+              venues: true,
             },
           }
         : false,
@@ -71,6 +72,7 @@ export default async function SpeakerApplicationPage({
                   question: true,
                 },
               },
+              venues: true,
             },
           }
         : false,

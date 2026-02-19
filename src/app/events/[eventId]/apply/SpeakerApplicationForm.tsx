@@ -120,20 +120,26 @@ interface SpeakerApplicationFormProps {
   eventId: string;
   eventName: string;
   invitationToken?: string;
+  existingApplicationStatus?: string;
+  existingVenueIds?: string[];
 }
 
 export default function SpeakerApplicationForm({
   eventId,
   eventName,
   invitationToken,
+  existingApplicationStatus,
+  existingVenueIds,
 }: SpeakerApplicationFormProps) {
   const router = useRouter();
+  const isOnBehalfUpdate = !!existingApplicationStatus && existingApplicationStatus !== "DRAFT";
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedVenueIds, setSelectedVenueIds] = useState<string[]>([]);
   const [invitedByValue, setInvitedByValue] = useState<string | null>(null);
   const [invitedByOtherText, setInvitedByOtherText] = useState("");
   const [hasInitializedVenues, setHasInitializedVenues] = useState(false);
+  const [hasInitializedProfile, setHasInitializedProfile] = useState(false);
   const [ftcTopicValues, setFtcTopicValues] = useState<string[]>([]);
   const [ftcTopicOtherText, setFtcTopicOtherText] = useState("");
   const [preferredDates, setPreferredDates] = useState<string[]>([]);
@@ -220,24 +226,31 @@ export default function SpeakerApplicationForm({
 
   // Pre-select inviter's venues and floor lead once when arriving via invitation
   useEffect(() => {
-    if (
-      !hasInitializedVenues &&
-      inviterVenues &&
-      inviterVenues.length > 0 &&
-      floorManagers.length > 0
-    ) {
-      setHasInitializedVenues(true);
-      setSelectedVenueIds([inviterVenues[0]!.id]);
+    if (!hasInitializedVenues) {
+      // Priority 1: invitation-based venue pre-selection
+      if (
+        inviterVenues &&
+        inviterVenues.length > 0 &&
+        floorManagers.length > 0
+      ) {
+        setHasInitializedVenues(true);
+        setSelectedVenueIds([inviterVenues[0]!.id]);
 
-      // Auto-select the inviting floor lead
-      const inviterManager = floorManagers.find((fm) =>
-        inviterVenues.some((v) => fm.venueIds.includes(v.id)),
-      );
-      if (inviterManager) {
-        setInvitedByValue(inviterManager.id);
+        // Auto-select the inviting floor lead
+        const inviterManager = floorManagers.find((fm) =>
+          inviterVenues.some((v) => fm.venueIds.includes(v.id)),
+        );
+        if (inviterManager) {
+          setInvitedByValue(inviterManager.id);
+        }
+      }
+      // Priority 2: existing application venue pre-selection (on-behalf speakers)
+      else if (existingVenueIds && existingVenueIds.length > 0) {
+        setHasInitializedVenues(true);
+        setSelectedVenueIds(existingVenueIds);
       }
     }
-  }, [hasInitializedVenues, inviterVenues, floorManagers]);
+  }, [hasInitializedVenues, inviterVenues, floorManagers, existingVenueIds]);
 
   // Sync FtC multi-select topic values into the form's talkTopic string field
   useEffect(() => {
@@ -255,6 +268,12 @@ export default function SpeakerApplicationForm({
   const createApplication = api.application.createApplication.useMutation();
   const submitApplication = api.application.submitApplication.useMutation();
   const updateProfile = api.profile.updateProfile.useMutation();
+
+  // Fetch existing profile for pre-populating form (for on-behalf speakers)
+  const { data: existingProfile } = api.profile.getMyProfile.useQuery(
+    undefined,
+    { refetchOnWindowFocus: false },
+  );
 
   const form = useForm<SpeakerApplicationData>({
     validate: zodResolver(speakerApplicationSchema),
@@ -277,6 +296,31 @@ export default function SpeakerApplicationForm({
       pastTalkUrl: "",
     },
   });
+
+  // Pre-populate form from existing profile data (for on-behalf speakers)
+  useEffect(() => {
+    if (!hasInitializedProfile && existingProfile) {
+      setHasInitializedProfile(true);
+      const p = existingProfile;
+      if (!form.values.talkTitle && p.speakerTalkTitle) form.setFieldValue("talkTitle", p.speakerTalkTitle);
+      if (!form.values.talkAbstract && p.speakerTalkAbstract) form.setFieldValue("talkAbstract", p.speakerTalkAbstract);
+      if (form.values.talkFormat.length === 0 && p.speakerTalkFormat) form.setFieldValue("talkFormat", p.speakerTalkFormat.split(", ").filter(Boolean));
+      if (!form.values.talkDuration && p.speakerTalkDuration) form.setFieldValue("talkDuration", p.speakerTalkDuration);
+      if (!form.values.talkTopic && p.speakerTalkTopic) form.setFieldValue("talkTopic", p.speakerTalkTopic);
+      if (!form.values.bio && p.bio) form.setFieldValue("bio", p.bio);
+      if (!form.values.previousSpeakingExperience && p.speakerPreviousExperience) form.setFieldValue("previousSpeakingExperience", p.speakerPreviousExperience);
+      if (!form.values.jobTitle && p.jobTitle) form.setFieldValue("jobTitle", p.jobTitle);
+      if (!form.values.company && p.company) form.setFieldValue("company", p.company);
+      if (!form.values.website && p.website) form.setFieldValue("website", p.website);
+      if (!form.values.linkedinUrl && p.linkedinUrl) form.setFieldValue("linkedinUrl", p.linkedinUrl);
+      if (!form.values.twitterUrl && p.twitterUrl) form.setFieldValue("twitterUrl", p.twitterUrl);
+      if (!form.values.pastTalkUrl && p.speakerPastTalkUrl) form.setFieldValue("pastTalkUrl", p.speakerPastTalkUrl);
+      if (!form.values.entityName && p.speakerEntityName) form.setFieldValue("entityName", p.speakerEntityName);
+      if (!form.values.displayPreference && p.speakerDisplayPreference) form.setFieldValue("displayPreference", p.speakerDisplayPreference);
+      if (!form.values.otherFloorsTopicTheme && p.speakerOtherFloorsTopicTheme) form.setFieldValue("otherFloorsTopicTheme", p.speakerOtherFloorsTopicTheme);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasInitializedProfile, existingProfile]);
 
   const handleSubmit = async (values: SpeakerApplicationData) => {
     setIsSubmitting(true);
@@ -322,9 +366,10 @@ export default function SpeakerApplicationForm({
 
       // All steps succeeded - show success and redirect
       notifications.show({
-        title: "Speaker Application Submitted!",
-        message:
-          "Your speaker application has been submitted successfully. We will review it and get back to you.",
+        title: isOnBehalfUpdate ? "Application Updated!" : "Speaker Application Submitted!",
+        message: isOnBehalfUpdate
+          ? "Your speaker details have been updated successfully."
+          : "Your speaker application has been submitted successfully. We will review it and get back to you.",
         color: "green",
         icon: <IconCheck size={16} />,
       });
@@ -771,8 +816,17 @@ export default function SpeakerApplicationForm({
             Speaker Application
           </Title>
           <Text size="lg" c="dimmed" mb="md">
-            Apply to speak at {eventName}
+            {isOnBehalfUpdate ? `Review your speaker details for ${eventName}` : `Apply to speak at ${eventName}`}
           </Text>
+
+          {isOnBehalfUpdate && (
+            <Alert color="blue" title="Your session has been pre-registered" mb="md">
+              <Text size="sm">
+                A floor lead has pre-registered your speaker session. Please review the
+                information below, make any updates, and confirm your details.
+              </Text>
+            </Alert>
+          )}
 
           {/* Progress Bar */}
           <Card p="md" radius="md" withBorder>
@@ -853,7 +907,7 @@ export default function SpeakerApplicationForm({
                 leftSection={<IconCheck size={16} />}
                 disabled={!getStepValidation(currentStep)}
               >
-                Submit Application
+                {isOnBehalfUpdate ? "Confirm & Update Application" : "Submit Application"}
               </Button>
             )}
           </Group>
