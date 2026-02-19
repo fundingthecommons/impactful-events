@@ -294,7 +294,7 @@ function parseCsvDateTime(
   if (ampm === "PM" && hours !== 12) hours += 12;
   if (ampm === "AM" && hours === 12) hours = 0;
 
-  const date = new Date(year, month, day, hours, minutes, 0, 0);
+  const date = new Date(Date.UTC(year, month, day, hours, minutes, 0, 0));
   if (isNaN(date.getTime())) return null;
   return date;
 }
@@ -2534,10 +2534,10 @@ function CsvUploadModal({
                       <Table.Td>
                         {session.startTime && session.endTime ? (
                           <Text size="xs">
-                            {session.startTime.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
-                            {session.startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            {session.startTime.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}{" "}
+                            {session.startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })}
                             {" – "}
-                            {session.endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            {session.endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })}
                           </Text>
                         ) : (
                           <Text size="xs" c="red">Invalid</Text>

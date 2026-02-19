@@ -189,6 +189,7 @@ export default function SpeakerPageClient({
                           month: "long",
                           day: "numeric",
                           year: "numeric",
+                          timeZone: "UTC",
                         })}
                         {event.endDate && (
                           <>
@@ -200,6 +201,7 @@ export default function SpeakerPageClient({
                                 month: "long",
                                 day: "numeric",
                                 year: "numeric",
+                                timeZone: "UTC",
                               },
                             )}
                           </>

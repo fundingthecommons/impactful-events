@@ -119,7 +119,7 @@ export default function UpdateDetailClient({
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
     if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)}w ago`;
-    return new Date(date).toLocaleDateString();
+    return new Date(date).toLocaleDateString("en-US", { timeZone: "UTC" });
   };
 
   // Create comment mutation with optimistic update

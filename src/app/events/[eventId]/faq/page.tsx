@@ -96,8 +96,8 @@ function ConferenceFaqContent({
   event: { name: string; startDate: Date; endDate: Date; location: string | null };
   eventUrl: string;
 }) {
-  const startStr = event.startDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const endStr = event.endDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const startStr = event.startDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+  const endStr = event.endDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 
   return (
     <>
@@ -303,8 +303,8 @@ function GenericFaqContent({
   event: { name: string; startDate: Date; endDate: Date; location: string | null };
   eventUrl: string;
 }) {
-  const startStr = event.startDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  const endStr = event.endDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const startStr = event.startDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+  const endStr = event.endDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 
   return (
     <>

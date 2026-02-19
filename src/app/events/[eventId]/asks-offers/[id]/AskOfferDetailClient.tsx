@@ -278,6 +278,7 @@ export default function AskOfferDetailClient({
       year: "numeric",
       month: "long",
       day: "numeric",
+      timeZone: "UTC",
     }).format(date);
   };
 

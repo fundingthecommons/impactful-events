@@ -210,7 +210,7 @@ export default function HypercertsTab({ projectId, projectTitle, canEdit }: Hype
                       <Group gap="xs">
                         <IconClock size={14} />
                         <Text size="sm">
-                          {new Date(hypercert.value.workTimeFrameFrom).toLocaleDateString()} - {new Date(hypercert.value.workTimeFrameTo).toLocaleDateString()}
+                          {new Date(hypercert.value.workTimeFrameFrom).toLocaleDateString("en-US", { timeZone: "UTC" })} - {new Date(hypercert.value.workTimeFrameTo).toLocaleDateString("en-US", { timeZone: "UTC" })}
                         </Text>
                       </Group>
                     </Stack>

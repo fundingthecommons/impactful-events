@@ -173,7 +173,8 @@ export default function EventDetailClient({
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      timeZoneName: 'short'
+      timeZone: 'UTC',
+      timeZoneName: 'short',
     }).format(date);
   };
 

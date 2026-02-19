@@ -555,7 +555,7 @@ function SpeakerApplicationsTable({
               </Table.Td>
               <Table.Td>
                 <Text size="sm" c="dimmed">
-                  {application.submittedAt ? new Date(application.submittedAt).toLocaleDateString() : "Not submitted"}
+                  {application.submittedAt ? new Date(application.submittedAt).toLocaleDateString("en-US", { timeZone: "UTC" }) : "Not submitted"}
                 </Text>
               </Table.Td>
               <Table.Td>

@@ -573,8 +573,9 @@ export default function ConferenceDashboard({
                       weekday: "short",
                       month: "short",
                       day: "numeric",
+                      timeZone: "UTC",
                     });
-                    const timeStr = `${startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+                    const timeStr = `${startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })} – ${endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })}`;
 
                     return (
                       <Card key={session.id} withBorder p="sm" radius="sm">
