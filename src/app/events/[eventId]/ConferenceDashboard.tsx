@@ -170,7 +170,8 @@ export default function ConferenceDashboard({
           <Text c="dimmed" size="sm">Speaker Dashboard</Text>
         </div>
 
-        {/* My Talk Submission */}
+        {/* My Talk Submission - only show if user has a speaker application or is a speaker */}
+        {(hasSpeakerApplication || isSpeaker) && (
         <Card withBorder>
           <Stack gap="md">
             <Group justify="space-between">
@@ -425,6 +426,7 @@ export default function ConferenceDashboard({
             )}
           </Stack>
         </Card>
+        )}
 
         {/* What Happens Next */}
         {hasSpeakerApplication && speakerApplication && applicationStatus !== "CANCELLED" && (
@@ -695,6 +697,29 @@ export default function ConferenceDashboard({
             </Group>
           </Stack>
         </Card>
+
+        {/* Submit Speaker Application - show for floor leads who aren't speakers yet */}
+        {!hasSpeakerApplication && !isSpeaker && (
+          <Card withBorder>
+            <Stack gap="sm">
+              <Title order={4}>Become a Speaker</Title>
+              <Text size="sm" c="dimmed">
+                Interested in speaking at this event? Submit a speaker application to be considered.
+              </Text>
+              <Group>
+                <Button
+                  component={Link}
+                  href={`/events/${eventSlug}/apply`}
+                  leftSection={<IconMicrophone size={16} />}
+                  variant="light"
+                  color="teal"
+                >
+                  Submit Speaker Application
+                </Button>
+              </Group>
+            </Stack>
+          </Card>
+        )}
       </Stack>
     </Container>
   );
