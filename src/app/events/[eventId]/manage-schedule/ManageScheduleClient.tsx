@@ -962,8 +962,8 @@ function SessionCard({ session, eventId, venueId, rooms, sessionTypes, tracks, o
   const startTime = new Date(session.startTime);
   const endTime = new Date(session.endTime);
 
-  const timeStr = `${startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – ${endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
-  const dateStr = startTime.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  const timeStr = `${startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })} – ${endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })}`;
+  const dateStr = startTime.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 
   return (
     <>

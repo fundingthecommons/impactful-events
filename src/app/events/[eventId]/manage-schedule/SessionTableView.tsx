@@ -37,6 +37,7 @@ function formatTime(date: Date): string {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
+    timeZone: "UTC",
   });
 }
 
@@ -45,6 +46,7 @@ function formatDate(date: Date): string {
     weekday: "short",
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
   });
 }
 
