@@ -52,6 +52,7 @@ import {
   IconMessageCircle,
 } from "@tabler/icons-react";
 import Papa from "papaparse";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { api } from "~/trpc/react";
 import { UserSearchSelect } from "~/app/_components/UserSearchSelect";
@@ -791,6 +792,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
 
       {/* Floor Applications */}
       <FloorApplicationsList
+        eventId={eventId}
         applicationsData={applicationsData ?? []}
         sessionTypes={filterData?.sessionTypes ?? []}
         tracks={filterData?.tracks ?? []}
@@ -1099,6 +1101,7 @@ type FloorApplicationData = {
 };
 
 interface FloorApplicationsListProps {
+  eventId: string;
   applicationsData: FloorApplicationData[];
   sessionTypes: { id: string; name: string; color: string }[];
   tracks: { id: string; name: string; color: string }[];
@@ -1106,6 +1109,7 @@ interface FloorApplicationsListProps {
 }
 
 function FloorApplicationsList({
+  eventId,
   applicationsData,
   sessionTypes,
   tracks,
@@ -1115,8 +1119,70 @@ function FloorApplicationsList({
 
   if (applicationsData.length === 0) return null;
 
+  const approvedApps = applicationsData.filter((a) => a.status === "ACCEPTED");
+  const unapprovedApps = applicationsData.filter((a) => a.status !== "ACCEPTED");
+  const speakersUrl = `/events/${eventId}/speakers`;
+
   return (
     <Stack gap="xs">
+      {/* Prominent application status banner */}
+      <Alert
+        variant="light"
+        color={unapprovedApps.length > 0 ? "orange" : "green"}
+        icon={unapprovedApps.length > 0 ? <IconAlertCircle size={20} /> : <IconCheck size={20} />}
+        radius="md"
+        title={
+          <Text fw={600} size="sm">
+            Speaker Applications
+          </Text>
+        }
+      >
+        <Stack gap="xs">
+          <Text size="sm">
+            You have{" "}
+            <Text span fw={700} c="green">
+              {approvedApps.length} approved
+            </Text>
+            {unapprovedApps.length > 0 && (
+              <>
+                {" "}and{" "}
+                <Text span fw={700} c="orange">
+                  {unapprovedApps.length} unapproved
+                </Text>
+              </>
+            )}
+            {" "}speaker {applicationsData.length === 1 ? "application" : "applications"} for this floor.
+          </Text>
+          <Group gap="sm">
+            {approvedApps.length > 0 && (
+              <Button
+                component={Link}
+                href={`${speakersUrl}#applications`}
+                size="xs"
+                variant="light"
+                color="green"
+                leftSection={<IconCheck size={14} />}
+              >
+                View approved ({approvedApps.length})
+              </Button>
+            )}
+            {unapprovedApps.length > 0 && (
+              <Button
+                component={Link}
+                href={`${speakersUrl}#applications`}
+                size="xs"
+                variant="filled"
+                color="orange"
+                leftSection={<IconUsers size={14} />}
+              >
+                Review unapproved ({unapprovedApps.length})
+              </Button>
+            )}
+          </Group>
+        </Stack>
+      </Alert>
+
+      {/* Expandable application details */}
       <Group
         justify="space-between"
         onClick={toggle}
@@ -1124,10 +1190,9 @@ function FloorApplicationsList({
       >
         <Group gap="xs">
           <IconFileText size={18} />
-          <Title order={4}>Floor Applications</Title>
-          <Badge size="sm" variant="light" circle>
-            {applicationsData.length}
-          </Badge>
+          <Text size="sm" fw={500}>
+            {expanded ? "Hide" : "Show"} application details ({applicationsData.length})
+          </Text>
         </Group>
         <Text size="sm" c="dimmed">
           {expanded ? "Hide" : "Show"}
