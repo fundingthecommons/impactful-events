@@ -79,8 +79,7 @@ export default function EventSubNavigation({
   // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   const isEffectiveFloorOwner = isFloorOwner || clientIsFloorOwner === true;
   const showManageSchedule =
-    isEffectiveFloorOwner ||
-    (isAdmin && featureFlags?.featureScheduleManagement !== false);
+    isEffectiveFloorOwner || isAdmin;
 
   // --- Admin route: management tabs ---
   if (adminBasePath) {
