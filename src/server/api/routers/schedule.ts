@@ -987,6 +987,7 @@ export const scheduleRouter = createTRPCRouter({
             include: { user: { select: userSelectFields } },
             orderBy: { order: "asc" },
           },
+          _count: { select: { comments: true } },
         },
         orderBy: [{ startTime: "asc" }, { order: "asc" }],
       });
@@ -1235,6 +1236,357 @@ export const scheduleRouter = createTRPCRouter({
         orderBy: [{ startTime: "asc" }, { order: "asc" }],
       });
       return sessions;
+    }),
+
+  // ──────────────────────────────────────────
+  // Session Comments (private: admins + floor leads only)
+  // ──────────────────────────────────────────
+
+  getSessionComments: protectedProcedure
+    .input(z.object({ sessionId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      await assertCanManageSession(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.sessionId,
+      );
+
+      return ctx.db.sessionComment.findMany({
+        where: { sessionId: input.sessionId, parentId: null },
+        include: {
+          user: {
+            select: {
+              ...userSelectFields,
+              profile: { select: { avatarUrl: true } },
+            },
+          },
+          likes: { select: { userId: true } },
+          _count: { select: { likes: true } },
+          replies: {
+            include: {
+              user: {
+                select: {
+                  ...userSelectFields,
+                  profile: { select: { avatarUrl: true } },
+                },
+              },
+              likes: { select: { userId: true } },
+              _count: { select: { likes: true } },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+    }),
+
+  createSessionComment: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string(),
+        content: z.string().min(1).max(5000),
+        parentId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertCanManageSession(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.sessionId,
+      );
+
+      // If replying, validate parent exists and belongs to the same session
+      if (input.parentId) {
+        const parent = await ctx.db.sessionComment.findUnique({
+          where: { id: input.parentId },
+          select: { sessionId: true },
+        });
+        if (!parent || parent.sessionId !== input.sessionId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid parent comment",
+          });
+        }
+      }
+
+      return ctx.db.sessionComment.create({
+        data: {
+          sessionId: input.sessionId,
+          userId: ctx.session.user.id,
+          content: input.content,
+          parentId: input.parentId,
+        },
+        include: {
+          user: {
+            select: {
+              ...userSelectFields,
+              profile: { select: { avatarUrl: true } },
+            },
+          },
+          likes: { select: { userId: true } },
+          _count: { select: { likes: true } },
+        },
+      });
+    }),
+
+  deleteSessionComment: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const comment = await ctx.db.sessionComment.findUnique({
+        where: { id: input.id },
+        select: { userId: true, sessionId: true },
+      });
+
+      if (!comment) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Comment not found" });
+      }
+
+      // Only the author or an admin can delete
+      if (
+        comment.userId !== ctx.session.user.id &&
+        !isAdminOrStaff(ctx.session.user.role)
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only delete your own comments",
+        });
+      }
+
+      // Also verify the user can manage this session
+      await assertCanManageSession(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        comment.sessionId,
+      );
+
+      return ctx.db.sessionComment.delete({ where: { id: input.id } });
+    }),
+
+  likeSessionComment: protectedProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const comment = await ctx.db.sessionComment.findUnique({
+        where: { id: input.commentId },
+        select: { sessionId: true },
+      });
+
+      if (!comment) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Comment not found" });
+      }
+
+      await assertCanManageSession(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        comment.sessionId,
+      );
+
+      return ctx.db.sessionCommentLike.create({
+        data: {
+          commentId: input.commentId,
+          userId: ctx.session.user.id,
+        },
+      });
+    }),
+
+  unlikeSessionComment: protectedProcedure
+    .input(z.object({ commentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.sessionCommentLike.delete({
+        where: {
+          commentId_userId: {
+            commentId: input.commentId,
+            userId: ctx.session.user.id,
+          },
+        },
+      });
+    }),
+
+  // ──────────────────────────────────────────
+  // Reschedule with Auto-Shift
+  // ──────────────────────────────────────────
+
+  rescheduleSession: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string(),
+        newStartTime: z.coerce.date(),
+        newRoomId: z.string().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertCanManageSession(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.sessionId,
+      );
+
+      const session = await ctx.db.scheduleSession.findUnique({
+        where: { id: input.sessionId },
+        select: {
+          id: true,
+          startTime: true,
+          endTime: true,
+          venueId: true,
+          roomId: true,
+        },
+      });
+
+      if (!session) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Session not found" });
+      }
+
+      const duration =
+        new Date(session.endTime).getTime() -
+        new Date(session.startTime).getTime();
+      const newStartTime = new Date(input.newStartTime);
+      const newEndTime = new Date(newStartTime.getTime() + duration);
+
+      // Determine target room
+      const targetRoomId =
+        input.newRoomId !== undefined ? input.newRoomId : session.roomId;
+
+      // Validate room belongs to session's venue
+      if (targetRoomId && session.venueId) {
+        const room = await ctx.db.scheduleRoom.findUnique({
+          where: { id: targetRoomId },
+          select: { venueId: true },
+        });
+        if (!room || room.venueId !== session.venueId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Room does not belong to this floor",
+          });
+        }
+      }
+
+      // Auto-shift algorithm: find and cascade-shift conflicting sessions
+      const shifted: Array<{
+        id: string;
+        oldStart: Date;
+        oldEnd: Date;
+        newStart: Date;
+        newEnd: Date;
+      }> = [];
+
+      await ctx.db.$transaction(async (tx) => {
+        // Update the dragged session first
+        await tx.scheduleSession.update({
+          where: { id: input.sessionId },
+          data: {
+            startTime: newStartTime,
+            endTime: newEndTime,
+            roomId: targetRoomId,
+          },
+        });
+
+        // Find and shift conflicts iteratively (max 50 cascades)
+        const MAX_CASCADE = 50;
+        // Sessions that have been placed at their final positions
+        const placedSessions: Array<{
+          id: string;
+          start: Date;
+          end: Date;
+        }> = [{ id: input.sessionId, start: newStartTime, end: newEndTime }];
+
+        // Queue of sessions whose placement might have caused new conflicts
+        const checkQueue = [
+          { id: input.sessionId, start: newStartTime, end: newEndTime },
+        ];
+
+        for (let i = 0; i < MAX_CASCADE && checkQueue.length > 0; i++) {
+          const current = checkQueue.shift()!;
+
+          // Build where clause: same venue, overlap with current session
+          const overlapWhere: Record<string, unknown> = {
+            id: {
+              notIn: placedSessions.map((s) => s.id),
+            },
+            venueId: session.venueId,
+            startTime: { lt: current.end },
+            endTime: { gt: current.start },
+          };
+
+          // Scope to same room if room is set
+          if (targetRoomId) {
+            overlapWhere.roomId = targetRoomId;
+          }
+
+          const conflicts = await tx.scheduleSession.findMany({
+            where: overlapWhere,
+            select: {
+              id: true,
+              startTime: true,
+              endTime: true,
+            },
+            orderBy: { startTime: "asc" },
+          });
+
+          for (const conflict of conflicts) {
+            const conflictDuration =
+              new Date(conflict.endTime).getTime() -
+              new Date(conflict.startTime).getTime();
+
+            // Find the earliest available slot after the current session ends
+            // Must not overlap with any already-placed session
+            let shiftedStart = new Date(current.end);
+
+            // Check against all placed sessions to find non-overlapping spot
+            let hasOverlap = true;
+            let safetyCount = 0;
+            while (hasOverlap && safetyCount < MAX_CASCADE) {
+              hasOverlap = false;
+              const candidateEnd = new Date(
+                shiftedStart.getTime() + conflictDuration,
+              );
+              for (const placed of placedSessions) {
+                if (shiftedStart < placed.end && candidateEnd > placed.start) {
+                  shiftedStart = new Date(placed.end);
+                  hasOverlap = true;
+                  break;
+                }
+              }
+              safetyCount++;
+            }
+
+            const shiftedEnd = new Date(
+              shiftedStart.getTime() + conflictDuration,
+            );
+
+            await tx.scheduleSession.update({
+              where: { id: conflict.id },
+              data: { startTime: shiftedStart, endTime: shiftedEnd },
+            });
+
+            shifted.push({
+              id: conflict.id,
+              oldStart: conflict.startTime,
+              oldEnd: conflict.endTime,
+              newStart: shiftedStart,
+              newEnd: shiftedEnd,
+            });
+
+            placedSessions.push({
+              id: conflict.id,
+              start: shiftedStart,
+              end: shiftedEnd,
+            });
+
+            // Queue this shifted session to check for further cascading conflicts
+            checkQueue.push({
+              id: conflict.id,
+              start: shiftedStart,
+              end: shiftedEnd,
+            });
+          }
+        }
+      });
+
+      return { moved: input.sessionId, shifted };
     }),
 
   // Admin: Get all venue owners for an event
