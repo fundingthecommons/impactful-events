@@ -740,11 +740,12 @@ export default function SpeakerApplicationForm({
             </Button>
 
             {currentStep < 3 ? (
-              <Button type="button" color="teal" onClick={nextStep}>
+              <Button key="next-step" type="button" color="teal" onClick={nextStep}>
                 Next Step
               </Button>
             ) : (
               <Button
+                key="submit"
                 type="submit"
                 color="teal"
                 loading={isSubmitting}
