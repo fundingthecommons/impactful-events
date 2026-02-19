@@ -30,6 +30,7 @@ interface SessionTableViewProps {
   onDelete: (sessionId: string) => void;
   onOpenComments: (sessionId: string, sessionTitle: string) => void;
   isDeleting: boolean;
+  onViewDetail?: (session: FloorSession) => void;
 }
 
 function formatTime(date: Date): string {
@@ -72,6 +73,7 @@ export function SessionTableView({
   onDelete,
   onOpenComments,
   isDeleting,
+  onViewDetail,
 }: SessionTableViewProps) {
   const [search, setSearch] = useState("");
   const [roomFilter, setRoomFilter] = useState<string | null>(null);
@@ -222,6 +224,8 @@ export function SessionTableView({
         sortStatus={sortStatus}
         onSortStatusChange={setSortStatus}
         highlightOnHover
+        onRowClick={onViewDetail ? ({ record }) => onViewDetail(record) : undefined}
+        style={onViewDetail ? { cursor: "pointer" } : undefined}
         columns={[
           {
             accessor: "title",

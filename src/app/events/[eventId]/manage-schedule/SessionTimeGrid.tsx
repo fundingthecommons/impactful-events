@@ -26,6 +26,7 @@ interface SessionTimeGridProps {
   venueName: string;
   onOpenComments: (sessionId: string, sessionTitle: string) => void;
   isPending?: boolean;
+  onViewDetail?: (session: FloorSession) => void;
 }
 
 const FIFTEEN_MIN_MS = 15 * 60 * 1000;
@@ -99,6 +100,7 @@ function DraggableSessionBlock({
   color,
   isDragging,
   onOpenComments,
+  onViewDetail,
 }: {
   session: FloorSession;
   startRow: number;
@@ -107,6 +109,7 @@ function DraggableSessionBlock({
   color: string;
   isDragging: boolean;
   onOpenComments: (sessionId: string, sessionTitle: string) => void;
+  onViewDetail?: (session: FloorSession) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: session.id,
@@ -136,9 +139,15 @@ function DraggableSessionBlock({
     <div
       ref={setNodeRef}
       className="ms-grid-session"
-      style={style}
+      style={{ ...style, cursor: onViewDetail ? "pointer" : undefined }}
       {...listeners}
       {...attributes}
+      onClick={(e: React.MouseEvent) => {
+        if (!isDragging && onViewDetail) {
+          e.stopPropagation();
+          onViewDetail(session);
+        }
+      }}
     >
       <Text fw={600} size="xs" lineClamp={2} style={{ lineHeight: 1.3 }}>
         {session.title}
@@ -211,6 +220,7 @@ export function SessionTimeGrid({
   venueName,
   onOpenComments,
   isPending,
+  onViewDetail,
 }: SessionTimeGridProps) {
   console.log("[SessionTimeGrid] RENDER START", {
     sessionCount: sessions.length,
@@ -600,6 +610,7 @@ export function SessionTimeGrid({
                 color={color}
                 isDragging={activeDragSession?.id === session.id}
                 onOpenComments={onOpenComments}
+                onViewDetail={onViewDetail}
               />
             );
           })}

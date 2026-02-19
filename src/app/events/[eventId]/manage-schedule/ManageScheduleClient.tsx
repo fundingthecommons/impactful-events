@@ -592,6 +592,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
   const [sessionView, setSessionView] = useState<"cards" | "table" | "grid">("cards");
   const [commentSessionId, setCommentSessionId] = useState<string | null>(null);
   const [commentSessionTitle, setCommentSessionTitle] = useState("");
+  const [detailSession, setDetailSession] = useState<FloorSession | null>(null);
 
   const { data: authSession } = useSession();
   const currentUserId = authSession?.user?.id ?? "";
@@ -928,6 +929,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
                     setCommentSessionId(id);
                     setCommentSessionTitle(title);
                   }}
+                  onViewDetail={setDetailSession}
                 />
               ))}
             </Stack>
@@ -948,6 +950,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
                 setCommentSessionTitle(title);
               }}
               isDeleting={deleteSessionMutation.isPending}
+              onViewDetail={setDetailSession}
             />
           )}
 
@@ -962,6 +965,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
                 setCommentSessionId(id);
                 setCommentSessionTitle(title);
               }}
+              onViewDetail={setDetailSession}
             />
           )}
         </>
@@ -973,6 +977,12 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
         sessionTitle={commentSessionTitle}
         onClose={() => setCommentSessionId(null)}
         currentUserId={currentUserId}
+      />
+
+      {/* Session Detail Modal */}
+      <SessionDetailModal
+        session={detailSession}
+        onClose={() => setDetailSession(null)}
       />
     </Stack>
   );
@@ -993,9 +1003,10 @@ interface SessionCardProps {
   isDeleting: boolean;
   isAdmin: boolean;
   onOpenComments?: (sessionId: string, sessionTitle: string) => void;
+  onViewDetail?: (session: FloorSession) => void;
 }
 
-function SessionCard({ session, eventId, venueId, rooms, sessionTypes, tracks, onDelete, isDeleting, isAdmin, onOpenComments }: SessionCardProps) {
+function SessionCard({ session, eventId, venueId, rooms, sessionTypes, tracks, onDelete, isDeleting, isAdmin, onOpenComments, onViewDetail }: SessionCardProps) {
   const [editing, { open: openEdit, close: closeEdit }] = useDisclosure(false);
 
   const startTime = new Date(session.startTime);
@@ -1006,7 +1017,7 @@ function SessionCard({ session, eventId, venueId, rooms, sessionTypes, tracks, o
 
   return (
     <>
-      <Paper p="md" withBorder>
+      <Paper p="md" withBorder style={{ cursor: onViewDetail ? "pointer" : undefined }} onClick={() => onViewDetail?.(session)}>
         <Group justify="space-between" wrap="nowrap" align="flex-start">
           <Stack gap={4} style={{ flex: 1 }}>
             <Group gap="xs">
@@ -1058,7 +1069,7 @@ function SessionCard({ session, eventId, venueId, rooms, sessionTypes, tracks, o
               <Text size="sm" c="dimmed" lineClamp={2}>{session.description}</Text>
             )}
           </Stack>
-          <Group gap={4}>
+          <Group gap={4} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             {onOpenComments && (
               <Tooltip label={`${String(session._count?.comments ?? 0)} comments`}>
                 <ActionIcon
@@ -1153,6 +1164,7 @@ function FloorApplicationsList({
   onCreateFromApplication,
 }: FloorApplicationsListProps) {
   const [expanded, { toggle }] = useDisclosure(false);
+  const [selectedApp, setSelectedApp] = useState<FloorApplicationData | null>(null);
 
   if (applicationsData.length === 0) return null;
 
@@ -1246,10 +1258,22 @@ function FloorApplicationsList({
               sessionTypes={sessionTypes}
               tracks={tracks}
               onCreateSession={onCreateFromApplication}
+              onViewDetail={setSelectedApp}
             />
           ))}
         </Stack>
       </Collapse>
+
+      <ApplicationDetailModal
+        application={selectedApp}
+        onClose={() => setSelectedApp(null)}
+        onCreateSession={(data) => {
+          setSelectedApp(null);
+          onCreateFromApplication(data);
+        }}
+        sessionTypes={sessionTypes}
+        tracks={tracks}
+      />
     </Stack>
   );
 }
@@ -1263,6 +1287,7 @@ interface ApplicationCardProps {
   sessionTypes: { id: string; name: string; color: string }[];
   tracks: { id: string; name: string; color: string }[];
   onCreateSession: (data: SessionPrefillData) => void;
+  onViewDetail: (app: FloorApplicationData) => void;
 }
 
 function ApplicationCard({
@@ -1270,6 +1295,7 @@ function ApplicationCard({
   sessionTypes,
   tracks,
   onCreateSession,
+  onViewDetail,
 }: ApplicationCardProps) {
   const user = application.user;
   if (!user) return null;
@@ -1302,7 +1328,7 @@ function ApplicationCard({
     application.status === "ACCEPTED" ? "green" : "blue";
 
   return (
-    <Paper p="sm" withBorder>
+    <Paper p="sm" withBorder style={{ cursor: "pointer" }} onClick={() => onViewDetail(application)}>
       <Group justify="space-between" wrap="nowrap" align="flex-start">
         <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
           <Avatar src={user.image} alt={getDisplayName(user, "User")} size="sm" />
@@ -1358,13 +1384,312 @@ function ApplicationCard({
           size="xs"
           variant="light"
           leftSection={<IconPlus size={14} />}
-          onClick={handleCreate}
+          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+            e.stopPropagation();
+            handleCreate();
+          }}
           style={{ flexShrink: 0 }}
         >
           Create Session
         </Button>
       </Group>
     </Paper>
+  );
+}
+
+// ──────────────────────────────────────────
+// ApplicationDetailModal
+// ──────────────────────────────────────────
+
+interface ApplicationDetailModalProps {
+  application: FloorApplicationData | null;
+  onClose: () => void;
+  onCreateSession: (data: SessionPrefillData) => void;
+  sessionTypes: { id: string; name: string; color: string }[];
+  tracks: { id: string; name: string; color: string }[];
+}
+
+function ApplicationDetailModal({
+  application,
+  onClose,
+  onCreateSession,
+  sessionTypes,
+  tracks,
+}: ApplicationDetailModalProps) {
+  if (!application?.user) return null;
+
+  const user = application.user;
+  const profile = user.profile;
+  const talkFormat = profile?.speakerTalkFormat;
+  const talkDuration = profile?.speakerTalkDuration;
+
+  const handleCreate = () => {
+    onCreateSession({
+      title: profile?.speakerTalkTitle ?? profile?.speakerEntityName ?? "",
+      description: profile?.speakerTalkAbstract ?? "",
+      speaker: {
+        id: user.id,
+        firstName: user.firstName,
+        surname: user.surname,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+      },
+      sessionTypeId: findMatchingSessionType(talkFormat, sessionTypes),
+      trackId: findMatchingTrack(profile?.speakerTalkTopic, tracks),
+    });
+  };
+
+  const statusColor = application.status === "ACCEPTED" ? "green" : "blue";
+
+  return (
+    <Modal
+      opened={!!application}
+      onClose={onClose}
+      title={
+        <Group gap="sm">
+          <Avatar src={user.image} alt={getDisplayName(user, "User")} size="md" />
+          <Stack gap={0}>
+            <Group gap="xs">
+              <Text fw={600}>{getDisplayName(user, "Unknown")}</Text>
+              <Badge size="sm" color={statusColor} variant="light">
+                {application.status}
+              </Badge>
+            </Group>
+            {(profile?.jobTitle ?? profile?.company) && (
+              <Text size="sm" c="dimmed">
+                {[profile?.jobTitle, profile?.company].filter(Boolean).join(" at ")}
+              </Text>
+            )}
+          </Stack>
+        </Group>
+      }
+      size="lg"
+    >
+      <Stack gap="md">
+        {/* Speaker Bio */}
+        {profile?.bio && (
+          <Stack gap={4}>
+            <Text size="sm" fw={600} c="dimmed">
+              Bio
+            </Text>
+            <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+              {profile.bio}
+            </Text>
+          </Stack>
+        )}
+
+        {/* Talk Details */}
+        {profile?.speakerTalkTitle && (
+          <Stack gap={4}>
+            <Text size="sm" fw={600} c="dimmed">
+              Talk Title
+            </Text>
+            <Text size="sm" fw={500}>
+              {profile.speakerTalkTitle}
+            </Text>
+          </Stack>
+        )}
+
+        {profile?.speakerTalkAbstract && (
+          <Stack gap={4}>
+            <Text size="sm" fw={600} c="dimmed">
+              Talk Abstract
+            </Text>
+            <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
+              {profile.speakerTalkAbstract}
+            </Text>
+          </Stack>
+        )}
+
+        {/* Format, Duration, Topic */}
+        {(talkFormat ?? talkDuration ?? profile?.speakerTalkTopic) && (
+          <Group gap="xs" wrap="wrap">
+            {talkFormat && (
+              <Badge variant="light" color="violet">
+                {talkFormat}
+              </Badge>
+            )}
+            {talkDuration && (
+              <Badge variant="light" color="gray">
+                {formatDuration(talkDuration)}
+              </Badge>
+            )}
+            {profile?.speakerTalkTopic && (
+              <Badge variant="light" color="blue">
+                {profile.speakerTalkTopic}
+              </Badge>
+            )}
+          </Group>
+        )}
+
+        {/* Scheduling Preferences */}
+        {(application.speakerPreferredDates ?? application.speakerPreferredTimes) && (
+          <Stack gap={4}>
+            <Text size="sm" fw={600} c="dimmed">
+              Scheduling Preferences
+            </Text>
+            <Group gap="xs" wrap="wrap">
+              {application.speakerPreferredDates?.split(",").map((date) => (
+                <Badge key={date} size="sm" variant="light" color="teal">
+                  {date === "2026-03-14" ? "Mar 14" : date === "2026-03-15" ? "Mar 15" : date}
+                </Badge>
+              ))}
+              {application.speakerPreferredTimes?.split(",").map((slot) => (
+                <Badge key={slot} size="sm" variant="dot" color="orange">
+                  {formatTimeSlot(slot)}
+                </Badge>
+              ))}
+            </Group>
+          </Stack>
+        )}
+
+        {/* Entity Name */}
+        {profile?.speakerEntityName && (
+          <Stack gap={4}>
+            <Text size="sm" fw={600} c="dimmed">
+              Entity / Organization
+            </Text>
+            <Text size="sm">{profile.speakerEntityName}</Text>
+          </Stack>
+        )}
+
+        {/* Create Session Button */}
+        <Group justify="flex-end" mt="sm">
+          <Button variant="light" onClick={onClose}>
+            Close
+          </Button>
+          <Button leftSection={<IconPlus size={16} />} onClick={handleCreate}>
+            Create Session
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+// ──────────────────────────────────────────
+// SessionDetailModal
+// ──────────────────────────────────────────
+
+interface SessionDetailModalProps {
+  session: FloorSession | null;
+  onClose: () => void;
+}
+
+function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
+  if (!session) return null;
+
+  const startTime = new Date(session.startTime);
+  const endTime = new Date(session.endTime);
+  const dateStr = startTime.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+  const timeStr = `${startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })} – ${endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })}`;
+  const durationMs = endTime.getTime() - startTime.getTime();
+  const durationMin = Math.round(durationMs / 60000);
+  const durationStr = durationMin >= 60
+    ? `${String(Math.floor(durationMin / 60))}h${durationMin % 60 > 0 ? ` ${String(durationMin % 60)}m` : ""}`
+    : `${String(durationMin)}m`;
+
+  const speakerNames = [
+    ...session.sessionSpeakers.map((s) =>
+      s.role !== "Speaker"
+        ? `${getDisplayName(s.user, "Unknown")} (${s.role})`
+        : getDisplayName(s.user, "Unknown"),
+    ),
+    ...session.speakers,
+  ];
+
+  return (
+    <Modal
+      opened={!!session}
+      onClose={onClose}
+      title={
+        <Group gap="sm">
+          <Text fw={600} size="lg">{session.title}</Text>
+          {!session.isPublished && (
+            <Badge size="sm" color="yellow" variant="light">Draft</Badge>
+          )}
+        </Group>
+      }
+      size="lg"
+    >
+      <Stack gap="md">
+        {/* Badges */}
+        <Group gap="xs" wrap="wrap">
+          {session.sessionType && (
+            <Badge
+              variant="light"
+              style={{ backgroundColor: `${session.sessionType.color}20`, color: session.sessionType.color }}
+            >
+              {session.sessionType.name}
+            </Badge>
+          )}
+          {session.track && (
+            <Badge
+              variant="light"
+              style={{ backgroundColor: `${session.track.color}20`, color: session.track.color }}
+            >
+              {session.track.name}
+            </Badge>
+          )}
+          {session.room && (
+            <Badge variant="light" color="teal">
+              {session.room.name}
+            </Badge>
+          )}
+        </Group>
+
+        {/* Date & Time */}
+        <Stack gap={4}>
+          <Text size="sm" fw={600} c="dimmed">Schedule</Text>
+          <Group gap="xs">
+            <IconClock size={14} />
+            <Text size="sm">{dateStr}</Text>
+          </Group>
+          <Group gap="xs">
+            <Text size="sm">{timeStr} ({durationStr})</Text>
+          </Group>
+        </Stack>
+
+        {/* Speakers */}
+        {speakerNames.length > 0 && (
+          <Stack gap={4}>
+            <Text size="sm" fw={600} c="dimmed">Speakers</Text>
+            <Group gap="xs" wrap="wrap">
+              {session.sessionSpeakers.map((s) => (
+                <Group key={s.user.id} gap={6} wrap="nowrap">
+                  <Avatar src={s.user.image} size="sm" radius="xl">
+                    {(s.user.firstName?.[0] ?? s.user.name?.[0] ?? "?").toUpperCase()}
+                  </Avatar>
+                  <Text size="sm">
+                    {getDisplayName(s.user, "Unknown")}
+                    {s.role !== "Speaker" && (
+                      <Text span size="xs" c="dimmed"> ({s.role})</Text>
+                    )}
+                  </Text>
+                </Group>
+              ))}
+              {session.speakers.length > 0 && (
+                <Text size="sm" c="dimmed">{session.speakers.join(", ")}</Text>
+              )}
+            </Group>
+          </Stack>
+        )}
+
+        {/* Description */}
+        {session.description && (
+          <Stack gap={4}>
+            <Text size="sm" fw={600} c="dimmed">Description</Text>
+            <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>{session.description}</Text>
+          </Stack>
+        )}
+
+        {/* Footer */}
+        <Group justify="flex-end" mt="sm">
+          <Button variant="light" onClick={onClose}>Close</Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 }
 
