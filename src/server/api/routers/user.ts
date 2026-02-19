@@ -9,7 +9,7 @@ export const userRouter = createTRPCRouter({
       z.object({
         firstName: z.string().min(1, "First name is required"),
         surname: z.string().optional(),
-        email: z.string().email("Invalid email address"),
+        email: z.string().email("Invalid email address").transform(v => v.toLowerCase().trim()),
         password: z.string().min(8, "Password must be at least 8 characters"),
       }),
     )

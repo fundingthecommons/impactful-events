@@ -62,7 +62,8 @@ export const authConfig = {
           return null;
         }
 
-        const { email, password } = result.data;
+        const { email: rawEmail, password } = result.data;
+        const email = rawEmail.toLowerCase().trim();
         console.log("[AUTH] Looking up user with email:", email);
 
         const user = await db.user.findUnique({

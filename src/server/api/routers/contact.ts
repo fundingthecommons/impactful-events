@@ -1301,7 +1301,7 @@ export const contactRouter = createTRPCRouter({
       // Check if email already exists (only if email is provided)
       if (input.email) {
         const existingContact = await ctx.db.contact.findFirst({
-          where: { email: input.email },
+          where: { email: { equals: input.email, mode: "insensitive" } },
         });
 
         if (existingContact) {

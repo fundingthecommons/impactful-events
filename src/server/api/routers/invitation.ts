@@ -92,7 +92,7 @@ async function sendInvitationEmailForType(params: {
 
 // Schema definitions
 const CreateInvitationSchema = z.object({
-  email: z.string().email(),
+  email: z.string().email().transform(v => v.toLowerCase().trim()),
   inviteeName: z.string().optional(),
   type: z.enum(["EVENT_ROLE", "GLOBAL_ADMIN", "GLOBAL_STAFF", "VENUE_OWNER"]).default("EVENT_ROLE"),
   eventId: z.string().optional(),
@@ -119,7 +119,7 @@ const CreateInvitationSchema = z.object({
 });
 
 const BulkCreateInvitationSchema = z.object({
-  emails: z.array(z.string().email()),
+  emails: z.array(z.string().email()).transform(arr => arr.map(e => e.toLowerCase().trim())),
   type: z.enum(["EVENT_ROLE", "GLOBAL_ADMIN", "GLOBAL_STAFF", "VENUE_OWNER"]).default("EVENT_ROLE"),
   eventId: z.string().optional(),
   roleId: z.string().optional(),
@@ -234,7 +234,7 @@ export const invitationRouter = createTRPCRouter({
       if (input.type === "EVENT_ROLE") {
         existing = await ctx.db.invitation.findFirst({
           where: {
-            email: input.email,
+            email: { equals: input.email, mode: "insensitive" },
             eventId: resolvedEventId,
             roleId: input.roleId,
             status: "PENDING",
@@ -247,7 +247,7 @@ export const invitationRouter = createTRPCRouter({
       } else if (input.type === "VENUE_OWNER") {
         existing = await ctx.db.invitation.findFirst({
           where: {
-            email: input.email,
+            email: { equals: input.email, mode: "insensitive" },
             type: "VENUE_OWNER",
             eventId: resolvedEventId,
             venueId: input.venueId,
@@ -261,7 +261,7 @@ export const invitationRouter = createTRPCRouter({
       } else {
         existing = await ctx.db.invitation.findFirst({
           where: {
-            email: input.email,
+            email: { equals: input.email, mode: "insensitive" },
             type: input.type,
             globalRole: input.globalRole,
             status: "PENDING",
@@ -375,18 +375,18 @@ export const invitationRouter = createTRPCRouter({
 
       const resolvedEventId = event?.id ?? input.eventId;
 
-      // Check for existing invitations
+      // Check for existing invitations (case-insensitive)
       const existingInvitations = await ctx.db.invitation.findMany({
         where: {
-          email: { in: input.emails },
           eventId: resolvedEventId,
           roleId: input.roleId,
           status: "PENDING",
         },
+        select: { email: true },
       });
 
-      const existingEmails = new Set(existingInvitations.map(inv => inv.email));
-      const newEmails = input.emails.filter(email => !existingEmails.has(email));
+      const existingEmailsLower = new Set(existingInvitations.map(inv => inv.email.toLowerCase()));
+      const newEmails = input.emails.filter(email => !existingEmailsLower.has(email));
 
       if (newEmails.length === 0) {
         throw new TRPCError({
@@ -452,7 +452,7 @@ export const invitationRouter = createTRPCRouter({
 
       return {
         created: createdInvitations,
-        skipped: existingEmails.size,
+        skipped: existingEmailsLower.size,
         total: input.emails.length,
         emailsSent: emailSuccesses,
       };
@@ -534,7 +534,7 @@ export const invitationRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const invitations = await ctx.db.invitation.findMany({
         where: {
-          email: input.email,
+          email: { equals: input.email.toLowerCase(), mode: "insensitive" },
           status: "PENDING",
           expiresAt: {
             gt: new Date(),
@@ -600,11 +600,12 @@ export const invitationRouter = createTRPCRouter({
       userId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      const normalizedEmail = input.email.toLowerCase().trim();
       let userId = input.userId;
 
       if (!userId) {
-        const user = await ctx.db.user.findUnique({
-          where: { email: input.email },
+        const user = await ctx.db.user.findFirst({
+          where: { email: { equals: normalizedEmail, mode: "insensitive" } },
           select: { id: true },
         });
 
@@ -615,7 +616,7 @@ export const invitationRouter = createTRPCRouter({
         userId = user.id;
       }
 
-      return acceptPendingInvitations(input.email, userId);
+      return acceptPendingInvitations(normalizedEmail, userId);
     }),
 
   // Cancel invitation

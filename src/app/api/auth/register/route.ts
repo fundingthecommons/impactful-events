@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, email, password, invitationToken } = result.data;
+    const { name, email: rawEmail, password, invitationToken } = result.data;
+    const email = rawEmail.toLowerCase().trim();
 
     // Validate password strength
     const passwordValidation = validatePassword(password);
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (invitation.email !== email) {
+      if (invitation.email.toLowerCase() !== email) {
         return NextResponse.json(
           { error: "Email does not match invitation" },
           { status: 400 }

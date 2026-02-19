@@ -210,7 +210,7 @@ async function findRecipientByUsername(
 
   if (contact?.email) {
     const user = await db.user.findFirst({
-      where: { email: contact.email },
+      where: { email: { equals: contact.email, mode: "insensitive" } },
     });
     if (user) {
       return { id: user.id, name: user.name, kudos: user.kudos };

@@ -24,7 +24,7 @@ export async function acceptPendingInvitations(
 ): Promise<AcceptInvitationsResult> {
   const invitations = await db.invitation.findMany({
     where: {
-      email,
+      email: { equals: email.toLowerCase(), mode: "insensitive" },
       status: "PENDING",
       expiresAt: { gt: new Date() },
     },
