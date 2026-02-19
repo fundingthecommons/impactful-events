@@ -1220,20 +1220,21 @@ function FloorApplicationsList({
       </Alert>
 
       {/* Expandable application details */}
-      <Group
-        justify="space-between"
-        onClick={toggle}
-        style={{ cursor: "pointer" }}
-      >
+      <Group justify="space-between">
         <Group gap="xs">
           <IconFileText size={18} />
           <Text size="sm" fw={500}>
-            {expanded ? "Hide" : "Show"} application details ({applicationsData.length})
+            You currently have {approvedApps.length} accepted {approvedApps.length === 1 ? "application" : "applications"}
           </Text>
         </Group>
-        <Text size="sm" c="dimmed">
-          {expanded ? "Hide" : "Show"}
-        </Text>
+        <Button
+          size="xs"
+          variant={expanded ? "light" : "filled"}
+          onClick={toggle}
+          leftSection={<IconFileText size={14} />}
+        >
+          {expanded ? "Hide" : "View Approved Applications"}
+        </Button>
       </Group>
 
       <Collapse in={expanded}>
