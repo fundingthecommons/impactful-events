@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Modal,
   TextInput,
   Textarea,
   Select,
+  MultiSelect,
   Checkbox,
   Stack,
   Group,
@@ -16,15 +17,17 @@ import {
   Image,
   FileInput,
   Divider,
+  ActionIcon,
 } from "@mantine/core";
 import { useForm, zodResolver } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { IconPhoto, IconAlertCircle } from "@tabler/icons-react";
+import { IconPhoto, IconAlertCircle, IconTrash } from "@tabler/icons-react";
 import { z } from "zod";
 import { api } from "~/trpc/react";
 import {
   talkFormatOptions,
   talkDurationOptions,
+  ftcTopicOptions,
 } from "./speaker/SpeakerApplicationForm";
 
 const formSchema = z.object({
@@ -33,7 +36,7 @@ const formSchema = z.object({
   lastName: z.string().optional(),
   talkTitle: z.string().min(1, "Session name is required").max(200),
   talkAbstract: z.string().min(50, "Description must be at least 50 characters").max(2000),
-  talkFormat: z.string().min(1, "Session type is required"),
+  talkFormat: z.array(z.string()).min(1, "Please select at least one session type"),
   talkDuration: z.string().min(1, "Session length is required"),
   talkTopic: z.string().min(1, "Topic is required"),
   entityName: z.string().max(200).optional().or(z.literal("")),
@@ -57,6 +60,7 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
   const [selectedVenueIds, setSelectedVenueIds] = useState<string[]>([]);
   const [headshotUrl, setHeadshotUrl] = useState<string | null>(null);
   const [headshotFileName, setHeadshotFileName] = useState<string | null>(null);
+  const [headshotFile, setHeadshotFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [existingUser, setExistingUser] = useState<{
     id: string;
@@ -64,6 +68,8 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
     email: string | null;
   } | null>(null);
   const [emailChecked, setEmailChecked] = useState(false);
+  const [ftcTopicValues, setFtcTopicValues] = useState<string[]>([]);
+  const [ftcTopicOtherText, setFtcTopicOtherText] = useState("");
 
   const utils = api.useUtils();
 
@@ -72,7 +78,9 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
     { eventId },
     { enabled: opened },
   );
-  const venues = floorsData?.venues ?? [];
+  const venueIdKey = floorsData?.venues?.map(v => v.id).join(',') ?? '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const venues = useMemo(() => floorsData?.venues ?? [], [venueIdKey]);
 
   // Fetch schedule filters for session types
   const { data: scheduleFilters } = api.schedule.getEventScheduleFilters.useQuery(
@@ -86,6 +94,27 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
     setSelectedVenueIds(venues.map((v) => v.id));
     setVenuesInitialized(true);
   }
+
+  // Check if any selected venue is a "Funding the Commons" floor
+  const isFtcVenue = useMemo(() => {
+    if (selectedVenueIds.length === 0) return false;
+    return venues.some(
+      (v) => selectedVenueIds.includes(v.id) && v.name.toLowerCase().includes("funding the commons"),
+    );
+  }, [selectedVenueIds, venues]);
+
+  // Sync FtC multi-select topic values into the form's talkTopic string field
+  useEffect(() => {
+    if (!isFtcVenue) return;
+    const topics = ftcTopicValues.filter((v) => v !== "Other");
+    if (ftcTopicValues.includes("Other") && ftcTopicOtherText.trim()) {
+      topics.push(`Other: ${ftcTopicOtherText.trim()}`);
+    } else if (ftcTopicValues.includes("Other")) {
+      topics.push("Other");
+    }
+    form.setFieldValue("talkTopic", topics.join(", "));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFtcVenue, ftcTopicValues, ftcTopicOtherText]);
 
   const createSpeakerMutation = api.application.createSpeakerOnBehalf.useMutation({
     onSuccess: () => {
@@ -113,7 +142,7 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
       lastName: "",
       talkTitle: "",
       talkAbstract: "",
-      talkFormat: "",
+      talkFormat: [] as string[],
       talkDuration: "",
       talkTopic: "",
       entityName: "",
@@ -134,9 +163,12 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
     setSelectedVenueIds([]);
     setHeadshotUrl(null);
     setHeadshotFileName(null);
+    setHeadshotFile(null);
     setExistingUser(null);
     setEmailChecked(false);
     setVenuesInitialized(false);
+    setFtcTopicValues([]);
+    setFtcTopicOtherText("");
     onClose();
   };
 
@@ -176,9 +208,13 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
   };
 
   const handleHeadshotUpload = async (file: File | null) => {
-    if (!file) return;
+    if (!file) {
+      setHeadshotFile(null);
+      return;
+    }
 
     setIsUploading(true);
+    setHeadshotFile(file);
     try {
       const formData = new FormData();
       formData.append("headshot", file);
@@ -218,6 +254,12 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
     }
   };
 
+  const handleRemoveHeadshot = () => {
+    setHeadshotUrl(null);
+    setHeadshotFileName(null);
+    setHeadshotFile(null);
+  };
+
   const handleSubmit = (values: typeof form.values) => {
     createSpeakerMutation.mutate({
       eventId,
@@ -226,7 +268,7 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
       lastName: values.lastName?.trim() || undefined,
       talkTitle: values.talkTitle.trim(),
       talkAbstract: values.talkAbstract.trim(),
-      talkFormat: values.talkFormat,
+      talkFormat: values.talkFormat.join(", "),
       talkDuration: values.talkDuration,
       talkTopic: values.talkTopic.trim(),
       speakerEntityName: values.entityName?.trim() || undefined,
@@ -283,6 +325,7 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
             <TextInput
               label="First Name"
               placeholder="Jane"
+              description="Write whatever name you prefer to go by in public"
               required
               {...form.getInputProps("firstName")}
             />
@@ -318,9 +361,10 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
             {...form.getInputProps("talkAbstract")}
           />
           <Group grow>
-            <Select
+            <MultiSelect
               label="Session Type"
-              placeholder="Select the session type"
+              placeholder="Select session types"
+              description="Select the type of session you may be interested in"
               data={
                 (scheduleFilters?.sessionTypes ?? []).length > 0
                   ? (scheduleFilters?.sessionTypes ?? []).map((st: { name: string }) => ({
@@ -340,12 +384,36 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
               {...form.getInputProps("talkDuration")}
             />
           </Group>
-          <TextInput
-            label="Topic / Track"
-            placeholder="e.g. AI Safety, Blockchain, etc."
-            required
-            {...form.getInputProps("talkTopic")}
-          />
+          {isFtcVenue ? (
+            <>
+              <MultiSelect
+                label="Topic / Track"
+                placeholder="Select topics that apply"
+                description="Please select which of the following topics your proposed session fits into"
+                data={ftcTopicOptions}
+                value={ftcTopicValues}
+                onChange={setFtcTopicValues}
+                required
+                error={form.errors.talkTopic}
+              />
+              {ftcTopicValues.includes("Other") && (
+                <TextInput
+                  label="Other topic (please specify)"
+                  placeholder="Describe your topic"
+                  value={ftcTopicOtherText}
+                  onChange={(e) => setFtcTopicOtherText(e.currentTarget.value)}
+                  required
+                />
+              )}
+            </>
+          ) : (
+            <TextInput
+              label="Topic / Track"
+              placeholder="e.g. AI Safety, Blockchain, etc."
+              required
+              {...form.getInputProps("talkTopic")}
+            />
+          )}
 
           {venues.length > 0 && (
             <Checkbox.Group
@@ -400,28 +468,56 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
 
           <Divider label="Headshot" labelPosition="center" />
 
-          <FileInput
-            label="Speaker Headshot"
-            placeholder="Upload headshot image"
-            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-            description="JPG, PNG, GIF, or WebP (max 5MB)"
-            leftSection={<IconPhoto size={16} />}
-            onChange={(file) => void handleHeadshotUpload(file)}
-            disabled={isUploading}
-          />
-          {isUploading && <Text size="xs" c="dimmed">Uploading...</Text>}
-          {headshotUrl && (
-            <Group>
-              <Image
-                src={headshotUrl}
-                alt="Speaker headshot"
-                w={80}
-                h={80}
-                radius="md"
-                fit="cover"
+          {headshotUrl ? (
+            <Stack gap="xs">
+              <Text size="sm" fw={500}>Speaker Headshot</Text>
+              <Group>
+                <Image
+                  src={headshotUrl}
+                  alt="Speaker headshot"
+                  w={80}
+                  h={80}
+                  radius="md"
+                  fit="cover"
+                />
+                <Stack gap={4}>
+                  <Text size="xs" c="green">Uploaded: {headshotFileName}</Text>
+                  <Group gap="xs">
+                    <Button
+                      size="xs"
+                      variant="light"
+                      leftSection={<IconPhoto size={14} />}
+                      onClick={handleRemoveHeadshot}
+                    >
+                      Replace
+                    </Button>
+                    <ActionIcon
+                      size="sm"
+                      variant="light"
+                      color="red"
+                      onClick={handleRemoveHeadshot}
+                      title="Remove headshot"
+                    >
+                      <IconTrash size={14} />
+                    </ActionIcon>
+                  </Group>
+                </Stack>
+              </Group>
+            </Stack>
+          ) : (
+            <>
+              <FileInput
+                label="Speaker Headshot"
+                placeholder="Upload headshot image"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                description="JPG, PNG, GIF, or WebP (max 5MB)"
+                leftSection={<IconPhoto size={16} />}
+                value={headshotFile}
+                onChange={(file) => void handleHeadshotUpload(file)}
+                disabled={isUploading}
               />
-              <Text size="xs" c="green">Uploaded: {headshotFileName}</Text>
-            </Group>
+              {isUploading && <Text size="xs" c="dimmed">Uploading...</Text>}
+            </>
           )}
 
           <Divider label="Links (Optional)" labelPosition="center" />
