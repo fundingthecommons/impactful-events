@@ -2297,11 +2297,24 @@ export const applicationRouter = createTRPCRouter({
       };
     }),
 
-  // Admin: Get single application by ID with full details
+  // Admin/Floor Lead: Get single application by ID with full details
   getApplicationById: protectedProcedure
     .input(z.object({ applicationId: z.string() }))
     .query(async ({ ctx, input }) => {
-      checkAdminAccess(ctx.session.user.role);
+      // Fetch eventId for floor lead auth check
+      const appForAuth = await ctx.db.application.findUnique({
+        where: { id: input.applicationId },
+        select: { eventId: true },
+      });
+      if (!appForAuth) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Application not found" });
+      }
+      await assertAdminOrEventFloorOwner(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        appForAuth.eventId,
+      );
 
       const application = await ctx.db.application.findUnique({
         where: { id: input.applicationId },
