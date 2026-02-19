@@ -133,6 +133,8 @@ const CreateSpeakerOnBehalfSchema = z.object({
   pastTalkUrl: z.string().url().optional().or(z.literal("")),
   // Entity name
   speakerEntityName: z.string().max(200).optional(),
+  speakerOtherFloorsTopicTheme: z.string().max(2000).optional(),
+  speakerDisplayPreference: z.string().max(500).optional(),
   // Headshot
   headshotUrl: z.string().optional(),
   headshotFileName: z.string().optional(),
@@ -2707,6 +2709,8 @@ export const applicationRouter = createTRPCRouter({
           speakerPreviousExperience: input.previousSpeakingExperience ?? null,
           speakerPastTalkUrl: input.pastTalkUrl ?? null,
           speakerEntityName: input.speakerEntityName ?? null,
+          speakerOtherFloorsTopicTheme: input.speakerOtherFloorsTopicTheme ?? null,
+          speakerDisplayPreference: input.speakerDisplayPreference ?? null,
           bio: input.bio,
           jobTitle: input.jobTitle ?? null,
           company: input.company ?? null,
@@ -2724,6 +2728,8 @@ export const applicationRouter = createTRPCRouter({
           speakerPreviousExperience: input.previousSpeakingExperience ?? null,
           speakerPastTalkUrl: input.pastTalkUrl ?? null,
           speakerEntityName: input.speakerEntityName ?? null,
+          speakerOtherFloorsTopicTheme: input.speakerOtherFloorsTopicTheme ?? null,
+          speakerDisplayPreference: input.speakerDisplayPreference ?? null,
           bio: input.bio,
           jobTitle: input.jobTitle ?? null,
           company: input.company ?? null,

@@ -1197,6 +1197,8 @@ model UserProfile {
   speakerPreviousExperience String? @db.Text // Previous speaking experience
   speakerPastTalkUrl    String?             // Link to past talk recording
   speakerEntityName     String?             // Name of artist, entity, or group
+  speakerOtherFloorsTopicTheme String? @db.Text // Other floors topic/theme for non-FtC tracks
+  speakerDisplayPreference     String? @db.Text // Preferred display format for agenda
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

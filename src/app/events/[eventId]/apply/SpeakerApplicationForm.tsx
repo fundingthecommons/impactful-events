@@ -51,12 +51,14 @@ const speakerApplicationSchema = z.object({
   talkDuration: z.string().min(1, "Please select a session length"),
   talkTopic: z.string().min(1, "Please specify the topic or track"),
   entityName: z.string().max(200).optional().or(z.literal("")),
+  otherFloorsTopicTheme: z.string().max(2000).optional().or(z.literal("")),
   // Speaker info
   bio: z.string().min(20, "Please provide at least 20 characters for your bio").max(1000),
   previousSpeakingExperience: z.string().max(2000).optional().or(z.literal("")),
   // Profile fields
   jobTitle: z.string().max(100).optional().or(z.literal("")),
   company: z.string().max(100).optional().or(z.literal("")),
+  displayPreference: z.string().max(500).optional().or(z.literal("")),
   // Links
   website: z.string().url().optional().or(z.literal("")),
   linkedinUrl: z.string().url().optional().or(z.literal("")),
@@ -263,10 +265,12 @@ export default function SpeakerApplicationForm({
       talkDuration: "",
       talkTopic: "",
       entityName: "",
+      otherFloorsTopicTheme: "",
       bio: "",
       previousSpeakingExperience: "",
       jobTitle: "",
       company: "",
+      displayPreference: "",
       website: "",
       linkedinUrl: "",
       twitterUrl: "",
@@ -302,6 +306,8 @@ export default function SpeakerApplicationForm({
         speakerPreviousExperience: values.previousSpeakingExperience,
         speakerPastTalkUrl: values.pastTalkUrl,
         speakerEntityName: values.entityName,
+        speakerOtherFloorsTopicTheme: values.otherFloorsTopicTheme,
+        speakerDisplayPreference: values.displayPreference,
       });
 
       // Step 3: Submit the application (DRAFT → SUBMITTED) with venue selections
@@ -553,6 +559,15 @@ export default function SpeakerApplicationForm({
                           required
                         />
                       )}
+                      <Textarea
+                        label="Other Floors Topic/Theme"
+                        description="If you checked any boxes above besides Floor 2 (Funding the Commons), write a few keywords or a brief sentence about which topics/themes your session covers"
+                        placeholder="e.g., AI governance, open source sustainability..."
+                        minRows={2}
+                        maxRows={4}
+                        mt="sm"
+                        {...form.getInputProps("otherFloorsTopicTheme")}
+                      />
                     </>
                   ) : (
                     <TextInput
@@ -625,6 +640,15 @@ export default function SpeakerApplicationForm({
                   </div>
                 </Group>
 
+                <Text size="sm" c="dimmed" mb="md">
+                  We need to collect the following information about you for clarity
+                  in our speaker announcements and agenda. Please keep in mind that
+                  it will appear in the following format:{" "}
+                  <Text component="span" fw={600} size="sm">
+                    James Farrell, Funding the Commons, CTO
+                  </Text>
+                </Text>
+
                 <Grid>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <TextInput
@@ -638,6 +662,16 @@ export default function SpeakerApplicationForm({
                       label="Organization"
                       placeholder="Your current organization"
                       {...form.getInputProps("company")}
+                    />
+                  </Grid.Col>
+                  <Grid.Col span={12}>
+                    <Textarea
+                      label="Preferred Display Format"
+                      description="We know that many of our community members wear a multitude of hats. If your role doesn&apos;t fit neatly into &quot;Title, Organization&quot; format in the boxes above, please write how you prefer to be referred to in our agenda and speaker announcements."
+                      placeholder="e.g., Independent Researcher & Open Source Advocate"
+                      minRows={2}
+                      maxRows={4}
+                      {...form.getInputProps("displayPreference")}
                     />
                   </Grid.Col>
                   <Grid.Col span={12}>
