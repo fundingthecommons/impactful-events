@@ -193,6 +193,10 @@ export class EmailService {
       (application.user?.firstName ?? application.user?.surname)
         ? `${application.user.firstName ?? ''} ${application.user.surname ?? ''}`.trim()
         : application.user?.name ?? application.user?.email ?? 'Applicant';
+    const applicantFirstName =
+      application.user?.firstName
+        ?? application.user?.name?.split(' ')[0]
+        ?? undefined;
     const applicantEmail = application.user?.email ?? application.email;
 
     switch (status) {
@@ -204,18 +208,16 @@ export class EmailService {
         const endStr = application.event.endDate.toLocaleDateString('en-US', {
           month: 'long', day: 'numeric', year: 'numeric',
         });
-        const isSpeaker = application.applicationType === 'SPEAKER';
 
         templateName = 'applicationAccepted';
         templateData = {
           applicantName,
+          applicantFirstName,
           eventName: application.event.name,
           programDates: `${startStr} – ${endStr}`,
           location: application.event.location ?? 'TBD',
           dashboardUrl: `${baseUrl}/events/${eventSlug}`,
-          speakerProfileUrl: isSpeaker ? `${baseUrl}/events/${eventSlug}/apply` : undefined,
-          faqUrl: `${baseUrl}/events/${eventSlug}/faq`,
-          contactEmail: process.env.ADMIN_EMAIL ?? 'hello@fundingthecommons.io',
+          contactEmail: process.env.ADMIN_EMAIL ?? 'beth@fundingthecommons.io',
         } satisfies ApplicationAcceptedProps;
         break;
       }
@@ -224,8 +226,8 @@ export class EmailService {
         templateName = 'applicationRejected';
         templateData = {
           applicantName,
+          applicantFirstName,
           eventName: application.event.name,
-          contactEmail: process.env.ADMIN_EMAIL ?? 'hello@fundingthecommons.io',
         } satisfies ApplicationRejectedProps;
         break;
 
@@ -372,13 +374,13 @@ export class EmailService {
   private getSubjectForTemplate(templateName: TemplateName, data: TemplateProps): string {
     switch (templateName) {
       case 'applicationAccepted':
-        return `🎉 Congratulations! You've been accepted to ${(data as ApplicationAcceptedProps).eventName}`;
+        return `🎉 You're Confirmed as a Speaker – ${(data as ApplicationAcceptedProps).eventName}`;
       case 'applicationRejected':
-        return `Thank you for your application to ${(data as ApplicationRejectedProps).eventName}`;
+        return `Update on Your Speaker Application – ${(data as ApplicationRejectedProps).eventName}`;
       case 'applicationWaitlisted':
         return `You're on the waitlist for ${(data as ApplicationWaitlistedProps).eventName}`;
       case 'applicationSubmitted':
-        return `Application received for ${(data as ApplicationSubmittedProps).eventName}`;
+        return `We've Received Your Speaker Application – ${(data as ApplicationSubmittedProps).eventName}`;
       case 'applicationMissingInfo':
         return `Action required: Complete your ${(data as ApplicationMissingInfoProps).eventName} application`;
       case 'invitation':

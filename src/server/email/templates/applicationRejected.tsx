@@ -7,44 +7,57 @@ import { BaseTemplate } from './base';
 
 export interface ApplicationRejectedProps {
   applicantName: string;
+  applicantFirstName?: string;
   eventName: string;
-  contactEmail: string;
+  contactEmail?: string;
+  discountCode?: string;
+  registrationUrl?: string;
 }
 
 export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = ({
+  applicantFirstName,
   applicantName,
   eventName,
-  contactEmail,
+  discountCode,
+  registrationUrl,
 }) => {
-  const previewText = `Thank you for your application to ${eventName}`;
+  const firstName = applicantFirstName ?? applicantName;
+  const previewText = `Update on your speaker application for ${eventName}`;
 
   return (
     <BaseTemplate previewText={previewText}>
       <Section style={content}>
-        <Text style={heading}>Dear {applicantName},</Text>
-
         <Text style={paragraph}>
-          Thank you for applying to {eventName}. We received many strong applications and had to make some difficult decisions due to limited capacity.
+          Hi {firstName},
         </Text>
 
         <Text style={paragraph}>
-          Unfortunately, we are unable to offer you a spot at this time. This does not reflect on the quality of your work — the selection process was highly competitive.
+          Thank you again for applying to speak at <strong>{eventName}</strong>.
         </Text>
 
         <Text style={paragraph}>
-          We encourage you to stay connected with our community and apply to future events. If you have any questions, please don&apos;t hesitate to reach out to us at{' '}
-          <a href={`mailto:${contactEmail}`} style={link}>
-            {contactEmail}
-          </a>
+          We received a strong set of proposals and, after careful consideration, we&apos;re not
+          able to offer you a speaking slot in this year&apos;s program. This was not an easy
+          decision, and we appreciate the thought and care you put into your submission.
         </Text>
 
+        {discountCode && registrationUrl && (
+          <Text style={paragraph}>
+            We would still love to have you join us. As a thank you for applying, we&apos;re happy
+            to offer you a 50% discount on a ticket to the event. You can use the code{' '}
+            <strong>{discountCode}</strong> when registering on{' '}
+            <a href={registrationUrl} style={link}>Luma</a>.
+          </Text>
+        )}
+
         <Text style={paragraph}>
-          We hope to see you at future events and wish you all the best with your work.
+          We&apos;re grateful for your interest in contributing to this gathering and hope to
+          connect with you at the event.
         </Text>
 
         <Text style={signature}>
-          Best regards,<br />
-          The {eventName} Team
+          Warmly,<br />
+          Funding the Commons
         </Text>
       </Section>
     </BaseTemplate>
@@ -54,13 +67,6 @@ export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = (
 // Styles
 const content = {
   padding: '0 32px',
-};
-
-const heading = {
-  fontSize: '24px',
-  fontWeight: 'bold',
-  color: '#1a1a1a',
-  margin: '32px 0 24px',
 };
 
 const paragraph = {

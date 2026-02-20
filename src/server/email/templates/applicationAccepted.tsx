@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Section,
   Text,
-  Button,
   Row,
   Column,
 } from '@react-email/components';
@@ -10,6 +9,7 @@ import { BaseTemplate } from './base';
 
 export interface ApplicationAcceptedProps {
   applicantName: string;
+  applicantFirstName?: string;
   eventName: string;
   programDates: string;
   location: string;
@@ -17,33 +17,37 @@ export interface ApplicationAcceptedProps {
   speakerProfileUrl?: string;
   faqUrl?: string;
   contactEmail: string;
+  registrationUrl?: string;
 }
 
 export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = ({
+  applicantFirstName,
   applicantName,
   eventName,
   programDates,
   location,
-  dashboardUrl,
-  speakerProfileUrl,
-  faqUrl,
   contactEmail,
+  registrationUrl,
 }) => {
-  const previewText = `🎉 Congratulations! You've been accepted to ${eventName}`;
+  const firstName = applicantFirstName ?? applicantName;
+  const previewText = `🎉 You're confirmed as a speaker at ${eventName}`;
 
   return (
     <BaseTemplate previewText={previewText}>
       <Section style={content}>
-        <Text style={congratsEmoji}>🎉</Text>
-        <Text style={heading}>Congratulations, {applicantName}!</Text>
-
         <Text style={paragraph}>
-          We&apos;re thrilled to inform you that you&apos;ve been <strong>accepted</strong> to {eventName}!
+          Hi {firstName},
         </Text>
 
         <Text style={paragraph}>
-          After careful review of your application, we believe you&apos;ll be a great addition
-          and look forward to having you participate.
+          We&apos;re excited to share that you&apos;ve been selected to speak at{' '}
+          <strong>{eventName}</strong>.
+        </Text>
+
+        <Text style={paragraph}>
+          We&apos;re grateful for the perspective you&apos;re bringing and are looking forward to
+          featuring you in the program as we gather builders, researchers, funders, and policymakers
+          shaping the future of AI and coordination.
         </Text>
 
         <Section style={detailsBox}>
@@ -58,49 +62,36 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
             <Column style={detailLabel}>📍 Location:</Column>
             <Column style={detailValue}>{location}</Column>
           </Row>
+
+          {registrationUrl && (
+            <Row style={detailRow}>
+              <Column style={detailLabel}>🔗 Register:</Column>
+              <Column style={detailValue}>
+                <a href={registrationUrl} style={link}>{registrationUrl}</a>
+              </Column>
+            </Row>
+          )}
         </Section>
 
-        <Text style={subheading}>Next Steps</Text>
-
-        <ol style={list}>
-          {speakerProfileUrl && (
-            <li>
-              <a href={speakerProfileUrl} style={link}>Review and update your speaker profile and session details</a>
-            </li>
-          )}
-          {faqUrl && (
-            <li>
-              Check the <a href={faqUrl} style={link}>event FAQ</a> for important details
-            </li>
-          )}
-          <li>Mark your calendar for the event dates</li>
-          <li>
-            Visit your <a href={dashboardUrl} style={link}>event dashboard</a> for more information
-          </li>
-        </ol>
-
-        {speakerProfileUrl && (
-          <Section style={buttonContainer}>
-            <Button style={button} href={speakerProfileUrl}>
-              Update Your Speaker Profile
-            </Button>
-          </Section>
-        )}
-
         <Text style={paragraph}>
-          If you have any questions or concerns, please don&apos;t hesitate to reach out to us at{' '}
-          <a href={`mailto:${contactEmail}`} style={link}>
-            {contactEmail}
-          </a>
+          Please reply to confirm your participation, and we&apos;ll follow up with additional
+          details on format, logistics, and promotion.
         </Text>
 
         <Text style={paragraph}>
-          We look forward to seeing you there!
+          If you have any questions in the meantime, feel free to reach out to{' '}
+          <a href={`mailto:${contactEmail}`} style={link}>
+            {contactEmail}
+          </a>.
+        </Text>
+
+        <Text style={paragraph}>
+          We&apos;re looking forward to building this with you.
         </Text>
 
         <Text style={signature}>
-          Best regards,<br />
-          The {eventName} Team
+          Warmly,<br />
+          Funding the Commons
         </Text>
       </Section>
     </BaseTemplate>
@@ -110,27 +101,6 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
 // Styles
 const content = {
   padding: '0 32px',
-};
-
-const congratsEmoji = {
-  fontSize: '48px',
-  textAlign: 'center' as const,
-  margin: '32px 0 16px',
-};
-
-const heading = {
-  fontSize: '28px',
-  fontWeight: 'bold',
-  color: '#1a1a1a',
-  textAlign: 'center' as const,
-  margin: '0 0 24px',
-};
-
-const subheading = {
-  fontSize: '20px',
-  fontWeight: 'bold',
-  color: '#1a1a1a',
-  margin: '32px 0 16px',
 };
 
 const paragraph = {
@@ -170,31 +140,6 @@ const detailValue = {
   fontSize: '14px',
   color: '#1a1a1a',
   fontWeight: '500',
-};
-
-const list = {
-  fontSize: '16px',
-  lineHeight: '24px',
-  color: '#404040',
-  margin: '16px 0',
-  paddingLeft: '20px',
-};
-
-const buttonContainer = {
-  textAlign: 'center' as const,
-  margin: '32px 0',
-};
-
-const button = {
-  backgroundColor: '#2563eb',
-  borderRadius: '8px',
-  color: '#fff',
-  fontSize: '16px',
-  fontWeight: 'bold',
-  textDecoration: 'none',
-  textAlign: 'center' as const,
-  display: 'inline-block',
-  padding: '12px 32px',
 };
 
 const link = {

@@ -10,109 +10,75 @@ import { BaseTemplate } from './base';
 
 export interface ApplicationSubmittedProps {
   applicantName: string;
+  applicantFirstName?: string;
   eventName: string;
   applicationUrl: string;
   submittedAt: string;
+  contactEmail?: string;
   nextSteps?: string[];
   reviewTimeline?: string;
 }
 
 export const ApplicationSubmittedTemplate: React.FC<ApplicationSubmittedProps> = ({
+  applicantFirstName,
   applicantName,
   eventName,
   applicationUrl,
   submittedAt,
-  nextSteps,
-  reviewTimeline,
+  contactEmail,
 }) => {
-  const previewText = `Application submitted for ${eventName}`;
+  const firstName = applicantFirstName ?? applicantName;
+  const contact = contactEmail ?? 'beth@fundingthecommons.io';
+  const previewText = `We've received your speaker application for ${eventName}`;
 
   return (
     <BaseTemplate previewText={previewText}>
       <Section style={content}>
-        <Text style={checkmark}>✅</Text>
-        <Text style={heading}>Application Submitted!</Text>
-        
         <Text style={paragraph}>
-          Hi {applicantName},
+          Hi {firstName},
         </Text>
 
         <Text style={paragraph}>
-          Thank you! Your application for <strong>{eventName}</strong> has been successfully submitted 
-          and is now under review.
+          Thank you for applying to speak at <strong>{eventName}</strong>.
         </Text>
 
-        <Section style={confirmationBox}>
-          <Text style={confirmationHeading}>Submission Details</Text>
-          
-          <Row style={detailRow}>
-            <Column style={detailLabel}>Application ID:</Column>
-            <Column style={detailValue}>#{applicationUrl.split('/').pop()}</Column>
-          </Row>
-          
+        <Text style={paragraph}>
+          We&apos;ve received your submission and are grateful you took the time to share your ideas
+          with us. Our team is currently reviewing proposals and will reach out directly as we shape
+          the program.
+        </Text>
+
+        <Section style={detailsBox}>
           <Row style={detailRow}>
             <Column style={detailLabel}>Submitted:</Column>
             <Column style={detailValue}>{submittedAt}</Column>
           </Row>
-          
-          <Row style={detailRow}>
-            <Column style={detailLabel}>Status:</Column>
-            <Column style={detailValue}>Under Review</Column>
-          </Row>
         </Section>
 
-        <Text style={subheading}>What Happens Next?</Text>
-
-        {nextSteps && nextSteps.length > 0 ? (
-          <>
-            <Text style={paragraph}>Our review process:</Text>
-            <ol style={list}>
-              {nextSteps.map((step, index) => (
-                <li key={index}>{step}</li>
-              ))}
-            </ol>
-          </>
-        ) : (
-          <ol style={list}>
-            <li>Your application will be reviewed by our selection committee</li>
-            <li>We may reach out if we need any additional information</li>
-            <li>Final decisions will be communicated via email</li>
-            <li>Accepted participants will receive onboarding information</li>
-          </ol>
-        )}
-
-        {reviewTimeline && (
-          <Section style={timelineBox}>
-            <Text style={timelineText}>
-              📅 <strong>Expected Response:</strong> {reviewTimeline}
-            </Text>
-          </Section>
-        )}
-
         <Text style={paragraph}>
-          You can check your application status at any time by visiting your dashboard:
+          If you need to make any changes, you can update your application using the link below:
         </Text>
 
         <Section style={buttonContainer}>
           <Button style={button} href={applicationUrl}>
-            View Application Status
+            Edit Your Application
           </Button>
         </Section>
 
         <Text style={paragraph}>
-          If you have any questions about your application or the selection process, please contact us at{' '}
-          <a href={`mailto:${process.env.ADMIN_EMAIL}`} style={link}>
-            {process.env.ADMIN_EMAIL}
-          </a>
+          If you have any questions in the meantime, feel free to reach out to{' '}
+          <a href={`mailto:${contact}`} style={link}>
+            <strong>{contact}</strong>
+          </a>.
         </Text>
 
         <Text style={paragraph}>
-          Thank you for your interest in {eventName}. We look forward to reviewing your application!
+          We appreciate your interest in contributing to this gathering and look forward to being in touch.
         </Text>
 
         <Text style={signature}>
-          Best regards,<br />
-          The {eventName} Team
+          Warmly,<br />
+          Funding the Commons
         </Text>
       </Section>
     </BaseTemplate>
@@ -124,27 +90,6 @@ const content = {
   padding: '0 32px',
 };
 
-const checkmark = {
-  fontSize: '48px',
-  textAlign: 'center' as const,
-  margin: '32px 0 16px',
-};
-
-const heading = {
-  fontSize: '28px',
-  fontWeight: 'bold',
-  color: '#1a1a1a',
-  textAlign: 'center' as const,
-  margin: '0 0 24px',
-};
-
-const subheading = {
-  fontSize: '20px',
-  fontWeight: 'bold',
-  color: '#1a1a1a',
-  margin: '32px 0 16px',
-};
-
 const paragraph = {
   fontSize: '16px',
   lineHeight: '24px',
@@ -152,29 +97,22 @@ const paragraph = {
   margin: '16px 0',
 };
 
-const confirmationBox = {
-  backgroundColor: '#f0fdf4',
+const detailsBox = {
+  backgroundColor: '#f0f9ff',
   borderRadius: '8px',
-  padding: '24px',
+  padding: '16px 24px',
   margin: '24px 0',
-  border: '1px solid #86efac',
-};
-
-const confirmationHeading = {
-  fontSize: '18px',
-  fontWeight: 'bold',
-  color: '#14532d',
-  margin: '0 0 16px',
+  border: '1px solid #bfdbfe',
 };
 
 const detailRow = {
-  marginBottom: '12px',
+  marginBottom: '0',
 };
 
 const detailLabel = {
   fontSize: '14px',
   color: '#64748b',
-  width: '140px',
+  width: '100px',
   verticalAlign: 'top' as const,
 };
 
@@ -182,29 +120,6 @@ const detailValue = {
   fontSize: '14px',
   color: '#1a1a1a',
   fontWeight: '500',
-};
-
-const timelineBox = {
-  backgroundColor: '#eff6ff',
-  borderRadius: '8px',
-  padding: '16px',
-  margin: '24px 0',
-  border: '1px solid #bfdbfe',
-};
-
-const timelineText = {
-  fontSize: '15px',
-  color: '#1e40af',
-  margin: '0',
-  textAlign: 'center' as const,
-};
-
-const list = {
-  fontSize: '16px',
-  lineHeight: '24px',
-  color: '#404040',
-  margin: '16px 0',
-  paddingLeft: '20px',
 };
 
 const buttonContainer = {
