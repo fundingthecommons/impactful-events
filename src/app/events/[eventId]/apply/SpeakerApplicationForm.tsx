@@ -23,6 +23,9 @@ import {
   Progress,
   Center,
   Loader,
+  FileInput,
+  Avatar,
+  Box,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -36,9 +39,11 @@ import {
   IconWorld,
   IconVideo,
   IconBuilding,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
+import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 
 const speakerApplicationSchema = z.object({
   // Session details
@@ -122,6 +127,14 @@ interface SpeakerApplicationFormProps {
   invitationToken?: string;
   existingApplicationStatus?: string;
   existingVenueIds?: string[];
+  existingResponses?: Array<{
+    id: string;
+    answer: string;
+    question: {
+      id: string;
+      questionKey: string;
+    };
+  }>;
 }
 
 export default function SpeakerApplicationForm({
@@ -130,6 +143,7 @@ export default function SpeakerApplicationForm({
   invitationToken,
   existingApplicationStatus,
   existingVenueIds,
+  existingResponses,
 }: SpeakerApplicationFormProps) {
   const router = useRouter();
   const isOnBehalfUpdate = !!existingApplicationStatus && existingApplicationStatus !== "DRAFT";
@@ -144,6 +158,11 @@ export default function SpeakerApplicationForm({
   const [ftcTopicOtherText, setFtcTopicOtherText] = useState("");
   const [preferredDates, setPreferredDates] = useState<string[]>([]);
   const [preferredTimes, setPreferredTimes] = useState<string[]>([]);
+  const [questionResponses, setQuestionResponses] = useState<Record<string, string>>({});
+  const [hasInitializedResponses, setHasInitializedResponses] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const { data: config } = api.config.getPublicConfig.useQuery(
     undefined,
     { refetchOnWindowFocus: false },
@@ -265,15 +284,25 @@ export default function SpeakerApplicationForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFtcVenue, ftcTopicValues, ftcTopicOtherText]);
 
+  // Fetch event-specific application questions (for dynamic Step 4)
+  const { data: eventQuestions } = api.application.getEventQuestions.useQuery(
+    { eventId },
+    { refetchOnWindowFocus: false },
+  );
+
   const createApplication = api.application.createApplication.useMutation();
   const submitApplication = api.application.submitApplication.useMutation();
   const updateProfile = api.profile.updateProfile.useMutation();
+  const bulkUpdateResponses = api.application.bulkUpdateApplicationResponses.useMutation();
 
   // Fetch existing profile for pre-populating form (for on-behalf speakers)
   const { data: existingProfile } = api.profile.getMyProfile.useQuery(
     undefined,
     { refetchOnWindowFocus: false },
   );
+
+  // Dynamic step count: show Step 4 only if event has questions
+  const totalSteps = (eventQuestions && eventQuestions.length > 0) ? 4 : 3;
 
   const form = useForm<SpeakerApplicationData>({
     validate: zodResolver(speakerApplicationSchema),
@@ -318,9 +347,75 @@ export default function SpeakerApplicationForm({
       if (!form.values.entityName && p.speakerEntityName) form.setFieldValue("entityName", p.speakerEntityName);
       if (!form.values.displayPreference && p.speakerDisplayPreference) form.setFieldValue("displayPreference", p.speakerDisplayPreference);
       if (!form.values.otherFloorsTopicTheme && p.speakerOtherFloorsTopicTheme) form.setFieldValue("otherFloorsTopicTheme", p.speakerOtherFloorsTopicTheme);
+      // Pre-populate avatar URL from profile
+      if (!avatarUrl) {
+        const profileAvatarUrl = p.avatarUrl ?? p.user?.image ?? null;
+        if (profileAvatarUrl) setAvatarUrl(profileAvatarUrl);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasInitializedProfile, existingProfile]);
+
+  // Pre-populate dynamic question responses from existing application
+  useEffect(() => {
+    if (!hasInitializedResponses && existingResponses && existingResponses.length > 0 && eventQuestions) {
+      setHasInitializedResponses(true);
+      const initialResponses: Record<string, string> = {};
+      for (const response of existingResponses) {
+        initialResponses[response.question.questionKey] = response.answer;
+      }
+      setQuestionResponses(initialResponses);
+    }
+  }, [hasInitializedResponses, existingResponses, eventQuestions]);
+
+  const handleAvatarUpload = async (file: File | null) => {
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch("/api/upload/avatar", {
+        method: "POST",
+        body: formData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const error = await response.json() as { error?: string };
+        throw new Error(error.error ?? "Upload failed");
+      }
+
+      const result = await response.json() as { avatarUrl: string };
+      setAvatarUrl(result.avatarUrl);
+
+      notifications.show({
+        title: "Photo Uploaded",
+        message: "Your profile picture has been uploaded successfully",
+        color: "green",
+        icon: <IconCheck size={16} />,
+      });
+    } catch (error) {
+      notifications.show({
+        title: "Upload Failed",
+        message: error instanceof Error ? error.message : "Failed to upload photo",
+        color: "red",
+        icon: <IconX size={16} />,
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
 
   const handleSubmit = async (values: SpeakerApplicationData) => {
     setIsSubmitting(true);
@@ -354,7 +449,27 @@ export default function SpeakerApplicationForm({
         speakerDisplayPreference: values.displayPreference,
       });
 
-      // Step 3: Submit the application (DRAFT → SUBMITTED) with venue selections
+      // Step 3: Save dynamic question responses (if any)
+      if (eventQuestions && eventQuestions.length > 0) {
+        const responsesToSave = eventQuestions
+          .filter(q => {
+            const answer = questionResponses[q.questionKey];
+            return answer && answer.trim().length > 0;
+          })
+          .map(q => ({
+            questionId: q.id,
+            answer: questionResponses[q.questionKey]!.trim(),
+          }));
+
+        if (responsesToSave.length > 0) {
+          await bulkUpdateResponses.mutateAsync({
+            applicationId: application.id,
+            responses: responsesToSave,
+          });
+        }
+      }
+
+      // Step 4: Submit the application (DRAFT → SUBMITTED) with venue selections
       await submitApplication.mutateAsync({
         applicationId: application.id,
         venueIds: selectedVenueIds.length > 0 ? selectedVenueIds : undefined,
@@ -400,7 +515,7 @@ export default function SpeakerApplicationForm({
   };
 
   const nextStep = () => {
-    if (currentStep < 3) {
+    if (currentStep < totalSteps) {
       const isValid = getStepValidation(currentStep);
       if (isValid) {
         setCurrentStep((prev) => prev + 1);
@@ -435,6 +550,13 @@ export default function SpeakerApplicationForm({
         return form.values.bio.length >= 20;
       case 3:
         return true; // Links are optional
+      case 4: {
+        // Required dynamic questions must be filled
+        if (!eventQuestions) return true;
+        return eventQuestions
+          .filter(q => q.required)
+          .every(q => questionResponses[q.questionKey]?.trim());
+      }
       default:
         return false;
     }
@@ -695,6 +817,42 @@ export default function SpeakerApplicationForm({
                 </Text>
 
                 <Grid>
+                  <Grid.Col span={12}>
+                    <Text size="sm" fw={500} mb="xs">Profile Picture</Text>
+                    <Group gap="md" align="flex-start">
+                      <Avatar
+                        src={getAvatarUrl({
+                          customAvatarUrl: avatarUrl,
+                          oauthImageUrl: existingProfile?.user?.image,
+                          name: existingProfile?.user?.name,
+                          email: existingProfile?.user?.email,
+                        })}
+                        size="xl"
+                        radius="md"
+                      >
+                        {getAvatarInitials({
+                          name: existingProfile?.user?.name,
+                          email: existingProfile?.user?.email,
+                        })}
+                      </Avatar>
+                      <Stack style={{ flex: 1 }}>
+                        <FileInput
+                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                          placeholder="Choose image file"
+                          label="Upload a profile photo"
+                          description="JPG, PNG, GIF, or WebP (max 5MB)"
+                          onChange={(file) => void handleAvatarUpload(file)}
+                          disabled={isUploading}
+                        />
+                        {isUploading && (
+                          <Box>
+                            <Text size="sm" mb="xs">Uploading...</Text>
+                            <Progress value={uploadProgress} size="sm" />
+                          </Box>
+                        )}
+                      </Stack>
+                    </Group>
+                  </Grid.Col>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <TextInput
                       label="Job Title"
@@ -802,6 +960,91 @@ export default function SpeakerApplicationForm({
           </Card>
         );
 
+      case 4:
+        if (!eventQuestions || eventQuestions.length === 0) return null;
+        return (
+          <Card shadow="sm" padding="xl" radius="md" withBorder>
+            <Stack gap="lg">
+              <Group gap="md" align="center">
+                <IconMessageCircle
+                  size={28}
+                  color="var(--mantine-color-orange-6)"
+                />
+                <div>
+                  <Title order={3}>About You</Title>
+                  <Text size="sm" c="dimmed">
+                    Help us get to know you better
+                  </Text>
+                </div>
+              </Group>
+
+              <Text size="sm" c="dimmed">
+                We&apos;d love to ask you a few short questions to help us create meaningful
+                resources for our community. If you have a reason not to answer, you can
+                leave optional questions blank.
+              </Text>
+
+              <Grid>
+                {[...eventQuestions]
+                  .sort((a, b) => a.order - b.order)
+                  .map((question) => {
+                    const value = questionResponses[question.questionKey] ?? "";
+
+                    if (question.questionType === "SELECT") {
+                      return (
+                        <Grid.Col span={12} key={question.id}>
+                          <Select
+                            label={question.questionEn}
+                            placeholder="Select an option"
+                            data={question.options}
+                            value={value || null}
+                            onChange={(val) => setQuestionResponses(prev => ({
+                              ...prev,
+                              [question.questionKey]: val ?? "",
+                            }))}
+                            required={question.required}
+                            clearable={!question.required}
+                          />
+                        </Grid.Col>
+                      );
+                    }
+                    if (question.questionType === "TEXTAREA") {
+                      return (
+                        <Grid.Col span={12} key={question.id}>
+                          <Textarea
+                            label={question.questionEn}
+                            placeholder="Share your thoughts..."
+                            value={value}
+                            onChange={(e) => setQuestionResponses(prev => ({
+                              ...prev,
+                              [question.questionKey]: e.currentTarget.value,
+                            }))}
+                            minRows={3}
+                            maxRows={6}
+                          />
+                        </Grid.Col>
+                      );
+                    }
+                    // TEXT type (default)
+                    return (
+                      <Grid.Col span={12} key={question.id}>
+                        <TextInput
+                          label={question.questionEn}
+                          placeholder="Your answer"
+                          value={value}
+                          onChange={(e) => setQuestionResponses(prev => ({
+                            ...prev,
+                            [question.questionKey]: e.currentTarget.value,
+                          }))}
+                        />
+                      </Grid.Col>
+                    );
+                  })}
+              </Grid>
+            </Stack>
+          </Card>
+        );
+
       default:
         return null;
     }
@@ -833,14 +1076,14 @@ export default function SpeakerApplicationForm({
             <Stack gap="md">
               <Group justify="space-between">
                 <Text size="sm" fw={500}>
-                  Step {currentStep} of 3
+                  Step {currentStep} of {totalSteps}
                 </Text>
                 <Text size="sm" c="dimmed">
-                  {Math.round((currentStep / 3) * 100)}% Complete
+                  {Math.round((currentStep / totalSteps) * 100)}% Complete
                 </Text>
               </Group>
               <Progress
-                value={(currentStep / 3) * 100}
+                value={(currentStep / totalSteps) * 100}
                 size="lg"
                 radius="xl"
                 color="teal"
@@ -868,6 +1111,15 @@ export default function SpeakerApplicationForm({
                 >
                   Links
                 </Badge>
+                {totalSteps >= 4 && (
+                  <Badge
+                    size="sm"
+                    variant={currentStep >= 4 ? "filled" : "light"}
+                    color="teal"
+                  >
+                    About You
+                  </Badge>
+                )}
               </Group>
             </Stack>
           </Card>
@@ -875,7 +1127,7 @@ export default function SpeakerApplicationForm({
 
         {/* Form Content */}
         <form onSubmit={(e) => {
-          if (currentStep !== 3) {
+          if (currentStep !== totalSteps) {
             e.preventDefault();
             return;
           }
@@ -894,7 +1146,7 @@ export default function SpeakerApplicationForm({
               Previous
             </Button>
 
-            {currentStep < 3 ? (
+            {currentStep < totalSteps ? (
               <Button key="next-step" type="button" color="teal" onClick={nextStep}>
                 Next Step
               </Button>

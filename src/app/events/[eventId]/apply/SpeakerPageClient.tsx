@@ -241,6 +241,14 @@ export default function SpeakerPageClient({
             invitationToken={invitationToken}
             existingApplicationStatus={initialUserApplication?.status}
             existingVenueIds={initialUserApplication?.venues?.map(v => v.venueId)}
+            existingResponses={initialUserApplication?.responses?.map(r => ({
+              id: r.id,
+              answer: r.answer,
+              question: {
+                id: r.question.id,
+                questionKey: r.question.questionKey,
+              },
+            }))}
           />
         </div>
       )}
