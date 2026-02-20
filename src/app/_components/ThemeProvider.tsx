@@ -1,6 +1,7 @@
 'use client';
 
 import { MantineProvider, type MantineColorScheme } from '@mantine/core';
+import { DatesProvider } from '@mantine/dates';
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { useTheme, type UseThemeReturn } from '~/hooks/useTheme';
 
@@ -34,7 +35,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   return (
     <ThemeContext.Provider value={themeState}>
       <MantineProvider forceColorScheme={mantineColorScheme}>
-        {children}
+        <DatesProvider settings={{ locale: 'en', firstDayOfWeek: 0 }}>
+          {children}
+        </DatesProvider>
       </MantineProvider>
     </ThemeContext.Provider>
   );
