@@ -182,7 +182,7 @@ export default function SessionDetailPage() {
             <IconMapPin size={18} style={{ color: "var(--mantine-color-dimmed)" }} />
             <Text size="md" c="dimmed">
               {session.venue.name}
-              {session.room ? ` \u2014 ${session.room.name}` : ""}
+              {session.room ? ` - ${session.room.name}` : ""}
             </Text>
           </Group>
         )}

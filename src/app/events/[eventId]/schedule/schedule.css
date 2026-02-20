@@ -65,7 +65,7 @@
   border: 1px solid var(--schedule-card-border);
   border-radius: 4px;
   padding: 0.75rem 1rem;
-  cursor: default;
+  cursor: pointer;
   transition: background-color 0.15s ease;
 }
 
@@ -171,7 +171,7 @@
   padding: 4px 6px;
   border-radius: 4px;
   overflow: hidden;
-  cursor: default;
+  cursor: pointer;
   transition: filter 0.15s ease;
   display: flex;
   flex-direction: column;
@@ -256,6 +256,7 @@
 .by-floor-session-bar {
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
+  cursor: pointer;
   transition: filter 0.15s ease;
 }
 

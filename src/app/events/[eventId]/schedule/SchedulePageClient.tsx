@@ -339,7 +339,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
                           {session.venue && (
                             <Text size="xs" c="dimmed">
                               {session.venue.name}
-                              {session.room ? ` \u2014 ${session.room.name}` : ""}
+                              {session.room ? ` - ${session.room.name}` : ""}
                             </Text>
                           )}
                         </Link>

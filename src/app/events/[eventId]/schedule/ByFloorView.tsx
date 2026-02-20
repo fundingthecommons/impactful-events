@@ -59,10 +59,10 @@ export default function ByFloorView({ sessions, venues, eventId }: ByFloorViewPr
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   }, [sessions]);
 
-  if (sessions.length === 0) {
+  if (venues.length === 0) {
     return (
       <Text c="dimmed" ta="center" py="xl">
-        No sessions to display.
+        No floors configured for this event.
       </Text>
     );
   }
@@ -71,7 +71,6 @@ export default function ByFloorView({ sessions, venues, eventId }: ByFloorViewPr
     <Stack gap="xl">
       {venues.map((venue) => {
         const venueSessions = sessionsByVenue.get(venue.id) ?? [];
-        if (venueSessions.length === 0) return null;
 
         const hasRooms = venue.rooms.length > 0;
 
@@ -86,7 +85,11 @@ export default function ByFloorView({ sessions, venues, eventId }: ByFloorViewPr
               {venue.name}
             </Text>
             <Stack gap={hasRooms ? "sm" : 4}>
-              {hasRooms ? (
+              {venueSessions.length === 0 ? (
+                <Text size="sm" c="dimmed" fs="italic">
+                  No sessions scheduled
+                </Text>
+              ) : hasRooms ? (
                 <>
                   {venue.rooms.map((room) => {
                     const roomSessions = venueSessions.filter(

@@ -238,6 +238,34 @@ export const applicationRouter = createTRPCRouter({
       });
       const isMentor = !!mentorRole;
 
+      // Get event details to check if applications are open (support both ID and slug)
+      let event = await ctx.db.event.findUnique({
+        where: { id: input.eventId },
+        select: {
+          id: true,
+          name: true,
+          startDate: true,
+          endDate: true
+        }
+      });
+
+      event ??= await ctx.db.event.findUnique({
+        where: { slug: input.eventId },
+        select: {
+          id: true,
+          name: true,
+          startDate: true,
+          endDate: true
+        }
+      });
+
+      if (!event) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
+      }
+
       // Validate invitation token if provided
       let hasValidInvitation = false;
       let validInvitationId: string | null = null;
@@ -258,10 +286,13 @@ export const applicationRouter = createTRPCRouter({
         // (user may sign in with different email than invitation was sent to)
         // Allow both PENDING and ACCEPTED status (invitation may have been
         // accepted during account creation but application not yet submitted)
+        // Match eventId flexibly: invitation may store CUID while input may be slug or vice versa
+        const eventIdMatches = invitation?.eventId === input.eventId ||
+          invitation?.eventId === event.id;
         if (invitation &&
             (invitation.status === "PENDING" || invitation.status === "ACCEPTED") &&
             invitation.expiresAt > now &&
-            invitation.eventId === input.eventId) {
+            eventIdMatches) {
           hasValidInvitation = true;
           validInvitationId = invitation.id;
           console.log('✅ Valid invitation token found for user');
@@ -269,29 +300,11 @@ export const applicationRouter = createTRPCRouter({
           console.log('❌ Invalid invitation:', {
             status: invitation.status,
             expired: invitation.expiresAt <= now,
-            wrongEvent: invitation.eventId !== input.eventId,
+            wrongEvent: invitation.eventId !== input.eventId && invitation.eventId !== event.id,
           });
         } else {
           console.log('❌ Invitation not found with token:', input.invitationToken);
         }
-      }
-
-      // Get event details to check if applications are open
-      const event = await ctx.db.event.findUnique({
-        where: { id: input.eventId },
-        select: {
-          id: true,
-          name: true,
-          startDate: true,
-          endDate: true
-        }
-      });
-
-      if (!event) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Event not found",
-        });
       }
 
       // Check if applications are currently open (within deadline)
@@ -322,7 +335,7 @@ export const applicationRouter = createTRPCRouter({
       const existing = await ctx.db.application.findFirst({
         where: {
           userId: ctx.session.user.id,
-          eventId: input.eventId,
+          eventId: event.id,
         },
       });
 
@@ -371,7 +384,7 @@ export const applicationRouter = createTRPCRouter({
         const application = await ctx.db.application.create({
           data: {
             userId: ctx.session.user.id,
-            eventId: input.eventId,
+            eventId: event.id,
             email: ctx.session.user.email!,
             language: input.language,
             applicationType: input.applicationType,
