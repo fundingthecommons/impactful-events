@@ -826,15 +826,23 @@ export const applicationRouter = createTRPCRouter({
       );
 
       // For floor leads, scope to applications with matching venue associations
+      // OR applications shared across all floors
       let venueFilter: Prisma.ApplicationWhereInput | undefined;
       if (!isAdminOrStaff(ctx.session.user.role)) {
         const ownedVenueIds = await getUserOwnedVenueIds(ctx.db, ctx.session.user.id, resolvedEventId);
         venueFilter = {
-          venues: {
-            some: {
-              venueId: { in: ownedVenueIds },
+          OR: [
+            {
+              venues: {
+                some: {
+                  venueId: { in: ownedVenueIds },
+                },
+              },
             },
-          },
+            {
+              sharedAcrossFloors: true,
+            },
+          ],
         };
       }
 
@@ -880,6 +888,14 @@ export const applicationRouter = createTRPCRouter({
                   name: true,
                 },
               },
+            },
+          },
+          sharedByUser: {
+            select: {
+              id: true,
+              firstName: true,
+              surname: true,
+              name: true,
             },
           },
           reviewerAssignments: {
@@ -965,6 +981,24 @@ export const applicationRouter = createTRPCRouter({
             },
             orderBy: {
               assignedAt: 'desc',
+            },
+          },
+          venues: {
+            include: {
+              venue: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+          sharedByUser: {
+            select: {
+              id: true,
+              firstName: true,
+              surname: true,
+              name: true,
             },
           },
           evaluations: {
@@ -1319,6 +1353,72 @@ export const applicationRouter = createTRPCRouter({
       }
 
       return applications;
+    }),
+
+  // Floor Lead/Admin: Toggle cross-floor sharing for a single application
+  toggleShareAcrossFloors: protectedProcedure
+    .input(z.object({
+      applicationId: z.string(),
+      shared: z.boolean(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const application = await ctx.db.application.findUnique({
+        where: { id: input.applicationId },
+        select: { eventId: true, venues: { select: { venueId: true } } },
+      });
+      if (!application) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Application not found" });
+      }
+
+      // Authorize: admin/staff OR floor lead who owns a venue the application is linked to
+      if (!isAdminOrStaff(ctx.session.user.role)) {
+        const ownedVenueIds = await getUserOwnedVenueIds(ctx.db, ctx.session.user.id, application.eventId);
+        const hasAccess = application.venues.some(v => ownedVenueIds.includes(v.venueId));
+        if (!hasAccess) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "You can only share applications linked to your floor(s)" });
+        }
+      }
+
+      return ctx.db.application.update({
+        where: { id: input.applicationId },
+        data: {
+          sharedAcrossFloors: input.shared,
+          sharedByUserId: input.shared ? ctx.session.user.id : null,
+          sharedAt: input.shared ? new Date() : null,
+        },
+      });
+    }),
+
+  // Floor Lead/Admin: Bulk toggle cross-floor sharing
+  bulkShareAcrossFloors: protectedProcedure
+    .input(z.object({
+      applicationIds: z.array(z.string()),
+      shared: z.boolean(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const firstApp = await ctx.db.application.findFirst({
+        where: { id: { in: input.applicationIds } },
+        select: { eventId: true },
+      });
+      if (!firstApp) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "No applications found" });
+      }
+      await assertAdminOrEventFloorOwner(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        firstApp.eventId,
+      );
+
+      const result = await ctx.db.application.updateMany({
+        where: { id: { in: input.applicationIds } },
+        data: {
+          sharedAcrossFloors: input.shared,
+          sharedByUserId: input.shared ? ctx.session.user.id : null,
+          sharedAt: input.shared ? new Date() : null,
+        },
+      });
+      return { count: result.count };
     }),
 
   // Admin: Create questions for an event

@@ -166,6 +166,9 @@ model User {
 
   // Speaker invitation tracking
   speakerInvitations    Application[]       @relation("SpeakerInvitedBy")
+
+  // Cross-floor sharing
+  sharedApplications    Application[]       @relation("ApplicationSharedBy")
 }
 
 model VerificationToken {
@@ -530,6 +533,11 @@ model Application {
   speakerPreferredDates   String?   // Comma-separated dates: "2026-03-14,2026-03-15"
   speakerPreferredTimes   String?   // Comma-separated time slots: "09:00-10:00,14:00-15:00"
 
+  // Cross-floor sharing (share rejected/unconfirmed apps with other floors)
+  sharedAcrossFloors  Boolean   @default(false)
+  sharedByUserId      String?
+  sharedAt            DateTime?
+
   // Legacy data tracking
   googleFormId  String?  // If migrated from Google Forms
   notionPageId  String?  // If migrated from Notion Forms
@@ -538,6 +546,7 @@ model Application {
   event         Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
   invitation    Invitation? @relation(fields: [invitationId], references: [id])
   speakerInvitedByUser User? @relation("SpeakerInvitedBy", fields: [speakerInvitedByUserId], references: [id], onDelete: SetNull)
+  sharedByUser  User?    @relation("ApplicationSharedBy", fields: [sharedByUserId], references: [id], onDelete: SetNull)
   responses     ApplicationResponse[]
   communications Communication[]  // Communications related to this application
   emails        Email[]  // Legacy: Emails related to this application (for backward compatibility)

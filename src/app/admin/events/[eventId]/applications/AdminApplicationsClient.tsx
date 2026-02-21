@@ -55,6 +55,7 @@ import {
   IconAnalyze,
   IconQuestionMark,
   IconEar,
+  IconShare,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
@@ -151,6 +152,20 @@ type ApplicationWithUser = {
       name: string | null;
       email: string | null;
       image: string | null;
+    };
+  }>;
+  sharedAcrossFloors: boolean;
+  sharedAt: Date | null;
+  sharedByUser: {
+    id: string;
+    firstName?: string | null;
+    surname?: string | null;
+    name: string | null;
+  } | null;
+  venues: Array<{
+    venue: {
+      id: string;
+      name: string;
     };
   }>;
 };
@@ -343,6 +358,8 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
   // API mutations
   const updateStatus = api.application.updateApplicationStatus.useMutation();
   const bulkUpdateStatus = api.application.bulkUpdateApplicationStatus.useMutation();
+  const toggleShareAcrossFloors = api.application.toggleShareAcrossFloors.useMutation();
+  const bulkShareAcrossFloors = api.application.bulkShareAcrossFloors.useMutation();
   const bulkAssignReviewer = api.evaluation.bulkCreateAssignments.useMutation();
   const checkMissingInfoMutation = api.email.checkMissingInfo.useMutation();
   const createMissingInfoEmail = api.email.createMissingInfoEmail.useMutation();
@@ -833,6 +850,56 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
       notifications.show({
         title: "Error",
         message: (error as { message?: string }).message ?? "Failed to assign reviewer",
+        color: "red",
+        icon: <IconX />,
+      });
+    }
+  };
+
+  // Handle toggling cross-floor sharing for a single application
+  const handleToggleShare = async (applicationId: string, currentlyShared: boolean) => {
+    try {
+      await toggleShareAcrossFloors.mutateAsync({
+        applicationId,
+        shared: !currentlyShared,
+      });
+      notifications.show({
+        title: "Success",
+        message: currentlyShared ? "Application removed from cross-floor sharing" : "Application shared with all floors",
+        color: "green",
+        icon: <IconCheck />,
+      });
+      await utils.application.getEventApplications.invalidate({ eventId: event.id });
+    } catch (error: unknown) {
+      notifications.show({
+        title: "Error",
+        message: (error as { message?: string }).message ?? "Failed to update sharing",
+        color: "red",
+        icon: <IconX />,
+      });
+    }
+  };
+
+  // Handle bulk cross-floor sharing
+  const handleBulkShare = async (shared: boolean) => {
+    if (selectedApplications.size === 0) return;
+    try {
+      const result = await bulkShareAcrossFloors.mutateAsync({
+        applicationIds: Array.from(selectedApplications),
+        shared,
+      });
+      notifications.show({
+        title: "Success",
+        message: `${shared ? "Shared" : "Unshared"} ${result.count} application(s) with other floors`,
+        color: "green",
+        icon: <IconCheck />,
+      });
+      setSelectedApplications(new Set());
+      await utils.application.getEventApplications.invalidate({ eventId: event.id });
+    } catch (error: unknown) {
+      notifications.show({
+        title: "Error",
+        message: (error as { message?: string }).message ?? "Failed to update sharing",
         color: "red",
         icon: <IconX />,
       });
@@ -2154,9 +2221,19 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                           )}
                         </Menu.Dropdown>
                       </Menu>
+
+                      <Button
+                        variant="outline"
+                        color="grape"
+                        leftSection={<IconShare size={16} />}
+                        loading={bulkShareAcrossFloors.isPending}
+                        onClick={() => void handleBulkShare(true)}
+                      >
+                        Share with Floors ({selectedApplications.size})
+                      </Button>
                     </>
                   )}
-                  
+
                   {activeTab === "accepted" && (
                     <>
                       <Select
@@ -2564,6 +2641,11 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                 <Text size="sm" c="dimmed">
                                   {application.email}
                                 </Text>
+                                {application.sharedAcrossFloors && (
+                                  <Badge size="xs" variant="light" color="grape" mt={2}>
+                                    Shared{application.venues.length > 0 ? ` from ${application.venues[0]?.venue.name ?? ""}` : ""}
+                                  </Badge>
+                                )}
                               </Stack>
                             </Table.Td>
                             {activeTab === "waitlisted" && (
@@ -2968,6 +3050,14 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                                         Set to {option.label}
                                       </Menu.Item>
                                     ))}
+                                    <Menu.Divider />
+                                    <Menu.Item
+                                      onClick={() => void handleToggleShare(application.id, application.sharedAcrossFloors)}
+                                      leftSection={application.sharedAcrossFloors ? <IconX size={16} /> : <IconShare size={16} />}
+                                      disabled={toggleShareAcrossFloors.isPending}
+                                    >
+                                      {application.sharedAcrossFloors ? "Unshare from Other Floors" : "Share with Other Floors"}
+                                    </Menu.Item>
                                   </Menu.Dropdown>
                                 </Menu>
                               </Group>
@@ -3122,7 +3212,7 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                       </Menu>
                     </>
                   )}
-                  
+
                   {(Boolean(selectedReviewerId) || Boolean(selectedRegionFilter) || Boolean(selectedAttributeFilter)) && (
                     <Button
                       variant="subtle"
@@ -3589,6 +3679,31 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                           <Text size="sm" c="dimmed">
                             This application has been rejected. Consider sending a rejection email with feedback if appropriate.
                           </Text>
+                          <Group gap="xs" align="center" mt="sm">
+                            <IconShare size={20} color="var(--mantine-color-grape-6)" />
+                            <Text fw={600} c="grape.7">Cross-Floor Visibility</Text>
+                          </Group>
+                          <Text size="sm" c="dimmed">
+                            Share this application with all other floor leads so they can consider booking this applicant.
+                          </Text>
+                          <Button
+                            size="sm"
+                            variant={viewingApplication.sharedAcrossFloors ? "outline" : "filled"}
+                            color="grape"
+                            leftSection={viewingApplication.sharedAcrossFloors ? <IconX size={16} /> : <IconShare size={16} />}
+                            onClick={() => void handleToggleShare(viewingApplication.id, viewingApplication.sharedAcrossFloors)}
+                            loading={toggleShareAcrossFloors.isPending}
+                          >
+                            {viewingApplication.sharedAcrossFloors ? "Remove from Other Floors" : "Share with All Floors"}
+                          </Button>
+                          {viewingApplication.sharedAcrossFloors && viewingApplication.sharedByUser && (
+                            <Text size="xs" c="dimmed">
+                              Shared by {getDisplayName(viewingApplication.sharedByUser, "Unknown")} on{" "}
+                              {viewingApplication.sharedAt ? new Date(viewingApplication.sharedAt).toLocaleDateString("en-US", {
+                                month: "short", day: "numeric", year: "numeric"
+                              }) : "unknown date"}
+                            </Text>
+                          )}
                         </Stack>
                       ) : viewingApplication.status === "WAITLISTED" ? (
                         <Stack gap="md">
@@ -3599,6 +3714,31 @@ export default function AdminApplicationsClient({ event }: AdminApplicationsClie
                           <Text size="sm" c="dimmed">
                             This applicant is on the waitlist. Monitor for available spots and notify when status changes.
                           </Text>
+                          <Group gap="xs" align="center" mt="sm">
+                            <IconShare size={20} color="var(--mantine-color-grape-6)" />
+                            <Text fw={600} c="grape.7">Cross-Floor Visibility</Text>
+                          </Group>
+                          <Text size="sm" c="dimmed">
+                            Share this application with all other floor leads so they can consider booking this applicant.
+                          </Text>
+                          <Button
+                            size="sm"
+                            variant={viewingApplication.sharedAcrossFloors ? "outline" : "filled"}
+                            color="grape"
+                            leftSection={viewingApplication.sharedAcrossFloors ? <IconX size={16} /> : <IconShare size={16} />}
+                            onClick={() => void handleToggleShare(viewingApplication.id, viewingApplication.sharedAcrossFloors)}
+                            loading={toggleShareAcrossFloors.isPending}
+                          >
+                            {viewingApplication.sharedAcrossFloors ? "Remove from Other Floors" : "Share with All Floors"}
+                          </Button>
+                          {viewingApplication.sharedAcrossFloors && viewingApplication.sharedByUser && (
+                            <Text size="xs" c="dimmed">
+                              Shared by {getDisplayName(viewingApplication.sharedByUser, "Unknown")} on{" "}
+                              {viewingApplication.sharedAt ? new Date(viewingApplication.sharedAt).toLocaleDateString("en-US", {
+                                month: "short", day: "numeric", year: "numeric"
+                              }) : "unknown date"}
+                            </Text>
+                          )}
                         </Stack>
                       ) : (
                         <Stack gap="md">
