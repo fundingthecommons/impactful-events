@@ -1015,10 +1015,13 @@ export default function SpeakerApplicationForm({
                             label={question.questionEn}
                             placeholder="Share your thoughts..."
                             value={value}
-                            onChange={(e) => setQuestionResponses(prev => ({
-                              ...prev,
-                              [question.questionKey]: e.currentTarget.value,
-                            }))}
+                            onChange={(e) => {
+                              const val = e.currentTarget.value;
+                              setQuestionResponses(prev => ({
+                                ...prev,
+                                [question.questionKey]: val,
+                              }));
+                            }}
                             minRows={3}
                             maxRows={6}
                           />
@@ -1032,10 +1035,13 @@ export default function SpeakerApplicationForm({
                           label={question.questionEn}
                           placeholder="Your answer"
                           value={value}
-                          onChange={(e) => setQuestionResponses(prev => ({
-                            ...prev,
-                            [question.questionKey]: e.currentTarget.value,
-                          }))}
+                          onChange={(e) => {
+                            const val = e.currentTarget.value;
+                            setQuestionResponses(prev => ({
+                              ...prev,
+                              [question.questionKey]: val,
+                            }));
+                          }}
                         />
                       </Grid.Col>
                     );
