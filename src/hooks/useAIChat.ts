@@ -41,8 +41,7 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
       abortControllerRef.current = controller;
 
       try {
-        console.log('[AI Chat] Sending message:', { contentLength: content.length, pathname, eventId });
-
+        console.log('[AI Chat] Fetching /api/ai/chat...');
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -57,11 +56,10 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
           signal: controller.signal,
         });
 
-        console.log('[AI Chat] Response:', { status: response.status, ok: response.ok, contentType: response.headers.get('content-type') });
+        console.log('[AI Chat] Response:', response.status, response.headers.get('content-type'));
 
         if (!response.ok) {
           const errorBody = await response.text().catch(() => 'Could not read error body');
-          console.error('[AI Chat] Request failed:', { status: response.status, body: errorBody });
           throw new Error(`Chat request failed: ${String(response.status)} - ${errorBody}`);
         }
 
@@ -69,43 +67,35 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
         if (!reader) throw new Error('No response stream');
 
         const decoder = new TextDecoder();
-        let accumulated = '';
-        let chunkCount = 0;
+        let fullResponse = '';
+        let readCount = 0;
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          chunkCount++;
+          readCount++;
           const chunk = decoder.decode(value, { stream: true });
-          // Parse AI SDK data stream format: lines prefixed with "0:" followed by JSON string
-          const lines = chunk.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('0:')) {
-              try {
-                const text = JSON.parse(line.slice(2)) as string;
-                accumulated += text;
-                const currentText = accumulated;
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessage.id
-                      ? { ...m, content: currentText }
-                      : m
-                  )
-                );
-              } catch {
-                console.warn('[AI Chat] Unparseable stream line:', line.slice(0, 100));
-              }
-            } else if (line.trim() && !line.startsWith('d:') && !line.startsWith('e:') && !line.startsWith('f:')) {
-              console.log('[AI Chat] Non-text stream line:', line.slice(0, 100));
-            }
+          fullResponse += chunk;
+
+          if (readCount <= 2) {
+            console.log(`[AI Chat] Chunk #${String(readCount)}:`, JSON.stringify(chunk).slice(0, 200));
           }
+
+          const currentText = fullResponse;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessage.id
+                ? { ...m, content: currentText }
+                : m
+            )
+          );
         }
 
-        console.log('[AI Chat] Stream complete:', { chunks: chunkCount, responseLength: accumulated.length });
+        console.log('[AI Chat] Done:', { reads: readCount, length: fullResponse.length });
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
-          console.log('[AI Chat] User cancelled streaming');
+          // User cancelled
         } else {
           console.error('[AI Chat] Error:', error);
           setMessages((prev) =>

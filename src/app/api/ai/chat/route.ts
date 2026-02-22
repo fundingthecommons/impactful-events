@@ -156,11 +156,38 @@ export async function POST(request: NextRequest) {
     console.log("[AI Chat API] Calling Mastra agent...");
     const agent = mastraClient.getAgent("platformAgent");
     const response = await agent.stream(allMessages);
-    console.log("[AI Chat API] Mastra stream started, returning to client");
+    console.log("[AI Chat API] Mastra stream started, extracting text...");
 
-    return new Response(response.body, {
+    // Extract text from Mastra's chunk protocol (text-delta events)
+    // and return plain text to the client (matching exponential pattern)
+    let chunkCount = 0;
+    let textChunkCount = 0;
+    const textStream = new ReadableStream({
+      async start(controller) {
+        try {
+          await response.processDataStream({
+            onChunk: async (chunk: { type: string; payload: { text: string } }) => {
+              chunkCount++;
+              if (chunk.type === "text-delta") {
+                textChunkCount++;
+                controller.enqueue(
+                  new TextEncoder().encode(chunk.payload.text),
+                );
+              }
+            },
+          });
+          console.log(`[AI Chat API] Stream complete: ${String(chunkCount)} total chunks, ${String(textChunkCount)} text chunks`);
+          controller.close();
+        } catch (err) {
+          console.error("[AI Chat API] Stream processing error:", err);
+          controller.error(err);
+        }
+      },
+    });
+
+    return new Response(textStream, {
       headers: {
-        "Content-Type": "text/event-stream",
+        "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
       },

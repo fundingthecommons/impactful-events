@@ -51,8 +51,11 @@ export function AIChatDrawer({ opened, onClose, pathname, eventId }: AIChatDrawe
 
   const handleSend = () => {
     const value = inputRef.current?.value.trim();
+    console.log('[AI Chat] handleSend called:', { value, isStreaming });
     if (!value || isStreaming) return;
-    void sendMessage(value);
+    sendMessage(value).catch((err: unknown) => {
+      console.error('[AI Chat] sendMessage threw:', err);
+    });
     if (inputRef.current) inputRef.current.value = '';
   };
 
@@ -125,7 +128,12 @@ export function AIChatDrawer({ opened, onClose, pathname, eventId }: AIChatDrawe
               {SUGGESTED_PROMPTS.map((prompt) => (
                 <UnstyledButton
                   key={prompt}
-                  onClick={() => void sendMessage(prompt)}
+                  onClick={() => {
+                    console.log('[AI Chat] Suggested prompt clicked:', prompt);
+                    sendMessage(prompt).catch((err: unknown) => {
+                      console.error('[AI Chat] sendMessage threw:', err);
+                    });
+                  }}
                   style={{
                     padding: 'var(--mantine-spacing-sm) var(--mantine-spacing-md)',
                     borderRadius: 'var(--mantine-radius-md)',
