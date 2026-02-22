@@ -85,7 +85,7 @@ const markdownComponents = {
             if (isInternal) {
               return (
                 <Link
-                  href={href}
+                  href={href ?? '/'}
                   style={{
                     fontWeight: 500,
                     color: 'var(--mantine-color-blue-6)',
