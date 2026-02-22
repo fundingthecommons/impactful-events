@@ -62,12 +62,38 @@ jobs:
       - name: Run integration tests
         run: bun run test:integration
 
-  # ── Main Branch: E2E smoke tests (after merge) ───────────────────────
-  smoke:
-    name: E2E Smoke Tests
+  # ── E2E Tests: Playwright suite with real database ───────────────────
+  e2e:
+    name: E2E Tests
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [quality, unit, integration]
+    needs: [quality]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U test -d test_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+      AUTH_SECRET: e2e-test-secret-at-least-32-characters-long
+      AUTH_DISCORD_ID: dummy
+      AUTH_DISCORD_SECRET: dummy
+      GOOGLE_CLIENT_ID: dummy
+      GOOGLE_CLIENT_SECRET: dummy
+      NOTION_TOKEN: dummy
+      NOTION_CONTACTS_DATABASE_ID: dummy
+      NOTION_EVENTS_DATABASE_ID: dummy
+      ADMIN_EMAIL: admin@test.example
+      MASTRA_API_KEY: dummy
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
 
@@ -78,10 +104,27 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: bunx prisma generate
+
+      - name: Run database migrations
+        run: bunx prisma migrate deploy
+
+      - name: Seed database
+        run: bun run db:seed
+
       - name: Install Playwright browsers
         run: bunx playwright install --with-deps chromium
 
-      - name: Run smoke tests
-        run: bun run test:smoke
-        env:
-          E2E_BASE_URL: http://localhost:3000
+      - name: Run E2E tests
+        run: bun run test:e2e
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
