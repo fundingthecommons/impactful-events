@@ -41,6 +41,8 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
       abortControllerRef.current = controller;
 
       try {
+        console.log('[AI Chat] Sending message:', { contentLength: content.length, pathname, eventId });
+
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -55,8 +57,12 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
           signal: controller.signal,
         });
 
+        console.log('[AI Chat] Response:', { status: response.status, ok: response.ok, contentType: response.headers.get('content-type') });
+
         if (!response.ok) {
-          throw new Error(`Chat request failed: ${response.status}`);
+          const errorBody = await response.text().catch(() => 'Could not read error body');
+          console.error('[AI Chat] Request failed:', { status: response.status, body: errorBody });
+          throw new Error(`Chat request failed: ${String(response.status)} - ${errorBody}`);
         }
 
         const reader = response.body?.getReader();
@@ -64,11 +70,13 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
 
         const decoder = new TextDecoder();
         let accumulated = '';
+        let chunkCount = 0;
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
+          chunkCount++;
           const chunk = decoder.decode(value, { stream: true });
           // Parse AI SDK data stream format: lines prefixed with "0:" followed by JSON string
           const lines = chunk.split('\n');
@@ -86,15 +94,20 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
                   )
                 );
               } catch {
-                // Skip unparseable lines
+                console.warn('[AI Chat] Unparseable stream line:', line.slice(0, 100));
               }
+            } else if (line.trim() && !line.startsWith('d:') && !line.startsWith('e:') && !line.startsWith('f:')) {
+              console.log('[AI Chat] Non-text stream line:', line.slice(0, 100));
             }
           }
         }
+
+        console.log('[AI Chat] Stream complete:', { chunks: chunkCount, responseLength: accumulated.length });
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
-          // User cancelled — keep partial response
+          console.log('[AI Chat] User cancelled streaming');
         } else {
+          console.error('[AI Chat] Error:', error);
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMessage.id

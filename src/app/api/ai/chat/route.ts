@@ -19,14 +19,18 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("[AI Chat API] Incoming request");
+
     const session = await auth();
     if (!session?.user) {
+      console.warn("[AI Chat API] Unauthorized request");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body: unknown = await request.json();
     const parsed = requestSchema.safeParse(body);
     if (!parsed.success) {
+      console.warn("[AI Chat API] Invalid request body:", parsed.error.flatten());
       return NextResponse.json(
         { error: "Invalid request body" },
         { status: 400 }
@@ -34,6 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { messages, pathname, eventId } = parsed.data;
+    console.log("[AI Chat API] Request from:", session.user.email, { messageCount: messages.length, pathname, eventId });
 
     // Build context message with platform state
     const contextParts: string[] = [];
@@ -126,8 +131,8 @@ export async function POST(request: NextRequest) {
             );
           }
         }
-      } catch {
-        // If context fetching fails, continue without it
+      } catch (contextError) {
+        console.error("[AI Chat API] Context fetch failed:", contextError);
       }
     }
 
@@ -148,8 +153,10 @@ export async function POST(request: NextRequest) {
       ),
     ];
 
+    console.log("[AI Chat API] Calling Mastra agent...");
     const agent = mastraClient.getAgent("platformAgent");
     const response = await agent.stream(allMessages);
+    console.log("[AI Chat API] Mastra stream started, returning to client");
 
     return new Response(response.body, {
       headers: {
@@ -159,7 +166,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("AI chat error:", error);
+    console.error("[AI Chat API] Error:", error);
     return NextResponse.json(
       { error: "Failed to process chat request" },
       { status: 500 }
