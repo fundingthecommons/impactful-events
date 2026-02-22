@@ -1275,6 +1275,114 @@ export const scheduleRouter = createTRPCRouter({
       return applications;
     }),
 
+  // Update a floor application's details (profile fields + scheduling preferences)
+  updateFloorApplication: protectedProcedure
+    .input(
+      z.object({
+        applicationId: z.string(),
+        eventId: z.string(),
+        venueId: z.string(),
+        // Application fields
+        status: z
+          .enum([
+            "DRAFT",
+            "SUBMITTED",
+            "UNDER_REVIEW",
+            "ACCEPTED",
+            "REJECTED",
+            "WAITLISTED",
+            "CANCELLED",
+          ])
+          .optional(),
+        speakerPreferredDates: z.string().max(500).optional().nullable(),
+        speakerPreferredTimes: z.string().max(500).optional().nullable(),
+        // Profile fields
+        speakerTalkTitle: z.string().max(200).optional().nullable(),
+        speakerTalkAbstract: z.string().max(2000).optional().nullable(),
+        speakerTalkFormat: z.string().max(200).optional().nullable(),
+        speakerTalkDuration: z.string().max(50).optional().nullable(),
+        speakerTalkTopic: z.string().max(500).optional().nullable(),
+        speakerEntityName: z.string().max(200).optional().nullable(),
+        bio: z.string().max(2000).optional().nullable(),
+        jobTitle: z.string().max(100).optional().nullable(),
+        company: z.string().max(100).optional().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const event = await resolveEventId(ctx.db, input.eventId);
+      await assertCanManageVenue(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.venueId,
+      );
+
+      // Verify application exists, belongs to event, and is linked to venue
+      const application = await ctx.db.application.findFirst({
+        where: {
+          id: input.applicationId,
+          eventId: event.id,
+          venues: { some: { venueId: input.venueId } },
+        },
+        select: { id: true, userId: true },
+      });
+
+      if (!application) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Application not found or not linked to this venue",
+        });
+      }
+
+      // Build application update data (only include provided fields)
+      const appUpdateData: Record<string, unknown> = {};
+      if (input.status !== undefined) appUpdateData.status = input.status;
+      if (input.speakerPreferredDates !== undefined)
+        appUpdateData.speakerPreferredDates = input.speakerPreferredDates;
+      if (input.speakerPreferredTimes !== undefined)
+        appUpdateData.speakerPreferredTimes = input.speakerPreferredTimes;
+
+      if (Object.keys(appUpdateData).length > 0) {
+        await ctx.db.application.update({
+          where: { id: input.applicationId },
+          data: appUpdateData,
+        });
+      }
+
+      // Build profile update data (only include provided fields)
+      const profileFields = [
+        "speakerTalkTitle",
+        "speakerTalkAbstract",
+        "speakerTalkFormat",
+        "speakerTalkDuration",
+        "speakerTalkTopic",
+        "speakerEntityName",
+        "bio",
+        "jobTitle",
+        "company",
+      ] as const;
+
+      const profileUpdateData: Record<string, string | null> = {};
+      for (const field of profileFields) {
+        if (input[field] !== undefined) {
+          profileUpdateData[field] = input[field] ?? null;
+        }
+      }
+
+      if (application.userId && Object.keys(profileUpdateData).length > 0) {
+        await ctx.db.userProfile.upsert({
+          where: { userId: application.userId },
+          update: profileUpdateData,
+          create: {
+            userId: application.userId,
+            ...profileUpdateData,
+          },
+        });
+      }
+
+      return { success: true };
+    }),
+
   // ──────────────────────────────────────────
   // Venue owner management (admin only)
   // ──────────────────────────────────────────

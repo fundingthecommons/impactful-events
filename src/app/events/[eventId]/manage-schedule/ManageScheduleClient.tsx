@@ -30,9 +30,11 @@ import {
   ScrollArea,
   Tooltip,
   SegmentedControl,
+  Divider,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useDisclosure } from "@mantine/hooks";
+import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
   IconPlus,
@@ -63,6 +65,12 @@ import { QuickAddSpeakerModal } from "~/app/_components/QuickAddSpeakerModal";
 import { SessionTableView } from "./SessionTableView";
 import { SessionTimeGrid } from "./SessionTimeGrid";
 import { SessionCommentDrawer } from "./SessionCommentDrawer";
+import {
+  talkFormatOptions,
+  talkDurationOptions,
+  speakerDateOptions,
+  speakerTimeSlotOptions,
+} from "../apply/SpeakerApplicationForm";
 import "./manage-schedule.css";
 
 interface ManageScheduleClientProps {
@@ -835,6 +843,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
       {/* Floor Applications */}
       <FloorApplicationsList
         eventId={eventId}
+        venueId={venueId}
         applicationsData={applicationsData ?? []}
         sessionTypes={filterData?.sessionTypes ?? []}
         tracks={filterData?.tracks ?? []}
@@ -1154,6 +1163,7 @@ type FloorApplicationData = {
 
 interface FloorApplicationsListProps {
   eventId: string;
+  venueId: string;
   applicationsData: FloorApplicationData[];
   sessionTypes: { id: string; name: string; color: string }[];
   tracks: { id: string; name: string; color: string }[];
@@ -1162,6 +1172,7 @@ interface FloorApplicationsListProps {
 
 function FloorApplicationsList({
   eventId,
+  venueId,
   applicationsData,
   sessionTypes,
   tracks,
@@ -1169,6 +1180,13 @@ function FloorApplicationsList({
 }: FloorApplicationsListProps) {
   const [expanded, { toggle }] = useDisclosure(false);
   const [selectedApp, setSelectedApp] = useState<FloorApplicationData | null>(null);
+  const [editingApp, setEditingApp] = useState<FloorApplicationData | null>(null);
+  const [editModalOpened, setEditModalOpened] = useState(false);
+
+  const handleEdit = (app: FloorApplicationData) => {
+    setEditingApp(app);
+    setEditModalOpened(true);
+  };
 
   if (applicationsData.length === 0) return null;
 
@@ -1263,6 +1281,7 @@ function FloorApplicationsList({
               tracks={tracks}
               onCreateSession={onCreateFromApplication}
               onViewDetail={setSelectedApp}
+              onEdit={handleEdit}
             />
           ))}
         </Stack>
@@ -1277,6 +1296,21 @@ function FloorApplicationsList({
         }}
         sessionTypes={sessionTypes}
         tracks={tracks}
+        onEdit={(app) => {
+          setSelectedApp(null);
+          handleEdit(app);
+        }}
+      />
+
+      <EditApplicationModal
+        application={editingApp}
+        opened={editModalOpened}
+        onClose={() => {
+          setEditModalOpened(false);
+          setEditingApp(null);
+        }}
+        eventId={eventId}
+        venueId={venueId}
       />
     </Stack>
   );
@@ -1292,6 +1326,7 @@ interface ApplicationCardProps {
   tracks: { id: string; name: string; color: string }[];
   onCreateSession: (data: SessionPrefillData) => void;
   onViewDetail: (app: FloorApplicationData) => void;
+  onEdit: (app: FloorApplicationData) => void;
 }
 
 function ApplicationCard({
@@ -1300,6 +1335,7 @@ function ApplicationCard({
   tracks,
   onCreateSession,
   onViewDetail,
+  onEdit,
 }: ApplicationCardProps) {
   const user = application.user;
   if (!user) return null;
@@ -1384,18 +1420,31 @@ function ApplicationCard({
             </Group>
           </Stack>
         </Group>
-        <Button
-          size="xs"
-          variant="light"
-          leftSection={<IconPlus size={14} />}
-          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-            e.stopPropagation();
-            handleCreate();
-          }}
-          style={{ flexShrink: 0 }}
-        >
-          Create Session
-        </Button>
+        <Group gap="xs" style={{ flexShrink: 0 }}>
+          <Tooltip label="Edit application">
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                e.stopPropagation();
+                onEdit(application);
+              }}
+            >
+              <IconEdit size={14} />
+            </ActionIcon>
+          </Tooltip>
+          <Button
+            size="xs"
+            variant="light"
+            leftSection={<IconPlus size={14} />}
+            onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+              e.stopPropagation();
+              handleCreate();
+            }}
+          >
+            Create Session
+          </Button>
+        </Group>
       </Group>
     </Paper>
   );
@@ -1411,6 +1460,7 @@ interface ApplicationDetailModalProps {
   onCreateSession: (data: SessionPrefillData) => void;
   sessionTypes: { id: string; name: string; color: string }[];
   tracks: { id: string; name: string; color: string }[];
+  onEdit: (app: FloorApplicationData) => void;
 }
 
 function ApplicationDetailModal({
@@ -1419,6 +1469,7 @@ function ApplicationDetailModal({
   onCreateSession,
   sessionTypes,
   tracks,
+  onEdit,
 }: ApplicationDetailModalProps) {
   if (!application?.user) return null;
 
@@ -1558,13 +1609,264 @@ function ApplicationDetailModal({
           </Stack>
         )}
 
-        {/* Create Session Button */}
+        {/* Action Buttons */}
         <Group justify="flex-end" mt="sm">
           <Button variant="light" onClick={onClose}>
             Close
           </Button>
+          <Button
+            variant="light"
+            leftSection={<IconEdit size={16} />}
+            onClick={() => onEdit(application)}
+          >
+            Edit
+          </Button>
           <Button leftSection={<IconPlus size={16} />} onClick={handleCreate}>
             Create Session
+          </Button>
+        </Group>
+      </Stack>
+    </Modal>
+  );
+}
+
+// ──────────────────────────────────────────
+// EditApplicationModal
+// ──────────────────────────────────────────
+
+interface EditApplicationModalProps {
+  application: FloorApplicationData | null;
+  opened: boolean;
+  onClose: () => void;
+  eventId: string;
+  venueId: string;
+}
+
+function EditApplicationModal({
+  application,
+  opened,
+  onClose,
+  eventId,
+  venueId,
+}: EditApplicationModalProps) {
+  const utils = api.useUtils();
+  const [preferredDates, setPreferredDates] = useState<string[]>([]);
+  const [preferredTimes, setPreferredTimes] = useState<string[]>([]);
+
+  const form = useForm({
+    initialValues: {
+      speakerTalkTitle: "",
+      speakerTalkAbstract: "",
+      speakerTalkFormat: "",
+      speakerTalkDuration: "",
+      speakerTalkTopic: "",
+      speakerEntityName: "",
+      bio: "",
+      jobTitle: "",
+      company: "",
+      status: "",
+    },
+  });
+
+  useEffect(() => {
+    if (application && opened) {
+      const profile = application.user?.profile;
+      form.setValues({
+        speakerTalkTitle: profile?.speakerTalkTitle ?? "",
+        speakerTalkAbstract: profile?.speakerTalkAbstract ?? "",
+        speakerTalkFormat: profile?.speakerTalkFormat ?? "",
+        speakerTalkDuration: profile?.speakerTalkDuration ?? "",
+        speakerTalkTopic: profile?.speakerTalkTopic ?? "",
+        speakerEntityName: profile?.speakerEntityName ?? "",
+        bio: profile?.bio ?? "",
+        jobTitle: profile?.jobTitle ?? "",
+        company: profile?.company ?? "",
+        status: application.status,
+      });
+      setPreferredDates(
+        application.speakerPreferredDates?.split(",").filter(Boolean) ?? [],
+      );
+      setPreferredTimes(
+        application.speakerPreferredTimes?.split(",").filter(Boolean) ?? [],
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [application, opened]);
+
+  const updateMutation = api.schedule.updateFloorApplication.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Updated",
+        message: "Application updated successfully",
+        color: "green",
+      });
+      void utils.schedule.getFloorApplications.invalidate({ eventId, venueId });
+      onClose();
+    },
+    onError: (err) => {
+      notifications.show({
+        title: "Error",
+        message: err.message,
+        color: "red",
+      });
+    },
+  });
+
+  const handleSubmit = () => {
+    const values = form.values;
+    const toNullable = (v: string) => (v.trim() === "" ? null : v.trim());
+
+    updateMutation.mutate({
+      applicationId: application?.id ?? "",
+      eventId,
+      venueId,
+      status: values.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED",
+      speakerPreferredDates: preferredDates.length > 0 ? preferredDates.join(",") : null,
+      speakerPreferredTimes: preferredTimes.length > 0 ? preferredTimes.join(",") : null,
+      speakerTalkTitle: toNullable(values.speakerTalkTitle),
+      speakerTalkAbstract: toNullable(values.speakerTalkAbstract),
+      speakerTalkFormat: toNullable(values.speakerTalkFormat),
+      speakerTalkDuration: toNullable(values.speakerTalkDuration),
+      speakerTalkTopic: toNullable(values.speakerTalkTopic),
+      speakerEntityName: toNullable(values.speakerEntityName),
+      bio: toNullable(values.bio),
+      jobTitle: toNullable(values.jobTitle),
+      company: toNullable(values.company),
+    });
+  };
+
+  const userName = application?.user
+    ? getDisplayName(application.user, "Unknown")
+    : "Unknown";
+
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={
+        <Group gap="xs">
+          <IconEdit size={20} />
+          <Text fw={600}>Edit Application — {userName}</Text>
+        </Group>
+      }
+      size="lg"
+    >
+      <Stack gap="md">
+        <Divider label="Session Details" labelPosition="left" />
+
+        <TextInput
+          label="Talk Title"
+          placeholder="Enter talk title"
+          {...form.getInputProps("speakerTalkTitle")}
+        />
+        <Textarea
+          label="Talk Abstract"
+          placeholder="Enter talk abstract"
+          minRows={3}
+          autosize
+          {...form.getInputProps("speakerTalkAbstract")}
+        />
+        <Group grow>
+          <Select
+            label="Format"
+            placeholder="Select format"
+            data={talkFormatOptions}
+            clearable
+            {...form.getInputProps("speakerTalkFormat")}
+          />
+          <Select
+            label="Duration"
+            placeholder="Select duration"
+            data={talkDurationOptions}
+            clearable
+            {...form.getInputProps("speakerTalkDuration")}
+          />
+        </Group>
+        <TextInput
+          label="Topic"
+          placeholder="Enter topic"
+          {...form.getInputProps("speakerTalkTopic")}
+        />
+        <TextInput
+          label="Entity / Organization"
+          placeholder="Enter entity or organization name"
+          {...form.getInputProps("speakerEntityName")}
+        />
+
+        <Divider label="Speaker Profile" labelPosition="left" />
+
+        <Group grow>
+          <TextInput
+            label="Job Title"
+            placeholder="Enter job title"
+            {...form.getInputProps("jobTitle")}
+          />
+          <TextInput
+            label="Company"
+            placeholder="Enter company"
+            {...form.getInputProps("company")}
+          />
+        </Group>
+        <Textarea
+          label="Bio"
+          placeholder="Enter speaker bio"
+          minRows={2}
+          autosize
+          {...form.getInputProps("bio")}
+        />
+
+        <Divider label="Scheduling Preferences" labelPosition="left" />
+
+        <Checkbox.Group
+          label="Preferred Dates"
+          value={preferredDates}
+          onChange={setPreferredDates}
+        >
+          <Group mt="xs">
+            {speakerDateOptions.map((opt) => (
+              <Checkbox key={opt.value} value={opt.value} label={opt.label} />
+            ))}
+          </Group>
+        </Checkbox.Group>
+
+        <Checkbox.Group
+          label="Preferred Time Slots"
+          value={preferredTimes}
+          onChange={setPreferredTimes}
+        >
+          <Stack gap="xs" mt="xs">
+            {speakerTimeSlotOptions.map((opt) => (
+              <Checkbox key={opt.value} value={opt.value} label={opt.label} />
+            ))}
+          </Stack>
+        </Checkbox.Group>
+
+        <Divider label="Application Status" labelPosition="left" />
+
+        <Select
+          label="Status"
+          data={[
+            { value: "DRAFT", label: "Draft" },
+            { value: "SUBMITTED", label: "Submitted" },
+            { value: "UNDER_REVIEW", label: "Under Review" },
+            { value: "ACCEPTED", label: "Accepted" },
+            { value: "REJECTED", label: "Rejected" },
+            { value: "WAITLISTED", label: "Waitlisted" },
+            { value: "CANCELLED", label: "Cancelled" },
+          ]}
+          {...form.getInputProps("status")}
+        />
+
+        <Group justify="flex-end" mt="sm">
+          <Button variant="light" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            loading={updateMutation.isPending}
+            leftSection={<IconCheck size={16} />}
+          >
+            Save Changes
           </Button>
         </Group>
       </Stack>
