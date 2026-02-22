@@ -13,6 +13,7 @@ import HeaderBar from "./admin/events/HeaderBar";
 import { ThemeProvider } from "./_components/ThemeProvider";
 import { ThemeToggle } from "./_components/ThemeToggle";
 import { GitHubCorner } from "./_components/GitHubCorner";
+import { AIChatFAB } from "./_components/AIChatFAB";
 import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
@@ -41,6 +42,7 @@ export default function RootLayout({
             </TRPCReactProvider>
             <ThemeToggle />
             <GitHubCorner />
+            <AIChatFAB />
           </SessionProvider>
         </ThemeProvider>
       </body>

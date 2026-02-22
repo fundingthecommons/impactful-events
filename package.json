@@ -61,6 +61,7 @@
     "@mantine/form": "^8.2.5",
     "@mantine/hooks": "8.1.1",
     "@mantine/notifications": "^8.2.5",
+    "@mastra/client-js": "^1.5.0",
     "@modelcontextprotocol/sdk": "^1.18.0",
     "@notionhq/client": "^4.0.0",
     "@octokit/rest": "^22.0.1",
