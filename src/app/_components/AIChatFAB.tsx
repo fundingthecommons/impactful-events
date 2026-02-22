@@ -1,16 +1,46 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconMessageChatbot } from '@tabler/icons-react';
 import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import { AIChatDrawer } from './AIChatDrawer';
 
+const DRAWER_STORAGE_KEY = 'ai-chat-drawer-opened';
+
 export function AIChatFAB() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const [opened, setOpened] = useState(false);
+  const hasRestoredRef = useRef(false);
+
+  // Restore drawer state from sessionStorage on mount
+  useEffect(() => {
+    if (hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+    try {
+      const saved = sessionStorage.getItem(DRAWER_STORAGE_KEY);
+      if (saved === 'true') {
+        setOpened(true);
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  // Persist drawer state to sessionStorage
+  useEffect(() => {
+    if (!hasRestoredRef.current) return;
+    try {
+      sessionStorage.setItem(DRAWER_STORAGE_KEY, String(opened));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [opened]);
+
+  const handleOpen = useCallback(() => setOpened(true), []);
+  const handleClose = useCallback(() => setOpened(false), []);
 
   // Only show for authenticated users
   if (!session?.user) return null;
@@ -23,7 +53,7 @@ export function AIChatFAB() {
     <>
       <Tooltip label="AI Assistant" position="left" offset={16}>
         <ActionIcon
-          onClick={() => setOpened(true)}
+          onClick={handleOpen}
           size="xl"
           radius="xl"
           variant="filled"
@@ -43,7 +73,7 @@ export function AIChatFAB() {
       </Tooltip>
       <AIChatDrawer
         opened={opened}
-        onClose={() => setOpened(false)}
+        onClose={handleClose}
         pathname={pathname}
         eventId={eventId}
       />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 interface ChatMessage {
   id: string;
@@ -13,10 +13,40 @@ interface UseAIChatOptions {
   eventId?: string;
 }
 
+const STORAGE_KEY = 'ai-chat-messages';
+
 export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hasRestoredRef = useRef(false);
+
+  // Restore messages from sessionStorage on mount
+  useEffect(() => {
+    if (hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as ChatMessage[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }, []);
+
+  // Persist messages to sessionStorage on change
+  useEffect(() => {
+    if (!hasRestoredRef.current) return;
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [messages]);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -120,6 +150,11 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
 
   const clearMessages = useCallback(() => {
     setMessages([]);
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Ignore storage errors
+    }
   }, []);
 
   return { messages, isStreaming, sendMessage, stop, clearMessages };

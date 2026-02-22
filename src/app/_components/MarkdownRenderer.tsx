@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { Text, Code, Title, List, Blockquote, Divider, Anchor, Paper } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
+import Link from 'next/link';
 import 'highlight.js/styles/github.css';
 
 interface MarkdownRendererProps {
@@ -66,31 +67,33 @@ const markdownComponents = {
             if (href?.startsWith('mention:')) {
               const userId = href.replace('mention:', '');
               return (
-                <Anchor
+                <Link
                   href={`/profile/${userId}`}
                   style={{
                     fontWeight: 500,
                     color: 'var(--mantine-color-blue-6)',
+                    textDecoration: 'none',
                   }}
                 >
                   {children}
-                </Anchor>
+                </Link>
               );
             }
 
-            // Internal link (starts with /)
+            // Internal link (starts with /) - use Next.js Link for client-side navigation
             const isInternal = href?.startsWith('/');
             if (isInternal) {
               return (
-                <Anchor
+                <Link
                   href={href}
                   style={{
                     fontWeight: 500,
                     color: 'var(--mantine-color-blue-6)',
+                    textDecoration: 'none',
                   }}
                 >
                   {children}
-                </Anchor>
+                </Link>
               );
             }
 
