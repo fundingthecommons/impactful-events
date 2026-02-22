@@ -75,6 +75,19 @@ export function AIChatDrawer({ opened, onClose, pathname, eventId }: AIChatDrawe
       title={
         <Group gap="xs">
           <Text fw={600} size="lg">AI Assistant</Text>
+          {messages.length > 0 && (
+            <Tooltip label="Clear conversation">
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                onClick={clearMessages}
+                disabled={isStreaming}
+              >
+                <IconTrash size={16} />
+              </ActionIcon>
+            </Tooltip>
+          )}
         </Group>
       }
       styles={{
@@ -89,23 +102,6 @@ export function AIChatDrawer({ opened, onClose, pathname, eventId }: AIChatDrawe
         },
       }}
     >
-      {/* Clear button in header area */}
-      {messages.length > 0 && (
-        <Box px="md" pb="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
-          <Tooltip label="Clear conversation">
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              onClick={clearMessages}
-              disabled={isStreaming}
-            >
-              <IconTrash size={16} />
-            </ActionIcon>
-          </Tooltip>
-        </Box>
-      )}
-
       {/* Messages area */}
       <Box
         ref={scrollRef}

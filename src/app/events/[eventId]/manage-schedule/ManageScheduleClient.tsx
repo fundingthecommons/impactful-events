@@ -996,6 +996,12 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
       <SessionDetailModal
         session={detailSession}
         onClose={() => setDetailSession(null)}
+        eventId={eventId}
+        venueId={venueId}
+        rooms={venue?.rooms ?? []}
+        sessionTypes={filterData?.sessionTypes ?? []}
+        tracks={filterData?.tracks ?? []}
+        isAdmin={isAdmin}
       />
     </Stack>
   );
@@ -1881,9 +1887,17 @@ function EditApplicationModal({
 interface SessionDetailModalProps {
   session: FloorSession | null;
   onClose: () => void;
+  eventId: string;
+  venueId: string;
+  rooms: VenueRoom[];
+  sessionTypes: { id: string; name: string; color: string }[];
+  tracks: { id: string; name: string; color: string }[];
+  isAdmin: boolean;
 }
 
-function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
+function SessionDetailModal({ session, onClose, eventId, venueId, rooms, sessionTypes, tracks, isAdmin }: SessionDetailModalProps) {
+  const [editing, { open: openEdit, close: closeEdit }] = useDisclosure(false);
+
   if (!session) return null;
 
   const startTime = new Date(session.startTime);
@@ -1906,6 +1920,7 @@ function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
   ];
 
   return (
+    <>
     <Modal
       opened={!!session}
       onClose={onClose}
@@ -1993,9 +2008,31 @@ function SessionDetailModal({ session, onClose }: SessionDetailModalProps) {
         {/* Footer */}
         <Group justify="flex-end" mt="sm">
           <Button variant="light" onClick={onClose}>Close</Button>
+          <Button
+            leftSection={<IconEdit size={16} />}
+            onClick={() => {
+              onClose();
+              openEdit();
+            }}
+          >
+            Edit
+          </Button>
         </Group>
       </Stack>
     </Modal>
+
+    <EditSessionModal
+      opened={editing}
+      onClose={closeEdit}
+      session={session}
+      eventId={eventId}
+      venueId={venueId}
+      rooms={rooms}
+      sessionTypes={sessionTypes}
+      tracks={tracks}
+      isAdmin={isAdmin}
+    />
+    </>
   );
 }
 
