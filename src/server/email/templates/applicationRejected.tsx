@@ -12,6 +12,7 @@ export interface ApplicationRejectedProps {
   contactEmail?: string;
   discountCode?: string;
   registrationUrl?: string;
+  location?: string;
 }
 
 export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = ({
@@ -20,6 +21,7 @@ export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = (
   eventName,
   discountCode,
   registrationUrl,
+  location,
 }) => {
   const firstName = applicantFirstName ?? applicantName;
   const previewText = `Update on your speaker application for ${eventName}`;
@@ -43,7 +45,7 @@ export const ApplicationRejectedTemplate: React.FC<ApplicationRejectedProps> = (
 
         {discountCode && registrationUrl && (
           <Text style={paragraph}>
-            We would still love to have you join us. As a thank you for applying, we&apos;re happy
+            We would still love to have you join us{location ? ` in ${location}` : ''}. As a thank you for applying, we&apos;re happy
             to offer you a 50% discount on a ticket to the event. You can use the code{' '}
             <strong>{discountCode}</strong> when registering on{' '}
             <a href={registrationUrl} style={link}>Luma</a>.

@@ -55,6 +55,8 @@ interface ApplicationWithUserAndEvent {
     startDate: Date;
     endDate: Date;
     location?: string | null;
+    registrationUrl?: string | null;
+    discountCode?: string | null;
     slug?: string | null;
     type: string;
   };
@@ -218,6 +220,7 @@ export class EmailService {
           location: application.event.location ?? 'TBD',
           dashboardUrl: `${baseUrl}/events/${eventSlug}`,
           contactEmail: process.env.ADMIN_EMAIL ?? 'beth@fundingthecommons.io',
+          registrationUrl: application.event.registrationUrl ?? undefined,
         } satisfies ApplicationAcceptedProps;
         break;
       }
@@ -228,6 +231,10 @@ export class EmailService {
           applicantName,
           applicantFirstName,
           eventName: application.event.name,
+          contactEmail: process.env.ADMIN_EMAIL ?? 'beth@fundingthecommons.io',
+          discountCode: application.event.discountCode ?? undefined,
+          registrationUrl: application.event.registrationUrl ?? undefined,
+          location: application.event.location ?? undefined,
         } satisfies ApplicationRejectedProps;
         break;
 

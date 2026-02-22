@@ -208,8 +208,10 @@ model Event {
   description String?
   startDate   DateTime
   endDate     DateTime
-  location    String?
-  type        String      // e.g., "HACKATHON", "DINNER", "CONFERENCE"
+  location        String?
+  registrationUrl String?  // External registration link (e.g., Luma)
+  discountCode    String?  // Discount code for rejected speaker consolation offer
+  type            String   // e.g., "HACKATHON", "DINNER", "CONFERENCE"
   isOnline    Boolean     @default(true)
   status      EventStatus @default(ACTIVE)
 
