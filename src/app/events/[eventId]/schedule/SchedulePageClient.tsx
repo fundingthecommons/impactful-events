@@ -130,18 +130,32 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
   // Stage 2: Group by day (shared between both views)
   const { days, sessionsByDay } = useMemo(() => {
     const byDay = new Map<string, ScheduleSession[]>();
+    const dayTimestamps = new Map<string, number>();
+
     for (const session of filteredSessions) {
-      const dayKey = new Date(session.startTime).toLocaleDateString("en-US", {
+      const d = new Date(session.startTime);
+      const dayKey = d.toLocaleDateString("en-US", {
         weekday: "long",
         month: "long",
         day: "numeric",
         timeZone: "UTC",
       });
+
+      if (!dayTimestamps.has(dayKey)) {
+        dayTimestamps.set(dayKey, Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      }
+
       const existing = byDay.get(dayKey) ?? [];
       existing.push(session);
       byDay.set(dayKey, existing);
     }
-    return { days: Array.from(byDay.keys()), sessionsByDay: byDay };
+
+    // Sort days chronologically by their actual UTC date
+    const sortedDays = Array.from(byDay.keys()).sort(
+      (a, b) => (dayTimestamps.get(a) ?? 0) - (dayTimestamps.get(b) ?? 0),
+    );
+
+    return { days: sortedDays, sessionsByDay: byDay };
   }, [filteredSessions]);
 
   // Stage 3: Group by time slot (agenda view only)

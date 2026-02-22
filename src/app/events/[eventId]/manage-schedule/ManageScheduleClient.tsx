@@ -889,7 +889,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
               startTime: s.startTime,
               endTime: s.endTime,
             }))}
-            eventYear={(() => { const d = sessionsData?.event?.startDate ? new Date(sessionsData.event.startDate) : null; return d && !isNaN(d.getTime()) ? d.getFullYear() : new Date().getFullYear(); })()}
+            eventYear={(() => { const d = sessionsData?.event?.startDate ? new Date(sessionsData.event.startDate) : null; return d && !isNaN(d.getTime()) ? d.getUTCFullYear() : new Date().getUTCFullYear(); })()}
           />
           <CreateSessionButton
             eventId={eventId}
