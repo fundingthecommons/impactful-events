@@ -45,6 +45,97 @@ export async function POST(request: NextRequest) {
     contextParts.push(`User: ${session.user.name ?? session.user.email ?? "Authenticated user"}`);
     contextParts.push(`Current page: ${pathname}`);
 
+    // Add user's global role
+    const globalRole = session.user.role ?? "user";
+    contextParts.push(`Global role: ${globalRole}`);
+
+    // Fetch event-specific roles if on an event page (mirrors getMyRolesForEvent logic)
+    if (eventId) {
+      try {
+        // Resolve eventId — could be a slug or an actual ID
+        let resolvedEventId = eventId;
+        const eventById = await db.event.findUnique({
+          where: { id: eventId },
+          select: { id: true },
+        });
+        if (!eventById) {
+          const eventBySlug = await db.event.findUnique({
+            where: { slug: eventId },
+            select: { id: true },
+          });
+          if (eventBySlug) {
+            resolvedEventId = eventBySlug.id;
+          }
+        }
+
+        const eventRoles: string[] = [];
+
+        // Event-specific roles from UserRole table
+        const userRoles = await db.userRole.findMany({
+          where: { userId: session.user.id, eventId: resolvedEventId },
+          include: { role: { select: { name: true } } },
+        });
+        for (const ur of userRoles) {
+          if (!eventRoles.includes(ur.role.name)) {
+            eventRoles.push(ur.role.name);
+          }
+        }
+
+        // Floor lead from VenueOwner table
+        const venueOwnerships = await db.venueOwner.findMany({
+          where: { userId: session.user.id, eventId: resolvedEventId },
+          select: { venue: { select: { name: true } } },
+        });
+        if (venueOwnerships.length > 0) {
+          eventRoles.push("floor lead");
+          const venueNames = venueOwnerships.map((v) => v.venue.name).join(", ");
+          contextParts.push(`Venues you manage (as floor lead): ${venueNames}`);
+        }
+
+        // Accepted applications
+        const acceptedApps = await db.application.findMany({
+          where: { userId: session.user.id, eventId: resolvedEventId, status: "ACCEPTED" },
+          select: { applicationType: true },
+        });
+        for (const app of acceptedApps) {
+          const roleFromApp = app.applicationType?.toLowerCase();
+          if (roleFromApp && !eventRoles.includes(roleFromApp)) {
+            eventRoles.push(roleFromApp);
+          }
+        }
+
+        // Speaker from SessionSpeaker table
+        const speakerSessions = await db.sessionSpeaker.findMany({
+          where: {
+            userId: session.user.id,
+            session: { eventId: resolvedEventId },
+          },
+          select: {
+            role: true,
+            session: { select: { title: true, startTime: true, venue: { select: { name: true } } } },
+          },
+        });
+        if (speakerSessions.length > 0 && !eventRoles.includes("speaker")) {
+          eventRoles.push("speaker");
+        }
+        if (speakerSessions.length > 0) {
+          const sessionDetails = speakerSessions
+            .map((sp) => {
+              const venue = sp.session.venue?.name;
+              return `- ${sp.session.title} (${sp.session.startTime.toLocaleString()}${venue ? `, ${venue}` : ""}) — role: ${sp.role}`;
+            })
+            .join("\n");
+          contextParts.push(`\nYour speaking sessions:\n${sessionDetails}`);
+        }
+
+        if (eventRoles.length > 0) {
+          contextParts.push(`Your roles for this event: ${eventRoles.join(", ")}`);
+        }
+      } catch {
+        // Non-critical — continue without role context
+      }
+    }
+
     // Fetch all visible events so the agent can provide real links
     try {
       const allEvents = await db.event.findMany({
@@ -175,6 +266,17 @@ export async function POST(request: NextRequest) {
       "- If the user is already on an event page (eventId is provided), assume they mean that event.",
       "- Keep responses concise and actionable.",
       "- Format schedules and lists clearly with markdown.",
+      "",
+      "ROLE-AWARE BEHAVIOR:",
+      "- Tailor your responses to the user's role. Their global role and event-specific roles are listed in the context above.",
+      "- Admin/Staff users can: manage all events, manage all applications, manage schedule, invite users, assign roles, manage venues, view all admin pages (/admin/...).",
+      "- Floor leads can: manage sessions and speakers in their assigned venues, view the schedule management page (/events/{slug}/manage-schedule).",
+      "- Speakers can: view their speaking sessions, check schedule details. Remind them of their upcoming sessions if relevant.",
+      "- Mentors/Residents can: access their event dashboard, view schedule, connect with other participants.",
+      "- Regular users (no event roles) can: browse events, view schedules, apply to speak/attend/mentor.",
+      "- When a user asks how to do something, only suggest actions they have permission to perform based on their role.",
+      "- Do NOT suggest admin pages or management actions to users without admin/staff/floor-lead roles.",
+      "- If a user asks about something they don't have permission to do, let them know who to contact (event organizers) rather than explaining how to do it.",
     ].join("\n");
 
     const allMessages = [
