@@ -32,6 +32,7 @@ import { api } from "~/trpc/react";
 interface EventCardProps {
   event: {
     id: string;
+    slug: string | null;
     name: string;
     description: string | null;
     type: string;
@@ -193,7 +194,7 @@ function EventCard({ event, applicationStatus }: EventCardProps) {
             <>
               {/* Apply Button - always show for available events */}
               {applicationStatus?.hasApplication && (applicationStatus.application?.status !== "ACCEPTED") && (
-              <Link href={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
+              <Link href={`/events/${event.slug ?? event.id}`} style={{ textDecoration: 'none' }}>
                 <Button 
                   fullWidth
                   variant="filled"
@@ -206,7 +207,7 @@ function EventCard({ event, applicationStatus }: EventCardProps) {
               )}
               {/* Manage Button - only show for accepted applications */}
               {applicationStatus?.hasApplication && applicationStatus.application?.status === "ACCEPTED" && (
-                <Link href={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
+                <Link href={`/events/${event.slug ?? event.id}`} style={{ textDecoration: 'none' }}>
                   <Button 
                     fullWidth
                     variant="outline"

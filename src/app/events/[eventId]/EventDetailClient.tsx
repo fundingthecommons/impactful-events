@@ -278,7 +278,7 @@ export default function EventDetailClient({
               <Group mt="md" gap="md">
                 <Button
                   component="a"
-                  href={`/events/${event.id}/onboarding`}
+                  href={`/events/${event.slug ?? event.id}/onboarding`}
                   variant="light"
                   color="green"
                   leftSection={<IconEdit size={16} />}
@@ -576,7 +576,7 @@ export default function EventDetailClient({
                     <Group gap="md">
                       <Button
                         component="a"
-                        href={`/events/${event.id}/mentor`}
+                        href={`/events/${event.slug ?? event.id}/mentor`}
                         variant="light"
                         color={mentorApplication?.status === "ACCEPTED" ? "green" : "blue"}
                         leftSection={<IconEdit size={16} />}
@@ -864,7 +864,7 @@ export default function EventDetailClient({
                   <Group gap="md">
                     <Button
                       component="a"
-                      href={`/events/${event.id}/about`}
+                      href={`/events/${event.slug ?? event.id}/about`}
                       variant="light"
                       color={content.branding.colors.primary}
                     >
@@ -872,7 +872,7 @@ export default function EventDetailClient({
                     </Button>
                     <Button
                       component="a"
-                      href={`/events/${event.id}/faq`}
+                      href={`/events/${event.slug ?? event.id}/faq`}
                       variant="light"
                       color={content.branding.colors.secondary}
                     >

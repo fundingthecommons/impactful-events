@@ -26,6 +26,7 @@ import Link from "next/link";
 interface Event {
   id: string;
   name: string;
+  slug: string | null;
   description: string | null;
   startDate: Date;
   endDate: Date;
@@ -185,7 +186,7 @@ export default function MentorApplicationView({ event }: MentorApplicationViewPr
                 color="purple" 
                 fullWidth
                 component={Link}
-                href={`/events/${event.id}/mentor`}
+                href={`/events/${event.slug ?? event.id}/mentor`}
               >
                 Complete Mentor Application
               </Button>
@@ -230,7 +231,7 @@ export default function MentorApplicationView({ event }: MentorApplicationViewPr
             variant="subtle" 
             size="sm"
             component={Link}
-            href={`/events/${event.id}?tab=application`}
+            href={`/events/${event.slug ?? event.id}?tab=application`}
           >
             View Application Form
           </Button>

@@ -34,6 +34,7 @@ import { api } from "~/trpc/react";
 
 interface AvailableEvent {
   id: string;
+  slug: string | null;
   name: string;
   description: string | null;
   type: string;
@@ -187,8 +188,8 @@ function EventCard({ event }: { event: AvailableEvent }) {
           </Group>
         </Stack>
 
-        <Link href={`/events/${event.id}`} style={{ textDecoration: 'none' }}>
-          <Button 
+        <Link href={`/events/${event.slug ?? event.id}`} style={{ textDecoration: 'none' }}>
+          <Button
             fullWidth
             variant="filled"
             rightSection={<IconArrowRight size={16} />}

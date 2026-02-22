@@ -8,6 +8,7 @@ interface ApplicationClosedMessageProps {
   event?: {
     id: string;
     name: string;
+    slug: string | null;
     type: string;
   };
 }
@@ -20,7 +21,7 @@ export default function ApplicationClosedMessage({ event }: ApplicationClosedMes
   // Use dynamic event data or fallback
   const eventName = event?.name ?? content.name;
   const eventDescription = content.shortDescription;
-  const backUrl = event ? `/events/${event.id}` : "/events/funding-commons-residency-2025";
+  const backUrl = event ? `/events/${event.slug ?? event.id}` : "/events/funding-commons-residency-2025";
   const gradientClass = `bg-gradient-to-r ${content.branding.colors.gradient}`;
 
   return (

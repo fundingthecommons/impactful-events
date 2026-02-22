@@ -679,22 +679,25 @@ export const eventRouter = createTRPCRouter({
   }),
 
   getAvailableEvents: publicProcedure.query(async ({ ctx }) => {
-    // Get events that are active and current, ongoing, or upcoming (not past events)
-    const now = new Date();
+    // Get all active events - the ACTIVE status controls visibility,
+    // not the date. Use COMPLETED status to hide past events.
+    const isAdmin = ctx.session?.user?.role === "admin" || ctx.session?.user?.role === "staff";
+
+    // Check if user is a floor lead (venue owner) for any event
+    let isFloorLead = false;
+    if (ctx.session?.user?.id && !isAdmin) {
+      const venueOwnership = await ctx.db.venueOwner.findFirst({
+        where: { userId: ctx.session.user.id },
+        select: { id: true },
+      });
+      isFloorLead = !!venueOwnership;
+    }
+
     const events = await ctx.db.event.findMany({
       where: {
-        status: 'ACTIVE', // Only show active events
-        OR: [
-          // Ongoing events (started but not ended)
-          {
-            startDate: { lte: now },
-            endDate: { gte: now }
-          },
-          // Future events (not started yet)
-          {
-            startDate: { gt: now }
-          }
-        ]
+        status: 'ACTIVE',
+        // Hide test/example events from regular users
+        ...(!isAdmin && !isFloorLead ? { slug: { not: "example-conf" } } : {}),
       },
       include: {
         _count: {
@@ -704,15 +707,8 @@ export const eventRouter = createTRPCRouter({
         }
       },
       orderBy: [
-        // Prioritize ongoing events first, then upcoming
         { startDate: "asc" }
       ]
-    });
-
-    console.log("🔍 getAvailableEvents query result:", {
-      totalEvents: events.length,
-      eventNames: events.map(e => e.name),
-      now: now.toISOString()
     });
 
     return events;
@@ -1094,6 +1090,9 @@ export const eventRouter = createTRPCRouter({
         isOnline: z.boolean().optional(),
         location: z.string().optional(),
         description: z.string().optional(),
+        // Registration & discount
+        registrationUrl: z.string().optional(),
+        discountCode: z.string().optional(),
         // Feature flags
         featureApplicantVetting: z.boolean().optional(),
         featureSpeakerVetting: z.boolean().optional(),
