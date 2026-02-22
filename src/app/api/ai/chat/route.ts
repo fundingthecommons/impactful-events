@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Fetch all visible events so the agent can provide real links
     try {
       const allEvents = await db.event.findMany({
-        where: { visibility: "PUBLIC" },
+        where: { status: "ACTIVE" },
         select: { id: true, slug: true, name: true, startDate: true, endDate: true, location: true },
         orderBy: { startDate: "desc" },
         take: 20,
@@ -203,12 +203,13 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         try {
           await response.processDataStream({
-            onChunk: async (chunk: { type: string; payload: { text: string } }) => {
+            onChunk: async (chunk) => {
               chunkCount++;
               if (chunk.type === "text-delta") {
                 textChunkCount++;
+                const payload = chunk.payload as { text: string };
                 controller.enqueue(
-                  new TextEncoder().encode(chunk.payload.text),
+                  new TextEncoder().encode(payload.text),
                 );
               }
             },
