@@ -37,6 +37,38 @@ const eventSelect = {
   type: true,
 } as const;
 
+/**
+ * Validate that a session's start time falls within the event's date range.
+ * Compares UTC dates only (day-level) so sessions at any time during event days are valid.
+ */
+function validateSessionDateRange(
+  eventStartDate: Date,
+  eventEndDate: Date,
+  sessionStartTime: Date,
+) {
+  const toUTCDay = (d: Date) =>
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+  const eventStart = toUTCDay(eventStartDate);
+  const eventEnd = toUTCDay(eventEndDate);
+  const sessionDay = toUTCDay(sessionStartTime);
+
+  if (sessionDay < eventStart || sessionDay > eventEnd) {
+    const fmt = (d: Date) =>
+      d.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "UTC",
+      });
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Session date (${fmt(sessionStartTime)}) is outside the event date range (${fmt(eventStartDate)} – ${fmt(eventEndDate)})`,
+    });
+  }
+}
+
 // Helper to resolve eventId (could be slug or CUID)
 async function resolveEventId(db: PrismaClient, eventIdOrSlug: string) {
   let event = await db.event.findUnique({
@@ -285,6 +317,9 @@ export const scheduleRouter = createTRPCRouter({
       // Resolve slug to real event ID
       const event = await resolveEventId(ctx.db, input.eventId);
 
+      // Validate session date falls within event date range
+      validateSessionDateRange(event.startDate, event.endDate, input.startTime);
+
       if (input.venueId) {
         await assertCanManageVenue(
           ctx.db,
@@ -386,6 +421,11 @@ export const scheduleRouter = createTRPCRouter({
         ctx.session.user.role,
         input.venueId,
       );
+
+      // Validate all session dates fall within event date range
+      for (const s of input.sessions) {
+        validateSessionDateRange(event.startDate, event.endDate, s.startTime);
+      }
 
       // Collect all unique linked speaker user IDs for validation
       const allSpeakerUserIds = [
@@ -600,6 +640,17 @@ export const scheduleRouter = createTRPCRouter({
         ctx.session.user.role,
         id,
       );
+
+      // Validate session date falls within event date range
+      if (data.startTime) {
+        const session = await ctx.db.scheduleSession.findUnique({
+          where: { id },
+          select: { event: { select: { startDate: true, endDate: true } } },
+        });
+        if (session?.event) {
+          validateSessionDateRange(session.event.startDate, session.event.endDate, data.startTime);
+        }
+      }
 
       // If changing venue, also check permission on the target venue
       if (data.venueId !== undefined && data.venueId !== null) {
@@ -1718,12 +1769,16 @@ export const scheduleRouter = createTRPCRouter({
           endTime: true,
           venueId: true,
           roomId: true,
+          event: { select: { startDate: true, endDate: true } },
         },
       });
 
       if (!session) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Session not found" });
       }
+
+      // Validate new date falls within event date range
+      validateSessionDateRange(session.event.startDate, session.event.endDate, input.newStartTime);
 
       const duration =
         new Date(session.endTime).getTime() -
