@@ -109,14 +109,16 @@ interface SessionPrefillData {
  * stored as 15:00 UTC so that all UTC-based displays show "3:00 PM".
  */
 function localToUTC(date: Date): Date {
+  const d = date instanceof Date ? date : new Date(date as string | number);
+  if (isNaN(d.getTime())) return new Date();
   return new Date(
     Date.UTC(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      date.getHours(),
-      date.getMinutes(),
-      date.getSeconds(),
+      d.getFullYear(),
+      d.getMonth(),
+      d.getDate(),
+      d.getHours(),
+      d.getMinutes(),
+      d.getSeconds(),
     ),
   );
 }
@@ -127,13 +129,15 @@ function localToUTC(date: Date): Date {
  * in the DateTimePicker regardless of the user's timezone.
  */
 function utcToLocal(date: Date): Date {
+  const d = date instanceof Date ? date : new Date(date as string | number);
+  if (isNaN(d.getTime())) return new Date();
   return new Date(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-    date.getUTCHours(),
-    date.getUTCMinutes(),
-    date.getUTCSeconds(),
+    d.getUTCFullYear(),
+    d.getUTCMonth(),
+    d.getUTCDate(),
+    d.getUTCHours(),
+    d.getUTCMinutes(),
+    d.getUTCSeconds(),
   );
 }
 
@@ -876,7 +880,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
               startTime: s.startTime,
               endTime: s.endTime,
             }))}
-            eventYear={sessionsData?.event?.startDate ? new Date(sessionsData.event.startDate).getFullYear() : new Date().getFullYear()}
+            eventYear={(() => { const d = sessionsData?.event?.startDate ? new Date(sessionsData.event.startDate) : null; return d && !isNaN(d.getTime()) ? d.getFullYear() : new Date().getFullYear(); })()}
           />
           <CreateSessionButton
             eventId={eventId}
