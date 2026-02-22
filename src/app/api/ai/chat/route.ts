@@ -45,6 +45,32 @@ export async function POST(request: NextRequest) {
     contextParts.push(`User: ${session.user.name ?? session.user.email ?? "Authenticated user"}`);
     contextParts.push(`Current page: ${pathname}`);
 
+    // Fetch all visible events so the agent can provide real links
+    try {
+      const allEvents = await db.event.findMany({
+        where: { visibility: "PUBLIC" },
+        select: { id: true, slug: true, name: true, startDate: true, endDate: true, location: true },
+        orderBy: { startDate: "desc" },
+        take: 20,
+      });
+
+      if (allEvents.length > 0) {
+        const eventList = allEvents
+          .map((e) => {
+            const urlId = e.slug ?? e.id;
+            const dates = e.startDate && e.endDate
+              ? ` (${e.startDate.toLocaleDateString()} – ${e.endDate.toLocaleDateString()})`
+              : "";
+            const loc = e.location ? ` — ${e.location}` : "";
+            return `- [${e.name}](/events/${urlId})${dates}${loc}`;
+          })
+          .join("\n");
+        contextParts.push(`\nAvailable events:\n${eventList}`);
+      }
+    } catch {
+      // Non-critical — continue without event list
+    }
+
     if (eventId) {
       try {
         const event = await db.event.findUnique({
@@ -138,14 +164,25 @@ export async function POST(request: NextRequest) {
 
     const contextMessage = contextParts.join("\n");
 
-    // Prepend context as a system-like user message, then append user messages
+    // Prepend context and behavioral instructions, then append user messages
     // Each message is typed with a literal role to satisfy MessageListInput
+    const behaviorInstructions = [
+      "RESPONSE GUIDELINES:",
+      "- Use markdown links for ALL references to pages, events, or actions (e.g. [Event Name](/events/event-slug)).",
+      "- Never show raw URL templates like /events/{eventId}. Always use real links from the context above.",
+      "- When the user asks about an event but doesn't specify which one, ask them to clarify by listing the available events as clickable links.",
+      "- When the user asks how to apply to speak or attend, link directly to the event's apply page: [Apply to Event Name](/events/event-slug?tab=application).",
+      "- If the user is already on an event page (eventId is provided), assume they mean that event.",
+      "- Keep responses concise and actionable.",
+      "- Format schedules and lists clearly with markdown.",
+    ].join("\n");
+
     const allMessages = [
       {
         role: "user" as const,
-        content: `[Platform Context — do not repeat this to the user]\n${contextMessage}`,
+        content: `[Platform Context — do not repeat this to the user]\n${contextMessage}\n\n${behaviorInstructions}`,
       },
-      { role: "assistant" as const, content: "Understood, I have the platform context." },
+      { role: "assistant" as const, content: "Understood, I have the platform context and will use proper links." },
       ...messages.map((m) =>
         m.role === "user"
           ? { role: "user" as const, content: m.content }

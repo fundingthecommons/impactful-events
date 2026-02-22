@@ -78,7 +78,23 @@ const markdownComponents = {
               );
             }
 
-            // Regular external link
+            // Internal link (starts with /)
+            const isInternal = href?.startsWith('/');
+            if (isInternal) {
+              return (
+                <Anchor
+                  href={href}
+                  style={{
+                    fontWeight: 500,
+                    color: 'var(--mantine-color-blue-6)',
+                  }}
+                >
+                  {children}
+                </Anchor>
+              );
+            }
+
+            // External link
             return (
               <Anchor
                 href={href ?? '#'}
