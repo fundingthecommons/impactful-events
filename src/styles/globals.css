@@ -27,6 +27,11 @@
   --theme-mantine-gradient-bg: linear-gradient(135deg, var(--mantine-color-blue-0) 0%, var(--mantine-color-purple-0) 100%);
   --theme-mantine-border: var(--mantine-color-blue-2);
 
+  /* AI Chat colors */
+  --theme-chat-user-bg: #3b82f6;
+  --theme-chat-assistant-bg: #f1f5f9;
+  --theme-chat-input-bg: #ffffff;
+
   /* CRM page colors */
   --theme-crm-bg: #f8fafc;
   --theme-crm-surface: #ffffff;
@@ -57,6 +62,11 @@
 
   /* Text gradients */
   --theme-text-gradient: linear-gradient(45deg, #4a5568 0%, #2d3748 100%);
+
+  /* AI Chat colors */
+  --theme-chat-user-bg: #2563eb;
+  --theme-chat-assistant-bg: #1e293b;
+  --theme-chat-input-bg: #0f172a;
 
   /* CRM page colors */
   --theme-crm-bg: var(--mantine-color-dark-8);
