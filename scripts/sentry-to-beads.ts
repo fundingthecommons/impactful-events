@@ -19,6 +19,30 @@
  */
 
 import { execSync } from "child_process";
+import { readFileSync } from "fs";
+import { resolve } from "path";
+
+// ---------------------------------------------------------------------------
+// Auto-load .env.local if SENTRY_API_TOKEN is not in environment
+// ---------------------------------------------------------------------------
+
+function loadEnvLocal() {
+  if (process.env.SENTRY_API_TOKEN) return;
+  try {
+    const envPath = resolve(process.cwd(), ".env.local");
+    const content = readFileSync(envPath, "utf-8");
+    for (const line of content.split("\n")) {
+      const match = /^([A-Z_]+)="?([^"]*)"?$/.exec(line);
+      if (match?.[1] && !process.env[match[1]]) {
+        process.env[match[1]] = match[2];
+      }
+    }
+  } catch {
+    // .env.local not found, rely on environment
+  }
+}
+
+loadEnvLocal();
 
 // ---------------------------------------------------------------------------
 // Config
