@@ -116,8 +116,9 @@ interface SessionPrefillData {
  * When user picks "3:00 PM" in their local timezone, this ensures it's
  * stored as 15:00 UTC so that all UTC-based displays show "3:00 PM".
  */
-function localToUTC(date: Date): Date {
-  const d = date instanceof Date ? date : new Date(date as string | number);
+function localToUTC(date: Date | null | undefined): Date {
+  if (!date) return new Date();
+  const d = new Date(date instanceof Date ? date.getTime() : (date as string | number));
   if (isNaN(d.getTime())) return new Date();
   return new Date(
     Date.UTC(
@@ -136,8 +137,9 @@ function localToUTC(date: Date): Date {
  * When the database has 15:00 UTC, this creates a local Date that shows "3:00 PM"
  * in the DateTimePicker regardless of the user's timezone.
  */
-function utcToLocal(date: Date): Date {
-  const d = date instanceof Date ? date : new Date(date as string | number);
+function utcToLocal(date: Date | null | undefined): Date {
+  if (!date) return new Date();
+  const d = new Date(date instanceof Date ? date.getTime() : (date as string | number));
   if (isNaN(d.getTime())) return new Date();
   return new Date(
     d.getUTCFullYear(),

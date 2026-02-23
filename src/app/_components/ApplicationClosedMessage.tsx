@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Container, Card, Stack, Text, Group, Button } from "@mantine/core";
 import { IconCalendarX, IconArrowLeft, IconInfoCircle } from "@tabler/icons-react";
