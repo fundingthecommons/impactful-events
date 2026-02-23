@@ -177,6 +177,7 @@ export default function SpeakerApplicationForm({
   const [fileInputKey, setFileInputKey] = useState(0);
   const [floorsModalOpen, setFloorsModalOpen] = useState(false);
   const [profileImageError, setProfileImageError] = useState(false);
+  const [questionErrors, setQuestionErrors] = useState<Record<string, string>>({});
   const { data: config } = api.config.getPublicConfig.useQuery(
     undefined,
     { refetchOnWindowFocus: false },
@@ -632,6 +633,18 @@ export default function SpeakerApplicationForm({
           .every(q => questionResponses[q.questionKey]?.trim());
       }
     }
+  };
+
+  const validateAboutYouQuestions = (): boolean => {
+    if (totalSteps !== 4 || !eventQuestions) return true;
+    const errors: Record<string, string> = {};
+    for (const q of eventQuestions) {
+      if (q.required && !questionResponses[q.questionKey]?.trim()) {
+        errors[q.questionKey] = "This field is required";
+      }
+    }
+    setQuestionErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const renderSessionDetails = () => {
@@ -1169,12 +1182,22 @@ export default function SpeakerApplicationForm({
                               placeholder="Select an option"
                               data={question.options}
                               value={value || null}
-                              onChange={(val) => setQuestionResponses(prev => ({
-                                ...prev,
-                                [question.questionKey]: val ?? "",
-                              }))}
+                              onChange={(val) => {
+                                setQuestionResponses(prev => ({
+                                  ...prev,
+                                  [question.questionKey]: val ?? "",
+                                }));
+                                if (questionErrors[question.questionKey]) {
+                                  setQuestionErrors(prev => {
+                                    const next = { ...prev };
+                                    delete next[question.questionKey];
+                                    return next;
+                                  });
+                                }
+                              }}
                               required={question.required}
                               clearable={!question.required}
+                              error={questionErrors[question.questionKey]}
                             />
                           </Grid.Col>
                         );
@@ -1192,9 +1215,18 @@ export default function SpeakerApplicationForm({
                                   ...prev,
                                   [question.questionKey]: val,
                                 }));
+                                if (questionErrors[question.questionKey]) {
+                                  setQuestionErrors(prev => {
+                                    const next = { ...prev };
+                                    delete next[question.questionKey];
+                                    return next;
+                                  });
+                                }
                               }}
                               minRows={3}
                               maxRows={6}
+                              required={question.required}
+                              error={questionErrors[question.questionKey]}
                             />
                           </Grid.Col>
                         );
@@ -1212,7 +1244,16 @@ export default function SpeakerApplicationForm({
                                 ...prev,
                                 [question.questionKey]: val,
                               }));
+                              if (questionErrors[question.questionKey]) {
+                                setQuestionErrors(prev => {
+                                  const next = { ...prev };
+                                  delete next[question.questionKey];
+                                  return next;
+                                });
+                              }
                             }}
+                            required={question.required}
+                            error={questionErrors[question.questionKey]}
                           />
                         </Grid.Col>
                       );
@@ -1309,6 +1350,10 @@ export default function SpeakerApplicationForm({
             e.preventDefault();
             return;
           }
+          if (!validateAboutYouQuestions()) {
+            e.preventDefault();
+            return;
+          }
           form.onSubmit(handleSubmit)(e);
         }}>
           {renderStep()}
@@ -1335,7 +1380,6 @@ export default function SpeakerApplicationForm({
                 color="teal"
                 loading={isSubmitting}
                 leftSection={<IconCheck size={16} />}
-                disabled={!getStepValidation(currentStep)}
               >
                 {isOnBehalfUpdate ? "Confirm & Update Application" : "Submit Application"}
               </Button>
