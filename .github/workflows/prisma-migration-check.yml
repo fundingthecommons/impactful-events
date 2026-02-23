@@ -1,0 +1,33 @@
+name: Prisma Migration Guard
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  migration-guard:
+    name: Check schema changes include migrations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate Prisma migrations
+        run: |
+          BASE_REF="${{ github.base_ref }}"
+          git fetch origin "${BASE_REF}" --depth=1
+          CHANGED_FILES=$(git diff --name-only "origin/${BASE_REF}"...HEAD)
+
+          if echo "$CHANGED_FILES" | grep -q '^prisma/schema\.prisma$'; then
+            if ! echo "$CHANGED_FILES" | grep -q '^prisma/migrations/'; then
+              echo "❌ prisma/schema.prisma changed without migrations."
+              echo "Run: bunx prisma migrate dev --name <descriptive_name>"
+              exit 1
+            fi
+          fi
+
+          echo "✅ Prisma migration guard passed"
