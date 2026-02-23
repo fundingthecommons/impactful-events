@@ -50,15 +50,19 @@ export async function POST(request: NextRequest) {
       token: process.env.PLATFORM_READ_WRITE_TOKEN,
     });
 
-    // Update user profile with new avatar URL
-    await db.userProfile.upsert({
-      where: { userId: session.user.id },
-      update: { avatarUrl: blob.url },
-      create: {
-        userId: session.user.id,
-        avatarUrl: blob.url,
-      },
-    });
+    // Update user profile with new avatar URL (non-blocking - don't fail upload if DB update fails)
+    try {
+      await db.userProfile.upsert({
+        where: { userId: session.user.id },
+        update: { avatarUrl: blob.url },
+        create: {
+          userId: session.user.id,
+          avatarUrl: blob.url,
+        },
+      });
+    } catch (dbError) {
+      console.error('Avatar DB update failed (upload still succeeded):', dbError);
+    }
 
     return NextResponse.json({
       success: true,
