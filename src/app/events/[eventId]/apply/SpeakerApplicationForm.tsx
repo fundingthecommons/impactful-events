@@ -38,6 +38,7 @@ import {
   IconLink,
   IconBrandLinkedin,
   IconBrandTwitter,
+  IconBrandBluesky,
   IconWorld,
   IconVideo,
   IconBuilding,
@@ -64,6 +65,7 @@ const speakerApplicationSchema = z.object({
   bio: z.string().min(20, "Please provide at least 20 characters for your bio").max(1000),
   previousSpeakingExperience: z.string().max(2000).optional().or(z.literal("")),
   // Profile fields
+  preferredName: z.string().max(100).optional().or(z.literal("")),
   jobTitle: z.string().min(1, "Job title or role is required").max(100),
   company: z.string().min(1, "Organization is required").max(100),
   displayPreference: z.string().max(500).optional().or(z.literal("")),
@@ -71,6 +73,7 @@ const speakerApplicationSchema = z.object({
   website: z.string().url().optional().or(z.literal("")),
   linkedinUrl: z.string().url().optional().or(z.literal("")),
   twitterUrl: z.string().url().optional().or(z.literal("")),
+  blueskyUrl: z.string().url().optional().or(z.literal("")),
   pastTalkUrl: z.string().url().optional().or(z.literal("")),
 });
 
@@ -328,12 +331,14 @@ export default function SpeakerApplicationForm({
       otherFloorsTopicTheme: "",
       bio: "",
       previousSpeakingExperience: "",
+      preferredName: "",
       jobTitle: "",
       company: "",
       displayPreference: "",
       website: "",
       linkedinUrl: "",
       twitterUrl: "",
+      blueskyUrl: "",
       pastTalkUrl: "",
     },
   });
@@ -360,11 +365,13 @@ export default function SpeakerApplicationForm({
       if (!form.values.talkTopic && p.speakerTalkTopic) form.setFieldValue("talkTopic", p.speakerTalkTopic);
       if (!form.values.bio && p.bio) form.setFieldValue("bio", p.bio);
       if (!form.values.previousSpeakingExperience && p.speakerPreviousExperience) form.setFieldValue("previousSpeakingExperience", p.speakerPreviousExperience);
+      if (!form.values.preferredName && p.user?.name) form.setFieldValue("preferredName", p.user.name);
       if (!form.values.jobTitle && p.jobTitle) form.setFieldValue("jobTitle", p.jobTitle);
       if (!form.values.company && p.company) form.setFieldValue("company", p.company);
       if (!form.values.website && p.website) form.setFieldValue("website", p.website);
       if (!form.values.linkedinUrl && p.linkedinUrl) form.setFieldValue("linkedinUrl", p.linkedinUrl);
       if (!form.values.twitterUrl && p.twitterUrl) form.setFieldValue("twitterUrl", p.twitterUrl);
+      if (!form.values.blueskyUrl && p.blueskyUrl) form.setFieldValue("blueskyUrl", p.blueskyUrl);
       if (!form.values.pastTalkUrl && p.speakerPastTalkUrl) form.setFieldValue("pastTalkUrl", p.speakerPastTalkUrl);
       if (!form.values.entityName && p.speakerEntityName) form.setFieldValue("entityName", p.speakerEntityName);
       if (!form.values.displayPreference && p.speakerDisplayPreference) form.setFieldValue("displayPreference", p.speakerDisplayPreference);
@@ -464,12 +471,14 @@ export default function SpeakerApplicationForm({
 
       // Step 2: Update profile with speaker info
       await updateProfile.mutateAsync({
+        preferredName: values.preferredName,
         bio: values.bio,
         jobTitle: values.jobTitle,
         company: values.company,
         website: values.website,
         linkedinUrl: values.linkedinUrl,
         twitterUrl: values.twitterUrl,
+        blueskyUrl: values.blueskyUrl,
         speakerTalkTitle: values.talkTitle,
         speakerTalkAbstract: values.talkAbstract,
         speakerTalkFormat: values.talkFormat.join(", "),
@@ -939,16 +948,15 @@ export default function SpeakerApplicationForm({
                   </div>
                 </Group>
 
-                <Text size="sm" c="dimmed" mb="md">
-                  We need to collect the following information about you for clarity
-                  in our speaker announcements and agenda. Please keep in mind that
-                  it will appear in the following format:{" "}
-                  <Text component="span" fw={600} size="sm">
-                    James Farrell, Funding the Commons, CTO
-                  </Text>
-                </Text>
-
                 <Grid>
+                  <Grid.Col span={12}>
+                    <TextInput
+                      label="Preferred Name"
+                      description="Please keep in mind that it will appear in the following format: James Farrell, Funding the Commons, CTO"
+                      placeholder="How you'd like your name to appear"
+                      {...form.getInputProps("preferredName")}
+                    />
+                  </Grid.Col>
                   <Grid.Col span={12}>
                     <Text size="sm" fw={500} mb="xs">Profile Picture <Text component="span" c="red" size="sm">*</Text></Text>
                     <Group gap="md" align="flex-start">
@@ -974,8 +982,13 @@ export default function SpeakerApplicationForm({
                           placeholder="Choose image file"
                           label="Upload a profile photo"
                           description="JPG, PNG, GIF, or WebP (max 5MB)"
-                          onChange={(file) => void handleAvatarUpload(file)}
+                          onChange={(file) => {
+                            setProfileImageError(false);
+                            void handleAvatarUpload(file);
+                          }}
                           disabled={isUploading}
+                          error={profileImageError ? "Profile picture is required" : undefined}
+                          required
                         />
                         {isUploading && (
                           <Box>
@@ -1079,6 +1092,14 @@ export default function SpeakerApplicationForm({
                     placeholder="https://twitter.com/username"
                     leftSection={<IconBrandTwitter size={16} />}
                     {...form.getInputProps("twitterUrl")}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <TextInput
+                    label="BlueSky"
+                    placeholder="https://bsky.app/profile/username"
+                    leftSection={<IconBrandBluesky size={16} />}
+                    {...form.getInputProps("blueskyUrl")}
                   />
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, sm: 6 }}>

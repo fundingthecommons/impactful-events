@@ -26,6 +26,7 @@ const lenientUrlSchema = z.string()
 
 // Input validation schemas
 const profileUpdateSchema = z.object({
+  preferredName: z.string().max(100).optional(),
   bio: z.string().max(1000).optional(),
   jobTitle: z.string().max(100).optional(),
   company: z.string().max(100).optional(),
@@ -34,6 +35,7 @@ const profileUpdateSchema = z.object({
   githubUrl: lenientUrlSchema.optional().or(z.literal("")),
   linkedinUrl: lenientUrlSchema.optional().or(z.literal("")),
   twitterUrl: lenientUrlSchema.optional().or(z.literal("")),
+  blueskyUrl: lenientUrlSchema.optional().or(z.literal("")),
   skills: z.array(z.string().max(50)).max(20).optional(),
   interests: z.array(z.string().max(50)).max(20).optional(),
   availableForMentoring: z.boolean().optional(),
@@ -297,13 +299,23 @@ export const profileRouter = createTRPCRouter({
   updateProfile: protectedProcedure
     .input(profileUpdateSchema)
     .mutation(async ({ ctx, input }) => {
+      const { preferredName, ...profileData } = input;
+
+      // Update User.name if preferredName is provided
+      if (preferredName !== undefined) {
+        await ctx.db.user.update({
+          where: { id: ctx.session.user.id },
+          data: { name: preferredName },
+        });
+      }
+
       const profile = await ctx.db.userProfile.upsert({
         where: { userId: ctx.session.user.id },
         create: {
           userId: ctx.session.user.id,
-          ...input,
+          ...profileData,
         },
-        update: input,
+        update: profileData,
         include: {
           projects: {
             orderBy: [

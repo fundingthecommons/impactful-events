@@ -1172,6 +1172,7 @@ model UserProfile {
   githubUrl             String?
   linkedinUrl           String?
   twitterUrl            String?
+  blueskyUrl            String?
   skills                String[] // Array of skill tags (legacy, use UserSkills for new data)
   interests             String[] // Array of interest areas
 
