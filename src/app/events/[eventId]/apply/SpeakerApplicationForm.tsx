@@ -1340,8 +1340,7 @@ export default function SpeakerApplicationForm({
         {/* Help Text */}
         <Alert color="teal" title="Need Help?">
           <Text size="sm">
-            If you have any questions about the speaker application, please
-            contact the event organizers at{" "}
+            If you have any questions about the speaker application, please contact the event organizers at contact@fundingthecommons.io. If you're experiencing technical difficulties with the form or have user feedback to offer, email {" "}
             <Text component="span" fw={500}>
               {config?.adminEmail ?? ""}
             </Text>
