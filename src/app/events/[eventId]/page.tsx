@@ -7,8 +7,8 @@ import EventDetailClient from "./EventDetailClient";
 import ResidentDashboard from "./ResidentDashboard";
 import ConferenceDashboard from "./ConferenceDashboard";
 import ApplicationClosedMessage from "~/app/_components/ApplicationClosedMessage";
-import { Alert, Text, Container, Stack, Group, Button, ActionIcon } from "@mantine/core";
-import { IconCheck, IconArrowLeft } from "@tabler/icons-react";
+import { Alert, Text, Container, Stack, Group, Button, ActionIcon, Card, Title } from "@mantine/core";
+import { IconCheck, IconArrowLeft, IconMicrophone } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { normalizeEventType } from "~/types/event";
@@ -206,6 +206,35 @@ export default function EventPage({ params }: EventPageProps) {
 
   // Deny access if user doesn't meet requirements (only after all checks complete)
   if (!canViewPage) {
+    // For conferences, show a friendly "Become a Speaker" prompt instead of blocking
+    if (isConference) {
+      return (
+        <Container size="md" py="xl">
+          <Stack gap="xl" align="center">
+            <Card withBorder style={{ maxWidth: 500, width: '100%' }}>
+              <Stack gap="sm">
+                <Title order={4}>Become a Speaker</Title>
+                <Text size="sm" c="dimmed">
+                  Interested in speaking at this event? Submit a speaker application to be considered.
+                </Text>
+                <Group>
+                  <Button
+                    component={Link}
+                    href={`/events/${eventId}/apply`}
+                    leftSection={<IconMicrophone size={16} />}
+                    variant="light"
+                    color="teal"
+                  >
+                    Submit Speaker Application
+                  </Button>
+                </Group>
+              </Stack>
+            </Card>
+          </Stack>
+        </Container>
+      );
+    }
+
     return (
       <Container size="md" py="xl">
         <Stack gap="xl" align="center">
@@ -218,9 +247,7 @@ export default function EventPage({ params }: EventPageProps) {
             style={{ maxWidth: 500, width: '100%' }}
           >
             <Text c="white" size="md">
-              {isConference
-                ? "This event page is only accessible to registered speakers, floor leads, and administrators."
-                : "This event page is only accessible to accepted residents. If you have a late pass code, please use the provided link."}
+              This event page is only accessible to accepted residents. If you have a late pass code, please use the provided link.
             </Text>
           </Alert>
           <Button
