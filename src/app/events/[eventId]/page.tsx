@@ -212,11 +212,8 @@ export default function EventPage({ params }: EventPageProps) {
       return (
         <Container size="md" py="xl">
           <Stack gap="lg">
-            <Stack gap="xs">
+            <Stack gap="sm">
               <Title order={2}>Welcome to {event.name}</Title>
-              {event.description && (
-                <Text c="dimmed" size="sm">{event.description}</Text>
-              )}
               {(event.location ?? event.startDate) && (
                 <Group gap="md">
                   {event.location && (
@@ -241,6 +238,11 @@ export default function EventPage({ params }: EventPageProps) {
                     </Group>
                   )}
                 </Group>
+              )}
+              {event.description && (
+                <Text c="dimmed" size="sm" style={{ whiteSpace: "pre-line" }}>
+                  {event.description}
+                </Text>
               )}
             </Stack>
 
