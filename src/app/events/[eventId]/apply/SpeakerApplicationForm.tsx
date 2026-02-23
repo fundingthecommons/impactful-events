@@ -567,9 +567,11 @@ export default function SpeakerApplicationForm({
       case 1: return ['preferredName', 'bio', 'jobTitle', 'company']; // Speaker Profile
       case 2: return []; // Links (all optional)
       default:
-        // Session Details is always the last step
-        if (step === totalSteps) return ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic'];
-        return []; // About You (dynamic questions)
+        // About You is always the last step (when it exists)
+        if (step === totalSteps && totalSteps === 4) return []; // About You (dynamic questions)
+        // Session Details is step 3
+        if (step === 3) return ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic'];
+        return ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic']; // Session Details (last step when no questions)
     }
   };
 
@@ -611,8 +613,8 @@ export default function SpeakerApplicationForm({
       case 2: // Links
         return true; // Links are optional
       default: {
-        // Session Details is always the last step
-        if (step === totalSteps) {
+        // Step 3: Session Details
+        if (step === 3) {
           return (
             form.values.talkTitle.length > 0 &&
             form.values.talkAbstract.length >= 50 &&
@@ -623,7 +625,7 @@ export default function SpeakerApplicationForm({
             (!isFtcVenue || !ftcTopicValues.includes("Other") || ftcTopicOtherText.trim().length > 0)
           );
         }
-        // About You (step 3 when totalSteps === 4)
+        // About You (step 4 when totalSteps === 4)
         if (!eventQuestions) return true;
         return eventQuestions
           .filter(q => q.required)
@@ -1123,8 +1125,13 @@ export default function SpeakerApplicationForm({
         );
 
       default: {
-        // Step 3 when totalSteps === 4: About You
-        if (currentStep === 3 && totalSteps === 4) {
+        // Step 3: Session Details
+        if (currentStep === 3) {
+          return renderSessionDetails();
+        }
+
+        // Step 4 when totalSteps === 4: About You
+        if (currentStep === 4 && totalSteps === 4) {
           if (!eventQuestions || eventQuestions.length === 0) return null;
           return (
             <Card shadow="sm" padding="xl" radius="md" withBorder>
@@ -1216,8 +1223,7 @@ export default function SpeakerApplicationForm({
           );
         }
 
-        // Last step (step 3 or 4): Session Details
-        return renderSessionDetails();
+        return null;
       }
     }
   };
@@ -1276,22 +1282,22 @@ export default function SpeakerApplicationForm({
                 >
                   Links
                 </Badge>
+                <Badge
+                  size="sm"
+                  variant={currentStep >= 3 ? "filled" : "light"}
+                  color="teal"
+                >
+                  Session Details
+                </Badge>
                 {totalSteps >= 4 && (
                   <Badge
                     size="sm"
-                    variant={currentStep >= 3 ? "filled" : "light"}
+                    variant={currentStep >= 4 ? "filled" : "light"}
                     color="teal"
                   >
                     About You
                   </Badge>
                 )}
-                <Badge
-                  size="sm"
-                  variant={currentStep >= totalSteps ? "filled" : "light"}
-                  color="teal"
-                >
-                  Session Details
-                </Badge>
               </Group>
             </Stack>
           </Card>
@@ -1340,10 +1346,10 @@ export default function SpeakerApplicationForm({
         {/* Help Text */}
         <Alert color="teal" title="Need Help?">
           <Text size="sm">
-            If you have any questions about the speaker application, please contact the event organizers at contact@fundingthecommons.io. If you&apos;re experiencing technical difficulties with the form or have user feedback to offer, email {" "}
-            <Text component="span" fw={500}>
-              {config?.adminEmail ?? ""}
+            If you have any questions about the speaker application, please contact the event organizers at  <Text component="span" fw={500}>
+              {config?.adminEmail ?? ""}.
             </Text>
+           
           </Text>
         </Alert>
       </Stack>
