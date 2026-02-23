@@ -26,6 +26,8 @@ import {
   FileInput,
   Avatar,
   Box,
+  Modal,
+  List,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -168,6 +170,7 @@ export default function SpeakerApplicationForm({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [floorsModalOpen, setFloorsModalOpen] = useState(false);
   const { data: config } = api.config.getPublicConfig.useQuery(
     undefined,
     { refetchOnWindowFocus: false },
@@ -507,7 +510,7 @@ export default function SpeakerApplicationForm({
         speakerInvitedByUserId: primaryInviterId ?? undefined,
         speakerInvitedByOther: otherParts.length > 0 ? otherParts.join("; ") : undefined,
         speakerPreferredDates: preferredDates.length > 0 ? preferredDates.join(",") : undefined,
-        speakerPreferredTimes: preferredTimes.length > 0 ? preferredTimes.join(",") : undefined,
+        speakerPreferredTimes: preferredTimes.trim() || undefined,
       });
 
       // All steps succeeded - show success and redirect
@@ -706,7 +709,11 @@ export default function SpeakerApplicationForm({
                       description={
                         <>
                           If you were invited to speak, please select the floor you were invited to speak on. For more information about the floors at IatF,{" "}
-                          <a href="#" target="_blank" rel="noopener noreferrer" style={{ color: "var(--mantine-color-teal-6)" }}>
+                          <a
+                            href="#"
+                            onClick={(e) => { e.preventDefault(); setFloorsModalOpen(true); }}
+                            style={{ color: "var(--mantine-color-teal-6)", cursor: "pointer" }}
+                          >
                             click here
                           </a>.
                         </>
@@ -725,6 +732,54 @@ export default function SpeakerApplicationForm({
                     />
                   </Grid.Col>
                 )}
+
+                <Modal
+                  opened={floorsModalOpen}
+                  onClose={() => setFloorsModalOpen(false)}
+                  title="Floors at Intelligence at the Frontier"
+                  size="lg"
+                >
+                  <Stack gap="md">
+                    <List spacing="lg" listStyleType="none">
+                      <List.Item>
+                        <Text fw={600}>Spaceship (Floor 2)</Text>
+                        <Text size="sm" c="dimmed">The main stage. AI-assisted funding, public AI infrastructure, and the coordination systems humanity needs to ensure intelligence serves everyone.</Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text fw={600}>Robotics &amp; Hard Tech (Floor 4)</Text>
+                        <Text size="sm" c="dimmed">36-hour overnight hackathon with Protocol Labs. Open-source robotics, physical AI, and the question of who funds hardware for human flourishing.</Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text fw={600}>Arts &amp; Music (Floor 6)</Text>
+                        <Text size="sm" c="dimmed">Creativity can&apos;t be automated. Curated gallery, talks on technology and the arts, live music performances into the evening.</Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text fw={600}>Maker Space (Floor 7)</Text>
+                        <Text size="sm" c="dimmed">4,000 sq ft prototyping lab with laser cutters, 3D printers, and CNCs. Turn ideas into prototypes in minutes.</Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text fw={600}>Neuro &amp; Biotech (Floor 8)</Text>
+                        <Text size="sm" c="dimmed">Tools to heal people and the planet. Community biolab with hands-on workshops: test your own genetics, test your local water supply, hear how founders cured their own diseases.</Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text fw={600}>AI &amp; Autonomous Systems (Floor 9)</Text>
+                        <Text size="sm" c="dimmed">Can we build intelligence that amplifies human agency instead of replacing it? Hands-on workshops, motion capture demos, GPU compute, and salons exploring post-labor economics.</Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text fw={600}>Health &amp; Longevity (Floor 11)</Text>
+                        <Text size="sm" c="dimmed">Live long enough to see the far future. Biotech demos, longevity research talks, and the community building Viva City.</Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text fw={600}>Ethereum House (Floor 12)</Text>
+                        <Text size="sm" c="dimmed">Live funding experiments in action. Quadratic funding rounds, open agent economy demos (ERC-8004), and working sessions where researchers and builders leave with grants.</Text>
+                      </List.Item>
+                      <List.Item>
+                        <Text fw={600}>Flourishing (Floor 14)</Text>
+                        <Text size="sm" c="dimmed">Inner, relational and cultural commons on March 14th; Earth Commons on March 15th. Explore climate finance, bioregionalism, alternative capital systems design, embodied and relational practices, and cross-disciplinary dialogue on whether AI can serve life instead of just optimizing it.</Text>
+                      </List.Item>
+                    </List>
+                  </Stack>
+                </Modal>
 
                 {inviterOptions.length > 1 && (
                   <Grid.Col span={12}>
@@ -829,22 +884,14 @@ export default function SpeakerApplicationForm({
                 </Grid.Col>
 
                 <Grid.Col span={12}>
-                  <Checkbox.Group
-                    label="What time(s) work best for you?"
-                    description="Select all time slots when you are available"
+                  <Textarea
+                    label="Do you have any hard constraints on your availability during March 14-15 from 10 am - 6 pm? Please indicate them here"
+                    placeholder="ex: I am unable to stay longer than 3 pm on March 14 because of my flight time"
                     value={preferredTimes}
-                    onChange={setPreferredTimes}
-                  >
-                    <Group gap="md" mt="xs" wrap="wrap">
-                      {speakerTimeSlotOptions.map((option) => (
-                        <Checkbox
-                          key={option.value}
-                          value={option.value}
-                          label={option.label}
-                        />
-                      ))}
-                    </Group>
-                  </Checkbox.Group>
+                    onChange={(e) => setPreferredTimes(e.currentTarget.value)}
+                    minRows={2}
+                    maxRows={4}
+                  />
                 </Grid.Col>
               </Grid>
             </Stack>

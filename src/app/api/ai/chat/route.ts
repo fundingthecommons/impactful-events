@@ -49,16 +49,17 @@ export async function POST(request: NextRequest) {
     const globalRole = session.user.role ?? "user";
     contextParts.push(`Global role: ${globalRole}`);
 
-    // Fetch event-specific roles if on an event page (mirrors getMyRolesForEvent logic)
+    // Resolve eventId (could be a slug or actual ID) once, reuse everywhere
+    let resolvedEventId: string | undefined;
     if (eventId) {
       try {
-        // Resolve eventId — could be a slug or an actual ID
-        let resolvedEventId = eventId;
         const eventById = await db.event.findUnique({
           where: { id: eventId },
           select: { id: true },
         });
-        if (!eventById) {
+        if (eventById) {
+          resolvedEventId = eventById.id;
+        } else {
           const eventBySlug = await db.event.findUnique({
             where: { slug: eventId },
             select: { id: true },
@@ -67,10 +68,19 @@ export async function POST(request: NextRequest) {
             resolvedEventId = eventBySlug.id;
           }
         }
+        console.log("[AI Chat API] Event resolution:", { eventId, resolvedEventId: resolvedEventId ?? "NOT_FOUND" });
+      } catch (resolveErr) {
+        console.error("[AI Chat API] Event resolution failed:", resolveErr);
+      }
+    }
 
-        const eventRoles: string[] = [];
+    // Fetch event-specific roles if we resolved an event (mirrors getMyRolesForEvent logic)
+    // Each role source is fetched independently so one failure doesn't lose all context
+    if (resolvedEventId) {
+      const eventRoles: string[] = [];
 
-        // Event-specific roles from UserRole table
+      // Event-specific roles from UserRole table
+      try {
         const userRoles = await db.userRole.findMany({
           where: { userId: session.user.id, eventId: resolvedEventId },
           include: { role: { select: { name: true } } },
@@ -80,8 +90,12 @@ export async function POST(request: NextRequest) {
             eventRoles.push(ur.role.name);
           }
         }
+      } catch (err) {
+        console.error("[AI Chat API] Failed to fetch UserRole:", err);
+      }
 
-        // Floor lead from VenueOwner table
+      // Floor lead from VenueOwner table
+      try {
         const venueOwnerships = await db.venueOwner.findMany({
           where: { userId: session.user.id, eventId: resolvedEventId },
           select: { venue: { select: { name: true } } },
@@ -91,8 +105,12 @@ export async function POST(request: NextRequest) {
           const venueNames = venueOwnerships.map((v) => v.venue.name).join(", ");
           contextParts.push(`Venues you manage (as floor lead): ${venueNames}`);
         }
+      } catch (err) {
+        console.error("[AI Chat API] Failed to fetch VenueOwner:", err);
+      }
 
-        // Accepted applications
+      // Accepted applications
+      try {
         const acceptedApps = await db.application.findMany({
           where: { userId: session.user.id, eventId: resolvedEventId, status: "ACCEPTED" },
           select: { applicationType: true },
@@ -103,8 +121,12 @@ export async function POST(request: NextRequest) {
             eventRoles.push(roleFromApp);
           }
         }
+      } catch (err) {
+        console.error("[AI Chat API] Failed to fetch applications:", err);
+      }
 
-        // Speaker from SessionSpeaker table
+      // Speaker from SessionSpeaker table
+      try {
         const speakerSessions = await db.sessionSpeaker.findMany({
           where: {
             userId: session.user.id,
@@ -127,13 +149,14 @@ export async function POST(request: NextRequest) {
             .join("\n");
           contextParts.push(`\nYour speaking sessions:\n${sessionDetails}`);
         }
-
-        if (eventRoles.length > 0) {
-          contextParts.push(`Your roles for this event: ${eventRoles.join(", ")}`);
-        }
-      } catch {
-        // Non-critical — continue without role context
+      } catch (err) {
+        console.error("[AI Chat API] Failed to fetch SessionSpeaker:", err);
       }
+
+      if (eventRoles.length > 0) {
+        contextParts.push(`Your roles for this event: ${eventRoles.join(", ")}`);
+      }
+      console.log("[AI Chat API] Resolved roles:", eventRoles);
     }
 
     // Fetch all visible events so the agent can provide real links
@@ -162,13 +185,15 @@ export async function POST(request: NextRequest) {
       // Non-critical — continue without event list
     }
 
-    if (eventId) {
+    // Fetch current event details using the resolved ID
+    if (resolvedEventId) {
       try {
         const event = await db.event.findUnique({
-          where: { id: eventId },
+          where: { id: resolvedEventId },
           select: {
             id: true,
             name: true,
+            slug: true,
             startDate: true,
             endDate: true,
             location: true,
@@ -178,8 +203,10 @@ export async function POST(request: NextRequest) {
         });
 
         if (event) {
+          const eventSlug = event.slug ?? event.id;
           contextParts.push(
             `\nCurrent event: ${event.name}` +
+            ` | Event page: /events/${eventSlug}` +
             (event.location ? ` | Location: ${event.location}` : "") +
             (event.startDate ? ` | Starts: ${event.startDate.toLocaleDateString()}` : "") +
             (event.endDate ? ` | Ends: ${event.endDate.toLocaleDateString()}` : "") +
@@ -195,7 +222,7 @@ export async function POST(request: NextRequest) {
 
           // Fetch upcoming sessions (limit 20)
           const scheduleSessions = await db.scheduleSession.findMany({
-            where: { eventId },
+            where: { eventId: resolvedEventId },
             orderBy: { startTime: "asc" },
             take: 20,
             select: {
@@ -233,7 +260,7 @@ export async function POST(request: NextRequest) {
           // Fetch user's application status for this event
           const application = await db.application.findFirst({
             where: {
-              eventId,
+              eventId: resolvedEventId,
               userId: session.user.id,
             },
             select: {
@@ -249,7 +276,7 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (contextError) {
-        console.error("[AI Chat API] Context fetch failed:", contextError);
+        console.error("[AI Chat API] Event detail fetch failed:", contextError);
       }
     }
 
