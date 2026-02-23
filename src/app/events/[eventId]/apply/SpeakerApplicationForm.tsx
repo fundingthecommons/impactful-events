@@ -162,7 +162,7 @@ export default function SpeakerApplicationForm({
   const [ftcTopicOtherText, setFtcTopicOtherText] = useState("");
   const [durationOtherText, setDurationOtherText] = useState("");
   const [preferredDates, setPreferredDates] = useState<string[]>([]);
-  const [preferredTimes, setPreferredTimes] = useState<string[]>([]);
+  const [preferredTimes, setPreferredTimes] = useState("");
   const [questionResponses, setQuestionResponses] = useState<Record<string, string>>({});
   const [hasInitializedResponses, setHasInitializedResponses] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -701,9 +701,16 @@ export default function SpeakerApplicationForm({
                 {venues.length > 0 && (
                   <Grid.Col span={12}>
                     <Select
-                      label="Where were you invited to speak?"
+                      label="Intelligence at the Frontier hosts curated content from many floors at Frontier Tower, each with their own theme, programming and speaker lineup curated by a Floor Lead. Which floors are you applying to speak on?"
                       placeholder="Select a floor"
-                      description="Select the floor where you&apos;d like to present"
+                      description={
+                        <>
+                          If you were invited to speak, please select the floor you were invited to speak on. For more information about the floors at IatF,{" "}
+                          <a href="#" target="_blank" rel="noopener noreferrer" style={{ color: "var(--mantine-color-teal-6)" }}>
+                            click here
+                          </a>.
+                        </>
+                      }
                       data={venueSelectData}
                       value={selectedVenueIds[0] ?? null}
                       onChange={(val) => {
