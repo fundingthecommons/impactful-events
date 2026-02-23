@@ -166,6 +166,7 @@ export default function SpeakerApplicationForm({
   const [ftcTopicValues, setFtcTopicValues] = useState<string[]>([]);
   const [ftcTopicOtherText, setFtcTopicOtherText] = useState("");
   const [durationOtherText, setDurationOtherText] = useState("");
+  const [sessionTypeOtherText, setSessionTypeOtherText] = useState("");
   const [preferredDates, setPreferredDates] = useState<string[]>([]);
   const [preferredTimes, setPreferredTimes] = useState("");
   const [questionResponses, setQuestionResponses] = useState<Record<string, string>>({});
@@ -355,7 +356,16 @@ export default function SpeakerApplicationForm({
       const p = existingProfile;
       if (!form.values.talkTitle && p.speakerTalkTitle) form.setFieldValue("talkTitle", p.speakerTalkTitle);
       if (!form.values.talkAbstract && p.speakerTalkAbstract) form.setFieldValue("talkAbstract", p.speakerTalkAbstract);
-      if (form.values.talkFormat.length === 0 && p.speakerTalkFormat) form.setFieldValue("talkFormat", p.speakerTalkFormat.split(", ").filter(Boolean));
+      if (form.values.talkFormat.length === 0 && p.speakerTalkFormat) {
+        const formats = p.speakerTalkFormat.split(", ").filter(Boolean);
+        const otherFormat = formats.find(f => f.startsWith("Other: "));
+        if (otherFormat) {
+          setSessionTypeOtherText(otherFormat.replace("Other: ", ""));
+          form.setFieldValue("talkFormat", formats.map(f => f.startsWith("Other: ") ? "Other" : f));
+        } else {
+          form.setFieldValue("talkFormat", formats);
+        }
+      }
       if (form.values.talkDuration.length === 0 && p.speakerTalkDuration) {
         const durations = p.speakerTalkDuration.split(", ").filter(Boolean);
         const knownValues = talkDurationOptions.map(o => o.value);
@@ -486,7 +496,9 @@ export default function SpeakerApplicationForm({
         blueskyUrl: values.blueskyUrl,
         speakerTalkTitle: values.talkTitle,
         speakerTalkAbstract: values.talkAbstract,
-        speakerTalkFormat: values.talkFormat.join(", "),
+        speakerTalkFormat: values.talkFormat
+          .map(f => f === "Other" && sessionTypeOtherText.trim() ? `Other: ${sessionTypeOtherText.trim()}` : f)
+          .join(", "),
         speakerTalkDuration: values.talkDuration
           .map(d => d === "other" ? durationOtherText : d)
           .join(", "),
@@ -626,6 +638,8 @@ export default function SpeakerApplicationForm({
             form.values.talkFormat.length > 0 &&
             form.values.talkDuration.length > 0 &&
             form.values.talkTopic.length > 0 &&
+            // If "Other" session type selected, require the fill-in text
+            (!form.values.talkFormat.includes("Other") || sessionTypeOtherText.trim().length > 0) &&
             // If FtC venue with "Other" selected, require the fill-in text
             (!isFtcVenue || !ftcTopicValues.includes("Other") || ftcTopicOtherText.trim().length > 0)
           );
@@ -732,6 +746,16 @@ export default function SpeakerApplicationForm({
                 {...form.getInputProps("talkFormat")}
                 required
               />
+              {form.values.talkFormat.includes("Other") && (
+                <TextInput
+                  label="Other Session Type"
+                  placeholder="Describe your session type..."
+                  value={sessionTypeOtherText}
+                  onChange={(e) => setSessionTypeOtherText(e.currentTarget.value)}
+                  mt="sm"
+                  required
+                />
+              )}
             </Grid.Col>
 
             <Grid.Col span={{ base: 12, sm: 6 }}>
