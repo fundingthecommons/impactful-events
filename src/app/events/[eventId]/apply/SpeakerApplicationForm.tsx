@@ -64,8 +64,8 @@ const speakerApplicationSchema = z.object({
   bio: z.string().min(20, "Please provide at least 20 characters for your bio").max(1000),
   previousSpeakingExperience: z.string().max(2000).optional().or(z.literal("")),
   // Profile fields
-  jobTitle: z.string().max(100).optional().or(z.literal("")),
-  company: z.string().max(100).optional().or(z.literal("")),
+  jobTitle: z.string().min(1, "Job title or role is required").max(100),
+  company: z.string().min(1, "Organization is required").max(100),
   displayPreference: z.string().max(500).optional().or(z.literal("")),
   // Links
   website: z.string().url().optional().or(z.literal("")),
@@ -170,7 +170,10 @@ export default function SpeakerApplicationForm({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [floorsModalOpen, setFloorsModalOpen] = useState(false);
+  const [profileImageError, setProfileImageError] = useState(false);
   const { data: config } = api.config.getPublicConfig.useQuery(
     undefined,
     { refetchOnWindowFocus: false },
@@ -391,6 +394,12 @@ export default function SpeakerApplicationForm({
   const handleAvatarUpload = async (file: File | null) => {
     if (!file) return;
 
+    // Show instant client-side preview
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(URL.createObjectURL(file));
+
     setIsUploading(true);
     setUploadProgress(0);
 
@@ -418,6 +427,9 @@ export default function SpeakerApplicationForm({
       const result = await response.json() as { avatarUrl: string };
       setAvatarUrl(result.avatarUrl);
 
+      // Reset FileInput so user can select a different file
+      setFileInputKey(prev => prev + 1);
+
       notifications.show({
         title: "Photo Uploaded",
         message: "Your profile picture has been uploaded successfully",
@@ -425,6 +437,7 @@ export default function SpeakerApplicationForm({
         icon: <IconCheck size={16} />,
       });
     } catch (error) {
+      setPreviewUrl(null);
       notifications.show({
         title: "Upload Failed",
         message: error instanceof Error ? error.message : "Failed to upload photo",
@@ -543,7 +556,7 @@ export default function SpeakerApplicationForm({
   const getStepFields = (step: number): (keyof SpeakerApplicationData)[] => {
     switch (step) {
       case 1: return ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic'];
-      case 2: return ['bio'];
+      case 2: return ['bio', 'jobTitle', 'company'];
       default: return [];
     }
   };
@@ -552,11 +565,16 @@ export default function SpeakerApplicationForm({
     if (currentStep < totalSteps) {
       const isValid = getStepValidation(currentStep);
       if (isValid) {
+        setProfileImageError(false);
         setCurrentStep((prev) => prev + 1);
       } else {
         // Only validate current step's fields, not the entire form
         for (const field of getStepFields(currentStep)) {
           form.validateField(field);
+        }
+        // Show profile image error on step 2 if missing
+        if (currentStep === 2 && !(avatarUrl ?? previewUrl)) {
+          setProfileImageError(true);
         }
       }
     }
@@ -581,7 +599,12 @@ export default function SpeakerApplicationForm({
           (!isFtcVenue || !ftcTopicValues.includes("Other") || ftcTopicOtherText.trim().length > 0)
         );
       case 2:
-        return form.values.bio.length >= 20;
+        return (
+          form.values.bio.length >= 20 &&
+          form.values.jobTitle.trim().length > 0 &&
+          form.values.company.trim().length > 0 &&
+          !!(avatarUrl ?? previewUrl)
+        );
       case 3:
         return true; // Links are optional
       case 4: {
@@ -927,10 +950,10 @@ export default function SpeakerApplicationForm({
 
                 <Grid>
                   <Grid.Col span={12}>
-                    <Text size="sm" fw={500} mb="xs">Profile Picture</Text>
+                    <Text size="sm" fw={500} mb="xs">Profile Picture <Text component="span" c="red" size="sm">*</Text></Text>
                     <Group gap="md" align="flex-start">
                       <Avatar
-                        src={getAvatarUrl({
+                        src={previewUrl ?? getAvatarUrl({
                           customAvatarUrl: avatarUrl,
                           oauthImageUrl: existingProfile?.user?.image,
                           name: existingProfile?.user?.name,
@@ -946,6 +969,7 @@ export default function SpeakerApplicationForm({
                       </Avatar>
                       <Stack style={{ flex: 1 }}>
                         <FileInput
+                          key={fileInputKey}
                           accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                           placeholder="Choose image file"
                           label="Upload a profile photo"
@@ -964,15 +988,17 @@ export default function SpeakerApplicationForm({
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <TextInput
-                      label="Job Title"
+                      label="Primary Job Title or Role"
                       placeholder="Software Engineer, Researcher, etc."
+                      required
                       {...form.getInputProps("jobTitle")}
                     />
                   </Grid.Col>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <TextInput
-                      label="Organization"
+                      label="Primary Organization"
                       placeholder="Your current organization"
+                      required
                       {...form.getInputProps("company")}
                     />
                   </Grid.Col>
