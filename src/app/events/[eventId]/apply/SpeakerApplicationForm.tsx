@@ -78,6 +78,8 @@ export const talkFormatOptions = [
   { value: "Art Installation", label: "Art Installation" },
   { value: "Demonstration", label: "Demonstration" },
   { value: "DJ Set", label: "DJ Set" },
+  { value: "Fireside Chat", label: "Fireside Chat" },
+  { value: "Keynote", label: "Keynote" },
   { value: "Lightning Talk", label: "Lightning Talk" },
   { value: "Live Music", label: "Live Music" },
   { value: "Music Performance", label: "Music Performance" },
@@ -89,11 +91,11 @@ export const talkFormatOptions = [
 ];
 
 export const talkDurationOptions = [
-  { value: "multi-hour", label: "multi-hour" },
-  { value: "90", label: "1.5 hours" },
-  { value: "45", label: "45 minutes" },
-  { value: "60", label: "1 hour" },
+  { value: "90", label: "90 minutes" },
+  { value: "60", label: "60 minutes" },
   { value: "30", label: "30 minutes" },
+  { value: "20", label: "20 minutes" },
+  { value: "other", label: "Other" },
 ];
 
 export const ftcTopicOptions = [
@@ -152,12 +154,13 @@ export default function SpeakerApplicationForm({
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedVenueIds, setSelectedVenueIds] = useState<string[]>([]);
-  const [invitedByValue, setInvitedByValue] = useState<string | null>(null);
+  const [invitedByValue, setInvitedByValue] = useState<string[]>([]);
   const [invitedByOtherText, setInvitedByOtherText] = useState("");
   const [hasInitializedVenues, setHasInitializedVenues] = useState(false);
   const [hasInitializedProfile, setHasInitializedProfile] = useState(false);
   const [ftcTopicValues, setFtcTopicValues] = useState<string[]>([]);
   const [ftcTopicOtherText, setFtcTopicOtherText] = useState("");
+  const [durationOtherText, setDurationOtherText] = useState("");
   const [preferredDates, setPreferredDates] = useState<string[]>([]);
   const [preferredTimes, setPreferredTimes] = useState<string[]>([]);
   const [questionResponses, setQuestionResponses] = useState<Record<string, string>>({});
@@ -213,7 +216,7 @@ export default function SpeakerApplicationForm({
     [scheduleFilters],
   );
 
-  // Build "Who invited you?" dropdown options from floor leads
+  // Build "Who invited you?" multi-select options from floor leads
   const inviterOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
 
@@ -224,7 +227,7 @@ export default function SpeakerApplicationForm({
 
       const managerVenueNames = venues
         .filter((v) => fm.venueIds.includes(v.id))
-        .map((v) => v.name);
+        .map((v) => v.name.replace(/\s*\(([^)]+)\)/, ", $1"));
 
       const label =
         managerVenueNames.length > 0
@@ -337,7 +340,17 @@ export default function SpeakerApplicationForm({
       if (!form.values.talkTitle && p.speakerTalkTitle) form.setFieldValue("talkTitle", p.speakerTalkTitle);
       if (!form.values.talkAbstract && p.speakerTalkAbstract) form.setFieldValue("talkAbstract", p.speakerTalkAbstract);
       if (form.values.talkFormat.length === 0 && p.speakerTalkFormat) form.setFieldValue("talkFormat", p.speakerTalkFormat.split(", ").filter(Boolean));
-      if (form.values.talkDuration.length === 0 && p.speakerTalkDuration) form.setFieldValue("talkDuration", p.speakerTalkDuration.split(", ").filter(Boolean));
+      if (form.values.talkDuration.length === 0 && p.speakerTalkDuration) {
+        const durations = p.speakerTalkDuration.split(", ").filter(Boolean);
+        const knownValues = talkDurationOptions.map(o => o.value);
+        const known = durations.filter(d => knownValues.includes(d));
+        const unknown = durations.filter(d => !knownValues.includes(d));
+        if (unknown.length > 0) {
+          known.push("other");
+          setDurationOtherText(unknown.join(", "));
+        }
+        form.setFieldValue("talkDuration", known);
+      }
       if (!form.values.talkTopic && p.speakerTalkTopic) form.setFieldValue("talkTopic", p.speakerTalkTopic);
       if (!form.values.bio && p.bio) form.setFieldValue("bio", p.bio);
       if (!form.values.previousSpeakingExperience && p.speakerPreviousExperience) form.setFieldValue("previousSpeakingExperience", p.speakerPreviousExperience);
@@ -444,7 +457,9 @@ export default function SpeakerApplicationForm({
         speakerTalkTitle: values.talkTitle,
         speakerTalkAbstract: values.talkAbstract,
         speakerTalkFormat: values.talkFormat.join(", "),
-        speakerTalkDuration: values.talkDuration.join(", "),
+        speakerTalkDuration: values.talkDuration
+          .map(d => d === "other" ? durationOtherText : d)
+          .join(", "),
         speakerTalkTopic: values.talkTopic,
         speakerPreviousExperience: values.previousSpeakingExperience,
         speakerPastTalkUrl: values.pastTalkUrl,
@@ -660,6 +675,16 @@ export default function SpeakerApplicationForm({
                     {...form.getInputProps("talkDuration")}
                     required
                   />
+                  {form.values.talkDuration.includes("other") && (
+                    <TextInput
+                      label="Other Session Length"
+                      placeholder="e.g., 2 hours, half day..."
+                      value={durationOtherText}
+                      onChange={(e) => setDurationOtherText(e.currentTarget.value)}
+                      mt="sm"
+                      required
+                    />
+                  )}
                 </Grid.Col>
 
                 {inviterOptions.length > 1 && (
