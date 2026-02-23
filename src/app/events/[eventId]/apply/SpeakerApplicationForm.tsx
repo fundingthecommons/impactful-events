@@ -265,7 +265,7 @@ export default function SpeakerApplicationForm({
           inviterVenues.some((v) => fm.venueIds.includes(v.id)),
         );
         if (inviterManager) {
-          setInvitedByValue(inviterManager.id);
+          setInvitedByValue([inviterManager.id]);
         }
       }
       // Priority 2: existing application venue pre-selection (on-behalf speakers)
@@ -490,11 +490,22 @@ export default function SpeakerApplicationForm({
       }
 
       // Step 4: Submit the application (DRAFT → SUBMITTED) with venue selections
+      // Build invited-by fields from multi-select
+      const nonOtherInviters = invitedByValue.filter(v => v !== "other");
+      const primaryInviterId = nonOtherInviters[0];
+      const additionalInviterNames = nonOtherInviters.slice(1).map(id => {
+        const opt = inviterOptions.find(o => o.value === id);
+        return opt?.label ?? id;
+      });
+      const otherParts: string[] = [];
+      if (additionalInviterNames.length > 0) otherParts.push(additionalInviterNames.join(", "));
+      if (invitedByValue.includes("other") && invitedByOtherText.trim()) otherParts.push(invitedByOtherText.trim());
+
       await submitApplication.mutateAsync({
         applicationId: application.id,
         venueIds: selectedVenueIds.length > 0 ? selectedVenueIds : undefined,
-        speakerInvitedByUserId: invitedByValue && invitedByValue !== "other" ? invitedByValue : undefined,
-        speakerInvitedByOther: invitedByValue === "other" ? invitedByOtherText : undefined,
+        speakerInvitedByUserId: primaryInviterId ?? undefined,
+        speakerInvitedByOther: otherParts.length > 0 ? otherParts.join("; ") : undefined,
         speakerPreferredDates: preferredDates.length > 0 ? preferredDates.join(",") : undefined,
         speakerPreferredTimes: preferredTimes.length > 0 ? preferredTimes.join(",") : undefined,
       });
@@ -687,42 +698,6 @@ export default function SpeakerApplicationForm({
                   )}
                 </Grid.Col>
 
-                {inviterOptions.length > 1 && (
-                  <Grid.Col span={12}>
-                    <Select
-                      label="Who invited you?"
-                      placeholder="Select who invited you"
-                      description="If you were invited by a floor lead, please select their name"
-                      data={inviterOptions}
-                      value={invitedByValue}
-                      onChange={(val) => {
-                        setInvitedByValue(val);
-                        if (val !== "other") {
-                          setInvitedByOtherText("");
-                          // Auto-select the inviter's venue
-                          const fm = floorManagers.find((m) => m.id === val);
-                          if (fm && fm.venueIds.length > 0) {
-                            setSelectedVenueIds([fm.venueIds[0]!]);
-                          }
-                        }
-                      }}
-                      clearable
-                      searchable
-                    />
-                  </Grid.Col>
-                )}
-
-                {invitedByValue === "other" && (
-                  <Grid.Col span={12}>
-                    <TextInput
-                      label="Who invited you? (please specify)"
-                      placeholder="Enter the name of the person who invited you"
-                      value={invitedByOtherText}
-                      onChange={(e) => setInvitedByOtherText(e.currentTarget.value)}
-                    />
-                  </Grid.Col>
-                )}
-
                 {venues.length > 0 && (
                   <Grid.Col span={12}>
                     <Select
@@ -740,6 +715,45 @@ export default function SpeakerApplicationForm({
                       }}
                       clearable
                       leftSection={<IconBuilding size={16} color="var(--mantine-color-teal-6)" />}
+                    />
+                  </Grid.Col>
+                )}
+
+                {inviterOptions.length > 1 && (
+                  <Grid.Col span={12}>
+                    <MultiSelect
+                      label="Who invited you?"
+                      placeholder="Select who invited you"
+                      description="If you were invited by a floor lead, please select their name(s)"
+                      data={inviterOptions}
+                      value={invitedByValue}
+                      onChange={(vals) => {
+                        setInvitedByValue(vals);
+                        if (!vals.includes("other")) {
+                          setInvitedByOtherText("");
+                        }
+                        // Auto-select venue from the most recently added inviter
+                        const lastVal = vals[vals.length - 1];
+                        if (lastVal && lastVal !== "other") {
+                          const fm = floorManagers.find((m) => m.id === lastVal);
+                          if (fm && fm.venueIds.length > 0) {
+                            setSelectedVenueIds([fm.venueIds[0]!]);
+                          }
+                        }
+                      }}
+                      clearable
+                      searchable
+                    />
+                  </Grid.Col>
+                )}
+
+                {invitedByValue.includes("other") && (
+                  <Grid.Col span={12}>
+                    <TextInput
+                      label="Who invited you? (please specify)"
+                      placeholder="Enter the name of the person who invited you"
+                      value={invitedByOtherText}
+                      onChange={(e) => setInvitedByOtherText(e.currentTarget.value)}
                     />
                   </Grid.Col>
                 )}
