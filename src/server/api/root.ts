@@ -27,6 +27,7 @@ import { atprotoRouter } from "~/server/api/routers/atproto";
 import { hypercertsRouter } from "~/server/api/routers/hypercerts";
 import { forumRouter } from "~/server/api/routers/forum";
 import { scheduleRouter } from "~/server/api/routers/schedule";
+import { aiInteractionRouter } from "~/server/api/routers/aiInteraction";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -64,6 +65,7 @@ export const appRouter = createTRPCRouter({
   hypercerts: hypercertsRouter,
   forum: forumRouter,
   schedule: scheduleRouter,
+  aiInteraction: aiInteractionRouter,
 });
 
 // export type definition of API

@@ -169,6 +169,10 @@ model User {
 
   // Cross-floor sharing
   sharedApplications    Application[]       @relation("ApplicationSharedBy")
+
+  // AI interaction relations
+  aiInteractions        AiInteraction[]     @relation("UserAiInteractions")
+  aiFeedback            AiFeedback[]        @relation("UserAiFeedback")
 }
 
 model VerificationToken {
@@ -257,6 +261,9 @@ model Event {
 
   // Venue ownership relations (floor leads)
   venueOwners          VenueOwner[]
+
+  // AI interaction relations
+  aiInteractions       AiInteraction[] @relation("EventAiInteractions")
 
   @@index([slug])
 }
@@ -2320,4 +2327,53 @@ model SessionCommentLike {
   @@unique([commentId, userId])
   @@index([commentId])
   @@index([userId])
+}
+
+// ============================================
+// AI Interaction & Feedback Models
+// ============================================
+
+model AiInteraction {
+  id              String    @id @default(cuid())
+  userId          String
+  userMessage     String    @db.Text
+  aiResponse      String    @db.Text
+  agentId         String?
+  agentName       String?
+  model           String?
+  conversationId  String?
+  pathname        String?
+  eventId         String?
+  responseTimeMs  Int?
+  hadError        Boolean   @default(false)
+  errorMessage    String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user      User        @relation("UserAiInteractions", fields: [userId], references: [id], onDelete: Cascade)
+  event     Event?      @relation("EventAiInteractions", fields: [eventId], references: [id], onDelete: SetNull)
+  feedback  AiFeedback?
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+model AiFeedback {
+  id              String    @id @default(cuid())
+  userId          String
+  interactionId   String    @unique
+  rating          Int
+  comment         String?   @db.Text
+  improvement     String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user        User          @relation("UserAiFeedback", fields: [userId], references: [id], onDelete: Cascade)
+  interaction AiInteraction @relation(fields: [interactionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([rating])
+  @@index([createdAt])
 }

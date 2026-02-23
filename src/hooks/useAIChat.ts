@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { api } from '~/trpc/react';
 
-interface ChatMessage {
+export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  interactionId?: string;
+  feedbackRating?: number;
 }
 
 interface UseAIChatOptions {
@@ -13,20 +16,45 @@ interface UseAIChatOptions {
   eventId?: string;
 }
 
-const STORAGE_KEY = 'ai-chat-messages';
+const MESSAGES_KEY = 'ai-chat-messages';
+const CONVERSATION_KEY = 'ai-chat-conversation-id';
+
+function generateConversationId(): string {
+  return `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getStoredConversationId(): string {
+  try {
+    const stored = sessionStorage.getItem(CONVERSATION_KEY);
+    if (stored) return stored;
+  } catch {
+    // Ignore
+  }
+  const id = generateConversationId();
+  try {
+    sessionStorage.setItem(CONVERSATION_KEY, id);
+  } catch {
+    // Ignore
+  }
+  return id;
+}
 
 export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const hasRestoredRef = useRef(false);
+  const conversationIdRef = useRef<string>('');
 
-  // Restore messages from sessionStorage on mount
+  const logInteraction = api.aiInteraction.logInteraction.useMutation();
+
+  // Restore messages and conversationId from sessionStorage on mount
   useEffect(() => {
     if (hasRestoredRef.current) return;
     hasRestoredRef.current = true;
+    conversationIdRef.current = getStoredConversationId();
     try {
-      const saved = sessionStorage.getItem(STORAGE_KEY);
+      const saved = sessionStorage.getItem(MESSAGES_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as ChatMessage[];
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -42,7 +70,7 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
   useEffect(() => {
     if (!hasRestoredRef.current) return;
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+      sessionStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
     } catch {
       // Ignore storage errors
     }
@@ -69,6 +97,7 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
+      const startTime = Date.now();
 
       try {
         console.log('[AI Chat] Fetching /api/ai/chat...');
@@ -123,11 +152,43 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
         }
 
         console.log('[AI Chat] Done:', { reads: readCount, length: fullResponse.length });
+
+        // Log the interaction to the database
+        const responseTimeMs = Date.now() - startTime;
+        logInteraction
+          .mutateAsync({
+            userMessage: content,
+            aiResponse: fullResponse,
+            agentId: 'platformAgent',
+            agentName: 'AI Assistant',
+            model: 'mastra-agents',
+            conversationId: conversationIdRef.current,
+            pathname,
+            eventId,
+            responseTimeMs,
+          })
+          .then((result) => {
+            // Attach interactionId to the assistant message for feedback
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMessage.id
+                  ? { ...m, interactionId: result.id }
+                  : m
+              )
+            );
+          })
+          .catch((err: unknown) => {
+            console.error('[AI Chat] Failed to log interaction:', err);
+          });
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
           // User cancelled
         } else {
           console.error('[AI Chat] Error:', error);
+          const responseTimeMs = Date.now() - startTime;
+          const errorMsg =
+            error instanceof Error ? error.message : 'Unknown error';
+
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMessage.id
@@ -135,13 +196,32 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
                 : m
             )
           );
+
+          // Log the error interaction
+          logInteraction
+            .mutateAsync({
+              userMessage: content,
+              aiResponse: 'Sorry, something went wrong. Please try again.',
+              agentId: 'platformAgent',
+              agentName: 'AI Assistant',
+              model: 'mastra-agents',
+              conversationId: conversationIdRef.current,
+              pathname,
+              eventId,
+              responseTimeMs,
+              hadError: true,
+              errorMessage: errorMsg,
+            })
+            .catch((logErr: unknown) => {
+              console.error('[AI Chat] Failed to log error interaction:', logErr);
+            });
         }
       } finally {
         setIsStreaming(false);
         abortControllerRef.current = null;
       }
     },
-    [messages, pathname, eventId]
+    [messages, pathname, eventId, logInteraction]
   );
 
   const stop = useCallback(() => {
@@ -150,12 +230,33 @@ export function useAIChat({ pathname, eventId }: UseAIChatOptions) {
 
   const clearMessages = useCallback(() => {
     setMessages([]);
+    // Generate a new conversationId for the next conversation
+    conversationIdRef.current = generateConversationId();
     try {
-      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(MESSAGES_KEY);
+      sessionStorage.setItem(CONVERSATION_KEY, conversationIdRef.current);
     } catch {
       // Ignore storage errors
     }
   }, []);
 
-  return { messages, isStreaming, sendMessage, stop, clearMessages };
+  const updateMessageFeedback = useCallback(
+    (messageId: string, rating: number) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, feedbackRating: rating } : m
+        )
+      );
+    },
+    []
+  );
+
+  return {
+    messages,
+    isStreaming,
+    sendMessage,
+    stop,
+    clearMessages,
+    updateMessageFeedback,
+  };
 }

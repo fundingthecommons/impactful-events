@@ -19,6 +19,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { AgentMessageFeedback } from './AgentMessageFeedback';
 import { useAIChat } from '~/hooks/useAIChat';
 
 interface AIChatDrawerProps {
@@ -35,7 +36,7 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export function AIChatDrawer({ opened, onClose, pathname, eventId }: AIChatDrawerProps) {
-  const { messages, isStreaming, sendMessage, stop, clearMessages } = useAIChat({
+  const { messages, isStreaming, sendMessage, stop, clearMessages, updateMessageFeedback } = useAIChat({
     pathname,
     eventId,
   });
@@ -158,8 +159,6 @@ export function AIChatDrawer({ opened, onClose, pathname, eventId }: AIChatDrawe
                 style={{
                   alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
                   maxWidth: '85%',
-                  display: 'flex',
-                  justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
                 }}
               >
                 <Paper
@@ -187,6 +186,17 @@ export function AIChatDrawer({ opened, onClose, pathname, eventId }: AIChatDrawe
                     </Text>
                   )}
                 </Paper>
+                {message.role === 'assistant' &&
+                  message.content &&
+                  message.interactionId &&
+                  !isStreaming && (
+                    <AgentMessageFeedback
+                      interactionId={message.interactionId}
+                      onFeedbackSubmitted={(rating) =>
+                        updateMessageFeedback(message.id, rating)
+                      }
+                    />
+                  )}
               </Box>
             ))}
           </Stack>

@@ -16,6 +16,7 @@ import {
   IconCalendarEvent,
   IconChartBar,
   IconArrowRight,
+  IconRobot,
 } from "@tabler/icons-react";
 import Link from "next/link";
 
@@ -29,7 +30,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Management Cards */}
-      <SimpleGrid cols={{ base: 1, md: 3 }}>
+      <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }}>
         <Card withBorder>
           <Stack>
             <Group>
@@ -82,6 +83,25 @@ export default function AdminDashboard() {
             <Link href="/impact-reports" style={{ textDecoration: 'none' }}>
               <Button fullWidth rightSection={<IconArrowRight size={16} />}>
                 View Impact Reports
+              </Button>
+            </Link>
+          </Stack>
+        </Card>
+
+        <Card withBorder>
+          <Stack>
+            <Group>
+              <ThemeIcon size="md" color="violet" variant="light">
+                <IconRobot size={18} />
+              </ThemeIcon>
+              <Text fw={600}>AI Interactions</Text>
+            </Group>
+            <Text size="sm" c="dimmed">
+              View AI chat conversations, ratings, and performance
+            </Text>
+            <Link href="/admin/ai-interactions" style={{ textDecoration: 'none' }}>
+              <Button fullWidth rightSection={<IconArrowRight size={16} />}>
+                View Interactions
               </Button>
             </Link>
           </Stack>
