@@ -631,309 +631,310 @@ export default function SpeakerApplicationForm({
     }
   };
 
-  const renderStep = () => {
-    switch (currentStep) {
-      case 1:
-        if (isLoadingFilters) {
-          return (
-            <Card shadow="sm" padding="xl" radius="md" withBorder>
-              <Center h={200}>
-                <Stack align="center" gap="md">
-                  <Loader size="md" />
-                  <Text c="dimmed" size="sm">Loading form data...</Text>
-                </Stack>
-              </Center>
-            </Card>
-          );
-        }
-        return (
-          <Card shadow="sm" padding="xl" radius="md" withBorder>
-            <Stack gap="lg">
-              <Group gap="md" align="center">
-                <IconMicrophone
-                  size={28}
-                  color="var(--mantine-color-teal-6)"
+  const renderSessionDetails = () => {
+    if (isLoadingFilters) {
+      return (
+        <Card shadow="sm" padding="xl" radius="md" withBorder>
+          <Center h={200}>
+            <Stack align="center" gap="md">
+              <Loader size="md" />
+              <Text c="dimmed" size="sm">Loading form data...</Text>
+            </Stack>
+          </Center>
+        </Card>
+      );
+    }
+    return (
+      <Card shadow="sm" padding="xl" radius="md" withBorder>
+        <Stack gap="lg">
+          <Group gap="md" align="center">
+            <IconMicrophone
+              size={28}
+              color="var(--mantine-color-teal-6)"
+            />
+            <div>
+              <Title order={3}>Session Details</Title>
+              <Text size="sm" c="dimmed">
+                Tell us about your session
+              </Text>
+            </div>
+          </Group>
+
+          <Grid>
+            <Grid.Col span={12}>
+              <TextInput
+                label="Session Name"
+                placeholder="Enter the name of your proposed session"
+                description="This can be changed later, but please put a title broadly describing what your session will be about"
+                {...form.getInputProps("talkTitle")}
+                required
+              />
+            </Grid.Col>
+
+            <Grid.Col span={12}>
+              <TextInput
+                label="Name of Artist, Entity, or Group"
+                placeholder="Enter the name as you want it to appear in scheduling and descriptions"
+                description="If the name of the entity hosting the session is different than your name, please type it below as you want it to appear in scheduling and descriptions."
+                {...form.getInputProps("entityName")}
+              />
+            </Grid.Col>
+
+            <Grid.Col span={12}>
+              <Textarea
+                label="Is anyone else hosting the session with you? If so, share further context and contact information for them."
+                description="Please provide a name, email address, and social media link or portfolio about additional speakers, presenters, facilitators or performers joining you as a session host"
+                placeholder="e.g., Jane Doe, jane@example.com, linkedin.com/in/janedoe"
+                minRows={3}
+                maxRows={6}
+                {...form.getInputProps("coHostInfo")}
+              />
+            </Grid.Col>
+
+            <Grid.Col span={12}>
+              <Textarea
+                label="Session Description"
+                placeholder="Describe what your session will cover, key takeaways for the audience, and why this topic matters..."
+                description="This can be changed later, but please provide a brief description of what your session will cover (minimum 50 characters)"
+                minRows={5}
+                maxRows={10}
+                {...form.getInputProps("talkAbstract")}
+                required
+              />
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6 }}>
+              <MultiSelect
+                label="Session Type"
+                placeholder="Select session types"
+                description="Select the type of session you may be interested in"
+                data={sessionTypeSelectData}
+                {...form.getInputProps("talkFormat")}
+                required
+              />
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, sm: 6 }}>
+              <MultiSelect
+                label="Session Length"
+                placeholder="Select session lengths"
+                data={talkDurationOptions}
+                {...form.getInputProps("talkDuration")}
+                required
+              />
+              {form.values.talkDuration.includes("other") && (
+                <TextInput
+                  label="Other Session Length"
+                  placeholder="e.g., 2 hours, half day..."
+                  value={durationOtherText}
+                  onChange={(e) => setDurationOtherText(e.currentTarget.value)}
+                  mt="sm"
+                  required
                 />
-                <div>
-                  <Title order={3}>Session Details</Title>
-                  <Text size="sm" c="dimmed">
-                    Tell us about your session
-                  </Text>
-                </div>
-              </Group>
+              )}
+            </Grid.Col>
 
-              <Grid>
-                <Grid.Col span={12}>
-                  <TextInput
-                    label="Session Name"
-                    placeholder="Enter the name of your proposed session"
-                    description="This can be changed later, but please put a title broadly describing what your session will be about"
-                    {...form.getInputProps("talkTitle")}
-                    required
-                  />
-                </Grid.Col>
+            {venues.length > 0 && (
+              <Grid.Col span={12}>
+                <Select
+                  label="Intelligence at the Frontier hosts curated content from many floors at Frontier Tower, each with their own theme, programming and speaker lineup curated by a Floor Lead. Which floors are you applying to speak on?"
+                  placeholder="Select a floor"
+                  description={
+                    <>
+                      If you were invited to speak, please select the floor you were invited to speak on. For more information about the floors at IatF,{" "}
+                      <a
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); setFloorsModalOpen(true); }}
+                        style={{ color: "var(--mantine-color-teal-6)", cursor: "pointer" }}
+                      >
+                        click here
+                      </a>.
+                    </>
+                  }
+                  data={venueSelectData}
+                  value={selectedVenueIds[0] ?? null}
+                  onChange={(val) => {
+                    setSelectedVenueIds(val ? [val] : []);
+                    // Reset topic fields when venue changes
+                    form.setFieldValue("talkTopic", "");
+                    setFtcTopicValues([]);
+                    setFtcTopicOtherText("");
+                  }}
+                  clearable
+                  leftSection={<IconBuilding size={16} color="var(--mantine-color-teal-6)" />}
+                />
+              </Grid.Col>
+            )}
 
-                <Grid.Col span={12}>
-                  <TextInput
-                    label="Name of Artist, Entity, or Group"
-                    placeholder="Enter the name as you want it to appear in scheduling and descriptions"
-                    description="If the name of the entity hosting the session is different than your name, please type it below as you want it to appear in scheduling and descriptions."
-                    {...form.getInputProps("entityName")}
-                  />
-                </Grid.Col>
+            <Modal
+              opened={floorsModalOpen}
+              onClose={() => setFloorsModalOpen(false)}
+              title="Floors at Intelligence at the Frontier"
+              size="lg"
+            >
+              <Stack gap="md">
+                <List spacing="lg" listStyleType="none">
+                  <List.Item>
+                    <Text fw={600}>Spaceship (Floor 2)</Text>
+                    <Text size="sm" c="dimmed">The main stage. AI-assisted funding, public AI infrastructure, and the coordination systems humanity needs to ensure intelligence serves everyone.</Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text fw={600}>Robotics &amp; Hard Tech (Floor 4)</Text>
+                    <Text size="sm" c="dimmed">36-hour overnight hackathon with Protocol Labs. Open-source robotics, physical AI, and the question of who funds hardware for human flourishing.</Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text fw={600}>Arts &amp; Music (Floor 6)</Text>
+                    <Text size="sm" c="dimmed">Creativity can&apos;t be automated. Curated gallery, talks on technology and the arts, live music performances into the evening.</Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text fw={600}>Maker Space (Floor 7)</Text>
+                    <Text size="sm" c="dimmed">4,000 sq ft prototyping lab with laser cutters, 3D printers, and CNCs. Turn ideas into prototypes in minutes.</Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text fw={600}>Neuro &amp; Biotech (Floor 8)</Text>
+                    <Text size="sm" c="dimmed">Tools to heal people and the planet. Community biolab with hands-on workshops: test your own genetics, test your local water supply, hear how founders cured their own diseases.</Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text fw={600}>AI &amp; Autonomous Systems (Floor 9)</Text>
+                    <Text size="sm" c="dimmed">Can we build intelligence that amplifies human agency instead of replacing it? Hands-on workshops, motion capture demos, GPU compute, and salons exploring post-labor economics.</Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text fw={600}>Health &amp; Longevity (Floor 11)</Text>
+                    <Text size="sm" c="dimmed">Live long enough to see the far future. Biotech demos, longevity research talks, and the community building Viva City.</Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text fw={600}>Ethereum House (Floor 12)</Text>
+                    <Text size="sm" c="dimmed">Live funding experiments in action. Quadratic funding rounds, open agent economy demos (ERC-8004), and working sessions where researchers and builders leave with grants.</Text>
+                  </List.Item>
+                  <List.Item>
+                    <Text fw={600}>Flourishing (Floor 14)</Text>
+                    <Text size="sm" c="dimmed">Inner, relational and cultural commons on March 14th; Earth Commons on March 15th. Explore climate finance, bioregionalism, alternative capital systems design, embodied and relational practices, and cross-disciplinary dialogue on whether AI can serve life instead of just optimizing it.</Text>
+                  </List.Item>
+                </List>
+              </Stack>
+            </Modal>
 
-                <Grid.Col span={12}>
-                  <Textarea
-                    label="Is anyone else hosting the session with you? If so, share further context and contact information for them."
-                    description="Please provide a name, email address, and social media link or portfolio about additional speakers, presenters, facilitators or performers joining you as a session host"
-                    placeholder="e.g., Jane Doe, jane@example.com, linkedin.com/in/janedoe"
-                    minRows={3}
-                    maxRows={6}
-                    {...form.getInputProps("coHostInfo")}
-                  />
-                </Grid.Col>
+            {inviterOptions.length > 1 && (
+              <Grid.Col span={12}>
+                <MultiSelect
+                  label="Who invited you?"
+                  placeholder="Select who invited you"
+                  description="If you were invited by a floor lead, please select their name(s)"
+                  data={inviterOptions}
+                  value={invitedByValue}
+                  onChange={(vals) => {
+                    setInvitedByValue(vals);
+                    if (!vals.includes("other")) {
+                      setInvitedByOtherText("");
+                    }
+                    // Auto-select venue from the most recently added inviter
+                    const lastVal = vals[vals.length - 1];
+                    if (lastVal && lastVal !== "other") {
+                      const fm = floorManagers.find((m) => m.id === lastVal);
+                      if (fm && fm.venueIds.length > 0) {
+                        setSelectedVenueIds([fm.venueIds[0]!]);
+                      }
+                    }
+                  }}
+                  clearable
+                  searchable
+                />
+              </Grid.Col>
+            )}
 
-                <Grid.Col span={12}>
-                  <Textarea
-                    label="Session Description"
-                    placeholder="Describe what your session will cover, key takeaways for the audience, and why this topic matters..."
-                    description="This can be changed later, but please provide a brief description of what your session will cover (minimum 50 characters)"
-                    minRows={5}
-                    maxRows={10}
-                    {...form.getInputProps("talkAbstract")}
-                    required
-                  />
-                </Grid.Col>
+            {invitedByValue.includes("other") && (
+              <Grid.Col span={12}>
+                <TextInput
+                  label="Who invited you? (please specify)"
+                  placeholder="Enter the name of the person who invited you"
+                  value={invitedByOtherText}
+                  onChange={(e) => setInvitedByOtherText(e.currentTarget.value)}
+                />
+              </Grid.Col>
+            )}
 
-                <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Grid.Col span={12}>
+              {isFtcVenue ? (
+                <>
                   <MultiSelect
-                    label="Session Type"
-                    placeholder="Select session types"
-                    description="Select the type of session you may be interested in"
-                    data={sessionTypeSelectData}
-                    {...form.getInputProps("talkFormat")}
+                    label="Topic / Track"
+                    placeholder="Select topics that apply"
+                    description="Please select which of the following topics your proposed session fits into"
+                    data={ftcTopicOptions}
+                    value={ftcTopicValues}
+                    onChange={setFtcTopicValues}
                     required
+                    error={form.errors.talkTopic}
                   />
-                </Grid.Col>
-
-                <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <MultiSelect
-                    label="Session Length"
-                    placeholder="Select session lengths"
-                    data={talkDurationOptions}
-                    {...form.getInputProps("talkDuration")}
-                    required
-                  />
-                  {form.values.talkDuration.includes("other") && (
+                  {ftcTopicValues.includes("Other") && (
                     <TextInput
-                      label="Other Session Length"
-                      placeholder="e.g., 2 hours, half day..."
-                      value={durationOtherText}
-                      onChange={(e) => setDurationOtherText(e.currentTarget.value)}
+                      label="Other topic (please specify)"
+                      placeholder="Describe your topic"
+                      value={ftcTopicOtherText}
+                      onChange={(e) => setFtcTopicOtherText(e.currentTarget.value)}
                       mt="sm"
                       required
                     />
                   )}
-                </Grid.Col>
-
-                {venues.length > 0 && (
-                  <Grid.Col span={12}>
-                    <Select
-                      label="Intelligence at the Frontier hosts curated content from many floors at Frontier Tower, each with their own theme, programming and speaker lineup curated by a Floor Lead. Which floors are you applying to speak on?"
-                      placeholder="Select a floor"
-                      description={
-                        <>
-                          If you were invited to speak, please select the floor you were invited to speak on. For more information about the floors at IatF,{" "}
-                          <a
-                            href="#"
-                            onClick={(e) => { e.preventDefault(); setFloorsModalOpen(true); }}
-                            style={{ color: "var(--mantine-color-teal-6)", cursor: "pointer" }}
-                          >
-                            click here
-                          </a>.
-                        </>
-                      }
-                      data={venueSelectData}
-                      value={selectedVenueIds[0] ?? null}
-                      onChange={(val) => {
-                        setSelectedVenueIds(val ? [val] : []);
-                        // Reset topic fields when venue changes
-                        form.setFieldValue("talkTopic", "");
-                        setFtcTopicValues([]);
-                        setFtcTopicOtherText("");
-                      }}
-                      clearable
-                      leftSection={<IconBuilding size={16} color="var(--mantine-color-teal-6)" />}
-                    />
-                  </Grid.Col>
-                )}
-
-                <Modal
-                  opened={floorsModalOpen}
-                  onClose={() => setFloorsModalOpen(false)}
-                  title="Floors at Intelligence at the Frontier"
-                  size="lg"
-                >
-                  <Stack gap="md">
-                    <List spacing="lg" listStyleType="none">
-                      <List.Item>
-                        <Text fw={600}>Spaceship (Floor 2)</Text>
-                        <Text size="sm" c="dimmed">The main stage. AI-assisted funding, public AI infrastructure, and the coordination systems humanity needs to ensure intelligence serves everyone.</Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text fw={600}>Robotics &amp; Hard Tech (Floor 4)</Text>
-                        <Text size="sm" c="dimmed">36-hour overnight hackathon with Protocol Labs. Open-source robotics, physical AI, and the question of who funds hardware for human flourishing.</Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text fw={600}>Arts &amp; Music (Floor 6)</Text>
-                        <Text size="sm" c="dimmed">Creativity can&apos;t be automated. Curated gallery, talks on technology and the arts, live music performances into the evening.</Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text fw={600}>Maker Space (Floor 7)</Text>
-                        <Text size="sm" c="dimmed">4,000 sq ft prototyping lab with laser cutters, 3D printers, and CNCs. Turn ideas into prototypes in minutes.</Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text fw={600}>Neuro &amp; Biotech (Floor 8)</Text>
-                        <Text size="sm" c="dimmed">Tools to heal people and the planet. Community biolab with hands-on workshops: test your own genetics, test your local water supply, hear how founders cured their own diseases.</Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text fw={600}>AI &amp; Autonomous Systems (Floor 9)</Text>
-                        <Text size="sm" c="dimmed">Can we build intelligence that amplifies human agency instead of replacing it? Hands-on workshops, motion capture demos, GPU compute, and salons exploring post-labor economics.</Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text fw={600}>Health &amp; Longevity (Floor 11)</Text>
-                        <Text size="sm" c="dimmed">Live long enough to see the far future. Biotech demos, longevity research talks, and the community building Viva City.</Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text fw={600}>Ethereum House (Floor 12)</Text>
-                        <Text size="sm" c="dimmed">Live funding experiments in action. Quadratic funding rounds, open agent economy demos (ERC-8004), and working sessions where researchers and builders leave with grants.</Text>
-                      </List.Item>
-                      <List.Item>
-                        <Text fw={600}>Flourishing (Floor 14)</Text>
-                        <Text size="sm" c="dimmed">Inner, relational and cultural commons on March 14th; Earth Commons on March 15th. Explore climate finance, bioregionalism, alternative capital systems design, embodied and relational practices, and cross-disciplinary dialogue on whether AI can serve life instead of just optimizing it.</Text>
-                      </List.Item>
-                    </List>
-                  </Stack>
-                </Modal>
-
-                {inviterOptions.length > 1 && (
-                  <Grid.Col span={12}>
-                    <MultiSelect
-                      label="Who invited you?"
-                      placeholder="Select who invited you"
-                      description="If you were invited by a floor lead, please select their name(s)"
-                      data={inviterOptions}
-                      value={invitedByValue}
-                      onChange={(vals) => {
-                        setInvitedByValue(vals);
-                        if (!vals.includes("other")) {
-                          setInvitedByOtherText("");
-                        }
-                        // Auto-select venue from the most recently added inviter
-                        const lastVal = vals[vals.length - 1];
-                        if (lastVal && lastVal !== "other") {
-                          const fm = floorManagers.find((m) => m.id === lastVal);
-                          if (fm && fm.venueIds.length > 0) {
-                            setSelectedVenueIds([fm.venueIds[0]!]);
-                          }
-                        }
-                      }}
-                      clearable
-                      searchable
-                    />
-                  </Grid.Col>
-                )}
-
-                {invitedByValue.includes("other") && (
-                  <Grid.Col span={12}>
-                    <TextInput
-                      label="Who invited you? (please specify)"
-                      placeholder="Enter the name of the person who invited you"
-                      value={invitedByOtherText}
-                      onChange={(e) => setInvitedByOtherText(e.currentTarget.value)}
-                    />
-                  </Grid.Col>
-                )}
-
-                <Grid.Col span={12}>
-                  {isFtcVenue ? (
-                    <>
-                      <MultiSelect
-                        label="Topic / Track"
-                        placeholder="Select topics that apply"
-                        description="Please select which of the following topics your proposed session fits into"
-                        data={ftcTopicOptions}
-                        value={ftcTopicValues}
-                        onChange={setFtcTopicValues}
-                        required
-                        error={form.errors.talkTopic}
-                      />
-                      {ftcTopicValues.includes("Other") && (
-                        <TextInput
-                          label="Other topic (please specify)"
-                          placeholder="Describe your topic"
-                          value={ftcTopicOtherText}
-                          onChange={(e) => setFtcTopicOtherText(e.currentTarget.value)}
-                          mt="sm"
-                          required
-                        />
-                      )}
-                      <Textarea
-                        label="Other Floors Topic/Theme"
-                        description="If you checked any boxes above besides Floor 2 (Funding the Commons), write a few keywords or a brief sentence about which topics/themes your session covers"
-                        placeholder="e.g., AI governance, open source sustainability..."
-                        minRows={2}
-                        maxRows={4}
-                        mt="sm"
-                        {...form.getInputProps("otherFloorsTopicTheme")}
-                      />
-                    </>
-                  ) : (
-                    <TextInput
-                      label="Topic / Track"
-                      placeholder="Please share which topic areas your proposed session fits into"
-                      description="If you are presenting on another floor, please share which topic areas your proposed session fits into"
-                      {...form.getInputProps("talkTopic")}
-                      required
-                    />
-                  )}
-                </Grid.Col>
-
-                <Grid.Col span={12}>
-                  <Checkbox.Group
-                    label="Which day(s) are you available?"
-                    description="Select all days you could present (March 14-15, 2026)"
-                    value={preferredDates}
-                    onChange={setPreferredDates}
-                  >
-                    <Group gap="md" mt="xs">
-                      {speakerDateOptions.map((option) => (
-                        <Checkbox
-                          key={option.value}
-                          value={option.value}
-                          label={option.label}
-                        />
-                      ))}
-                    </Group>
-                  </Checkbox.Group>
-                </Grid.Col>
-
-                <Grid.Col span={12}>
                   <Textarea
-                    label="Do you have any hard constraints on your availability during March 14-15 from 10 am - 6 pm? Please indicate them here"
-                    placeholder="ex: I am unable to stay longer than 3 pm on March 14 because of my flight time"
-                    value={preferredTimes}
-                    onChange={(e) => setPreferredTimes(e.currentTarget.value)}
+                    label="Other Floors Topic/Theme"
+                    description="If you checked any boxes above besides Floor 2 (Funding the Commons), write a few keywords or a brief sentence about which topics/themes your session covers"
+                    placeholder="e.g., AI governance, open source sustainability..."
                     minRows={2}
                     maxRows={4}
+                    mt="sm"
+                    {...form.getInputProps("otherFloorsTopicTheme")}
                   />
-                </Grid.Col>
-              </Grid>
-            </Stack>
-          </Card>
-        );
+                </>
+              ) : (
+                <TextInput
+                  label="Topic / Track"
+                  placeholder="Please share which topic areas your proposed session fits into"
+                  description="If you are presenting on another floor, please share which topic areas your proposed session fits into"
+                  {...form.getInputProps("talkTopic")}
+                  required
+                />
+              )}
+            </Grid.Col>
 
-      case 2:
+            <Grid.Col span={12}>
+              <Checkbox.Group
+                label="Which day(s) are you available?"
+                description="Select all days you could present (March 14-15, 2026)"
+                value={preferredDates}
+                onChange={setPreferredDates}
+              >
+                <Group gap="md" mt="xs">
+                  {speakerDateOptions.map((option) => (
+                    <Checkbox
+                      key={option.value}
+                      value={option.value}
+                      label={option.label}
+                    />
+                  ))}
+                </Group>
+              </Checkbox.Group>
+            </Grid.Col>
+
+            <Grid.Col span={12}>
+              <Textarea
+                label="Do you have any hard constraints on your availability during March 14-15 from 10 am - 6 pm? Please indicate them here"
+                placeholder="ex: I am unable to stay longer than 3 pm on March 14 because of my flight time"
+                value={preferredTimes}
+                onChange={(e) => setPreferredTimes(e.currentTarget.value)}
+                minRows={2}
+                maxRows={4}
+              />
+            </Grid.Col>
+          </Grid>
+        </Stack>
+      </Card>
+    );
+  };
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 1: // Speaker Profile
         return (
           <Stack gap="xl">
             <Card shadow="sm" padding="xl" radius="md" withBorder>
@@ -1055,7 +1056,7 @@ export default function SpeakerApplicationForm({
           </Stack>
         );
 
-      case 3:
+      case 2: // Links
         return (
           <Card shadow="sm" padding="xl" radius="md" withBorder>
             <Stack gap="lg">
@@ -1119,60 +1120,82 @@ export default function SpeakerApplicationForm({
           </Card>
         );
 
-      case 4:
-        if (!eventQuestions || eventQuestions.length === 0) return null;
-        return (
-          <Card shadow="sm" padding="xl" radius="md" withBorder>
-            <Stack gap="lg">
-              <Group gap="md" align="center">
-                <IconMessageCircle
-                  size={28}
-                  color="var(--mantine-color-orange-6)"
-                />
-                <div>
-                  <Title order={3}>About You</Title>
-                  <Text size="sm" c="dimmed">
-                    Help us get to know you better
-                  </Text>
-                </div>
-              </Group>
+      default: {
+        // Step 3 when totalSteps === 4: About You
+        if (currentStep === 3 && totalSteps === 4) {
+          if (!eventQuestions || eventQuestions.length === 0) return null;
+          return (
+            <Card shadow="sm" padding="xl" radius="md" withBorder>
+              <Stack gap="lg">
+                <Group gap="md" align="center">
+                  <IconMessageCircle
+                    size={28}
+                    color="var(--mantine-color-orange-6)"
+                  />
+                  <div>
+                    <Title order={3}>About You</Title>
+                    <Text size="sm" c="dimmed">
+                      Help us get to know you better
+                    </Text>
+                  </div>
+                </Group>
 
-              <Text size="sm" c="dimmed">
-                We&apos;d love to ask you a few short questions to help us create meaningful
-                resources for our community. If you have a reason not to answer, you can
-                leave optional questions blank.
-              </Text>
+                <Text size="sm" c="dimmed">
+                  We&apos;d love to ask you a few short questions to help us create meaningful
+                  resources for our community. If you have a reason not to answer, you can
+                  leave optional questions blank.
+                </Text>
 
-              <Grid>
-                {[...eventQuestions]
-                  .sort((a, b) => a.order - b.order)
-                  .map((question) => {
-                    const value = questionResponses[question.questionKey] ?? "";
+                <Grid>
+                  {[...eventQuestions]
+                    .sort((a, b) => a.order - b.order)
+                    .map((question) => {
+                      const value = questionResponses[question.questionKey] ?? "";
 
-                    if (question.questionType === "SELECT") {
+                      if (question.questionType === "SELECT") {
+                        return (
+                          <Grid.Col span={12} key={question.id}>
+                            <Select
+                              label={question.questionEn}
+                              placeholder="Select an option"
+                              data={question.options}
+                              value={value || null}
+                              onChange={(val) => setQuestionResponses(prev => ({
+                                ...prev,
+                                [question.questionKey]: val ?? "",
+                              }))}
+                              required={question.required}
+                              clearable={!question.required}
+                            />
+                          </Grid.Col>
+                        );
+                      }
+                      if (question.questionType === "TEXTAREA") {
+                        return (
+                          <Grid.Col span={12} key={question.id}>
+                            <Textarea
+                              label={question.questionEn}
+                              placeholder="Share your thoughts..."
+                              value={value}
+                              onChange={(e) => {
+                                const val = e.currentTarget.value;
+                                setQuestionResponses(prev => ({
+                                  ...prev,
+                                  [question.questionKey]: val,
+                                }));
+                              }}
+                              minRows={3}
+                              maxRows={6}
+                            />
+                          </Grid.Col>
+                        );
+                      }
+                      // TEXT type (default)
                       return (
                         <Grid.Col span={12} key={question.id}>
-                          <Select
+                          <TextInput
                             label={question.questionEn}
-                            placeholder="Select an option"
-                            data={question.options}
-                            value={value || null}
-                            onChange={(val) => setQuestionResponses(prev => ({
-                              ...prev,
-                              [question.questionKey]: val ?? "",
-                            }))}
-                            required={question.required}
-                            clearable={!question.required}
-                          />
-                        </Grid.Col>
-                      );
-                    }
-                    if (question.questionType === "TEXTAREA") {
-                      return (
-                        <Grid.Col span={12} key={question.id}>
-                          <Textarea
-                            label={question.questionEn}
-                            placeholder="Share your thoughts..."
+                            placeholder="Your answer"
                             value={value}
                             onChange={(e) => {
                               const val = e.currentTarget.value;
@@ -1181,37 +1204,19 @@ export default function SpeakerApplicationForm({
                                 [question.questionKey]: val,
                               }));
                             }}
-                            minRows={3}
-                            maxRows={6}
                           />
                         </Grid.Col>
                       );
-                    }
-                    // TEXT type (default)
-                    return (
-                      <Grid.Col span={12} key={question.id}>
-                        <TextInput
-                          label={question.questionEn}
-                          placeholder="Your answer"
-                          value={value}
-                          onChange={(e) => {
-                            const val = e.currentTarget.value;
-                            setQuestionResponses(prev => ({
-                              ...prev,
-                              [question.questionKey]: val,
-                            }));
-                          }}
-                        />
-                      </Grid.Col>
-                    );
-                  })}
-              </Grid>
-            </Stack>
-          </Card>
-        );
+                    })}
+                </Grid>
+              </Stack>
+            </Card>
+          );
+        }
 
-      default:
-        return null;
+        // Last step (step 3 or 4): Session Details
+        return renderSessionDetails();
+      }
     }
   };
 
@@ -1260,18 +1265,11 @@ export default function SpeakerApplicationForm({
                   variant={currentStep >= 1 ? "filled" : "light"}
                   color="teal"
                 >
-                  Session Details
-                </Badge>
-                <Badge
-                  size="sm"
-                  variant={currentStep >= 2 ? "filled" : "light"}
-                  color="teal"
-                >
                   Speaker Profile
                 </Badge>
                 <Badge
                   size="sm"
-                  variant={currentStep >= 3 ? "filled" : "light"}
+                  variant={currentStep >= 2 ? "filled" : "light"}
                   color="teal"
                 >
                   Links
@@ -1279,12 +1277,19 @@ export default function SpeakerApplicationForm({
                 {totalSteps >= 4 && (
                   <Badge
                     size="sm"
-                    variant={currentStep >= 4 ? "filled" : "light"}
+                    variant={currentStep >= 3 ? "filled" : "light"}
                     color="teal"
                   >
                     About You
                   </Badge>
                 )}
+                <Badge
+                  size="sm"
+                  variant={currentStep >= totalSteps ? "filled" : "light"}
+                  color="teal"
+                >
+                  Session Details
+                </Badge>
               </Group>
             </Stack>
           </Card>
