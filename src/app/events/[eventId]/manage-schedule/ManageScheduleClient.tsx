@@ -2408,24 +2408,33 @@ function CreateSessionButton({
 
   const modalOpened = externalOpened ?? internalOpened;
 
-  const getDefaultDate = () => {
+  const getDefaultDate = useCallback(() => {
     const d = eventStartDate ? new Date(eventStartDate) : null;
     if (d && !isNaN(d.getTime())) {
       return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0);
     }
-    return new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 12, 0);
-  };
+    return null;
+  }, [eventStartDate]);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [startTime, setStartTime] = useState<Date | null>(getDefaultDate);
-  const [endTime, setEndTime] = useState<Date | null>(getDefaultDate);
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [endTime, setEndTime] = useState<Date | null>(null);
   const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeakerWithRole[]>([]);
   const [textSpeakers, setTextSpeakers] = useState("");
   const [roomId, setRoomId] = useState<string | null>(null);
   const [sessionTypeId, setSessionTypeId] = useState<string | null>(null);
   const [trackId, setTrackId] = useState<string | null>(null);
   const [isPublished, setIsPublished] = useState(true);
+
+  // Set default dates once event data loads
+  useEffect(() => {
+    const d = getDefaultDate();
+    if (d) {
+      setStartTime((prev) => prev ?? d);
+      setEndTime((prev) => prev ?? d);
+    }
+  }, [getDefaultDate]);
 
   // Apply prefill data when modal opens with prefill
   useEffect(() => {
