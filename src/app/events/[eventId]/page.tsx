@@ -7,8 +7,9 @@ import EventDetailClient from "./EventDetailClient";
 import ResidentDashboard from "./ResidentDashboard";
 import ConferenceDashboard from "./ConferenceDashboard";
 import ApplicationClosedMessage from "~/app/_components/ApplicationClosedMessage";
-import { Alert, Text, Container, Stack, Group, Button, ActionIcon, Card, Title } from "@mantine/core";
-import { IconCheck, IconArrowLeft, IconMicrophone } from "@tabler/icons-react";
+import { Text, Container, Stack, Group, Button, ActionIcon, Card, Title, ThemeIcon, Divider, Anchor } from "@mantine/core";
+import { IconArrowLeft, IconMicrophone, IconCalendarEvent, IconMapPin, IconClipboardList } from "@tabler/icons-react";
+import Image from "next/image";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { normalizeEventType } from "~/types/event";
@@ -206,58 +207,169 @@ export default function EventPage({ params }: EventPageProps) {
 
   // Deny access if user doesn't meet requirements (only after all checks complete)
   if (!canViewPage) {
-    // For conferences, show a friendly "Become a Speaker" prompt instead of blocking
+    // For conferences, show a welcoming page with "Become a Speaker" CTA
     if (isConference) {
       return (
         <Container size="md" py="xl">
-          <Stack gap="xl" align="center">
-            <Card withBorder style={{ maxWidth: 500, width: '100%' }}>
-              <Stack gap="sm">
-                <Title order={4}>Become a Speaker</Title>
-                <Text size="sm" c="dimmed">
-                  Interested in speaking at this event? Submit a speaker application to be considered.
-                </Text>
-                <Group>
+          <Stack gap="lg">
+            <Stack gap="xs">
+              <Title order={2}>Welcome to {event.name}</Title>
+              {event.description && (
+                <Text c="dimmed" size="sm">{event.description}</Text>
+              )}
+              {(event.location ?? event.startDate) && (
+                <Group gap="md">
+                  {event.location && (
+                    <Group gap={4}>
+                      <IconMapPin size={14} color="var(--mantine-color-dimmed)" />
+                      <Text size="xs" c="dimmed">{event.location}</Text>
+                    </Group>
+                  )}
+                  {event.startDate && (
+                    <Group gap={4}>
+                      <IconCalendarEvent size={14} color="var(--mantine-color-dimmed)" />
+                      <Text size="xs" c="dimmed">
+                        {new Date(event.startDate).toLocaleDateString("en-US", {
+                          month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
+                        })}
+                        {event.endDate && (
+                          <>{" \u2013 "}{new Date(event.endDate).toLocaleDateString("en-US", {
+                            month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
+                          })}</>
+                        )}
+                      </Text>
+                    </Group>
+                  )}
+                </Group>
+              )}
+            </Stack>
+
+            {eventId === "intelligence-at-the-frontier" && (
+              <Card withBorder p="lg" radius="md">
+                <Stack gap="md">
+                  <Image
+                    src="/images/iatf-banner.jpg"
+                    alt="Intelligence at the Frontier banner"
+                    width={800}
+                    height={400}
+                    style={{ width: "100%", height: "auto", borderRadius: "var(--mantine-radius-sm)" }}
+                  />
+                  <Text size="sm">
+                    The Frontier Tower floor leads are hard at work finalizing the schedule for Intelligence at the Frontier on March 14-15, 2026! In the meantime, check out the{" "}
+                    <Anchor href="https://www.fundingthecommons.io/ftc-frontiertower" target="_blank">
+                      Funding the Commons IatF website
+                    </Anchor>{" "}
+                    and follow{" "}
+                    <Anchor href="https://x.com/fundingcommons" target="_blank">
+                      FtC
+                    </Anchor>{" "}
+                    and{" "}
+                    <Anchor href="https://x.com/frontiertower" target="_blank">
+                      Frontier Tower
+                    </Anchor>{" "}
+                    on Twitter/X for updates!
+                  </Text>
+                </Stack>
+              </Card>
+            )}
+
+            <Card withBorder p="lg">
+              <Group wrap="nowrap" gap="md">
+                <ThemeIcon size={48} radius="md" variant="light" color="teal">
+                  <IconMicrophone size={24} />
+                </ThemeIcon>
+                <Stack gap={4} style={{ flex: 1 }}>
+                  <Title order={4}>Become a Speaker</Title>
+                  <Text size="sm" c="dimmed">
+                    Interested in speaking at this event? Submit a speaker application to share your expertise with the community.
+                  </Text>
+                </Stack>
+              </Group>
+              <Group mt="md">
+                <Button
+                  component={Link}
+                  href={`/events/${eventId}/apply`}
+                  leftSection={<IconMicrophone size={16} />}
+                  variant="filled"
+                  color="teal"
+                >
+                  Submit Speaker Application
+                </Button>
+              </Group>
+            </Card>
+
+            <Group grow>
+              <Card withBorder p="md">
+                <Stack gap="xs">
+                  <Group gap="xs">
+                    <IconCalendarEvent size={18} color="var(--mantine-color-blue-6)" />
+                    <Text fw={500} size="sm">Schedule</Text>
+                  </Group>
+                  <Text size="xs" c="dimmed">
+                    Browse the conference schedule and discover sessions.
+                  </Text>
+                  <Button
+                    component={Link}
+                    href={`/events/${eventId}/schedule`}
+                    variant="light"
+                    size="xs"
+                    leftSection={<IconCalendarEvent size={14} />}
+                  >
+                    View Schedule
+                  </Button>
+                </Stack>
+              </Card>
+              <Card withBorder p="md">
+                <Stack gap="xs">
+                  <Group gap="xs">
+                    <IconClipboardList size={18} color="var(--mantine-color-violet-6)" />
+                    <Text fw={500} size="sm">Apply</Text>
+                  </Group>
+                  <Text size="xs" c="dimmed">
+                    Start or continue your speaker application.
+                  </Text>
                   <Button
                     component={Link}
                     href={`/events/${eventId}/apply`}
-                    leftSection={<IconMicrophone size={16} />}
                     variant="light"
-                    color="teal"
+                    color="violet"
+                    size="xs"
+                    leftSection={<IconClipboardList size={14} />}
                   >
-                    Submit Speaker Application
+                    Go to Application
                   </Button>
-                </Group>
-              </Stack>
-            </Card>
+                </Stack>
+              </Card>
+            </Group>
           </Stack>
         </Container>
       );
     }
 
+    // Non-conference events: friendly card instead of orange alert
     return (
       <Container size="md" py="xl">
-        <Stack gap="xl" align="center">
-          <Alert
-            color="orange"
-            title="Access Restricted"
-            icon={<IconCheck />}
-            variant="filled"
-            radius="md"
-            style={{ maxWidth: 500, width: '100%' }}
-          >
-            <Text c="white" size="md">
-              This event page is only accessible to accepted residents. If you have a late pass code, please use the provided link.
-            </Text>
-          </Alert>
-          <Button
-            component={Link}
-            href="/events"
-            variant="light"
-            leftSection={<IconArrowLeft size={16} />}
-          >
-            Back to Events
-          </Button>
+        <Stack gap="lg" align="center">
+          <Card withBorder p="lg" style={{ maxWidth: 500, width: '100%' }}>
+            <Stack gap="md" align="center">
+              <Title order={3} ta="center">Welcome to {event.name}</Title>
+              <Text size="sm" c="dimmed" ta="center">
+                This event requires an accepted application to access the full dashboard.
+                If you have a late pass code, please use the link provided to you.
+              </Text>
+              <Divider w="100%" />
+              <Group>
+                <Button
+                  component={Link}
+                  href="/events"
+                  variant="light"
+                  leftSection={<IconArrowLeft size={16} />}
+                >
+                  Browse Events
+                </Button>
+              </Group>
+            </Stack>
+          </Card>
         </Stack>
       </Container>
     );

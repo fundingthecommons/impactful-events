@@ -907,6 +907,7 @@ function FloorManager({ eventId, venueId, venue, isAdmin }: FloorManagerProps) {
               setCreateModalOpened(false);
               setPrefillData(null);
             }}
+            eventStartDate={sessionsData?.event?.startDate}
           />
         </Group>
       </Group>
@@ -2386,6 +2387,7 @@ interface CreateSessionButtonProps {
   prefillData?: SessionPrefillData | null;
   externalOpened?: boolean;
   onExternalClose?: () => void;
+  eventStartDate?: Date | string | null;
 }
 
 function CreateSessionButton({
@@ -2399,16 +2401,25 @@ function CreateSessionButton({
   prefillData,
   externalOpened,
   onExternalClose,
+  eventStartDate,
 }: CreateSessionButtonProps) {
   const [internalOpened, { open: internalOpen, close: internalClose }] = useDisclosure(false);
   const utils = api.useUtils();
 
   const modalOpened = externalOpened ?? internalOpened;
 
+  const getDefaultDate = () => {
+    const d = eventStartDate ? new Date(eventStartDate) : null;
+    if (d && !isNaN(d.getTime())) {
+      return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0);
+    }
+    return new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 12, 0);
+  };
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [startTime, setStartTime] = useState<Date | null>(new Date(2026, 2, 14, 12, 0));
-  const [endTime, setEndTime] = useState<Date | null>(new Date(2026, 2, 14, 12, 0));
+  const [startTime, setStartTime] = useState<Date | null>(getDefaultDate);
+  const [endTime, setEndTime] = useState<Date | null>(getDefaultDate);
   const [linkedSpeakers, setLinkedSpeakers] = useState<SelectedSpeakerWithRole[]>([]);
   const [textSpeakers, setTextSpeakers] = useState("");
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -2443,8 +2454,8 @@ function CreateSessionButton({
   const resetForm = () => {
     setTitle("");
     setDescription("");
-    setStartTime(new Date(2026, 2, 14, 12, 0));
-    setEndTime(new Date(2026, 2, 14, 12, 0));
+    setStartTime(getDefaultDate());
+    setEndTime(getDefaultDate());
     setLinkedSpeakers([]);
     setTextSpeakers("");
     setRoomId(null);
