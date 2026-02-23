@@ -252,11 +252,13 @@ export default function SpeakerApplicationForm({
     return options;
   }, [floorManagers, venues]);
 
-  // Check if the selected venue is a "Funding the Commons" floor
+  // Check if any selected venue is a "Funding the Commons" floor
   const isFtcVenue = useMemo(() => {
     if (selectedVenueIds.length === 0) return false;
-    const selectedVenue = venues.find((v) => v.id === selectedVenueIds[0]);
-    return selectedVenue?.name.toLowerCase().includes("funding the commons") ?? false;
+    return selectedVenueIds.some((id) => {
+      const venue = venues.find((v) => v.id === id);
+      return venue?.name.toLowerCase().includes("funding the commons") ?? false;
+    });
   }, [selectedVenueIds, venues]);
 
   // Pre-select inviter's venues and floor lead once when arriving via invitation
@@ -780,9 +782,9 @@ export default function SpeakerApplicationForm({
 
             {venues.length > 0 && (
               <Grid.Col span={12}>
-                <Select
+                <MultiSelect
                   label="Intelligence at the Frontier hosts curated content from many floors at Frontier Tower, each with their own theme, programming and speaker lineup curated by a Floor Lead. Which floors are you applying to speak on?"
-                  placeholder="Select a floor"
+                  placeholder="Select floors"
                   description={
                     <>
                       If you were invited to speak, please select the floor you were invited to speak on. For more information about the floors at IatF,{" "}
@@ -796,15 +798,16 @@ export default function SpeakerApplicationForm({
                     </>
                   }
                   data={venueSelectData}
-                  value={selectedVenueIds[0] ?? null}
-                  onChange={(val) => {
-                    setSelectedVenueIds(val ? [val] : []);
-                    // Reset topic fields when venue changes
+                  value={selectedVenueIds}
+                  onChange={(vals) => {
+                    setSelectedVenueIds(vals);
+                    // Reset topic fields when venue selection changes
                     form.setFieldValue("talkTopic", "");
                     setFtcTopicValues([]);
                     setFtcTopicOtherText("");
                   }}
                   clearable
+                  searchable
                   leftSection={<IconBuilding size={16} color="var(--mantine-color-teal-6)" />}
                 />
               </Grid.Col>
