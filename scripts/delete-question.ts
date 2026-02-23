@@ -54,6 +54,6 @@ void main()
     console.error("Error:", error);
     process.exit(1);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
+  .finally(() => {
+    void prisma.$disconnect();
   });
