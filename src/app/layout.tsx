@@ -39,10 +39,10 @@ export default function RootLayout({
             <TRPCReactProvider>
               <HeaderBar />
               {children}
+              <AIChatFAB />
             </TRPCReactProvider>
             <ThemeToggle />
             <GitHubCorner />
-            <AIChatFAB />
           </SessionProvider>
         </ThemeProvider>
       </body>
