@@ -127,8 +127,18 @@ function EventCard({ event }: { event: AvailableEvent }) {
     }).format(date);
   };
   
+  const eventHref = `/events/${event.slug ?? event.id}`;
+
   return (
-    <Card shadow="lg" padding="xl" radius="md" withBorder style={{ height: "100%" }}>
+    <Card
+      shadow="lg"
+      padding="xl"
+      radius="md"
+      withBorder
+      component={Link}
+      href={eventHref}
+      style={{ height: "100%", textDecoration: "none", color: "inherit" }}
+    >
       <Card.Section>
         <Box
           h={120}
@@ -151,15 +161,15 @@ function EventCard({ event }: { event: AvailableEvent }) {
             <Title order={3} size="h2">
               {event.name}
             </Title>
-            <Badge 
-              color={isOngoing ? "green" : isUpcoming ? "blue" : "gray"} 
-              variant="light" 
+            <Badge
+              color={isOngoing ? "green" : isUpcoming ? "blue" : "gray"}
+              variant="light"
               size="sm"
             >
               {isOngoing ? "Open" : isUpcoming ? "Soon" : "Past"}
             </Badge>
           </Group>
-          
+
           <Text size="sm" c="dimmed" style={{ lineHeight: 1.5 }}>
             {event.description ?? "No description available"}
           </Text>
@@ -188,16 +198,14 @@ function EventCard({ event }: { event: AvailableEvent }) {
           </Group>
         </Stack>
 
-        <Link href={`/events/${event.slug ?? event.id}`} style={{ textDecoration: 'none' }}>
-          <Button
-            fullWidth
-            variant="filled"
-            rightSection={<IconArrowRight size={16} />}
-            color={gradient.from}
-          >
-            Learn More & Apply
-          </Button>
-        </Link>
+        <Button
+          fullWidth
+          variant="filled"
+          rightSection={<IconArrowRight size={16} />}
+          color={gradient.from}
+        >
+          Learn More & Apply
+        </Button>
       </Stack>
     </Card>
   );
