@@ -1217,6 +1217,7 @@ model UserProfile {
   speakerEntityName     String?             // Name of artist, entity, or group
   speakerOtherFloorsTopicTheme String? @db.Text // Other floors topic/theme for non-FtC tracks
   speakerDisplayPreference     String? @db.Text // Preferred display format for agenda
+  speakerCoHostInfo            String? @db.Text // Co-host names, emails, and links
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

@@ -67,6 +67,7 @@ const profileUpdateSchema = z.object({
   speakerEntityName: z.string().max(200).optional(),
   speakerOtherFloorsTopicTheme: z.string().max(2000).optional(),
   speakerDisplayPreference: z.string().max(500).optional(),
+  speakerCoHostInfo: z.string().max(2000).optional(),
 });
 
 const projectCreateSchema = z.object({

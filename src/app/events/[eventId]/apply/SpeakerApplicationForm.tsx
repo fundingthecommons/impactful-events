@@ -53,8 +53,9 @@ const speakerApplicationSchema = z.object({
     .min(50, "Please provide at least 50 characters for your description")
     .max(2000),
   talkFormat: z.array(z.string()).min(1, "Please select at least one session type"),
-  talkDuration: z.string().min(1, "Please select a session length"),
+  talkDuration: z.array(z.string()).min(1, "Please select at least one session length"),
   talkTopic: z.string().min(1, "Please specify the topic or track"),
+  coHostInfo: z.string().max(2000).optional().or(z.literal("")),
   entityName: z.string().max(200).optional().or(z.literal("")),
   otherFloorsTopicTheme: z.string().max(2000).optional().or(z.literal("")),
   // Speaker info
@@ -77,6 +78,7 @@ export const talkFormatOptions = [
   { value: "Art Installation", label: "Art Installation" },
   { value: "Demonstration", label: "Demonstration" },
   { value: "DJ Set", label: "DJ Set" },
+  { value: "Lightning Talk", label: "Lightning Talk" },
   { value: "Live Music", label: "Live Music" },
   { value: "Music Performance", label: "Music Performance" },
   { value: "Panel Discussion", label: "Panel Discussion" },
@@ -310,8 +312,9 @@ export default function SpeakerApplicationForm({
       talkTitle: "",
       talkAbstract: "",
       talkFormat: [],
-      talkDuration: "",
+      talkDuration: [],
       talkTopic: "",
+      coHostInfo: "",
       entityName: "",
       otherFloorsTopicTheme: "",
       bio: "",
@@ -334,7 +337,7 @@ export default function SpeakerApplicationForm({
       if (!form.values.talkTitle && p.speakerTalkTitle) form.setFieldValue("talkTitle", p.speakerTalkTitle);
       if (!form.values.talkAbstract && p.speakerTalkAbstract) form.setFieldValue("talkAbstract", p.speakerTalkAbstract);
       if (form.values.talkFormat.length === 0 && p.speakerTalkFormat) form.setFieldValue("talkFormat", p.speakerTalkFormat.split(", ").filter(Boolean));
-      if (!form.values.talkDuration && p.speakerTalkDuration) form.setFieldValue("talkDuration", p.speakerTalkDuration);
+      if (form.values.talkDuration.length === 0 && p.speakerTalkDuration) form.setFieldValue("talkDuration", p.speakerTalkDuration.split(", ").filter(Boolean));
       if (!form.values.talkTopic && p.speakerTalkTopic) form.setFieldValue("talkTopic", p.speakerTalkTopic);
       if (!form.values.bio && p.bio) form.setFieldValue("bio", p.bio);
       if (!form.values.previousSpeakingExperience && p.speakerPreviousExperience) form.setFieldValue("previousSpeakingExperience", p.speakerPreviousExperience);
@@ -347,6 +350,7 @@ export default function SpeakerApplicationForm({
       if (!form.values.entityName && p.speakerEntityName) form.setFieldValue("entityName", p.speakerEntityName);
       if (!form.values.displayPreference && p.speakerDisplayPreference) form.setFieldValue("displayPreference", p.speakerDisplayPreference);
       if (!form.values.otherFloorsTopicTheme && p.speakerOtherFloorsTopicTheme) form.setFieldValue("otherFloorsTopicTheme", p.speakerOtherFloorsTopicTheme);
+      if (!form.values.coHostInfo && p.speakerCoHostInfo) form.setFieldValue("coHostInfo", p.speakerCoHostInfo);
       // Pre-populate avatar URL from profile
       if (!avatarUrl) {
         const profileAvatarUrl = p.avatarUrl ?? p.user?.image ?? null;
@@ -440,10 +444,11 @@ export default function SpeakerApplicationForm({
         speakerTalkTitle: values.talkTitle,
         speakerTalkAbstract: values.talkAbstract,
         speakerTalkFormat: values.talkFormat.join(", "),
-        speakerTalkDuration: values.talkDuration,
+        speakerTalkDuration: values.talkDuration.join(", "),
         speakerTalkTopic: values.talkTopic,
         speakerPreviousExperience: values.previousSpeakingExperience,
         speakerPastTalkUrl: values.pastTalkUrl,
+        speakerCoHostInfo: values.coHostInfo,
         speakerEntityName: values.entityName,
         speakerOtherFloorsTopicTheme: values.otherFloorsTopicTheme,
         speakerDisplayPreference: values.displayPreference,
@@ -615,6 +620,17 @@ export default function SpeakerApplicationForm({
 
                 <Grid.Col span={12}>
                   <Textarea
+                    label="Is anyone else hosting the session with you? If so, share further context and contact information for them."
+                    description="Please provide a name, email address, and social media link or portfolio about additional speakers, presenters, facilitators or performers joining you as a session host"
+                    placeholder="e.g., Jane Doe, jane@example.com, linkedin.com/in/janedoe"
+                    minRows={3}
+                    maxRows={6}
+                    {...form.getInputProps("coHostInfo")}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={12}>
+                  <Textarea
                     label="Session Description"
                     placeholder="Describe what your session will cover, key takeaways for the audience, and why this topic matters..."
                     description="This can be changed later, but please provide a brief description of what your session will cover (minimum 50 characters)"
@@ -637,9 +653,9 @@ export default function SpeakerApplicationForm({
                 </Grid.Col>
 
                 <Grid.Col span={{ base: 12, sm: 6 }}>
-                  <Select
+                  <MultiSelect
                     label="Session Length"
-                    placeholder="Select session length"
+                    placeholder="Select session lengths"
                     data={talkDurationOptions}
                     {...form.getInputProps("talkDuration")}
                     required
