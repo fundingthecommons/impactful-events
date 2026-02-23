@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import {
   Drawer,
   Stack,
@@ -18,9 +18,11 @@ import {
   IconPlayerStop,
   IconTrash,
 } from '@tabler/icons-react';
+import { useSession } from 'next-auth/react';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { AgentMessageFeedback } from './AgentMessageFeedback';
 import { useAIChat } from '~/hooks/useAIChat';
+import { api } from '~/trpc/react';
 
 interface AIChatDrawerProps {
   opened: boolean;
@@ -29,19 +31,69 @@ interface AIChatDrawerProps {
   eventId?: string;
 }
 
-const SUGGESTED_PROMPTS = [
+const DEFAULT_PROMPTS = [
   'What events are coming up?',
   'How do I apply to speak?',
   "Show me today's schedule",
 ];
+
+const ADMIN_PROMPTS = [
+  'How many applications are pending?',
+  'Who are the speakers for this event?',
+  'Show me the event schedule',
+];
+
+const FLOOR_LEAD_PROMPTS = [
+  "Show me my venue's schedule",
+  "Who's speaking in my room today?",
+  'How do I manage sessions?',
+];
+
+const SPEAKER_PROMPTS = [
+  'When is my speaking session?',
+  "What's the schedule for today?",
+  'Where is my session located?',
+];
+
+function getSuggestedPrompts(
+  globalRole: string | undefined,
+  eventRoles: string[] | undefined,
+): string[] {
+  // Admin/staff get admin prompts
+  if (globalRole === 'admin' || globalRole === 'staff') {
+    return ADMIN_PROMPTS;
+  }
+
+  // Event-specific roles
+  if (eventRoles && eventRoles.length > 0) {
+    if (eventRoles.includes('floor lead')) {
+      return FLOOR_LEAD_PROMPTS;
+    }
+    if (eventRoles.includes('speaker')) {
+      return SPEAKER_PROMPTS;
+    }
+  }
+
+  return DEFAULT_PROMPTS;
+}
 
 export function AIChatDrawer({ opened, onClose, pathname, eventId }: AIChatDrawerProps) {
   const { messages, isStreaming, sendMessage, stop, clearMessages, updateMessageFeedback } = useAIChat({
     pathname,
     eventId,
   });
+  const { data: session } = useSession();
+  const { data: eventRolesData } = api.role.getMyRolesForEvent.useQuery(
+    { eventId: eventId ?? '' },
+    { enabled: !!eventId && !!session?.user },
+  );
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const suggestedPrompts = useMemo(
+    () => getSuggestedPrompts(session?.user?.role ?? undefined, eventRolesData ?? undefined),
+    [session?.user?.role, eventRolesData],
+  );
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -122,7 +174,7 @@ export function AIChatDrawer({ opened, onClose, pathname, eventId }: AIChatDrawe
               Ask me about events, schedules, how to use the platform, or anything else.
             </Text>
             <Stack gap="xs" mt="md" w="100%" maw={320}>
-              {SUGGESTED_PROMPTS.map((prompt) => (
+              {suggestedPrompts.map((prompt) => (
                 <UnstyledButton
                   key={prompt}
                   onClick={() => {
