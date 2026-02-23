@@ -564,9 +564,12 @@ export default function SpeakerApplicationForm({
 
   const getStepFields = (step: number): (keyof SpeakerApplicationData)[] => {
     switch (step) {
-      case 1: return ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic'];
-      case 2: return ['bio', 'jobTitle', 'company'];
-      default: return [];
+      case 1: return ['bio', 'jobTitle', 'company']; // Speaker Profile
+      case 2: return []; // Links (all optional)
+      default:
+        // Session Details is always the last step
+        if (step === totalSteps) return ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic'];
+        return []; // About You (dynamic questions)
     }
   };
 
@@ -581,8 +584,8 @@ export default function SpeakerApplicationForm({
         for (const field of getStepFields(currentStep)) {
           form.validateField(field);
         }
-        // Show profile image error on step 2 if missing
-        if (currentStep === 2 && !(avatarUrl ?? previewUrl)) {
+        // Show profile image error on step 1 (Speaker Profile) if missing
+        if (currentStep === 1 && !(avatarUrl ?? previewUrl)) {
           setProfileImageError(true);
         }
       }
@@ -597,34 +600,34 @@ export default function SpeakerApplicationForm({
 
   const getStepValidation = (step: number) => {
     switch (step) {
-      case 1:
-        return (
-          form.values.talkTitle.length > 0 &&
-          form.values.talkAbstract.length >= 50 &&
-          form.values.talkFormat.length > 0 &&
-          form.values.talkDuration.length > 0 &&
-          form.values.talkTopic.length > 0 &&
-          // If FtC venue with "Other" selected, require the fill-in text
-          (!isFtcVenue || !ftcTopicValues.includes("Other") || ftcTopicOtherText.trim().length > 0)
-        );
-      case 2:
+      case 1: // Speaker Profile
         return (
           form.values.bio.length >= 20 &&
           form.values.jobTitle.trim().length > 0 &&
           form.values.company.trim().length > 0 &&
           !!(avatarUrl ?? previewUrl)
         );
-      case 3:
+      case 2: // Links
         return true; // Links are optional
-      case 4: {
-        // Required dynamic questions must be filled
+      default: {
+        // Session Details is always the last step
+        if (step === totalSteps) {
+          return (
+            form.values.talkTitle.length > 0 &&
+            form.values.talkAbstract.length >= 50 &&
+            form.values.talkFormat.length > 0 &&
+            form.values.talkDuration.length > 0 &&
+            form.values.talkTopic.length > 0 &&
+            // If FtC venue with "Other" selected, require the fill-in text
+            (!isFtcVenue || !ftcTopicValues.includes("Other") || ftcTopicOtherText.trim().length > 0)
+          );
+        }
+        // About You (step 3 when totalSteps === 4)
         if (!eventQuestions) return true;
         return eventQuestions
           .filter(q => q.required)
           .every(q => questionResponses[q.questionKey]?.trim());
       }
-      default:
-        return false;
     }
   };
 
