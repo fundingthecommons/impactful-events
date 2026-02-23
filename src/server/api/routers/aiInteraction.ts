@@ -24,6 +24,24 @@ export const aiInteractionRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Resolve eventId: could be an actual ID or a slug from the URL
+      let resolvedEventId: string | undefined;
+      if (input.eventId) {
+        const eventById = await ctx.db.event.findUnique({
+          where: { id: input.eventId },
+          select: { id: true },
+        });
+        if (eventById) {
+          resolvedEventId = eventById.id;
+        } else {
+          const eventBySlug = await ctx.db.event.findUnique({
+            where: { slug: input.eventId },
+            select: { id: true },
+          });
+          resolvedEventId = eventBySlug?.id;
+        }
+      }
+
       const interaction = await ctx.db.aiInteraction.create({
         data: {
           userId: ctx.session.user.id,
@@ -34,7 +52,7 @@ export const aiInteractionRouter = createTRPCRouter({
           model: input.model,
           conversationId: input.conversationId,
           pathname: input.pathname,
-          eventId: input.eventId,
+          eventId: resolvedEventId,
           responseTimeMs: input.responseTimeMs,
           hadError: input.hadError ?? false,
           errorMessage: input.errorMessage,

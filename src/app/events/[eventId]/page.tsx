@@ -7,6 +7,7 @@ import EventDetailClient from "./EventDetailClient";
 import ResidentDashboard from "./ResidentDashboard";
 import ConferenceDashboard from "./ConferenceDashboard";
 import ApplicationClosedMessage from "~/app/_components/ApplicationClosedMessage";
+import EventHero from "./EventHero";
 import { Text, Container, Stack, Group, Button, ActionIcon, Card, Title, ThemeIcon, Divider, Anchor } from "@mantine/core";
 import { IconArrowLeft, IconMicrophone, IconCalendarEvent, IconMapPin, IconClipboardList } from "@tabler/icons-react";
 import Image from "next/image";
@@ -246,33 +247,12 @@ export default function EventPage({ params }: EventPageProps) {
               )}
             </Stack>
 
-            {eventId === "intelligence-at-the-frontier" && (
-              <Card withBorder p="lg" radius="md">
-                <Stack gap="md">
-                  <Image
-                    src="/images/iatf-banner.jpg"
-                    alt="Intelligence at the Frontier banner"
-                    width={800}
-                    height={400}
-                    style={{ width: "100%", height: "auto", borderRadius: "var(--mantine-radius-sm)" }}
-                  />
-                  <Text size="sm">
-                    The Frontier Tower floor leads are hard at work finalizing the schedule for Intelligence at the Frontier on March 14-15, 2026! In the meantime, check out the{" "}
-                    <Anchor href="https://www.fundingthecommons.io/ftc-frontiertower" target="_blank">
-                      Funding the Commons IatF website
-                    </Anchor>{" "}
-                    and follow{" "}
-                    <Anchor href="https://x.com/fundingcommons" target="_blank">
-                      FtC
-                    </Anchor>{" "}
-                    and{" "}
-                    <Anchor href="https://x.com/frontiertower" target="_blank">
-                      Frontier Tower
-                    </Anchor>{" "}
-                    on Twitter/X for updates!
-                  </Text>
-                </Stack>
-              </Card>
+            {(eventId === "intelligence-at-the-frontier" || eventId === "cmlffsmqo0001l40444y16ojk") && (
+              <EventHero 
+                eventName={event.name}
+                startDate={event.startDate ?? undefined}
+                endDate={event.endDate ?? undefined}
+              />
             )}
 
             <Card withBorder p="lg">
