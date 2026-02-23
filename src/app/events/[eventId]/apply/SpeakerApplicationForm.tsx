@@ -310,10 +310,14 @@ export default function SpeakerApplicationForm({
   const updateProfile = api.profile.updateProfile.useMutation();
   const bulkUpdateResponses = api.application.bulkUpdateApplicationResponses.useMutation();
 
-  // Fetch existing profile for pre-populating form (for on-behalf speakers)
+  // Fetch existing profile for pre-populating form (one-time initialization only)
   const { data: existingProfile } = api.profile.getMyProfile.useQuery(
     undefined,
-    { refetchOnWindowFocus: false },
+    {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: Infinity,
+    },
   );
 
   // Dynamic step count: show Step 4 only if event has questions
