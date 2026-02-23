@@ -65,7 +65,7 @@ const speakerApplicationSchema = z.object({
   bio: z.string().min(20, "Please provide at least 20 characters for your bio").max(1000),
   previousSpeakingExperience: z.string().max(2000).optional().or(z.literal("")),
   // Profile fields
-  preferredName: z.string().max(100).optional().or(z.literal("")),
+  preferredName: z.string().min(1, "Preferred name is required").max(100),
   jobTitle: z.string().min(1, "Job title or role is required").max(100),
   company: z.string().min(1, "Organization is required").max(100),
   displayPreference: z.string().max(500).optional().or(z.literal("")),
@@ -444,12 +444,12 @@ export default function SpeakerApplicationForm({
         icon: <IconCheck size={16} />,
       });
     } catch (error) {
-      setPreviewUrl(null);
       notifications.show({
         title: "Upload Failed",
-        message: error instanceof Error ? error.message : "Failed to upload photo",
+        message: error instanceof Error ? error.message : "Failed to upload photo. Please try again.",
         color: "red",
         icon: <IconX size={16} />,
+        autoClose: 8000,
       });
     } finally {
       setIsUploading(false);
@@ -564,7 +564,7 @@ export default function SpeakerApplicationForm({
 
   const getStepFields = (step: number): (keyof SpeakerApplicationData)[] => {
     switch (step) {
-      case 1: return ['bio', 'jobTitle', 'company']; // Speaker Profile
+      case 1: return ['preferredName', 'bio', 'jobTitle', 'company']; // Speaker Profile
       case 2: return []; // Links (all optional)
       default:
         // Session Details is always the last step
@@ -602,6 +602,7 @@ export default function SpeakerApplicationForm({
     switch (step) {
       case 1: // Speaker Profile
         return (
+          form.values.preferredName.trim().length > 0 &&
           form.values.bio.length >= 20 &&
           form.values.jobTitle.trim().length > 0 &&
           form.values.company.trim().length > 0 &&
@@ -958,6 +959,7 @@ export default function SpeakerApplicationForm({
                       label="Preferred Name"
                       description="Please keep in mind that it will appear in the following format: James Farrell, Funding the Commons, CTO"
                       placeholder="How you'd like your name to appear"
+                      withAsterisk
                       {...form.getInputProps("preferredName")}
                     />
                   </Grid.Col>
