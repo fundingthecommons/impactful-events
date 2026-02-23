@@ -320,6 +320,7 @@ export default function SpeakerApplicationForm({
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       staleTime: Infinity,
+      retry: false,
     },
   );
 

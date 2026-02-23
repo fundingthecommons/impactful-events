@@ -51,7 +51,7 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
   // Fetch user profile to get custom avatar
   const { data: profile } = api.profile.getMyProfile.useQuery(
     undefined,
-    { refetchOnWindowFocus: false },
+    { refetchOnWindowFocus: false, retry: false },
   );
 
   // Fetch event-specific roles when viewing an event
