@@ -58,17 +58,14 @@ test.describe("Application form", () => {
   test("displays speaker application form fields", async ({ page }) => {
     await page.goto(`/events/${EVENT_SLUG}/apply`);
 
-    // The form should eventually render key input fields
-    await expect(page.getByLabel("Session Name")).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByLabel("Session Description")).toBeVisible();
-    // Session Type is a MultiSelect — target the input specifically
+    // The form is a multi-step wizard starting on Step 1 (Speaker Profile).
+    // Verify the form mounted by checking the heading and Step 1 fields.
     await expect(
-      page.getByPlaceholder("Select session types"),
-    ).toBeVisible();
-    await expect(
-      page.getByPlaceholder("Select session length"),
-    ).toBeVisible();
+      page.getByRole("heading", { name: "Speaker Application" }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Preferred Name")).toBeVisible();
+    await expect(page.getByLabel("Primary Job Title or Role")).toBeVisible();
+    await expect(page.getByLabel("Primary Organization")).toBeVisible();
+    await expect(page.getByLabel("Speaker Bio")).toBeVisible();
   });
 });
