@@ -67,7 +67,7 @@ interface SendEmailParams {
   templateName: TemplateName;
   templateData: TemplateProps;
   applicationId?: string;
-  eventId: string;
+  eventId?: string;
   userId?: string;
 }
 
@@ -515,7 +515,7 @@ export class EmailService {
       templateName: email.templateName as TemplateName,
       templateData: email.templateData as unknown as TemplateProps,
       applicationId: email.applicationId ?? undefined,
-      eventId: email.eventId,
+      eventId: email.eventId ?? undefined,
       userId: email.createdBy,
     });
   }

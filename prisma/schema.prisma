@@ -820,7 +820,7 @@ model Communication {
 model Email {
   id            String      @id @default(cuid())
   applicationId String?     // Optional: link to specific application
-  eventId       String      // Required: link to event
+  eventId       String?     // Optional: null for system emails (password resets, magic links)
   toEmail       String      // Recipient email address
   fromEmail     String      @default("james@fundingthecommons.io") // Always send from this for testing
   subject       String      // Email subject line
@@ -849,7 +849,7 @@ model Email {
   
   // Relations
   application   Application? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  event         Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event         Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   
   @@index([applicationId])
   @@index([eventId])

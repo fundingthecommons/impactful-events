@@ -139,7 +139,7 @@ export const passwordResetRouter = createTRPCRouter({
             resetUrl,
             expirationMinutes: 15,
           },
-          eventId: 'password-reset', // Use a special event ID for password resets
+          // No eventId - password resets are system emails not tied to any event
           userId: user.id,
         });
 
