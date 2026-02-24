@@ -546,22 +546,25 @@ export default function ManageScheduleClient({ eventId, showWelcome }: ManageSch
 
         {floorsData.venues.length > 1 ? (
           <Tabs value={activeVenueId} onChange={setActiveVenueId}>
-            <Tabs.List>
-              {floorsData.venues.map((venue) => (
-                <Tabs.Tab
-                  key={venue.id}
-                  value={venue.id}
-                  leftSection={<IconBuilding size={14} />}
-                  rightSection={
-                    <Badge size="sm" variant="light" circle>
-                      {venue._count.sessions}
-                    </Badge>
-                  }
-                >
-                  {venue.name}
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
+            <ScrollArea type="auto" scrollbars="x" offsetScrollbars>
+              <Tabs.List style={{ flexWrap: "nowrap" }}>
+                {floorsData.venues.map((venue) => (
+                  <Tabs.Tab
+                    key={venue.id}
+                    value={venue.id}
+                    leftSection={<IconBuilding size={14} />}
+                    rightSection={
+                      <Badge size="sm" variant="light" circle>
+                        {venue._count.sessions}
+                      </Badge>
+                    }
+                    style={{ whiteSpace: "nowrap" }}
+                  >
+                    {venue.name}
+                  </Tabs.Tab>
+                ))}
+              </Tabs.List>
+            </ScrollArea>
           </Tabs>
         ) : null}
 
