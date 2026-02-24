@@ -261,6 +261,7 @@ export const scheduleRouter = createTRPCRouter({
           name: string | null;
           image: string | null;
           venueIds: string[];
+          roleLabel: string | null;
         }
       >();
 
@@ -273,8 +274,39 @@ export const scheduleRouter = createTRPCRouter({
             floorManagerMap.set(owner.user.id, {
               ...owner.user,
               venueIds: [venue.id],
+              roleLabel: null,
             });
           }
+        }
+      }
+
+      // Also include event admins/organizers
+      const adminUserRoles = await ctx.db.userRole.findMany({
+        where: {
+          eventId: event.id,
+          role: { name: { in: ["ADMIN", "ORGANIZER"] } },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              surname: true,
+              name: true,
+              image: true,
+            },
+          },
+          role: { select: { name: true } },
+        },
+      });
+
+      for (const ur of adminUserRoles) {
+        if (!floorManagerMap.has(ur.user.id)) {
+          floorManagerMap.set(ur.user.id, {
+            ...ur.user,
+            venueIds: [],
+            roleLabel: ur.role.name === "ORGANIZER" ? "Organizer" : "Admin",
+          });
         }
       }
 

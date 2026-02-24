@@ -8,9 +8,8 @@ import ResidentDashboard from "./ResidentDashboard";
 import ConferenceDashboard from "./ConferenceDashboard";
 import ApplicationClosedMessage from "~/app/_components/ApplicationClosedMessage";
 import EventHero from "./EventHero";
-import { Text, Container, Stack, Group, Button, ActionIcon, Card, Title, ThemeIcon, Divider, Anchor } from "@mantine/core";
+import { Text, Container, Stack, Group, Button, ActionIcon, Card, Title, ThemeIcon, Divider } from "@mantine/core";
 import { IconArrowLeft, IconMicrophone, IconCalendarEvent, IconMapPin, IconClipboardList } from "@tabler/icons-react";
-import Image from "next/image";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { normalizeEventType } from "~/types/event";
@@ -213,46 +212,46 @@ export default function EventPage({ params }: EventPageProps) {
       return (
         <Container size="md" py="xl">
           <Stack gap="lg">
-            <Stack gap="sm">
-              <Title order={2}>Welcome to {event.name}</Title>
-              {(event.location ?? event.startDate) && (
-                <Group gap="md">
-                  {event.location && (
-                    <Group gap={4}>
-                      <IconMapPin size={14} color="var(--mantine-color-dimmed)" />
-                      <Text size="xs" c="dimmed">{event.location}</Text>
-                    </Group>
-                  )}
-                  {event.startDate && (
-                    <Group gap={4}>
-                      <IconCalendarEvent size={14} color="var(--mantine-color-dimmed)" />
-                      <Text size="xs" c="dimmed">
-                        {new Date(event.startDate).toLocaleDateString("en-US", {
-                          month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
-                        })}
-                        {event.endDate && (
-                          <>{" \u2013 "}{new Date(event.endDate).toLocaleDateString("en-US", {
-                            month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
-                          })}</>
-                        )}
-                      </Text>
-                    </Group>
-                  )}
-                </Group>
-              )}
-              {event.description && (
-                <Text c="dimmed" size="sm" style={{ whiteSpace: "pre-line" }}>
-                  {event.description}
-                </Text>
-              )}
-            </Stack>
-
-            {(eventId === "intelligence-at-the-frontier" || eventId === "cmlffsmqo0001l40444y16ojk") && (
+            {(eventId === "intelligence-at-the-frontier" || eventId === "cmlffsmqo0001l40444y16ojk") ? (
               <EventHero 
                 eventName={event.name}
                 startDate={event.startDate ?? undefined}
                 endDate={event.endDate ?? undefined}
               />
+            ) : (
+              <Stack gap="sm">
+                <Title order={2}>Welcome to {event.name}</Title>
+                {(event.location ?? event.startDate) && (
+                  <Group gap="md">
+                    {event.location && (
+                      <Group gap={4}>
+                        <IconMapPin size={14} color="var(--mantine-color-dimmed)" />
+                        <Text size="xs" c="dimmed">{event.location}</Text>
+                      </Group>
+                    )}
+                    {event.startDate && (
+                      <Group gap={4}>
+                        <IconCalendarEvent size={14} color="var(--mantine-color-dimmed)" />
+                        <Text size="xs" c="dimmed">
+                          {new Date(event.startDate).toLocaleDateString("en-US", {
+                            month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
+                          })}
+                          {event.endDate && (
+                            <>{" \u2013 "}{new Date(event.endDate).toLocaleDateString("en-US", {
+                              month: "long", day: "numeric", year: "numeric", timeZone: "UTC",
+                            })}</>
+                          )}
+                        </Text>
+                      </Group>
+                    )}
+                  </Group>
+                )}
+                {event.description && (
+                  <Text c="dimmed" size="sm" style={{ whiteSpace: "pre-line" }}>
+                    {event.description}
+                  </Text>
+                )}
+              </Stack>
             )}
 
             <Card withBorder p="lg">

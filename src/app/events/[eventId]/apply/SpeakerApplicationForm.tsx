@@ -243,7 +243,9 @@ export default function SpeakerApplicationForm({
       const label =
         managerVenueNames.length > 0
           ? `${displayName} (${managerVenueNames.join(", ")})`
-          : displayName;
+          : fm.roleLabel
+            ? `${displayName} (${fm.roleLabel})`
+            : displayName;
 
       options.push({ value: fm.id, label });
     }
