@@ -38,6 +38,7 @@ import { ProjectManager } from "~/app/_components/ProjectManager";
 import { getAvatarUrl, getAvatarInitials } from "~/utils/avatarUtils";
 
 const schema = z.object({
+  preferredName: z.string().max(100).optional(),
   bio: z.string().max(1000).optional(),
   jobTitle: z.string().max(100).optional(),
   company: z.string().max(100).optional(),
@@ -172,6 +173,7 @@ export function ProfileEditClient() {
   const form = useForm<ProfileFormData>({
     validate: zodResolver(schema),
     initialValues: {
+      preferredName: "",
       bio: "",
       jobTitle: "",
       company: "",
@@ -198,6 +200,7 @@ export function ProfileEditClient() {
   useEffect(() => {
     if (currentProfile && !hasInitialized) {
       form.setValues({
+        preferredName: currentProfile.user?.name ?? "",
         bio: currentProfile.bio ?? "",
         jobTitle: currentProfile.jobTitle ?? "",
         company: currentProfile.company ?? "",
@@ -377,6 +380,14 @@ export function ProfileEditClient() {
               Basic Information
             </Title>
             <Grid>
+              <Grid.Col span={12}>
+                <TextInput
+                  label="Preferred Name"
+                  description="The name displayed on your profile and throughout the platform"
+                  placeholder="How you'd like to be called"
+                  {...form.getInputProps("preferredName")}
+                />
+              </Grid.Col>
               <Grid.Col span={{ base: 12, sm: 6 }}>
                 <TextInput
                   label="Job Title"
