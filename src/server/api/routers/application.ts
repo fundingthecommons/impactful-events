@@ -68,6 +68,10 @@ const BulkUpdateApplicationStatusSchema = z.object({
   status: z.enum(["DRAFT", "UNDER_REVIEW", "ACCEPTED", "REJECTED", "WAITLISTED", "CANCELLED"]),
 });
 
+const BulkDeleteApplicationsSchema = z.object({
+  applicationIds: z.array(z.string()).min(1),
+});
+
 const BulkUpdateApplicationResponsesSchema = z.object({
   applicationId: z.string(),
   responses: z.array(z.object({
@@ -1353,6 +1357,38 @@ export const applicationRouter = createTRPCRouter({
       }
 
       return applications;
+    }),
+
+  // Admin/Floor Lead: Bulk delete applications
+  bulkDeleteApplications: protectedProcedure
+    .input(BulkDeleteApplicationsSchema)
+    .mutation(async ({ ctx, input }) => {
+      // Fetch eventId from first application for floor lead auth check
+      const firstApp = await ctx.db.application.findFirst({
+        where: { id: { in: input.applicationIds } },
+        select: { eventId: true },
+      });
+      if (!firstApp) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "No applications found" });
+      }
+      await assertAdminOrEventFloorOwner(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        firstApp.eventId,
+      );
+
+      // Hard delete - all child records (responses, venues, evaluations, etc.)
+      // are cascade-deleted via Prisma schema onDelete: Cascade
+      const result = await ctx.db.application.deleteMany({
+        where: {
+          id: {
+            in: input.applicationIds,
+          },
+        },
+      });
+
+      return { count: result.count };
     }),
 
   // Floor Lead/Admin: Toggle cross-floor sharing for a single application

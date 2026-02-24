@@ -29,6 +29,7 @@ import {
   IconMail,
   IconUserPlus,
   IconMicrophone,
+  IconTrash,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import ApplicationDetailsDrawer from "~/app/admin/events/[eventId]/applications/ApplicationDetailsDrawer";
@@ -72,6 +73,7 @@ export default function SpeakerManagementClient({ eventId }: Props) {
   const [selectedApplications, setSelectedApplications] = useState<string[]>([]);
   const [bulkStatusModalOpen, setBulkStatusModalOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<"ACCEPTED" | "REJECTED" | null>(null);
+  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
   const [viewDrawerOpened, { open: openViewDrawer, close: closeViewDrawer }] = useDisclosure(false);
   const [viewingApplication, setViewingApplication] = useState<{ id: string } | null>(null);
 
@@ -116,6 +118,22 @@ export default function SpeakerManagementClient({ eventId }: Props) {
       setSelectedApplications([]);
       setBulkStatusModalOpen(false);
       setBulkStatus(null);
+      void refetchApplications();
+    },
+    onError: (error) => {
+      notifications.show({ title: "Error", message: error.message, color: "red" });
+    },
+  });
+
+  const bulkDeleteApplications = api.application.bulkDeleteApplications.useMutation({
+    onSuccess: (result) => {
+      notifications.show({
+        title: "Deleted",
+        message: `${result.count} speaker application${result.count !== 1 ? "s" : ""} permanently deleted`,
+        color: "red",
+      });
+      setSelectedApplications([]);
+      setBulkDeleteModalOpen(false);
       void refetchApplications();
     },
     onError: (error) => {
@@ -224,6 +242,9 @@ export default function SpeakerManagementClient({ eventId }: Props) {
                   </Button>
                   <Button variant="light" color="red" size="sm" onClick={() => { setBulkStatus("REJECTED"); setBulkStatusModalOpen(true); }}>
                     Reject Selected
+                  </Button>
+                  <Button variant="light" color="dark" size="sm" leftSection={<IconTrash size={14} />} onClick={() => setBulkDeleteModalOpen(true)}>
+                    Delete Selected
                   </Button>
                   <Button variant="subtle" size="sm" onClick={() => setSelectedApplications([])}>
                     Clear
@@ -406,6 +427,33 @@ export default function SpeakerManagementClient({ eventId }: Props) {
               loading={bulkUpdateApplicationStatus.isPending}
             >
               {bulkStatus === "ACCEPTED" ? "Accept" : "Reject"} Applications
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Bulk Delete Confirmation Modal */}
+      <Modal
+        opened={bulkDeleteModalOpen}
+        onClose={() => setBulkDeleteModalOpen(false)}
+        title="Delete Selected Applications"
+        size="md"
+      >
+        <Stack>
+          <Text size="sm" c="dimmed">
+            Are you sure you want to permanently delete {selectedApplications.length} application{selectedApplications.length !== 1 ? "s" : ""}? This action cannot be undone.
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="light" onClick={() => setBulkDeleteModalOpen(false)}>Cancel</Button>
+            <Button
+              color="red"
+              onClick={() => {
+                if (selectedApplications.length === 0) return;
+                bulkDeleteApplications.mutate({ applicationIds: selectedApplications });
+              }}
+              loading={bulkDeleteApplications.isPending}
+            >
+              Delete Applications
             </Button>
           </Group>
         </Stack>
