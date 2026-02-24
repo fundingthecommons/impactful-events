@@ -84,10 +84,6 @@ jobs:
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/test_db
       AUTH_SECRET: e2e-test-secret-at-least-32-characters-long
-      AUTH_DISCORD_ID: dummy
-      AUTH_DISCORD_SECRET: dummy
-      GOOGLE_CLIENT_ID: dummy
-      GOOGLE_CLIENT_SECRET: dummy
       NOTION_TOKEN: dummy
       NOTION_CONTACTS_DATABASE_ID: dummy
       NOTION_EVENTS_DATABASE_ID: dummy

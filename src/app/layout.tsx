@@ -14,6 +14,7 @@ import { ThemeProvider } from "./_components/ThemeProvider";
 import { ThemeToggle } from "./_components/ThemeToggle";
 import { GitHubCorner } from "./_components/GitHubCorner";
 import { AIChatFAB } from "./_components/AIChatFAB";
+import { Web3Provider } from "./_components/Web3Provider";
 import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
@@ -37,9 +38,11 @@ export default function RootLayout({
           <SessionProvider>
             <Notifications />
             <TRPCReactProvider>
-              <HeaderBar />
-              {children}
-              <AIChatFAB />
+              <Web3Provider>
+                <HeaderBar />
+                {children}
+                <AIChatFAB />
+              </Web3Provider>
             </TRPCReactProvider>
             <ThemeToggle />
             <GitHubCorner />

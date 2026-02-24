@@ -18,8 +18,9 @@ import {
   Anchor,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { IconBrandDiscord, IconBrandGoogle, IconCheck, IconAlertCircle, IconMail } from "@tabler/icons-react";
+import { IconCheck, IconAlertCircle, IconMail, IconWallet } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
+import { useWaapAuth } from "~/hooks/useWaapAuth";
 
 interface AuthFormProps {
   callbackUrl?: string;
@@ -146,7 +147,7 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
     } finally {
       setIsLoading(false);
     }
-  };;;;;
+  };
 
   const handleSignUp = async (values: SignUpFormData) => {
     setIsLoading(true);
@@ -210,19 +211,24 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
     }
   };
 
-  const handleProviderSignIn = async (provider: "discord" | "google") => {
-    setIsLoading(true);
-    setError(null);
+  const {
+    connectAndSignIn: waapConnect,
+    isConnecting: isWaapConnecting,
+    isSigningIn: isWaapSigningIn,
+  } = useWaapAuth();
 
-    try {
-      await signIn(provider, {
-        callbackUrl: callbackUrl ?? "/dashboard",
-      });
-    } catch {
-      setError("Failed to sign in with provider");
-      setIsLoading(false);
+  const handleWalletConnect = async () => {
+    setError(null);
+    const result = await waapConnect(callbackUrl ?? "/dashboard");
+    if (result.success && result.url) {
+      setSuccess("Connected! Redirecting...");
+      window.location.href = result.url;
+    } else if (result.error) {
+      setError(result.error);
     }
   };
+
+  const isWaapLoading = isWaapConnecting || isWaapSigningIn;
 
   return (
     <Paper className={className} radius="md" p="xl" withBorder>
@@ -308,26 +314,15 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
 
                 <Divider label="Or continue with" labelPosition="center" />
 
-                <Stack gap="xs">
-                  <Button
-                    variant="outline"
-                    leftSection={<IconBrandDiscord size={18} />}
-                    onClick={() => handleProviderSignIn("discord")}
-                    loading={isLoading}
-                    fullWidth
-                  >
-                    Continue with Discord
-                  </Button>
-                  <Button
-                    variant="outline"
-                    leftSection={<IconBrandGoogle size={18} />}
-                    onClick={() => handleProviderSignIn("google")}
-                    loading={isLoading}
-                    fullWidth
-                  >
-                    Continue with Google
-                  </Button>
-                </Stack>
+                <Button
+                  variant="outline"
+                  leftSection={<IconWallet size={18} />}
+                  onClick={() => void handleWalletConnect()}
+                  loading={isWaapLoading}
+                  fullWidth
+                >
+                  {isWaapConnecting ? "Connecting..." : isWaapSigningIn ? "Signing in..." : "Connect with Wallet"}
+                </Button>
               </Stack>
             ) : (
               <form onSubmit={signInForm.onSubmit(handleSignIn)}>
@@ -369,26 +364,15 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
 
                   <Divider label="Or continue with" labelPosition="center" />
 
-                  <Stack gap="xs">
-                    <Button
-                      variant="outline"
-                      leftSection={<IconBrandDiscord size={18} />}
-                      onClick={() => handleProviderSignIn("discord")}
-                      loading={isLoading}
-                      fullWidth
-                    >
-                      Continue with Discord
-                    </Button>
-                    <Button
-                      variant="outline"
-                      leftSection={<IconBrandGoogle size={18} />}
-                      onClick={() => handleProviderSignIn("google")}
-                      loading={isLoading}
-                      fullWidth
-                    >
-                      Continue with Google
-                    </Button>
-                  </Stack>
+                  <Button
+                    variant="outline"
+                    leftSection={<IconWallet size={18} />}
+                    onClick={() => void handleWalletConnect()}
+                    loading={isWaapLoading}
+                    fullWidth
+                  >
+                    {isWaapConnecting ? "Connecting..." : isWaapSigningIn ? "Signing in..." : "Connect with Wallet"}
+                  </Button>
                 </Stack>
               </form>
             )}
@@ -466,26 +450,15 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
                 
                 <Divider label="Or continue with" labelPosition="center" />
                 
-                <Stack gap="xs">
-                  <Button
-                    variant="outline"
-                    leftSection={<IconBrandDiscord size={18} />}
-                    onClick={() => handleProviderSignIn("discord")}
-                    loading={isLoading}
-                    fullWidth
-                  >
-                    Continue with Discord
-                  </Button>
-                  <Button
-                    variant="outline"
-                    leftSection={<IconBrandGoogle size={18} />}
-                    onClick={() => handleProviderSignIn("google")}
-                    loading={isLoading}
-                    fullWidth
-                  >
-                    Continue with Google
-                  </Button>
-                </Stack>
+                <Button
+                  variant="outline"
+                  leftSection={<IconWallet size={18} />}
+                  onClick={() => void handleWalletConnect()}
+                  loading={isWaapLoading}
+                  fullWidth
+                >
+                  {isWaapConnecting ? "Connecting..." : isWaapSigningIn ? "Signing in..." : "Connect with Wallet"}
+                </Button>
               </Stack>
             </form>
           </Tabs.Panel>
