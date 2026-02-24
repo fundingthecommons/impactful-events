@@ -69,6 +69,7 @@ export async function findOrCreateUserByWallet(
   address: string,
   chainId: number,
   email?: string | null,
+  options?: { verified?: boolean },
 ): Promise<{
   id: string;
   email: string | null;
@@ -123,13 +124,13 @@ export async function findOrCreateUserByWallet(
           address: normalizedAddress,
           chain,
           isPrimary: true,
-          isVerified: true,
+          isVerified: options?.verified ?? true,
           label: "WAAP Wallet",
         },
       });
 
       console.log(
-        `[AUTH:SIWE] Linked wallet ${normalizedAddress} to existing user ${existingUser.id} (${normalizedEmail})`,
+        `[AUTH:SIWE] Linked wallet ${normalizedAddress} to existing user ${existingUser.id} (${normalizedEmail}) [verified=${String(options?.verified ?? true)}]`,
       );
 
       return {
@@ -153,7 +154,7 @@ export async function findOrCreateUserByWallet(
           address: normalizedAddress,
           chain,
           isPrimary: true,
-          isVerified: true,
+          isVerified: options?.verified ?? true,
           label: "WAAP Wallet",
         },
       },
@@ -162,7 +163,7 @@ export async function findOrCreateUserByWallet(
   });
 
   console.log(
-    `[AUTH:SIWE] Created new user ${newUser.id} with wallet ${normalizedAddress}`,
+    `[AUTH:SIWE] Created new user ${newUser.id} with wallet ${normalizedAddress} [verified=${String(options?.verified ?? true)}]`,
   );
 
   return newUser;

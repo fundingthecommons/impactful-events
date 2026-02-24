@@ -219,6 +219,7 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
 
   const handleWalletConnect = async () => {
     setError(null);
+    setSuccess(null);
     const result = await waapConnect(callbackUrl ?? "/dashboard");
     if (result.success && result.url) {
       setSuccess("Connected! Redirecting...");

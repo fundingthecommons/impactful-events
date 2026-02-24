@@ -174,6 +174,53 @@ export const authConfig = {
         }
       },
     }),
+    // WAAP Social Login — for users who authenticated via Google/Discord through WAAP.
+    // Skips SIWE signing; authenticates via verified email from the OAuth provider.
+    CredentialsProvider({
+      id: "waap-social",
+      name: "WAAP Social",
+      credentials: {
+        email: { label: "Email", type: "text" },
+        walletAddress: { label: "Wallet Address", type: "text" },
+        chainId: { label: "Chain ID", type: "text" },
+      },
+      async authorize(credentials) {
+        const waapSocialSchema = z.object({
+          email: z.string().email(),
+          walletAddress: z.string().min(1),
+          chainId: z.coerce.number().int().positive(),
+        });
+
+        const result = waapSocialSchema.safeParse(credentials);
+        if (!result.success) {
+          console.log("[AUTH:WAAP-SOCIAL] Credentials validation failed:", result.error);
+          return null;
+        }
+
+        const { email, walletAddress, chainId } = result.data;
+
+        try {
+          const user = await findOrCreateUserByWallet(
+            walletAddress,
+            chainId,
+            email,
+            { verified: false },
+          );
+
+          console.log("[AUTH:WAAP-SOCIAL] Authenticated user:", user.id, "via email:", email);
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role ?? undefined,
+          };
+        } catch (error) {
+          console.error("[AUTH:WAAP-SOCIAL] Authentication failed:", error);
+          return null;
+        }
+      },
+    }),
     PostmarkProvider({
       from: process.env.ADMIN_EMAIL ?? "noreply@fundingthecommons.io",
       apiKey: process.env.POSTMARK_SERVER_TOKEN,

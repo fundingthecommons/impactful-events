@@ -26,11 +26,12 @@ interface UseWaapAuthReturn {
 }
 
 /**
- * Hook that orchestrates the full WAAP + SIWE + NextAuth authentication flow:
+ * Hook that orchestrates the full WAAP + NextAuth authentication flow:
  * 1. Connect wallet via WAAP SDK (opens modal for social/email/wallet options)
- * 2. Get verified email from WAAP (for account linking)
- * 3. Create and sign SIWE message
- * 4. Submit to NextAuth SIWE provider
+ * 2. Detect login method (social vs external wallet)
+ * 3a. Social login: authenticate via verified email (no SIWE signing)
+ * 3b. External wallet: create and sign SIWE message, submit to SIWE provider
+ * 4. On error: disconnect wallet to prevent stale connector state
  */
 export function useWaapAuth(): UseWaapAuthReturn {
   const { address, isConnected } = useAccount();
@@ -66,68 +67,113 @@ export function useWaapAuth(): UseWaapAuthReturn {
         setIsConnecting(false);
         setIsSigningIn(true);
 
-        // 2. Try to get verified email for account linking
-        let email: string | null = null;
-        try {
-          // Access WAAP-specific methods via the connector
-          const connector = wagmiConfig.connectors.find((c) => isWaaPConnector(c));
-          if (connector) {
-            const waapMethods = connector as unknown as WaaPConnectorProperties;
-            if (typeof waapMethods.requestEmail === "function") {
+        // 2. Detect login method to determine auth flow
+        const connector = wagmiConfig.connectors.find((c) => isWaaPConnector(c));
+        const waapMethods = connector as unknown as WaaPConnectorProperties | undefined;
+        const loginMethod = waapMethods?.getLoginMethod?.() ?? null;
+
+        console.log("[WAAP] Login method detected:", loginMethod);
+
+        if (loginMethod === "waap") {
+          // --- SOCIAL LOGIN FLOW (Google, Discord, email, phone via WAAP) ---
+          // Skip SIWE signing; authenticate via verified email from OAuth provider
+
+          let email: string | null = null;
+          try {
+            if (waapMethods && typeof waapMethods.requestEmail === "function") {
               email = await waapMethods.requestEmail();
             }
+          } catch {
+            console.log("[WAAP] Email request failed for social login");
           }
-        } catch {
-          // Email request failed or user declined - continue without email
-          console.log("[WAAP] Email request failed or declined, continuing without email");
+
+          if (!email) {
+            throw new Error("Email is required for social login. Please try again.");
+          }
+
+          const result = await signIn("waap-social", {
+            email,
+            walletAddress: connectedAddress,
+            chainId: String(connectedChainId),
+            redirect: false,
+            callbackUrl: callbackUrl ?? "/dashboard",
+          });
+
+          if (result?.error) {
+            throw new Error(
+              result.error === "CredentialsSignin"
+                ? "Social wallet authentication failed. Please try again."
+                : result.error,
+            );
+          }
+
+          return { success: true, url: result?.url ?? undefined };
+        } else {
+          // --- EXTERNAL WALLET FLOW (MetaMask, WalletConnect, Human) ---
+          // Require SIWE proof of wallet ownership
+
+          let email: string | null = null;
+          try {
+            if (waapMethods && typeof waapMethods.requestEmail === "function") {
+              email = await waapMethods.requestEmail();
+            }
+          } catch {
+            console.log("[WAAP] Email request failed or declined, continuing without email");
+          }
+
+          const csrfToken = await getCsrfToken();
+          if (!csrfToken) {
+            throw new Error("Failed to get CSRF token");
+          }
+
+          const siweMessage = createSiweMessage({
+            address: connectedAddress,
+            chainId: connectedChainId,
+            nonce: csrfToken,
+            domain: window.location.host,
+            uri: window.location.origin,
+          });
+          const messageStr = siweMessage.prepareMessage();
+
+          const signature = await signMessageAsync({ message: messageStr });
+
+          const result = await signIn("siwe", {
+            message: messageStr,
+            signature,
+            email: email ?? "",
+            csrfToken,
+            redirect: false,
+            callbackUrl: callbackUrl ?? "/dashboard",
+          });
+
+          if (result?.error) {
+            throw new Error(
+              result.error === "CredentialsSignin"
+                ? "Wallet authentication failed. Please try again."
+                : result.error,
+            );
+          }
+
+          return { success: true, url: result?.url ?? undefined };
         }
-
-        // 3. Get CSRF token for SIWE nonce
-        const csrfToken = await getCsrfToken();
-        if (!csrfToken) {
-          throw new Error("Failed to get CSRF token");
-        }
-
-        // 4. Create SIWE message
-        const siweMessage = createSiweMessage({
-          address: connectedAddress,
-          chainId: connectedChainId,
-          nonce: csrfToken,
-          domain: window.location.host,
-          uri: window.location.origin,
-        });
-        const messageStr = siweMessage.prepareMessage();
-
-        // 5. Sign the message via WAAP
-        const signature = await signMessageAsync({ message: messageStr });
-
-        // 6. Submit to NextAuth SIWE provider
-        const result = await signIn("siwe", {
-          message: messageStr,
-          signature,
-          email: email ?? "",
-          csrfToken,
-          redirect: false,
-          callbackUrl: callbackUrl ?? "/dashboard",
-        });
-
-        if (result?.error) {
-          throw new Error(result.error === "CredentialsSignin"
-            ? "Wallet authentication failed. Please try again."
-            : result.error);
-        }
-
-        return { success: true, url: result?.url ?? undefined };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to connect wallet";
         setError(message);
+
+        // Disconnect wallet on ANY error to prevent "Connector already connected"
+        try {
+          await disconnectAsync();
+        } catch {
+          // Ignore disconnect errors during cleanup
+        }
+
         return { success: false, error: message };
       } finally {
         setIsConnecting(false);
         setIsSigningIn(false);
       }
     },
-    [connectors, connectAsync, signMessageAsync],
+    [connectors, connectAsync, signMessageAsync, disconnectAsync],
   );
 
   const disconnect = useCallback(async () => {
