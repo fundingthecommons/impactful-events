@@ -1079,6 +1079,45 @@ export const scheduleRouter = createTRPCRouter({
       return { event, sessions };
     }),
 
+  // Get sessions across ALL venues the user can manage
+  getAllFloorSessions: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const event = await resolveEventId(ctx.db, input.eventId);
+      const admin = isAdminOrStaff(ctx.session.user.role);
+
+      const venueIds = admin
+        ? (
+            await ctx.db.scheduleVenue.findMany({
+              where: { eventId: event.id },
+              select: { id: true },
+            })
+          ).map((v) => v.id)
+        : await getUserOwnedVenueIds(
+            ctx.db,
+            ctx.session.user.id,
+            event.id,
+          );
+
+      const sessions = await ctx.db.scheduleSession.findMany({
+        where: { eventId: event.id, venueId: { in: venueIds } },
+        include: {
+          venue: { select: { id: true, name: true } },
+          room: { select: { id: true, name: true } },
+          sessionType: { select: { id: true, name: true, color: true } },
+          track: { select: { id: true, name: true, color: true } },
+          sessionSpeakers: {
+            include: { user: { select: userSelectFields } },
+            orderBy: { order: "asc" },
+          },
+          _count: { select: { comments: true } },
+        },
+        orderBy: [{ startTime: "asc" }, { order: "asc" }],
+      });
+
+      return { event, sessions };
+    }),
+
   // Search users who have applied for a specific venue/floor
   searchFloorApplicants: protectedProcedure
     .input(

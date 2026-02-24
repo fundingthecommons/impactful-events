@@ -19,7 +19,7 @@ import {
 } from "@tabler/icons-react";
 import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 import { getDisplayName } from "~/utils/userDisplay";
-import { type FloorSession } from "./ManageScheduleClient";
+import { type FloorSession } from "~/app/_components/EditSessionModal";
 
 interface SessionTableViewProps {
   sessions: FloorSession[];
@@ -31,6 +31,7 @@ interface SessionTableViewProps {
   onOpenComments: (sessionId: string, sessionTitle: string) => void;
   isDeleting: boolean;
   onViewDetail?: (session: FloorSession) => void;
+  showFloorColumn?: boolean;
 }
 
 function formatTime(date: Date): string {
@@ -74,11 +75,13 @@ export function SessionTableView({
   onOpenComments,
   isDeleting,
   onViewDetail,
+  showFloorColumn,
 }: SessionTableViewProps) {
   const [search, setSearch] = useState("");
   const [roomFilter, setRoomFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [trackFilter, setTrackFilter] = useState<string | null>(null);
+  const [floorFilter, setFloorFilter] = useState<string | null>(null);
   const [sortStatus, setSortStatus] = useState<DataTableSortStatus<FloorSession>>({
     columnAccessor: "startTime",
     direction: "asc",
@@ -109,6 +112,9 @@ export function SessionTableView({
     }
     if (trackFilter) {
       result = result.filter((s) => s.trackId === trackFilter);
+    }
+    if (floorFilter) {
+      result = result.filter((s) => s.venueId === floorFilter);
     }
 
     // Sorting
@@ -146,6 +152,9 @@ export function SessionTableView({
         case "isPublished":
           cmp = (a.isPublished ? 1 : 0) - (b.isPublished ? 1 : 0);
           break;
+        case "venue":
+          cmp = (a.venue?.name ?? "").localeCompare(b.venue?.name ?? "");
+          break;
         default:
           cmp = 0;
       }
@@ -153,7 +162,7 @@ export function SessionTableView({
     });
 
     return result;
-  }, [sessions, search, roomFilter, typeFilter, trackFilter, sortStatus]);
+  }, [sessions, search, roomFilter, typeFilter, trackFilter, floorFilter, sortStatus]);
 
   const roomOptions = useMemo(
     () => rooms.map((r) => ({ value: r.id, label: r.name })),
@@ -169,6 +178,19 @@ export function SessionTableView({
     () => tracks.map((t) => ({ value: t.id, label: t.name })),
     [tracks],
   );
+
+  const floorOptions = useMemo(() => {
+    const venueMap = new Map<string, string>();
+    for (const s of sessions) {
+      if (s.venueId && s.venue) {
+        venueMap.set(s.venueId, s.venue.name);
+      }
+    }
+    return Array.from(venueMap.entries()).map(([id, name]) => ({
+      value: id,
+      label: name,
+    }));
+  }, [sessions]);
 
   return (
     <div className="ms-table-container">
@@ -215,6 +237,17 @@ export function SessionTableView({
             style={{ minWidth: 130 }}
           />
         )}
+        {showFloorColumn && floorOptions.length > 0 && (
+          <Select
+            placeholder="Floor"
+            size="xs"
+            clearable
+            data={floorOptions}
+            value={floorFilter}
+            onChange={setFloorFilter}
+            style={{ minWidth: 130 }}
+          />
+        )}
       </Group>
 
       <DataTable
@@ -245,6 +278,26 @@ export function SessionTableView({
               </Group>
             ),
           },
+          ...(showFloorColumn
+            ? [
+                {
+                  accessor: "venue" as const,
+                  title: "Floor",
+                  sortable: true,
+                  width: 120,
+                  render: (session: FloorSession) =>
+                    session.venue ? (
+                      <Badge size="xs" variant="light" color="indigo">
+                        {session.venue.name}
+                      </Badge>
+                    ) : (
+                      <Text size="xs" c="dimmed">
+                        -
+                      </Text>
+                    ),
+                },
+              ]
+            : []),
           {
             accessor: "speakers",
             title: "Speakers",

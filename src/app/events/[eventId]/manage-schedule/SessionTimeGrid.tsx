@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/core";
 import { getDisplayName } from "~/utils/userDisplay";
 import { useSessionDragDrop } from "./useSessionDragDrop";
-import { type FloorSession } from "./ManageScheduleClient";
+import { type FloorSession } from "~/app/_components/EditSessionModal";
 
 interface SessionTimeGridProps {
   sessions: FloorSession[];

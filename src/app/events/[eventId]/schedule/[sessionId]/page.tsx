@@ -18,13 +18,14 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconArrowLeft, IconClock, IconMapPin, IconLink, IconUserPlus } from "@tabler/icons-react";
+import { IconArrowLeft, IconClock, IconMapPin, IconLink, IconUserPlus, IconEdit } from "@tabler/icons-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { api } from "~/trpc/react";
 import { getDisplayName } from "~/utils/userDisplay";
 import { QuickAddSpeakerModal, type QuickAddSpeakerResult } from "~/app/_components/QuickAddSpeakerModal";
+import EditSessionModal, { type FloorSession } from "~/app/_components/EditSessionModal";
 
 function formatDateTime(date: Date): string {
   return new Date(date).toLocaleDateString("en-US", {
@@ -59,6 +60,16 @@ export default function SessionDetailPage() {
     { enabled: !!userSession?.user },
   );
   const canManage = permissions?.canManage ?? false;
+  const isAdmin = userSession?.user?.role === "admin" || userSession?.user?.role === "staff";
+
+  // Edit modal state
+  const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false);
+
+  // Fetch filter data for edit modal (rooms, session types, tracks)
+  const { data: filters } = api.schedule.getEventScheduleFilters.useQuery(
+    { eventId: params.eventId },
+    { enabled: canManage },
+  );
 
   // Quick-add modal state
   const [quickAddOpened, { open: openQuickAdd, close: closeQuickAdd }] = useDisclosure(false);
@@ -135,18 +146,30 @@ export default function SessionDetailPage() {
   return (
     <Container size="md" py="xl">
       <Stack gap="lg">
-        {/* Back link */}
-        <Anchor
-          component={Link}
-          href={`/events/${params.eventId}/schedule`}
-          size="sm"
-          c="dimmed"
-        >
-          <Group gap={4}>
-            <IconArrowLeft size={14} />
-            Back to schedule
-          </Group>
-        </Anchor>
+        {/* Back link + edit button */}
+        <Group justify="space-between" align="center">
+          <Anchor
+            component={Link}
+            href={`/events/${params.eventId}/schedule`}
+            size="sm"
+            c="dimmed"
+          >
+            <Group gap={4}>
+              <IconArrowLeft size={14} />
+              Back to schedule
+            </Group>
+          </Anchor>
+          {canManage && (
+            <Button
+              variant="light"
+              size="sm"
+              leftSection={<IconEdit size={16} />}
+              onClick={openEdit}
+            >
+              Edit session
+            </Button>
+          )}
+        </Group>
 
         {/* Session type badge */}
         {session.sessionType && (
@@ -333,6 +356,57 @@ export default function SessionDetailPage() {
           onSpeakerCreated={handleSpeakerCreated}
           prefillFirstName={prefillParts?.first}
           prefillLastName={prefillParts?.last}
+        />
+      )}
+
+      {/* Edit Session Modal */}
+      {canManage && session && filters && (
+        <EditSessionModal
+          opened={editOpened}
+          onClose={closeEdit}
+          session={{
+            id: session.id,
+            title: session.title,
+            description: session.description,
+            startTime: session.startTime,
+            endTime: session.endTime,
+            speakers: session.speakers,
+            venueId: session.venueId,
+            roomId: session.roomId,
+            sessionTypeId: session.sessionTypeId,
+            trackId: session.trackId,
+            order: session.order,
+            isPublished: session.isPublished,
+            venue: session.venue,
+            room: session.room,
+            sessionType: session.sessionType,
+            track: session.track,
+            sessionSpeakers: session.sessionSpeakers.map((s) => ({
+              role: s.role,
+              user: {
+                id: s.user.id,
+                firstName: s.user.firstName,
+                surname: s.user.surname,
+                name: s.user.name,
+                email: s.user.email,
+                image: s.user.image,
+              },
+            })),
+          } satisfies FloorSession}
+          eventId={params.eventId}
+          venueId={session.venueId ?? undefined}
+          rooms={
+            filters.venues
+              .find((v) => v.id === session.venueId)
+              ?.rooms ?? []
+          }
+          sessionTypes={filters.sessionTypes}
+          tracks={filters.tracks}
+          isAdmin={isAdmin}
+          onSuccess={() => {
+            void utils.schedule.getSession.invalidate({ sessionId: params.sessionId });
+            void utils.schedule.getEventSchedule.invalidate({ eventId: params.eventId });
+          }}
         />
       )}
     </Container>
