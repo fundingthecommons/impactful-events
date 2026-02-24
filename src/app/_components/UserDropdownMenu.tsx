@@ -16,8 +16,8 @@ import {
   IconLogout,
   IconSettings,
 } from "@tabler/icons-react";
-import { signOut } from "next-auth/react";
 import { useParams } from "next/navigation";
+import { useSignOut } from "~/hooks/useSignOut";
 import Link from "next/link";
 import type { Session } from "next-auth";
 import { api } from "~/trpc/react";
@@ -60,9 +60,7 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
     { enabled: !!eventId },
   );
 
-  const handleSignOut = () => {
-    void signOut();
-  };
+  const handleSignOut = useSignOut();
 
   // Compute role badges with loading/error fallback
   const roleBadges: string[] = (() => {
@@ -174,7 +172,7 @@ export function UserDropdownMenu({ session }: UserDropdownMenuProps) {
         <Menu.Item 
           color="red"
           leftSection={<IconLogout style={{ width: rem(14), height: rem(14) }} />}
-          onClick={handleSignOut}
+          onClick={() => void handleSignOut()}
         >
           Sign out
         </Menu.Item>

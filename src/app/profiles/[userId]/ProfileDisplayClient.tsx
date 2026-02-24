@@ -37,6 +37,8 @@ import {
   IconCalendar,
   IconArrowLeft,
   IconStar,
+  IconWallet,
+  IconShieldCheck,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
@@ -509,6 +511,62 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
               )}
             </Stack>
           </Card>
+
+          {/* Wallet Addresses */}
+          {(user.walletAddresses?.length ?? 0) > 0 && (
+            <Card shadow="sm" padding="lg" radius="md" withBorder mt="lg">
+              <Group gap="sm" mb="md">
+                <IconWallet size={20} />
+                <Title order={4}>Wallet Addresses</Title>
+              </Group>
+              <Stack gap="sm">
+                {user.walletAddresses.map((wallet) => (
+                  <Box
+                    key={wallet.id}
+                    p="sm"
+                    style={{
+                      border: "1px solid var(--mantine-color-gray-3)",
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Group gap="xs" mb={4}>
+                      <Badge size="sm" variant="light">
+                        {wallet.chain}
+                      </Badge>
+                      {wallet.isVerified && (
+                        <Tooltip label="Verified wallet">
+                          <Badge
+                            size="sm"
+                            color="green"
+                            variant="light"
+                            leftSection={<IconShieldCheck size={12} />}
+                          >
+                            Verified
+                          </Badge>
+                        </Tooltip>
+                      )}
+                      {wallet.label && (
+                        <Badge size="sm" color="gray" variant="light">
+                          {wallet.label}
+                        </Badge>
+                      )}
+                    </Group>
+                    <Tooltip label={wallet.address}>
+                      <Text
+                        size="xs"
+                        style={{
+                          fontFamily: "monospace",
+                          cursor: "default",
+                        }}
+                      >
+                        {`${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`}
+                      </Text>
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Stack>
+            </Card>
+          )}
         </Grid.Col>
       </Grid>
     </Container>

@@ -51,7 +51,7 @@ async function getWaaPProvider(
     }
 
     const provider = initWaaP(config ?? waapConfig);
-    waapProvider = provider as WaaPEthereumProviderInterface;
+    waapProvider = provider;
     return waapProvider;
   })();
 

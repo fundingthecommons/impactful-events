@@ -33,7 +33,7 @@ interface UseWaapAuthReturn {
  * 4. Submit to NextAuth SIWE provider
  */
 export function useWaapAuth(): UseWaapAuthReturn {
-  const { address, isConnected, chainId } = useAccount();
+  const { address, isConnected } = useAccount();
   const { connectAsync, connectors } = useConnect();
   const { disconnectAsync } = useDisconnect();
   const { signMessageAsync } = useSignMessage();

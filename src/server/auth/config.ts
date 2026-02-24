@@ -24,11 +24,18 @@ declare module "next-auth" {
     user: {
       id: string;
       role?: string;
+      walletAddress?: string;
     } & DefaultSession["user"];
   }
 
   interface User {
     role?: string;
+  }
+}
+
+declare module "@auth/core/jwt" {
+  interface JWT {
+    walletAddress?: string;
   }
 }
 
@@ -152,7 +159,7 @@ export const authConfig = {
           const user = await findOrCreateUserByWallet(
             verification.address,
             verification.chainId,
-            email || undefined,
+            email ?? undefined,
           );
 
           return {
@@ -232,12 +239,20 @@ export const authConfig = {
     jwt: async ({ token, user }) => {
       if (user) {
         token.id = user.id;
-        // Fetch latest role from DB (invitation acceptance may have updated it)
+        // Fetch latest role and primary wallet from DB
         const dbUser = await db.user.findUnique({
           where: { id: user.id },
-          select: { role: true },
+          select: {
+            role: true,
+            walletAddresses: {
+              where: { isPrimary: true },
+              take: 1,
+              select: { address: true },
+            },
+          },
         });
         token.role = dbUser?.role ?? user.role;
+        token.walletAddress = dbUser?.walletAddresses[0]?.address;
       }
       return token;
     },
@@ -247,6 +262,7 @@ export const authConfig = {
         ...session.user,
         id: token.id as string,
         role: token.role as string | undefined,
+        walletAddress: token.walletAddress as string | undefined,
       },
     }),
   },
