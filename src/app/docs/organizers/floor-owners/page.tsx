@@ -88,6 +88,9 @@ export default function FloorOwnersPage() {
         <li>Update venue details (name, description, capacity)</li>
         <li>Toggle sessions between published and draft status</li>
         <li>View other sessions on their floor</li>
+        <li>
+          Share applications with other floors (see below)
+        </li>
       </ul>
 
       <h2 id="what-floor-leads-cannot-do" className="docs-heading-h2">
@@ -102,6 +105,35 @@ export default function FloorOwnersPage() {
         <li>Modify sessions on other venues</li>
         <li>Access event admin settings</li>
       </ul>
+
+      <h2 id="cross-floor-application-sharing" className="docs-heading-h2">
+        Cross-Floor Application Sharing
+      </h2>
+      <p className="docs-text">
+        Floor leads can share applications with other floors within the same
+        event. This is useful when an applicant is not the right fit for one
+        floor but might be a great match for another.
+      </p>
+      <p className="docs-text">
+        For example, if someone applies to Floor 2 and Floor 2 decides not to
+        confirm them, the Floor 2 lead can share that application so that all
+        other floor leads can see it. If another floor is interested, they can
+        reach out and book that person for their own programme.
+      </p>
+      <p className="docs-text">
+        Floor leads can share individual applications or select multiple
+        applications to share in bulk. They can also unshare applications at any
+        time. The platform tracks who shared each application and when, so there
+        is a clear audit trail.
+      </p>
+
+      <div className="docs-callout">
+        <p className="docs-callout-text">
+          <strong>Permission note:</strong> Floor leads can only share
+          applications that are linked to their own floor. As an organiser, you
+          have full access and can share any application within the event.
+        </p>
+      </div>
 
       <h2 id="removing-a-floor-lead" className="docs-heading-h2">
         Removing a Floor Lead

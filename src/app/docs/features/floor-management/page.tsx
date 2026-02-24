@@ -138,6 +138,62 @@ export default function FloorManagementPage() {
         advance and publish everything at once when you are ready.
       </p>
 
+      <h2 id="sharing-applications-across-floors" className="docs-heading-h2">
+        Sharing Applications Across Floors
+      </h2>
+      <p className="docs-text">
+        Sometimes an applicant is a great fit for your event but not quite right
+        for your specific floor. Rather than letting that application go to
+        waste, you can share it with the other floors so their leads can review
+        it too.
+      </p>
+
+      <h3 id="how-sharing-works" className="docs-heading-h3">
+        How Sharing Works
+      </h3>
+      <p className="docs-text">
+        When you share an application, it becomes visible to every other floor
+        lead within the same event. The application stays linked to your floor
+        &ndash; sharing simply opens it up so other leads can see it and
+        potentially book that person for their own programme.
+      </p>
+
+      <h3 id="sharing-a-single-application" className="docs-heading-h3">
+        Sharing a Single Application
+      </h3>
+      <p className="docs-text">
+        Open the application you want to share and click &ldquo;Share with
+        Other Floors&rdquo; from the actions menu. The application will be
+        immediately visible to all other floor leads. You can reverse this at
+        any time by clicking &ldquo;Unshare from Other Floors&rdquo;.
+      </p>
+
+      <h3 id="sharing-multiple-applications" className="docs-heading-h3">
+        Sharing Multiple Applications at Once
+      </h3>
+      <p className="docs-text">
+        If you have several applications to share, select them using the
+        checkboxes and click the &ldquo;Share with Floors&rdquo; button. This
+        lets you share a batch of applications in one action.
+      </p>
+
+      <h3 id="viewing-shared-applications" className="docs-heading-h3">
+        Viewing Shared Applications
+      </h3>
+      <p className="docs-text">
+        Applications that have been shared by other floors will appear alongside
+        the applications for your own floor. This means you can review them and
+        reach out to the applicant if they would be a good fit for your space.
+      </p>
+
+      <div className="docs-callout">
+        <p className="docs-callout-text">
+          <strong>Good to know:</strong> You can only share applications that
+          are linked to your own floor. You cannot share applications that
+          belong to another lead&apos;s floor.
+        </p>
+      </div>
+
       <h2 id="what-floor-leads-cannot-do" className="docs-heading-h2">
         What Floor Leads Cannot Do
       </h2>
@@ -178,6 +234,12 @@ export default function FloorManagementPage() {
             Admin Panel
           </Link>{" "}
           &ndash; Full overview of the organiser tools.
+        </li>
+        <li>
+          <Link href="/docs/features/applications" className="docs-link">
+            Applications
+          </Link>{" "}
+          &ndash; How the application process works for applicants.
         </li>
       </ul>
     </>
