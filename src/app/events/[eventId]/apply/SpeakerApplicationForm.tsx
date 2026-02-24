@@ -746,7 +746,7 @@ export default function SpeakerApplicationForm({
               <MultiSelect
                 label="Session Type"
                 placeholder="Select session types"
-                description="Select the type of session you may be interested in"
+                description="Select from the dropdown all the formats that could work for your session"
                 data={sessionTypeSelectData}
                 {...form.getInputProps("talkFormat")}
                 required
@@ -754,6 +754,7 @@ export default function SpeakerApplicationForm({
               {form.values.talkFormat.includes("Other") && (
                 <TextInput
                   label="Other Session Type"
+                  description={'If you selected "Other" for Session Type or Duration, please clarify below'}
                   placeholder="Describe your session type..."
                   value={sessionTypeOtherText}
                   onChange={(e) => setSessionTypeOtherText(e.currentTarget.value)}
@@ -767,6 +768,7 @@ export default function SpeakerApplicationForm({
               <MultiSelect
                 label="Session Length"
                 placeholder="Select session lengths"
+                description="Select from the dropdown all the durations that could work for your session"
                 data={talkDurationOptions}
                 {...form.getInputProps("talkDuration")}
                 required
@@ -940,7 +942,7 @@ export default function SpeakerApplicationForm({
                 <TextInput
                   label="Topic / Track"
                   placeholder="Please share which topic areas your proposed session fits into"
-                  description="If you are presenting on another floor, please share which topic areas your proposed session fits into"
+                  description="Please share which topic areas your proposed session fits into"
                   {...form.getInputProps("talkTopic")}
                   required
                 />
