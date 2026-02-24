@@ -55,6 +55,13 @@ export function useWaapAuth(): UseWaapAuthReturn {
           throw new Error("WAAP connector not found. Please refresh the page.");
         }
 
+        // Clear any stale connection from a previous session (e.g. user declined SIWE)
+        try {
+          await disconnectAsync();
+        } catch {
+          // Ignore — may not be connected
+        }
+
         // 1. Connect wallet via WAAP (opens login modal)
         const connectResult = await connectAsync({ connector: waapConn });
         const connectedAddress = connectResult.accounts[0];
