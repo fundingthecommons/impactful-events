@@ -2,11 +2,15 @@ import type React from "react";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { type DefaultSession, type NextAuthConfig } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
+import DiscordProvider from "next-auth/providers/discord";
+import GitHubProvider from "next-auth/providers/github";
 import PostmarkProvider from "next-auth/providers/postmark";
 import { render } from "@react-email/render";
 import { z } from "zod";
 
 import { db } from "~/server/db";
+import { env } from "~/env";
 import { verifyPassword } from "~/utils/password";
 import { sendEmail } from "~/lib/email";
 import { MagicLinkTemplate } from "~/server/email/templates/magicLink";
@@ -45,8 +49,34 @@ declare module "@auth/core/jwt" {
  *
  * @see https://next-auth.js.org/configuration/options
  */
+// Build OAuth providers conditionally — only registered when env vars are set
+const oauthProviders = [
+  ...(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET
+    ? [GoogleProvider({
+        clientId: env.AUTH_GOOGLE_ID,
+        clientSecret: env.AUTH_GOOGLE_SECRET,
+        allowDangerousEmailAccountLinking: true,
+      })]
+    : []),
+  ...(env.AUTH_DISCORD_ID && env.AUTH_DISCORD_SECRET
+    ? [DiscordProvider({
+        clientId: env.AUTH_DISCORD_ID,
+        clientSecret: env.AUTH_DISCORD_SECRET,
+        allowDangerousEmailAccountLinking: true,
+      })]
+    : []),
+  ...(env.AUTH_GITHUB_ID && env.AUTH_GITHUB_SECRET
+    ? [GitHubProvider({
+        clientId: env.AUTH_GITHUB_ID,
+        clientSecret: env.AUTH_GITHUB_SECRET,
+        allowDangerousEmailAccountLinking: true,
+      })]
+    : []),
+];
+
 export const authConfig = {
   providers: [
+    ...oauthProviders,
     CredentialsProvider({
       name: "credentials",
       credentials: {

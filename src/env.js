@@ -39,6 +39,13 @@ export const env = createEnv({
     ATPROTO_PDS_URL: z.string().url().optional().default("https://bsky.social"),
     ATPROTO_ENCRYPTION_KEY: z.string().min(32).optional(),
     GITHUB_API_TOKEN: z.string().optional(),
+    // OAuth providers (optional — buttons only appear when configured)
+    AUTH_GOOGLE_ID: z.string().optional(),
+    AUTH_GOOGLE_SECRET: z.string().optional(),
+    AUTH_DISCORD_ID: z.string().optional(),
+    AUTH_DISCORD_SECRET: z.string().optional(),
+    AUTH_GITHUB_ID: z.string().optional(),
+    AUTH_GITHUB_SECRET: z.string().optional(),
     // EAS (Ethereum Attestation Service) configuration
     EAS_PRIVATE_KEY: z.string().optional(), // Platform wallet private key for signing
     EAS_USE_MAINNET: z.enum(["true", "false"]).optional().default("false"),
@@ -54,6 +61,7 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
     // WAAP (Wallet as a Protocol) configuration
+    NEXT_PUBLIC_WAAP_ENABLED: z.enum(["true", "false"]).optional().default("true"),
     NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: z.string().optional(),
     NEXT_PUBLIC_WAAP_USE_STAGING: z.enum(["true", "false"]).optional().default("false"),
   },
@@ -94,7 +102,14 @@ export const env = createEnv({
     EAS_USE_MAINNET: process.env.EAS_USE_MAINNET,
     EAS_ATTESTATIONS_ENABLED: process.env.EAS_ATTESTATIONS_ENABLED,
     EAS_SCHEMA_UID: process.env.EAS_SCHEMA_UID,
+    AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
+    AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
+    AUTH_DISCORD_ID: process.env.AUTH_DISCORD_ID,
+    AUTH_DISCORD_SECRET: process.env.AUTH_DISCORD_SECRET,
+    AUTH_GITHUB_ID: process.env.AUTH_GITHUB_ID,
+    AUTH_GITHUB_SECRET: process.env.AUTH_GITHUB_SECRET,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    NEXT_PUBLIC_WAAP_ENABLED: process.env.NEXT_PUBLIC_WAAP_ENABLED,
     NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
     NEXT_PUBLIC_WAAP_USE_STAGING: process.env.NEXT_PUBLIC_WAAP_USE_STAGING,
   },
