@@ -85,10 +85,11 @@ function OAuthButtons({
 
   return (
     <>
+      <Divider label="Or continue with" labelPosition="center" />
       <Stack gap="xs">
         {providers.google && (
           <Button
-            variant="default"
+            variant="outline"
             leftSection={<IconBrandGoogle size={18} />}
             onClick={() => onSignIn("google")}
             fullWidth
@@ -99,7 +100,7 @@ function OAuthButtons({
         )}
         {providers.discord && (
           <Button
-            variant="default"
+            variant="outline"
             leftSection={<IconBrandDiscord size={18} />}
             onClick={() => onSignIn("discord")}
             fullWidth
@@ -110,7 +111,7 @@ function OAuthButtons({
         )}
         {providers.github && (
           <Button
-            variant="default"
+            variant="outline"
             leftSection={<IconBrandGithub size={18} />}
             onClick={() => onSignIn("github")}
             fullWidth
@@ -120,19 +121,20 @@ function OAuthButtons({
           </Button>
         )}
       </Stack>
-      <Divider label="Or continue with email" labelPosition="center" />
     </>
   );
 }
 
 function WalletButton({
   enabled,
+  showDivider,
   isWaapConnecting,
   isWaapSigningIn,
   isWaapLoading,
   onConnect,
 }: {
   enabled: boolean;
+  showDivider: boolean;
   isWaapConnecting: boolean;
   isWaapSigningIn: boolean;
   isWaapLoading: boolean;
@@ -142,7 +144,7 @@ function WalletButton({
 
   return (
     <>
-      <Divider label="Or connect with wallet" labelPosition="center" />
+      {showDivider && <Divider label="Or continue with" labelPosition="center" />}
       <Button
         variant="outline"
         leftSection={<IconWallet size={18} />}
@@ -168,6 +170,7 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
   const createUserMutation = api.user.create.useMutation();
   const { data: config } = api.config.getPublicConfig.useQuery();
   const oauthProviders = config?.oauthProviders;
+  const hasOAuthProviders = !!(oauthProviders?.google ?? oauthProviders?.discord ?? oauthProviders?.github);
   const waapEnabled = config?.waapEnabled ?? true;
 
   // Preserve late pass from URL parameters in client-side cookie
@@ -371,12 +374,6 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
 
           <Tabs.Panel value="signin" mt="sm">
             <Stack gap="sm">
-              <OAuthButtons
-                providers={oauthProviders}
-                onSignIn={handleOAuthSignIn}
-                disabled={isLoading || isWaapLoading}
-              />
-
               {magicLinkSent ? (
                 <Stack gap="sm" align="center" py="md">
                   <IconMail size={48} color="var(--mantine-color-blue-6)" />
@@ -464,8 +461,14 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
                 </form>
               )}
 
+              <OAuthButtons
+                providers={oauthProviders}
+                onSignIn={handleOAuthSignIn}
+                disabled={isLoading || isWaapLoading}
+              />
               <WalletButton
                 enabled={waapEnabled}
+                showDivider={!hasOAuthProviders}
                 isWaapConnecting={isWaapConnecting}
                 isWaapSigningIn={isWaapSigningIn}
                 isWaapLoading={isWaapLoading}
@@ -476,12 +479,6 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
 
           <Tabs.Panel value="signup" mt="sm">
             <Stack gap="sm">
-              <OAuthButtons
-                providers={oauthProviders}
-                onSignIn={handleOAuthSignIn}
-                disabled={isLoading || isWaapLoading}
-              />
-
               <form onSubmit={signUpForm.onSubmit(handleSignUp)}>
                 <Stack gap="sm">
                   <Group grow>
@@ -553,8 +550,14 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
                 </Stack>
               </form>
 
+              <OAuthButtons
+                providers={oauthProviders}
+                onSignIn={handleOAuthSignIn}
+                disabled={isLoading || isWaapLoading}
+              />
               <WalletButton
                 enabled={waapEnabled}
+                showDivider={!hasOAuthProviders}
                 isWaapConnecting={isWaapConnecting}
                 isWaapSigningIn={isWaapSigningIn}
                 isWaapLoading={isWaapLoading}
