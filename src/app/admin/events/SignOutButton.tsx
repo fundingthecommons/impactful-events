@@ -2,15 +2,17 @@
 
 import { Button } from "@mantine/core";
 import { IconLogout } from "@tabler/icons-react";
-import { signOut } from "next-auth/react";
+import { useSignOut } from "~/hooks/useSignOut";
 
 export default function SignOutButton() {
+  const handleSignOut = useSignOut();
+
   return (
     <Button
       variant="light"
       size="sm"
       leftSection={<IconLogout size={16} />}
-      onClick={() => signOut({ callbackUrl: '/' })}
+      onClick={() => void handleSignOut({ callbackUrl: '/' })}
     >
       Sign Out
     </Button>

@@ -18,8 +18,17 @@ import {
   Anchor,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { IconBrandDiscord, IconBrandGoogle, IconCheck, IconAlertCircle, IconMail } from "@tabler/icons-react";
+import {
+  IconCheck,
+  IconAlertCircle,
+  IconMail,
+  IconWallet,
+  IconBrandGoogle,
+  IconBrandDiscord,
+  IconBrandGithub,
+} from "@tabler/icons-react";
 import { api } from "~/trpc/react";
+import { useWaapAuth } from "~/hooks/useWaapAuth";
 
 interface AuthFormProps {
   callbackUrl?: string;
@@ -61,6 +70,94 @@ function getPasswordStrengthColor(strength: number): string {
   return "green";
 }
 
+function OAuthButtons({
+  providers,
+  onSignIn,
+  disabled,
+}: {
+  providers: { google: boolean; discord: boolean; github: boolean } | undefined;
+  onSignIn: (provider: string) => void;
+  disabled: boolean;
+}) {
+  if (!providers?.google && !providers?.discord && !providers?.github) {
+    return null;
+  }
+
+  return (
+    <>
+      <Divider label="Or continue with" labelPosition="center" />
+      <Stack gap="xs">
+        {providers.google && (
+          <Button
+            variant="outline"
+            leftSection={<IconBrandGoogle size={18} />}
+            onClick={() => onSignIn("google")}
+            fullWidth
+            disabled={disabled}
+          >
+            Continue with Google
+          </Button>
+        )}
+        {providers.discord && (
+          <Button
+            variant="outline"
+            leftSection={<IconBrandDiscord size={18} />}
+            onClick={() => onSignIn("discord")}
+            fullWidth
+            disabled={disabled}
+          >
+            Continue with Discord
+          </Button>
+        )}
+        {providers.github && (
+          <Button
+            variant="outline"
+            leftSection={<IconBrandGithub size={18} />}
+            onClick={() => onSignIn("github")}
+            fullWidth
+            disabled={disabled}
+          >
+            Continue with GitHub
+          </Button>
+        )}
+      </Stack>
+    </>
+  );
+}
+
+function WalletButton({
+  enabled,
+  showDivider,
+  isWaapConnecting,
+  isWaapSigningIn,
+  isWaapLoading,
+  onConnect,
+}: {
+  enabled: boolean;
+  showDivider: boolean;
+  isWaapConnecting: boolean;
+  isWaapSigningIn: boolean;
+  isWaapLoading: boolean;
+  onConnect: () => void;
+}) {
+  if (!enabled) return null;
+
+  return (
+    <>
+      {showDivider && <Divider label="Or continue with" labelPosition="center" />}
+      <Button
+        variant="outline"
+        leftSection={<IconWallet size={18} />}
+        onClick={onConnect}
+        loading={isWaapLoading}
+        fullWidth
+      >
+        {isWaapConnecting ? "Connecting..." : isWaapSigningIn ? "Signing in..." : "Connect with Wallet"}
+      </Button>
+    </>
+  );
+}
+
 export default function AuthForm({ callbackUrl, className, initialValues }: AuthFormProps) {
   const [activeTab, setActiveTab] = useState<string | null>("signup");
   const [isLoading, setIsLoading] = useState(false);
@@ -71,6 +168,10 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
   const createUserMutation = api.user.create.useMutation();
+  const { data: config } = api.config.getPublicConfig.useQuery();
+  const oauthProviders = config?.oauthProviders;
+  const hasOAuthProviders = !!(oauthProviders?.google ?? oauthProviders?.discord ?? oauthProviders?.github);
+  const waapEnabled = config?.waapEnabled ?? true;
 
   // Preserve late pass from URL parameters in client-side cookie
   useEffect(() => {
@@ -146,7 +247,7 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
     } finally {
       setIsLoading(false);
     }
-  };;;;;
+  };
 
   const handleSignUp = async (values: SignUpFormData) => {
     setIsLoading(true);
@@ -210,19 +311,31 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
     }
   };
 
-  const handleProviderSignIn = async (provider: "discord" | "google") => {
-    setIsLoading(true);
-    setError(null);
+  const {
+    connectAndSignIn: waapConnect,
+    isConnecting: isWaapConnecting,
+    isSigningIn: isWaapSigningIn,
+  } = useWaapAuth();
 
-    try {
-      await signIn(provider, {
-        callbackUrl: callbackUrl ?? "/dashboard",
-      });
-    } catch {
-      setError("Failed to sign in with provider");
-      setIsLoading(false);
+  const handleWalletConnect = async () => {
+    setError(null);
+    setSuccess(null);
+    const result = await waapConnect(callbackUrl ?? "/dashboard");
+    if (result.success && result.url) {
+      setSuccess("Connected! Redirecting...");
+      window.location.href = result.url;
+    } else if (result.error) {
+      setError(result.error);
     }
   };
+
+  const handleOAuthSignIn = (provider: string) => {
+    setError(null);
+    setSuccess(null);
+    void signIn(provider, { callbackUrl: callbackUrl ?? "/dashboard" });
+  };
+
+  const isWaapLoading = isWaapConnecting || isWaapSigningIn;
 
   return (
     <Paper className={className} radius="md" p="xl" withBorder>
@@ -260,234 +373,197 @@ export default function AuthForm({ callbackUrl, className, initialValues }: Auth
           </Tabs.List>
 
           <Tabs.Panel value="signin" mt="sm">
-            {magicLinkSent ? (
-              <Stack gap="sm" align="center" py="md">
-                <IconMail size={48} color="var(--mantine-color-blue-6)" />
-                <Text fw={600} size="lg">Check your email</Text>
-                <Text size="sm" c="dimmed" ta="center">
-                  We sent a sign-in link to <strong>{magicLinkEmail}</strong>.
-                  Click the link in the email to sign in.
-                </Text>
-                <Button
-                  variant="subtle"
-                  size="sm"
-                  onClick={() => {
-                    setMagicLinkSent(false);
-                    setSuccess(null);
-                  }}
-                >
-                  Try a different method
-                </Button>
-              </Stack>
-            ) : magicLinkMode ? (
-              <Stack gap="sm">
-                <TextInput
-                  label="Email"
-                  placeholder="your@email.com"
-                  value={magicLinkEmail}
-                  onChange={(e) => setMagicLinkEmail(e.currentTarget.value)}
-                  required
-                  leftSection={<IconMail size={16} />}
-                />
-                <Button
-                  onClick={() => void handleMagicLinkSignIn()}
-                  loading={isLoading}
-                  fullWidth
-                  leftSection={<IconMail size={18} />}
-                >
-                  Send Sign-In Link
-                </Button>
-                <Button
-                  variant="subtle"
-                  size="sm"
-                  onClick={() => setMagicLinkMode(false)}
-                  fullWidth
-                >
-                  Sign in with password instead
-                </Button>
-
-                <Divider label="Or continue with" labelPosition="center" />
-
-                <Stack gap="xs">
+            <Stack gap="sm">
+              {magicLinkSent ? (
+                <Stack gap="sm" align="center" py="md">
+                  <IconMail size={48} color="var(--mantine-color-blue-6)" />
+                  <Text fw={600} size="lg">Check your email</Text>
+                  <Text size="sm" c="dimmed" ta="center">
+                    We sent a sign-in link to <strong>{magicLinkEmail}</strong>.
+                    Click the link in the email to sign in.
+                  </Text>
                   <Button
-                    variant="outline"
-                    leftSection={<IconBrandDiscord size={18} />}
-                    onClick={() => handleProviderSignIn("discord")}
-                    loading={isLoading}
-                    fullWidth
+                    variant="subtle"
+                    size="sm"
+                    onClick={() => {
+                      setMagicLinkSent(false);
+                      setSuccess(null);
+                    }}
                   >
-                    Continue with Discord
-                  </Button>
-                  <Button
-                    variant="outline"
-                    leftSection={<IconBrandGoogle size={18} />}
-                    onClick={() => handleProviderSignIn("google")}
-                    loading={isLoading}
-                    fullWidth
-                  >
-                    Continue with Google
+                    Try a different method
                   </Button>
                 </Stack>
-              </Stack>
-            ) : (
-              <form onSubmit={signInForm.onSubmit(handleSignIn)}>
-                <Stack gap="sm">
+              ) : magicLinkMode ? (
+                <>
                   <TextInput
                     label="Email"
                     placeholder="your@email.com"
+                    value={magicLinkEmail}
+                    onChange={(e) => setMagicLinkEmail(e.currentTarget.value)}
                     required
-                    {...signInForm.getInputProps("email")}
+                    leftSection={<IconMail size={16} />}
                   />
-                  <PasswordInput
-                    label="Password"
-                    placeholder="Your password"
-                    required
-                    {...signInForm.getInputProps("password")}
-                  />
-                  <Group justify="space-between">
-                    <Checkbox
-                      label="Remember me"
-                      size="sm"
-                      {...signInForm.getInputProps("rememberMe", { type: "checkbox" })}
-                    />
-                    <Anchor size="xs" href="/auth/forgot-password">
-                      Forgot password?
-                    </Anchor>
-                  </Group>
-                  <Button type="submit" loading={isLoading} fullWidth>
-                    Sign In
+                  <Button
+                    onClick={() => void handleMagicLinkSignIn()}
+                    loading={isLoading}
+                    fullWidth
+                    leftSection={<IconMail size={18} />}
+                  >
+                    Send Sign-In Link
                   </Button>
                   <Button
                     variant="subtle"
                     size="sm"
-                    onClick={() => setMagicLinkMode(true)}
+                    onClick={() => setMagicLinkMode(false)}
                     fullWidth
-                    leftSection={<IconMail size={16} />}
                   >
-                    Sign in with email link instead
+                    Sign in with password instead
                   </Button>
-
-                  <Divider label="Or continue with" labelPosition="center" />
-
-                  <Stack gap="xs">
-                    <Button
-                      variant="outline"
-                      leftSection={<IconBrandDiscord size={18} />}
-                      onClick={() => handleProviderSignIn("discord")}
-                      loading={isLoading}
-                      fullWidth
-                    >
-                      Continue with Discord
+                </>
+              ) : (
+                <form onSubmit={signInForm.onSubmit(handleSignIn)}>
+                  <Stack gap="sm">
+                    <TextInput
+                      label="Email"
+                      placeholder="your@email.com"
+                      required
+                      {...signInForm.getInputProps("email")}
+                    />
+                    <PasswordInput
+                      label="Password"
+                      placeholder="Your password"
+                      required
+                      {...signInForm.getInputProps("password")}
+                    />
+                    <Group justify="space-between">
+                      <Checkbox
+                        label="Remember me"
+                        size="sm"
+                        {...signInForm.getInputProps("rememberMe", { type: "checkbox" })}
+                      />
+                      <Anchor size="xs" href="/auth/forgot-password">
+                        Forgot password?
+                      </Anchor>
+                    </Group>
+                    <Button type="submit" loading={isLoading} fullWidth>
+                      Sign In
                     </Button>
                     <Button
-                      variant="outline"
-                      leftSection={<IconBrandGoogle size={18} />}
-                      onClick={() => handleProviderSignIn("google")}
-                      loading={isLoading}
+                      variant="subtle"
+                      size="sm"
+                      onClick={() => setMagicLinkMode(true)}
                       fullWidth
+                      leftSection={<IconMail size={16} />}
                     >
-                      Continue with Google
+                      Sign in with email link instead
                     </Button>
                   </Stack>
-                </Stack>
-              </form>
-            )}
+                </form>
+              )}
+
+              <OAuthButtons
+                providers={oauthProviders}
+                onSignIn={handleOAuthSignIn}
+                disabled={isLoading || isWaapLoading}
+              />
+              <WalletButton
+                enabled={waapEnabled}
+                showDivider={!hasOAuthProviders}
+                isWaapConnecting={isWaapConnecting}
+                isWaapSigningIn={isWaapSigningIn}
+                isWaapLoading={isWaapLoading}
+                onConnect={() => void handleWalletConnect()}
+              />
+            </Stack>
           </Tabs.Panel>
 
           <Tabs.Panel value="signup" mt="sm">
-            <form onSubmit={signUpForm.onSubmit(handleSignUp)}>
-              <Stack gap="sm">
-                <Group grow>
+            <Stack gap="sm">
+              <form onSubmit={signUpForm.onSubmit(handleSignUp)}>
+                <Stack gap="sm">
+                  <Group grow>
+                    <TextInput
+                      label="First Name"
+                      placeholder="John"
+                      required
+                      {...signUpForm.getInputProps("firstName")}
+                    />
+                    <TextInput
+                      label="Surname"
+                      placeholder="Doe"
+                      {...signUpForm.getInputProps("surname")}
+                    />
+                  </Group>
                   <TextInput
-                    label="First Name"
-                    placeholder="John"
+                    label="Email"
+                    placeholder="your@email.com"
                     required
-                    {...signUpForm.getInputProps("firstName")}
+                    {...signUpForm.getInputProps("email")}
                   />
-                  <TextInput
-                    label="Surname"
-                    placeholder="Doe"
-                    {...signUpForm.getInputProps("surname")}
-                  />
-                </Group>
-                <TextInput
-                  label="Email"
-                  placeholder="your@email.com"
-                  required
-                  {...signUpForm.getInputProps("email")}
-                />
-                <div>
+                  <div>
+                    <PasswordInput
+                      label="Password"
+                      placeholder="Create a password"
+                      required
+                      {...signUpForm.getInputProps("password")}
+                    />
+                    {signUpForm.values.password && (
+                      <div>
+                        <Text size="xs" c="dimmed" mt="xs">
+                          Password strength
+                        </Text>
+                        <Progress
+                          value={getPasswordStrength(signUpForm.values.password)}
+                          color={getPasswordStrengthColor(getPasswordStrength(signUpForm.values.password))}
+                          size="sm"
+                          mt="xs"
+                        />
+                      </div>
+                    )}
+                  </div>
                   <PasswordInput
-                    label="Password"
-                    placeholder="Create a password"
+                    label="Confirm Password"
+                    placeholder="Confirm your password"
                     required
-                    {...signUpForm.getInputProps("password")}
+                    {...signUpForm.getInputProps("confirmPassword")}
                   />
-                  {signUpForm.values.password && (
-                    <div>
-                      <Text size="xs" c="dimmed" mt="xs">
-                        Password strength
+                  <Checkbox
+                    size="sm"
+                    label={
+                      <Text size="sm">
+                        I agree to the{" "}
+                        <Anchor href="/terms" target="_blank" size="sm">
+                          Terms of Service
+                        </Anchor>{" "}
+                        and{" "}
+                        <Anchor href="/privacy" target="_blank" size="sm">
+                          Privacy Policy
+                        </Anchor>
                       </Text>
-                      <Progress
-                        value={getPasswordStrength(signUpForm.values.password)}
-                        color={getPasswordStrengthColor(getPasswordStrength(signUpForm.values.password))}
-                        size="sm"
-                        mt="xs"
-                      />
-                    </div>
-                  )}
-                </div>
-                <PasswordInput
-                  label="Confirm Password"
-                  placeholder="Confirm your password"
-                  required
-                  {...signUpForm.getInputProps("confirmPassword")}
-                />
-                <Checkbox
-                  size="sm"
-                  label={
-                    <Text size="sm">
-                      I agree to the{" "}
-                      <Anchor href="/terms" target="_blank" size="sm">
-                        Terms of Service
-                      </Anchor>{" "}
-                      and{" "}
-                      <Anchor href="/privacy" target="_blank" size="sm">
-                        Privacy Policy
-                      </Anchor>
-                    </Text>
-                  }
-                  required
-                  {...signUpForm.getInputProps("agreeToTerms", { type: "checkbox" })}
-                />
-                <Button type="submit" loading={isLoading} fullWidth>
-                  Create Account
-                </Button>
-                
-                <Divider label="Or continue with" labelPosition="center" />
-                
-                <Stack gap="xs">
-                  <Button
-                    variant="outline"
-                    leftSection={<IconBrandDiscord size={18} />}
-                    onClick={() => handleProviderSignIn("discord")}
-                    loading={isLoading}
-                    fullWidth
-                  >
-                    Continue with Discord
-                  </Button>
-                  <Button
-                    variant="outline"
-                    leftSection={<IconBrandGoogle size={18} />}
-                    onClick={() => handleProviderSignIn("google")}
-                    loading={isLoading}
-                    fullWidth
-                  >
-                    Continue with Google
+                    }
+                    required
+                    {...signUpForm.getInputProps("agreeToTerms", { type: "checkbox" })}
+                  />
+                  <Button type="submit" loading={isLoading} fullWidth>
+                    Create Account
                   </Button>
                 </Stack>
-              </Stack>
-            </form>
+              </form>
+
+              <OAuthButtons
+                providers={oauthProviders}
+                onSignIn={handleOAuthSignIn}
+                disabled={isLoading || isWaapLoading}
+              />
+              <WalletButton
+                enabled={waapEnabled}
+                showDivider={!hasOAuthProviders}
+                isWaapConnecting={isWaapConnecting}
+                isWaapSigningIn={isWaapSigningIn}
+                isWaapLoading={isWaapLoading}
+                onConnect={() => void handleWalletConnect()}
+              />
+            </Stack>
           </Tabs.Panel>
         </Tabs>
 

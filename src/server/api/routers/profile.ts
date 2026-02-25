@@ -227,6 +227,17 @@ export const profileRouter = createTRPCRouter({
               id: true,
               name: true,
               image: true,
+              walletAddresses: {
+                where: { isPrimary: true },
+                select: {
+                  id: true,
+                  address: true,
+                  chain: true,
+                  label: true,
+                  isPrimary: true,
+                  isVerified: true,
+                },
+              },
             },
           },
         },
@@ -240,6 +251,17 @@ export const profileRouter = createTRPCRouter({
             id: true,
             name: true,
             image: true,
+            walletAddresses: {
+              where: { isPrimary: true },
+              select: {
+                id: true,
+                address: true,
+                chain: true,
+                label: true,
+                isPrimary: true,
+                isVerified: true,
+              },
+            },
           },
         });
 

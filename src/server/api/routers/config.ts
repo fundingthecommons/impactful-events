@@ -5,6 +5,12 @@ export const configRouter = createTRPCRouter({
   getPublicConfig: publicProcedure.query(() => {
     return {
       adminEmail: env.ADMIN_EMAIL,
+      oauthProviders: {
+        google: !!(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET),
+        discord: !!(env.AUTH_DISCORD_ID && env.AUTH_DISCORD_SECRET),
+        github: !!(env.AUTH_GITHUB_ID && env.AUTH_GITHUB_SECRET),
+      },
+      waapEnabled: process.env.NEXT_PUBLIC_WAAP_ENABLED !== "false",
     };
   }),
 

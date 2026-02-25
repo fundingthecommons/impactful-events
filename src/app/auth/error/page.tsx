@@ -7,7 +7,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 const errorMessages = {
-  OAuthAccountNotLinked: "Account linking issue resolved! Please try signing in again.",
+  OAuthAccountNotLinked: "This email is already associated with another sign-in method. Please sign in using your original method.",
+  OAuthSignin: "Could not start the sign-in flow. Please try again.",
+  OAuthCallbackError: "An error occurred during the sign-in process. Please try again.",
+  OAuthCreateAccount: "Could not create your account. The email may already be in use with a different sign-in method.",
   AccessDenied: "Access was denied. Please check your permissions.",
   Verification: "The verification token has expired or has already been used.",
   Default: "An authentication error occurred. Please try again.",

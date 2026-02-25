@@ -2,17 +2,20 @@ import type React from "react";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { type DefaultSession, type NextAuthConfig } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import DiscordProvider from "next-auth/providers/discord";
 import GoogleProvider from "next-auth/providers/google";
+import DiscordProvider from "next-auth/providers/discord";
+import GitHubProvider from "next-auth/providers/github";
 import PostmarkProvider from "next-auth/providers/postmark";
 import { render } from "@react-email/render";
 import { z } from "zod";
 
 import { db } from "~/server/db";
+import { env } from "~/env";
 import { verifyPassword } from "~/utils/password";
 import { sendEmail } from "~/lib/email";
 import { MagicLinkTemplate } from "~/server/email/templates/magicLink";
 import { acceptPendingInvitations } from "./acceptInvitations";
+import { verifySiweMessage, findOrCreateUserByWallet } from "./siwe";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -25,11 +28,18 @@ declare module "next-auth" {
     user: {
       id: string;
       role?: string;
+      walletAddress?: string;
     } & DefaultSession["user"];
   }
 
   interface User {
     role?: string;
+  }
+}
+
+declare module "@auth/core/jwt" {
+  interface JWT {
+    walletAddress?: string;
   }
 }
 
@@ -39,8 +49,34 @@ declare module "next-auth" {
  *
  * @see https://next-auth.js.org/configuration/options
  */
+// Build OAuth providers conditionally — only registered when env vars are set
+const oauthProviders = [
+  ...(env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET
+    ? [GoogleProvider({
+        clientId: env.AUTH_GOOGLE_ID,
+        clientSecret: env.AUTH_GOOGLE_SECRET,
+        allowDangerousEmailAccountLinking: true,
+      })]
+    : []),
+  ...(env.AUTH_DISCORD_ID && env.AUTH_DISCORD_SECRET
+    ? [DiscordProvider({
+        clientId: env.AUTH_DISCORD_ID,
+        clientSecret: env.AUTH_DISCORD_SECRET,
+        allowDangerousEmailAccountLinking: true,
+      })]
+    : []),
+  ...(env.AUTH_GITHUB_ID && env.AUTH_GITHUB_SECRET
+    ? [GitHubProvider({
+        clientId: env.AUTH_GITHUB_ID,
+        clientSecret: env.AUTH_GITHUB_SECRET,
+        allowDangerousEmailAccountLinking: true,
+      })]
+    : []),
+];
+
 export const authConfig = {
   providers: [
+    ...oauthProviders,
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -106,22 +142,114 @@ export const authConfig = {
         return userForAuth;
       },
     }),
-    DiscordProvider,
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      allowDangerousEmailAccountLinking: true,
-      // Using default scopes (openid, email, profile) to avoid Google verification requirements.
-      // To enable Google Contacts sync and Gmail import, uncomment the authorization block below
-      // and complete Google's verification process (sensitive/restricted scope review).
-      // authorization: {
-      //   params: {
-      //     prompt: "consent",
-      //     access_type: "offline",
-      //     response_type: "code",
-      //     scope: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/gmail.readonly",
-      //   },
-      // },
+    // SIWE (Sign-In with Ethereum) provider for WAAP wallet authentication
+    CredentialsProvider({
+      id: "siwe",
+      name: "SIWE",
+      credentials: {
+        message: { label: "Message", type: "text" },
+        signature: { label: "Signature", type: "text" },
+        email: { label: "Email", type: "text" },
+        csrfToken: { label: "CSRF Token", type: "text" },
+      },
+      async authorize(credentials) {
+        const siweSchema = z.object({
+          message: z.string().min(1),
+          signature: z.string().min(1),
+          email: z.string().email().optional().or(z.literal("")),
+          csrfToken: z.string().min(1),
+        });
+
+        const result = siweSchema.safeParse(credentials);
+        if (!result.success) {
+          console.log("[AUTH:SIWE] Credentials validation failed:", result.error);
+          return null;
+        }
+
+        const { message, signature, email, csrfToken } = result.data;
+
+        try {
+          // Determine expected domain from environment
+          const nextAuthUrl = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : "http://localhost:3000";
+          const expectedDomain = new URL(nextAuthUrl).host;
+
+          // Verify SIWE message signature, nonce, and domain
+          const verification = await verifySiweMessage(
+            message,
+            signature,
+            csrfToken,
+            expectedDomain,
+          );
+
+          console.log("[AUTH:SIWE] Signature verified for address:", verification.address);
+
+          // Find or create user by wallet address
+          const user = await findOrCreateUserByWallet(
+            verification.address,
+            verification.chainId,
+            email ?? undefined,
+          );
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role ?? undefined,
+          };
+        } catch (error) {
+          console.error("[AUTH:SIWE] Verification failed:", error);
+          return null;
+        }
+      },
+    }),
+    // WAAP Social Login — for users who authenticated via Google/Discord through WAAP.
+    // Skips SIWE signing; authenticates via verified email from the OAuth provider.
+    CredentialsProvider({
+      id: "waap-social",
+      name: "WAAP Social",
+      credentials: {
+        email: { label: "Email", type: "text" },
+        walletAddress: { label: "Wallet Address", type: "text" },
+        chainId: { label: "Chain ID", type: "text" },
+      },
+      async authorize(credentials) {
+        const waapSocialSchema = z.object({
+          email: z.string().email(),
+          walletAddress: z.string().min(1),
+          chainId: z.coerce.number().int().positive(),
+        });
+
+        const result = waapSocialSchema.safeParse(credentials);
+        if (!result.success) {
+          console.log("[AUTH:WAAP-SOCIAL] Credentials validation failed:", result.error);
+          return null;
+        }
+
+        const { email, walletAddress, chainId } = result.data;
+
+        try {
+          const user = await findOrCreateUserByWallet(
+            walletAddress,
+            chainId,
+            email,
+            { verified: false },
+          );
+
+          console.log("[AUTH:WAAP-SOCIAL] Authenticated user:", user.id, "via email:", email);
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role ?? undefined,
+          };
+        } catch (error) {
+          console.error("[AUTH:WAAP-SOCIAL] Authentication failed:", error);
+          return null;
+        }
+      },
     }),
     PostmarkProvider({
       from: process.env.ADMIN_EMAIL ?? "noreply@fundingthecommons.io",
@@ -166,39 +294,7 @@ export const authConfig = {
     },
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      // Update firstName/surname from OAuth provider profile if available
-      if (account?.provider === "google" && profile && user.id) {
-        const googleProfile = profile as { given_name?: string; family_name?: string };
-        if (googleProfile.given_name ?? googleProfile.family_name) {
-          await db.user.update({
-            where: { id: user.id },
-            data: {
-              firstName: googleProfile.given_name ?? user.name?.split(' ')[0] ?? null,
-              surname: googleProfile.family_name ?? user.name?.split(' ').slice(1).join(' ') ?? null,
-              name: user.name, // Keep name field for compatibility
-            },
-          }).catch(() => {
-            // Ignore errors if user doesn't exist yet (will be created by adapter)
-          });
-        }
-      } else if (account?.provider === "discord" && user.name && user.id) {
-        // Parse Discord username into firstName/surname
-        const nameParts = user.name.split(' ');
-        const firstName = nameParts[0] ?? user.name;
-        const surname = nameParts.slice(1).join(' ') || '';
-        await db.user.update({
-          where: { id: user.id },
-          data: {
-            firstName,
-            surname,
-            name: user.name, // Keep name field for compatibility
-          },
-        }).catch(() => {
-          // Ignore errors if user doesn't exist yet (will be created by adapter)
-        });
-      }
-
+    async signIn({ user }) {
       // Universal invitation acceptance for ALL sign-in methods
       if (user.id && user.email) {
         try {
@@ -220,12 +316,20 @@ export const authConfig = {
     jwt: async ({ token, user }) => {
       if (user) {
         token.id = user.id;
-        // Fetch latest role from DB (invitation acceptance may have updated it)
+        // Fetch latest role and primary wallet from DB
         const dbUser = await db.user.findUnique({
           where: { id: user.id },
-          select: { role: true },
+          select: {
+            role: true,
+            walletAddresses: {
+              where: { isPrimary: true },
+              take: 1,
+              select: { address: true },
+            },
+          },
         });
         token.role = dbUser?.role ?? user.role;
+        token.walletAddress = dbUser?.walletAddresses[0]?.address;
       }
       return token;
     },
@@ -235,7 +339,8 @@ export const authConfig = {
         ...session.user,
         id: token.id as string,
         role: token.role as string | undefined,
+        walletAddress: token.walletAddress as string | undefined,
       },
     }),
   },
-} satisfies NextAuthConfig;;
+} satisfies NextAuthConfig;
