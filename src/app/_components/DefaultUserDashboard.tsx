@@ -49,26 +49,36 @@ interface AvailableEvent {
 function getEventIcon(type: string) {
   switch (type.toUpperCase()) {
     case "RESIDENCY":
+    case "COLIVING":
       return IconRocket;
     case "HACKATHON":
       return IconTrophy;
     case "CONFERENCE":
       return IconUsersGroup;
-    default:
+    case "DINNER":
       return IconCalendarEvent;
+    case "WORKSHOP":
+      return IconBrain;
+    default:
+      return IconUsersGroup;
   }
 }
 
 function getEventGradient(type: string) {
   switch (type.toUpperCase()) {
     case "RESIDENCY":
+    case "COLIVING":
       return { from: "blue", to: "cyan" };
     case "HACKATHON":
       return { from: "orange", to: "red" };
     case "CONFERENCE":
       return { from: "green", to: "teal" };
+    case "DINNER":
+      return { from: "violet", to: "indigo" };
+    case "WORKSHOP":
+      return { from: "teal", to: "cyan" };
     default:
-      return { from: "purple", to: "pink" };
+      return { from: "blue", to: "cyan" };
   }
 }
 
