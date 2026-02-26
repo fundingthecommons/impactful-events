@@ -133,6 +133,7 @@ export const speakerTimeSlotOptions = [
 interface SpeakerApplicationFormProps {
   eventId: string;
   eventName: string;
+  eventType?: string;
   invitationToken?: string;
   existingApplicationStatus?: string;
   existingVenueIds?: string[];
@@ -149,12 +150,14 @@ interface SpeakerApplicationFormProps {
 export default function SpeakerApplicationForm({
   eventId,
   eventName,
+  eventType,
   invitationToken,
   existingApplicationStatus,
   existingVenueIds,
   existingResponses,
 }: SpeakerApplicationFormProps) {
   const router = useRouter();
+  const isEIR = eventType === "EIR";
   const isOnBehalfUpdate = !!existingApplicationStatus && existingApplicationStatus !== "DRAFT";
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -418,6 +421,16 @@ export default function SpeakerApplicationForm({
     }
   }, [hasInitializedResponses, existingResponses, eventQuestions]);
 
+  // For EIR events, auto-set hidden session fields so Zod validation passes
+  useEffect(() => {
+    if (isEIR) {
+      form.setFieldValue("talkTitle", "EIR Application");
+      form.setFieldValue("talkFormat", ["EIR"]);
+      form.setFieldValue("talkDuration", ["N/A"]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEIR]);
+
   const handleAvatarUpload = async (file: File | null) => {
     if (!file) return;
 
@@ -559,10 +572,14 @@ export default function SpeakerApplicationForm({
 
       // All steps succeeded - show success and redirect
       notifications.show({
-        title: isOnBehalfUpdate ? "Application Updated!" : "Speaker Application Submitted!",
+        title: isOnBehalfUpdate
+          ? "Application Updated!"
+          : isEIR
+            ? "EIR Application Submitted!"
+            : "Speaker Application Submitted!",
         message: isOnBehalfUpdate
-          ? "Your speaker details have been updated successfully."
-          : "Your speaker application has been submitted successfully. We will review it and get back to you.",
+          ? `Your ${isEIR ? "EIR" : "speaker"} details have been updated successfully.`
+          : `Your ${isEIR ? "EIR" : "speaker"} application has been submitted successfully. We will review it and get back to you.`,
         color: "green",
         icon: <IconCheck size={16} />,
       });
@@ -572,7 +589,7 @@ export default function SpeakerApplicationForm({
       const message =
         error instanceof Error
           ? error.message
-          : "There was an error submitting your speaker application. Please try again.";
+          : `There was an error submitting your ${isEIR ? "EIR" : "speaker"} application. Please try again.`;
       notifications.show({
         title: "Submission Failed",
         message,
@@ -591,8 +608,11 @@ export default function SpeakerApplicationForm({
       default:
         // About You is always the last step (when it exists)
         if (step === totalSteps && totalSteps === 4) return []; // About You (dynamic questions)
-        // Session Details is step 3
-        if (step === 3) return ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic'];
+        // Session Details / EIR Questions is step 3
+        if (step === 3) {
+          if (isEIR) return ['talkAbstract', 'talkTopic'];
+          return ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic'];
+        }
         return ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic']; // Session Details (last step when no questions)
     }
   };
@@ -635,8 +655,16 @@ export default function SpeakerApplicationForm({
       case 2: // Links
         return true; // Links are optional
       default: {
-        // Step 3: Session Details
+        // Step 3: Session Details or EIR Questions
         if (step === 3) {
+          if (isEIR) {
+            return (
+              form.values.talkAbstract.length >= 50 &&
+              (form.values.previousSpeakingExperience?.trim().length ?? 0) > 0 &&
+              form.values.talkTopic.trim().length > 0 &&
+              (form.values.coHostInfo?.trim().length ?? 0) > 0
+            );
+          }
           return (
             form.values.talkTitle.length > 0 &&
             form.values.talkAbstract.length >= 50 &&
@@ -668,6 +696,73 @@ export default function SpeakerApplicationForm({
     }
     setQuestionErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  const renderEIRQuestions = () => {
+    return (
+      <Card shadow="sm" padding="xl" radius="md" withBorder>
+        <Stack gap="lg">
+          <Group gap="md" align="center">
+            <IconMessageCircle
+              size={28}
+              color="var(--mantine-color-teal-6)"
+            />
+            <div>
+              <Title order={3}>EIR Questions</Title>
+              <Text size="sm" c="dimmed">
+                Tell us about your interest in the EIR program
+              </Text>
+            </div>
+          </Group>
+
+          <Grid>
+            <Grid.Col span={12}>
+              <Textarea
+                label="Why do you want to be in EIR?"
+                placeholder="Tell us about your motivation for joining the Entrepreneur in Residence program..."
+                minRows={4}
+                maxRows={8}
+                {...form.getInputProps("talkAbstract")}
+                required
+              />
+            </Grid.Col>
+
+            <Grid.Col span={12}>
+              <Textarea
+                label="What experience do you have as an entrepreneur and / or initiating projects and seeing them through to the end?"
+                placeholder="Describe your entrepreneurial experience and track record..."
+                minRows={4}
+                maxRows={8}
+                {...form.getInputProps("previousSpeakingExperience")}
+                required
+              />
+            </Grid.Col>
+
+            <Grid.Col span={12}>
+              <Textarea
+                label="What is the future of public goods funding in your opinion?"
+                placeholder="Share your vision for the future of public goods funding..."
+                minRows={4}
+                maxRows={8}
+                {...form.getInputProps("talkTopic")}
+                required
+              />
+            </Grid.Col>
+
+            <Grid.Col span={12}>
+              <Textarea
+                label="What are the biggest co-ordination challenges we face as a society in 2026 and beyond?"
+                placeholder="Describe the coordination challenges you see facing society..."
+                minRows={4}
+                maxRows={8}
+                {...form.getInputProps("coHostInfo")}
+                required
+              />
+            </Grid.Col>
+          </Grid>
+        </Stack>
+      </Card>
+    );
   };
 
   const renderSessionDetails = () => {
@@ -1174,9 +1269,9 @@ export default function SpeakerApplicationForm({
         );
 
       default: {
-        // Step 3: Session Details
+        // Step 3: Session Details or EIR Questions
         if (currentStep === 3) {
-          return renderSessionDetails();
+          return isEIR ? renderEIRQuestions() : renderSessionDetails();
         }
 
         // Step 4 when totalSteps === 4: About You
@@ -1311,10 +1406,14 @@ export default function SpeakerApplicationForm({
         {/* Header */}
         <div>
           <Title order={1} mb="md">
-            Speaker Application
+            {isEIR ? "EIR Application" : "Speaker Application"}
           </Title>
           <Text size="lg" c="dimmed" mb="md">
-            {isOnBehalfUpdate ? `Review your speaker details for ${eventName}` : `Apply to speak at ${eventName}`}
+            {isOnBehalfUpdate
+              ? `Review your ${isEIR ? "EIR" : "speaker"} details for ${eventName}`
+              : isEIR
+                ? `Apply to be an EIR at ${eventName}`
+                : `Apply to speak at ${eventName}`}
           </Text>
 
           {isOnBehalfUpdate && (
@@ -1364,7 +1463,7 @@ export default function SpeakerApplicationForm({
                   variant={currentStep >= 3 ? "filled" : "light"}
                   color="teal"
                 >
-                  Session Details
+                  {isEIR ? "EIR Questions" : "Session Details"}
                 </Badge>
                 {totalSteps >= 4 && (
                   <Badge
@@ -1426,7 +1525,7 @@ export default function SpeakerApplicationForm({
         {/* Help Text */}
         <Alert color="teal" title="Need Help?">
           <Text size="sm">
-            If you have any questions about the speaker application, please contact the event organizers at  <Text component="span" fw={500}>
+            If you have any questions about the {isEIR ? "EIR" : "speaker"} application, please contact the event organizers at  <Text component="span" fw={500}>
               {config?.adminEmail ?? ""}.
             </Text>
            

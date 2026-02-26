@@ -108,7 +108,9 @@ export default function SpeakerPageClient({
                     Authentication Successful!
                   </Text>
                   <Text size="sm" c="dimmed" ta="center">
-                    Redirecting to your speaker application...
+                    {event.type === "EIR"
+                      ? "Redirecting to your EIR application..."
+                      : "Redirecting to your speaker application..."}
                   </Text>
                 </Stack>
               </Card>
@@ -176,11 +178,12 @@ export default function SpeakerPageClient({
                       {event.name}
                     </Text>
                     <Text size="lg" fw={500} ta="center" c="teal">
-                      Speaker Application
+                      {event.type === "EIR" ? "EIR Application" : "Speaker Application"}
                     </Text>
                     <Text c="dimmed" ta="center">
-                      Thank you for your interest in speaking at this event!
-                      Please sign in to submit your speaker application.
+                      {event.type === "EIR"
+                        ? "Thank you for your interest in the EIR program! Please sign in to submit your application."
+                        : "Thank you for your interest in speaking at this event! Please sign in to submit your speaker application."}
                     </Text>
                     {event.startDate && event.location && (
                       <Text size="sm" c="dimmed" ta="center">
@@ -238,6 +241,7 @@ export default function SpeakerPageClient({
           <SpeakerApplicationForm
             eventId={event.id}
             eventName={event.name}
+            eventType={event.type}
             invitationToken={invitationToken}
             existingApplicationStatus={initialUserApplication?.status}
             existingVenueIds={initialUserApplication?.venues?.map(v => v.venueId)}
