@@ -604,7 +604,7 @@ export default function SpeakerApplicationForm({
   const getStepFields = (step: number): (keyof SpeakerApplicationData)[] => {
     switch (step) {
       case 1: return ['preferredName', 'bio', 'jobTitle', 'company']; // Speaker Profile
-      case 2: return []; // Links (all optional)
+      case 2: return ['website', 'linkedinUrl', 'twitterUrl', 'blueskyUrl', 'pastTalkUrl']; // Links (optional but validate URL format)
       default:
         // About You is always the last step (when it exists)
         if (step === totalSteps && totalSteps === 4) return []; // About You (dynamic questions)
@@ -652,8 +652,19 @@ export default function SpeakerApplicationForm({
           form.values.company.trim().length > 0 &&
           !!(avatarUrl ?? previewUrl)
         );
-      case 2: // Links
-        return true; // Links are optional
+      case 2: { // Links - all optional, but must be valid URLs if provided
+        const urlFields = [
+          form.values.website,
+          form.values.linkedinUrl,
+          form.values.twitterUrl,
+          form.values.blueskyUrl,
+          form.values.pastTalkUrl,
+        ];
+        return urlFields.every(val => {
+          if (!val || val.trim() === "") return true;
+          try { new URL(val); return true; } catch { return false; }
+        });
+      }
       default: {
         // Step 3: Session Details or EIR Questions
         if (step === 3) {
@@ -1487,6 +1498,34 @@ export default function SpeakerApplicationForm({
           }
           if (!validateAboutYouQuestions()) {
             e.preventDefault();
+            return;
+          }
+          // Run Zod validation explicitly to catch errors on hidden steps
+          const validationResult = form.validate();
+          if (validationResult.hasErrors) {
+            e.preventDefault();
+            // Find which step has the first error and navigate there
+            const errorFields = Object.keys(validationResult.errors);
+            const step1Fields = ['preferredName', 'bio', 'jobTitle', 'company', 'displayPreference'];
+            const step2Fields = ['website', 'linkedinUrl', 'twitterUrl', 'blueskyUrl', 'pastTalkUrl'];
+            const step3Fields = ['talkTitle', 'talkAbstract', 'talkFormat', 'talkDuration', 'talkTopic', 'coHostInfo', 'entityName', 'otherFloorsTopicTheme', 'previousSpeakingExperience'];
+
+            let errorStep = currentStep;
+            for (const field of errorFields) {
+              if (step1Fields.includes(field)) { errorStep = 1; break; }
+              if (step2Fields.includes(field)) { errorStep = Math.min(errorStep, 2); }
+              if (step3Fields.includes(field)) { errorStep = Math.min(errorStep, 3); }
+            }
+
+            const stepName = errorStep === 1 ? "Speaker Profile" : errorStep === 2 ? "Links" : "Session Details";
+            const firstError = Object.values(validationResult.errors)[0];
+            notifications.show({
+              title: `Please fix errors in ${stepName}`,
+              message: typeof firstError === 'string' ? firstError : "Some fields need your attention. We'll take you there.",
+              color: "orange",
+              icon: <IconX size={16} />,
+            });
+            setCurrentStep(errorStep);
             return;
           }
           form.onSubmit(handleSubmit)(e);
