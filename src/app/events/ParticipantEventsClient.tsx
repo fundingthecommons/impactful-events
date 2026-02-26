@@ -1,26 +1,25 @@
 "use client";
 
-import { 
-  Container, 
-  Title, 
-  SimpleGrid, 
-  Card, 
-  Text, 
-  Badge, 
-  Group, 
-  Stack, 
+import {
+  Container,
+  Title,
+  SimpleGrid,
+  Card,
+  Text,
+  Badge,
+  Group,
+  Stack,
   Button,
   ThemeIcon,
   Box,
   Paper,
   Loader
 } from "@mantine/core";
-import { 
+import {
+  IconCalendar,
   IconCalendarEvent,
-  IconHome,
-  IconTrophy,
-  IconMicrophone,
-  IconUmbrella,
+  IconMapPin,
+  IconUsersGroup,
   IconArrowRight,
   IconCheck,
   IconClock,
@@ -28,6 +27,12 @@ import {
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import {
+  getEventCardIcon,
+  getEventCardGradient,
+  formatEventDate,
+  getTemporalStatus,
+} from "~/utils/eventCardUtils";
 
 interface EventCardProps {
   event: {
@@ -39,40 +44,16 @@ interface EventCardProps {
     startDate: Date;
     endDate: Date;
     location: string | null;
+    _count: {
+      applications: number;
+    };
   };
   applicationStatus?: {
     hasApplication: boolean;
-    canApply: boolean;
     application?: {
       status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED";
     };
   };
-}
-
-function getEventIcon(type: string) {
-  switch (type.toUpperCase()) {
-    case "RESIDENCY":
-      return IconHome;
-    case "HACKATHON":
-      return IconTrophy;
-    case "CONFERENCE":
-      return IconMicrophone;
-    default:
-      return IconUmbrella;
-  }
-}
-
-function getEventGradient(type: string) {
-  switch (type.toUpperCase()) {
-    case "RESIDENCY":
-      return { from: "blue", to: "cyan" };
-    case "HACKATHON":
-      return { from: "orange", to: "red" };
-    case "CONFERENCE":
-      return { from: "green", to: "teal" };
-    default:
-      return { from: "purple", to: "pink" };
-  }
 }
 
 function getStatusColor(status: string) {
@@ -108,31 +89,40 @@ function getStatusIcon(status: string) {
   }
 }
 
-function EventCard({ event, applicationStatus }: EventCardProps) {
-  const Icon = getEventIcon(event.type);
-  const gradient = getEventGradient(event.type);
-  
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date);
-  };
+function getButtonLabel(applicationStatus?: EventCardProps["applicationStatus"]) {
+  if (!applicationStatus?.hasApplication) {
+    return "Learn More & Apply";
+  }
+  if (applicationStatus.application?.status === "ACCEPTED") {
+    return "View Event";
+  }
+  return "View Application";
+}
 
-  const isHackathon = event.type.toUpperCase() === "HACKATHON";
-  const showComingSoon = isHackathon && !applicationStatus?.hasApplication;
-  
+function EventCard({ event, applicationStatus }: EventCardProps) {
+  const Icon = getEventCardIcon(event.type);
+  const gradient = getEventCardGradient(event.type);
+  const temporalStatus = getTemporalStatus(event.startDate, event.endDate);
+  const eventHref = `/events/${event.slug ?? event.id}`;
+
   return (
-    <Card shadow="lg" padding="xl" radius="md" withBorder style={{ height: "100%" }}>
+    <Card
+      shadow="lg"
+      padding="xl"
+      radius="md"
+      withBorder
+      component={Link}
+      href={eventHref}
+      style={{ height: "100%", textDecoration: "none", color: "inherit" }}
+    >
       <Card.Section>
         <Box
           h={120}
           style={{
             background: `linear-gradient(135deg, var(--mantine-color-${gradient.from}-6) 0%, var(--mantine-color-${gradient.to}-6) 100%)`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
           <ThemeIcon size={60} radius="xl" variant="light" color="white">
@@ -141,86 +131,73 @@ function EventCard({ event, applicationStatus }: EventCardProps) {
         </Box>
       </Card.Section>
 
-      <Stack gap="md" mt="md" style={{ height: 'calc(100% - 120px)' }}>
+      <Stack gap="md" mt="md" style={{ height: "calc(100% - 120px)" }}>
         <Stack gap="xs" style={{ flex: 1 }}>
           <Group justify="space-between" align="flex-start">
-            <Title order={3} size="h2">
+            <Title order={3} size="h2" style={{ flex: 1 }}>
               {event.name}
             </Title>
-            {applicationStatus?.hasApplication && (
-              <Badge 
-                color={getStatusColor(applicationStatus.application?.status ?? "DRAFT")} 
-                variant="light" 
+            <Group gap="xs" wrap="nowrap">
+              {applicationStatus?.hasApplication && applicationStatus.application && (
+                <Badge
+                  color={getStatusColor(applicationStatus.application.status)}
+                  variant="light"
+                  size="sm"
+                  leftSection={(() => {
+                    const StatusIcon = getStatusIcon(applicationStatus.application?.status ?? "DRAFT");
+                    return <StatusIcon size={12} />;
+                  })()}
+                  tt="capitalize"
+                >
+                  {applicationStatus.application.status.replace("_", " ").toLowerCase()}
+                </Badge>
+              )}
+              <Badge
+                color={temporalStatus.color}
+                variant="light"
                 size="sm"
-                leftSection={(() => {
-                  const StatusIcon = getStatusIcon(applicationStatus.application?.status ?? "DRAFT");
-                  return <StatusIcon size={12} />;
-                })()}
-                tt="capitalize"
               >
-                {applicationStatus.application?.status.replace("_", " ").toLowerCase()}
+                {temporalStatus.label}
               </Badge>
-            )}
+            </Group>
           </Group>
-          
+
           <Text size="sm" c="dimmed" style={{ lineHeight: 1.5 }}>
             {event.description ?? "No description available"}
           </Text>
 
           <Group gap="xs" mt="sm">
+            <IconCalendar size={14} />
             <Text size="xs" c="dimmed">
-              {formatDate(event.startDate)} - {formatDate(event.endDate)}
+              {formatEventDate(event.startDate)} - {formatEventDate(event.endDate)}
             </Text>
           </Group>
 
           {event.location && (
-            <Text size="xs" c="dimmed">
-              📍 {event.location}
-            </Text>
+            <Group gap="xs">
+              <IconMapPin size={14} />
+              <Text size="xs" c="dimmed">
+                {event.location}
+              </Text>
+            </Group>
           )}
+
+          <Group gap="xs" mt="sm">
+            <IconUsersGroup size={14} />
+            <Text size="xs" c="dimmed">
+              {event._count.applications} applications received
+            </Text>
+          </Group>
         </Stack>
 
-        <Stack gap="sm">
-          {showComingSoon ? (
-            <Button 
-              fullWidth
-              variant="outline"
-              disabled
-              color={gradient.from}
-            >
-              Coming Soon
-            </Button>
-          ) : (
-            <>
-              {/* Apply Button - always show for available events */}
-              {applicationStatus?.hasApplication && (applicationStatus.application?.status !== "ACCEPTED") && (
-              <Link href={`/events/${event.slug ?? event.id}`} style={{ textDecoration: 'none' }}>
-                <Button 
-                  fullWidth
-                  variant="filled"
-                  rightSection={<IconArrowRight size={16} />}
-                  color={gradient.from}
-                >
-                  More info
-                </Button>
-              </Link>
-              )}
-              {/* Manage Button - only show for accepted applications */}
-              {applicationStatus?.hasApplication && applicationStatus.application?.status === "ACCEPTED" && (
-                <Link href={`/events/${event.slug ?? event.id}`} style={{ textDecoration: 'none' }}>
-                  <Button 
-                    fullWidth
-                    variant="outline"
-                    rightSection={<IconArrowRight size={16} />}
-                    color={gradient.from}
-                  >
-                    Manage
-                  </Button>
-                </Link>
-              )}
-            </>
-          )}
-        </Stack>
+        <Button
+          fullWidth
+          variant="filled"
+          rightSection={<IconArrowRight size={16} />}
+          color={gradient.from}
+        >
+          {getButtonLabel(applicationStatus)}
+        </Button>
       </Stack>
     </Card>
   );
@@ -229,12 +206,6 @@ function EventCard({ event, applicationStatus }: EventCardProps) {
 export default function ParticipantEventsClient() {
   const { data: events, isLoading } = api.event.getAvailableEvents.useQuery();
   const { data: userApplications } = api.application.getUserApplications.useQuery();
-
-  console.log("🔍 ParticipantEventsClient debug:", {
-    eventsCount: events?.length ?? 0,
-    applicationsCount: userApplications?.length ?? 0,
-    isLoading
-  });
 
   // Create a map of event applications for quick lookup
   const applicationMap = new Map(
@@ -266,72 +237,65 @@ export default function ParticipantEventsClient() {
   return (
     <Container size="xl" py="xl">
       <Stack gap="xl">
-        {/* Header Section - Only show if there are active events */}
-        {events.length > 0 && (
-          <>
-            <Stack gap="md" ta="center">
-              <Group justify="center" gap="xs">
-                <ThemeIcon size="xl" radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'purple' }}>
-                  <IconCalendarEvent size={28} />
-                </ThemeIcon>
-                <Title order={1} size="h1" fw={700}>
-                  Available Events
-                </Title>
-              </Group>
-              <Text size="lg" c="dimmed" maw={600} mx="auto">
-                Discover and apply to events that match your interests. Track your applications and stay updated on your status.
-              </Text>
-            </Stack>
+        {/* Header Section */}
+        <Stack gap="md" ta="center">
+          <Group justify="center" gap="xs">
+            <ThemeIcon size="xl" radius="xl" variant="gradient" gradient={{ from: "blue", to: "purple" }}>
+              <IconCalendarEvent size={28} />
+            </ThemeIcon>
+            <Title order={1} size="h1" fw={700}>
+              Available Events
+            </Title>
+          </Group>
+          <Text size="lg" c="dimmed" maw={600} mx="auto">
+            Discover and apply to events that match your interests. Track your applications and stay updated on your status.
+          </Text>
+        </Stack>
 
-            {/* Stats Overview */}
-            <Paper p="md" radius="md" withBorder>
-              <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="lg">
-                <Stack gap={0} ta="center">
-                  <Text size="xl" fw={700} c="blue">
-                    {events.length}
-                  </Text>
-                  <Text size="sm" c="dimmed">Available Events</Text>
-                </Stack>
-                <Stack gap={0} ta="center">
-                  <Text size="xl" fw={700} c="green">
-                    {userApplications?.length ?? 0}
-                  </Text>
-                  <Text size="sm" c="dimmed">Your Applications</Text>
-                </Stack>
-                <Stack gap={0} ta="center">
-                  <Text size="xl" fw={700} c="orange">
-                    {userApplications?.filter(app => app.status === "ACCEPTED").length ?? 0}
-                  </Text>
-                  <Text size="sm" c="dimmed">Accepted</Text>
-                </Stack>
-              </SimpleGrid>
-            </Paper>
-          </>
-        )}
+        {/* Stats Overview */}
+        <Paper p="md" radius="md" withBorder>
+          <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="lg">
+            <Stack gap={0} ta="center">
+              <Text size="xl" fw={700} c="blue">
+                {events.length}
+              </Text>
+              <Text size="sm" c="dimmed">Available Events</Text>
+            </Stack>
+            <Stack gap={0} ta="center">
+              <Text size="xl" fw={700} c="green">
+                {userApplications?.length ?? 0}
+              </Text>
+              <Text size="sm" c="dimmed">Your Applications</Text>
+            </Stack>
+            <Stack gap={0} ta="center">
+              <Text size="xl" fw={700} c="orange">
+                {userApplications?.filter(app => app.status === "ACCEPTED").length ?? 0}
+              </Text>
+              <Text size="sm" c="dimmed">Accepted</Text>
+            </Stack>
+          </SimpleGrid>
+        </Paper>
 
         {/* Events Grid */}
-        {events.length > 0 && (
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-            {events.map((event) => {
-              const application = applicationMap.get(event.id);
-              const applicationStatus = {
-                hasApplication: !!application,
-                canApply: !application,
-                application: application ? {
-                  status: application.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED"
-                } : undefined
-              };
+        <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+          {events.map((event) => {
+            const application = applicationMap.get(event.id);
+            const applicationStatus = {
+              hasApplication: !!application,
+              application: application ? {
+                status: application.status as "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED" | "WAITLISTED" | "CANCELLED"
+              } : undefined
+            };
 
-              return (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  applicationStatus={applicationStatus}
-                />
-              );
-            })}
-          </SimpleGrid>
-        )}
+            return (
+              <EventCard
+                key={event.id}
+                event={event}
+                applicationStatus={applicationStatus}
+              />
+            );
+          })}
+        </SimpleGrid>
       </Stack>
     </Container>
   );

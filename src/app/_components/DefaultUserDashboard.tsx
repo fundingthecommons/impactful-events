@@ -15,11 +15,9 @@ import {
   Box,
   Anchor
 } from "@mantine/core";
-import { 
+import {
   IconRocket,
-  IconCalendarEvent,
   IconUsersGroup,
-  IconTrophy,
   IconArrowRight,
   IconBrain,
   IconBuildingBank,
@@ -31,6 +29,12 @@ import {
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
+import {
+  getEventCardIcon,
+  getEventCardGradient,
+  formatEventDate,
+  getTemporalStatus,
+} from "~/utils/eventCardUtils";
 
 interface AvailableEvent {
   id: string;
@@ -46,41 +50,6 @@ interface AvailableEvent {
   };
 }
 
-function getEventIcon(type: string) {
-  switch (type.toUpperCase()) {
-    case "RESIDENCY":
-    case "COLIVING":
-      return IconRocket;
-    case "HACKATHON":
-      return IconTrophy;
-    case "CONFERENCE":
-      return IconUsersGroup;
-    case "DINNER":
-      return IconCalendarEvent;
-    case "WORKSHOP":
-      return IconBrain;
-    default:
-      return IconUsersGroup;
-  }
-}
-
-function getEventGradient(type: string) {
-  switch (type.toUpperCase()) {
-    case "RESIDENCY":
-    case "COLIVING":
-      return { from: "blue", to: "cyan" };
-    case "HACKATHON":
-      return { from: "orange", to: "red" };
-    case "CONFERENCE":
-      return { from: "green", to: "teal" };
-    case "DINNER":
-      return { from: "violet", to: "indigo" };
-    case "WORKSHOP":
-      return { from: "teal", to: "cyan" };
-    default:
-      return { from: "blue", to: "cyan" };
-  }
-}
 
 function OpportunityCard({ 
   title, 
@@ -124,19 +93,9 @@ function OpportunityCard({
 }
 
 function EventCard({ event }: { event: AvailableEvent }) {
-  const Icon = getEventIcon(event.type);
-  const gradient = getEventGradient(event.type);
-  const isUpcoming = new Date(event.startDate) > new Date();
-  const isOngoing = new Date() >= new Date(event.startDate) && new Date() <= new Date(event.endDate);
-  
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    }).format(date);
-  };
-  
+  const Icon = getEventCardIcon(event.type);
+  const gradient = getEventCardGradient(event.type);
+  const temporalStatus = getTemporalStatus(event.startDate, event.endDate);
   const eventHref = `/events/${event.slug ?? event.id}`;
 
   return (
@@ -172,11 +131,11 @@ function EventCard({ event }: { event: AvailableEvent }) {
               {event.name}
             </Title>
             <Badge
-              color={isOngoing ? "green" : isUpcoming ? "blue" : "gray"}
+              color={temporalStatus.color}
               variant="light"
               size="sm"
             >
-              {isOngoing ? "Open" : isUpcoming ? "Soon" : "Past"}
+              {temporalStatus.label}
             </Badge>
           </Group>
 
@@ -187,7 +146,7 @@ function EventCard({ event }: { event: AvailableEvent }) {
           <Group gap="xs" mt="sm">
             <IconCalendar size={14} />
             <Text size="xs" c="dimmed">
-              {formatDate(event.startDate)} - {formatDate(event.endDate)}
+              {formatEventDate(event.startDate)} - {formatEventDate(event.endDate)}
             </Text>
           </Group>
 
