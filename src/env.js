@@ -48,6 +48,9 @@ export const env = createEnv({
     EAS_USE_MAINNET: z.enum(["true", "false"]).optional().default("false"),
     EAS_ATTESTATIONS_ENABLED: z.enum(["true", "false"]).optional().default("false"),
     EAS_SCHEMA_UID: z.string().optional(), // Set after schema is registered
+    // Exponential API integration (bug reporting)
+    EXPONENTIAL_API_KEY: z.string().optional(),
+    EXPONENTIAL_BUG_PROJECT_ID: z.string().optional(),
   },
 
   /**
@@ -99,6 +102,8 @@ export const env = createEnv({
     EAS_USE_MAINNET: process.env.EAS_USE_MAINNET,
     EAS_ATTESTATIONS_ENABLED: process.env.EAS_ATTESTATIONS_ENABLED,
     EAS_SCHEMA_UID: process.env.EAS_SCHEMA_UID,
+    EXPONENTIAL_API_KEY: process.env.EXPONENTIAL_API_KEY,
+    EXPONENTIAL_BUG_PROJECT_ID: process.env.EXPONENTIAL_BUG_PROJECT_ID,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   },
   /**

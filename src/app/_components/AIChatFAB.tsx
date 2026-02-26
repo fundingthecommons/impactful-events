@@ -6,6 +6,7 @@ import { IconMessageChatbot } from '@tabler/icons-react';
 import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import { AIChatDrawer } from './AIChatDrawer';
+import { useConsoleCapture } from '~/hooks/useConsoleCapture';
 
 const DRAWER_STORAGE_KEY = 'ai-chat-drawer-opened';
 
@@ -14,6 +15,7 @@ export function AIChatFAB() {
   const pathname = usePathname();
   const [opened, setOpened] = useState(false);
   const hasRestoredRef = useRef(false);
+  const { getEntries: getConsoleLogs } = useConsoleCapture();
 
   // Restore drawer state from sessionStorage on mount
   useEffect(() => {
@@ -41,6 +43,8 @@ export function AIChatFAB() {
 
   const handleOpen = useCallback(() => setOpened(true), []);
   const handleClose = useCallback(() => setOpened(false), []);
+  const handleTemporaryClose = useCallback(() => setOpened(false), []);
+  const handleTemporaryReopen = useCallback(() => setOpened(true), []);
 
   // Only show for authenticated users
   if (!session?.user) return null;
@@ -58,6 +62,7 @@ export function AIChatFAB() {
           radius="xl"
           variant="filled"
           color="violet"
+          className="ai-chat-fab"
           style={{
             position: 'fixed',
             bottom: '7rem',
@@ -76,6 +81,9 @@ export function AIChatFAB() {
         onClose={handleClose}
         pathname={pathname}
         eventId={eventId}
+        getConsoleLogs={getConsoleLogs}
+        onTemporaryClose={handleTemporaryClose}
+        onTemporaryReopen={handleTemporaryReopen}
       />
     </>
   );
