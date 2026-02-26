@@ -108,10 +108,8 @@ export default function EventPage({ params }: EventPageProps) {
     
     // Check existing cookies
     if (hasLatePassCookie || hasInvitationCookie) {
-      console.log("🍪 Found existing access cookie:", { hasLatePassCookie, hasInvitationCookie });
       setHasLatePassAccess(true);
     } else {
-      console.log("❌ No access cookies found");
       setHasLatePassAccess(false);
     }
     
@@ -190,20 +188,6 @@ export default function EventPage({ params }: EventPageProps) {
   // Check if applications are closed (no late pass, no admin/mentor/speaker privileges)
   const applicationsAreClosed = !hasLatePassAccess && !isAdmin && !isMentor && !isSpeaker && !isFloorOwner;
 
-  console.log("🔍 Access Control Debug:", {
-    isAcceptedForThisEvent,
-    isAdmin,
-    hasLatePassAccess,
-    isMentor,
-    isSpeaker,
-    isFloorOwner,
-    isConference,
-    hasSpeakerApplication,
-    canViewPage,
-    userApplication: userApplication?.status,
-    applicationsAreClosed,
-    isLoadingAccess,
-  });
 
   // Deny access if user doesn't meet requirements (only after all checks complete)
   if (!canViewPage) {
