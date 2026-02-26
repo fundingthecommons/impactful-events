@@ -49,6 +49,7 @@ export function BugReportForm({
   const [description, setDescription] = useState('');
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [temporarilyHidden, setTemporarilyHidden] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [actionUrl, setActionUrl] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export function BugReportForm({
 
   const captureScreenshot = useCallback(async () => {
     setCapturing(true);
-    onClose();
+    setTemporarilyHidden(true);
     onTemporaryClose();
 
     // Wait for drawer + modal close animation
@@ -96,9 +97,12 @@ export function BugReportForm({
       });
     } finally {
       onTemporaryReopen();
+      // Small delay to let drawer reopen before showing modal on top
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setTemporarilyHidden(false);
       setCapturing(false);
     }
-  }, [onClose, onTemporaryClose, onTemporaryReopen]);
+  }, [onTemporaryClose, onTemporaryReopen]);
 
   const handleSubmit = () => {
     if (!title.trim()) return;
@@ -132,7 +136,7 @@ export function BugReportForm({
 
   if (submitted) {
     return (
-      <Modal opened={opened} onClose={handleClose} title="Bug Reported" centered size="sm">
+      <Modal opened={opened && !temporarilyHidden} onClose={handleClose} title="Bug Reported" centered size="sm">
         <Stack align="center" gap="md" py="md">
           <Box
             style={{
@@ -173,7 +177,7 @@ export function BugReportForm({
 
   return (
     <Modal
-      opened={opened}
+      opened={opened && !temporarilyHidden}
       onClose={handleClose}
       title="Report a Bug"
       centered
