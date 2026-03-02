@@ -537,30 +537,40 @@ export const roleRouter = createTRPCRouter({
       if (globalRole === "admin") roles.push("admin");
       else if (globalRole === "staff") roles.push("staff");
 
-      // 2. Event-specific roles from UserRole table
-      const userRoles = await ctx.db.userRole.findMany({
-        where: { userId, eventId: resolvedEventId },
-        include: { role: { select: { name: true } } },
-      });
+      // 2-5. Fetch all role sources in parallel (these are independent queries)
+      const [userRoles, venueOwner, acceptedApps, sessionSpeaker] = await Promise.all([
+        ctx.db.userRole.findMany({
+          where: { userId, eventId: resolvedEventId },
+          include: { role: { select: { name: true } } },
+        }),
+        ctx.db.venueOwner.findFirst({
+          where: { userId, eventId: resolvedEventId },
+        }),
+        ctx.db.application.findMany({
+          where: { userId, eventId: resolvedEventId, status: "ACCEPTED" },
+          select: { applicationType: true },
+        }),
+        ctx.db.sessionSpeaker.findFirst({
+          where: {
+            userId,
+            session: { eventId: resolvedEventId },
+          },
+        }),
+      ]);
+
+      // Event-specific roles from UserRole table
       for (const ur of userRoles) {
         if (!roles.includes(ur.role.name)) {
           roles.push(ur.role.name);
         }
       }
 
-      // 3. Floor lead from VenueOwner table
-      const venueOwner = await ctx.db.venueOwner.findFirst({
-        where: { userId, eventId: resolvedEventId },
-      });
+      // Floor lead from VenueOwner table
       if (venueOwner && !roles.includes("floor lead")) {
         roles.push("floor lead");
       }
 
-      // 4. Accepted applications — map by application type
-      const acceptedApps = await ctx.db.application.findMany({
-        where: { userId, eventId: resolvedEventId, status: "ACCEPTED" },
-        select: { applicationType: true },
-      });
+      // Accepted applications — map by application type
       for (const app of acceptedApps) {
         if (app.applicationType === "SPEAKER" && !roles.includes("speaker")) {
           roles.push("speaker");
@@ -571,13 +581,7 @@ export const roleRouter = createTRPCRouter({
         }
       }
 
-      // 5. Speaker from SessionSpeaker table
-      const sessionSpeaker = await ctx.db.sessionSpeaker.findFirst({
-        where: {
-          userId,
-          session: { eventId: resolvedEventId },
-        },
-      });
+      // Speaker from SessionSpeaker table
       if (sessionSpeaker && !roles.includes("speaker")) {
         roles.push("speaker");
       }

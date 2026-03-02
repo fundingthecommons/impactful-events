@@ -479,8 +479,8 @@ export const applicationRouter = createTRPCRouter({
         });
       }
 
-      const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId);
-      
+      const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId, application.eventId);
+
       return {
         ...completionResult,
         isComplete: application.isComplete,
@@ -594,8 +594,8 @@ export const applicationRouter = createTRPCRouter({
 
       // Check if application completion status has changed
       try {
-        const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId);
-        
+        const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId, application.eventId);
+
         // Update completion status in database (may also revert SUBMITTED to DRAFT)
         // For auto-save updates, don't treat as intentional edits to prevent aggressive reversion
         const updateResult = await updateApplicationCompletionStatus(ctx.db, input.applicationId, completionResult, {
@@ -1740,7 +1740,7 @@ export const applicationRouter = createTRPCRouter({
 
       // Use transaction to update all responses atomically
       const updatedResponses = await ctx.db.$transaction(
-        input.responses.map(response => 
+        input.responses.map(response =>
           ctx.db.applicationResponse.upsert({
             where: {
               applicationId_questionId: {
@@ -1756,15 +1756,12 @@ export const applicationRouter = createTRPCRouter({
               questionId: response.questionId,
               answer: response.answer,
             },
-            include: {
-              question: true,
-            },
           })
         )
       );
 
-      // Auto-check and update completion status
-      const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId);
+      // Auto-check and update completion status (pass eventId to parallelize queries)
+      const completionResult = await checkApplicationCompleteness(ctx.db, input.applicationId, application.eventId);
       await updateApplicationCompletionStatus(ctx.db, input.applicationId, completionResult, {
         isUserIntentionalEdit: true // This is a bulk save, treat as intentional edit
       });
@@ -1772,7 +1769,6 @@ export const applicationRouter = createTRPCRouter({
       return {
         success: true,
         updatedCount: updatedResponses.length,
-        responses: updatedResponses,
       };
     }),
 

@@ -11,13 +11,16 @@ export interface ApplicationCompletionResult {
 }
 
 /**
- * Check if an application has all required fields completed
+ * Check if an application has all required fields completed.
+ * When eventId is provided, the application and required questions queries run in parallel.
  */
 export async function checkApplicationCompleteness(
   db: PrismaClient,
-  applicationId: string
+  applicationId: string,
+  eventId?: string
 ): Promise<ApplicationCompletionResult> {
-  const application = await db.application.findUnique({
+  // Start fetching the application (always needed for responses and isComplete status)
+  const applicationPromise = db.application.findUnique({
     where: { id: applicationId },
     include: {
       responses: {
@@ -28,18 +31,27 @@ export async function checkApplicationCompleteness(
     }
   });
 
+  // If eventId is known, start fetching required questions in parallel
+  const requiredQuestionsPromise = eventId
+    ? db.applicationQuestion.findMany({
+        where: { eventId, required: true },
+        orderBy: { order: 'asc' }
+      })
+    : null;
+
+  const application = await applicationPromise;
+
   if (!application) {
     throw new Error('Application not found');
   }
 
-  // Get required questions for this event separately
-  const allRequiredQuestions = await db.applicationQuestion.findMany({
-    where: {
-      eventId: application.eventId,
-      required: true,
-    },
-    orderBy: { order: 'asc' }
-  });
+  // If we started the query in parallel, await it; otherwise query now
+  const allRequiredQuestions = requiredQuestionsPromise
+    ? await requiredQuestionsPromise
+    : await db.applicationQuestion.findMany({
+        where: { eventId: application.eventId, required: true },
+        orderBy: { order: 'asc' }
+      });
   
   // Filter out conditional fields that shouldn't be required based on user responses
   const requiredQuestions = allRequiredQuestions.filter(question => {
@@ -102,47 +114,14 @@ export async function checkApplicationCompleteness(
       .map(r => r.questionId)
   );
 
-  // DEBUG: Enhanced logging for missing field detection
-  console.log('🔍 MISSING FIELD DETECTION DEBUG:', {
-    applicationId: applicationId,
-    totalRequiredQuestions: requiredQuestions.length,
-    totalResponses: application.responses.length,
-    requiredQuestions: requiredQuestions.map(q => ({
-      id: q.id,
-      questionKey: q.questionKey,
-      questionText: q.questionEn.substring(0, 50) + '...',
-      isAnswered: answeredQuestionIds.has(q.id)
-    })),
-    responses: application.responses.map(r => ({
-      questionId: r.questionId,
-      questionKey: r.question.questionKey,
-      answer: r.answer?.substring(0, 100) + (r.answer?.length > 100 ? '...' : ''),
-      answerLength: r.answer?.length,
-      passesFilter: r.answer && r.answer.trim() !== ''
-    })),
-    answeredQuestionIds: Array.from(answeredQuestionIds),
-    techSkillsSpecific: {
-      techSkillsQuestion: requiredQuestions.find(q => q.questionKey === 'technical_skills'),
-      techSkillsResponse: application.responses.find(r => r.question.questionKey === 'technical_skills'),
-      techSkillsOtherQuestion: requiredQuestions.find(q => q.questionKey === 'technical_skills_other'),
-      techSkillsOtherResponse: application.responses.find(r => r.question.questionKey === 'technical_skills_other')
-    }
-  });
-
-  const isCurrentlyComplete = requiredQuestions.length > 0 && 
+  const isCurrentlyComplete = requiredQuestions.length > 0 &&
     requiredQuestions.every(q => answeredQuestionIds.has(q.id));
-  
+
   const wasJustCompleted = !application.isComplete && isCurrentlyComplete;
 
   const missingFields = requiredQuestions
     .filter(q => !answeredQuestionIds.has(q.id))
     .map(q => q.questionKey);
-
-  console.log('🔍 MISSING FIELDS RESULT:', {
-    missingFields,
-    isCurrentlyComplete,
-    wasJustCompleted
-  });
 
   const completedFields = requiredQuestions.length - missingFields.length;
   const totalFields = requiredQuestions.length;
