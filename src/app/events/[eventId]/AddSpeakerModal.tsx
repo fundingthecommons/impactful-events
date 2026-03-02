@@ -28,8 +28,6 @@ import {
   talkFormatOptions,
   talkDurationOptions,
   ftcTopicOptions,
-  speakerDateOptions,
-  speakerTimeSlotOptions,
 } from "./apply/SpeakerApplicationForm";
 
 const formSchema = z.object({
@@ -72,8 +70,6 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
   const [emailChecked, setEmailChecked] = useState(false);
   const [ftcTopicValues, setFtcTopicValues] = useState<string[]>([]);
   const [ftcTopicOtherText, setFtcTopicOtherText] = useState("");
-  const [preferredDates, setPreferredDates] = useState<string[]>([]);
-  const [preferredTimes, setPreferredTimes] = useState<string[]>([]);
 
   const utils = api.useUtils();
 
@@ -173,8 +169,6 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
     setVenuesInitialized(false);
     setFtcTopicValues([]);
     setFtcTopicOtherText("");
-    setPreferredDates([]);
-    setPreferredTimes([]);
     onClose();
   };
 
@@ -289,8 +283,6 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
       pastTalkUrl: values.pastTalkUrl?.trim() || undefined,
       headshotUrl: headshotUrl ?? undefined,
       headshotFileName: headshotFileName ?? undefined,
-      speakerPreferredDates: preferredDates.length > 0 ? preferredDates.join(",") : undefined,
-      speakerPreferredTimes: preferredTimes.length > 0 ? preferredTimes.join(",") : undefined,
     });
   };
 
@@ -441,34 +433,6 @@ export function AddSpeakerModal({ eventId, opened, onClose }: AddSpeakerModalPro
               </Stack>
             </Checkbox.Group>
           )}
-
-          <Divider label="Scheduling Preferences" labelPosition="center" />
-
-          <Checkbox.Group
-            label="Preferred Day(s)"
-            description="Which day(s) can this speaker present?"
-            value={preferredDates}
-            onChange={setPreferredDates}
-          >
-            <Group gap="md" mt="xs">
-              {speakerDateOptions.map((option) => (
-                <Checkbox key={option.value} value={option.value} label={option.label} />
-              ))}
-            </Group>
-          </Checkbox.Group>
-
-          <Checkbox.Group
-            label="Preferred Time Slots"
-            description="What time(s) work for this speaker?"
-            value={preferredTimes}
-            onChange={setPreferredTimes}
-          >
-            <Group gap="md" mt="xs" wrap="wrap">
-              {speakerTimeSlotOptions.map((option) => (
-                <Checkbox key={option.value} value={option.value} label={option.label} />
-              ))}
-            </Group>
-          </Checkbox.Group>
 
           <Divider label="Speaker Profile" labelPosition="center" />
 
