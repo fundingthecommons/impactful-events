@@ -115,6 +115,9 @@ const profileSearchSchema = z.object({
   availableForOfficeHours: z.boolean().optional(),
   limit: z.number().min(1).max(50).default(20),
   cursor: z.string().optional(),
+  // Admin-only filters (silently ignored for non-admin callers)
+  eventId: z.string().optional(),
+  adminLabels: z.array(z.string()).optional(),
 });
 
 const projectsSearchSchema = z.object({
@@ -441,7 +444,13 @@ export const profileRouter = createTRPCRouter({
         availableForOfficeHours,
         limit,
         cursor,
+        eventId,
+        adminLabels,
       } = input;
+
+      const isAdmin =
+        ctx.session?.user?.role === "admin" ||
+        ctx.session?.user?.role === "staff";
 
       // Build where conditions
       const whereConditions: Prisma.UserWhereInput[] = [];
@@ -529,6 +538,27 @@ export const profileRouter = createTRPCRouter({
         });
       }
 
+      // Admin-only: filter by event attendance (ACCEPTED application)
+      if (isAdmin && eventId) {
+        whereConditions.push({
+          applications: {
+            some: {
+              eventId,
+              status: "ACCEPTED" as const,
+            },
+          },
+        });
+      }
+
+      // Admin-only: filter by admin labels
+      if (isAdmin && adminLabels && adminLabels.length > 0) {
+        whereConditions.push({
+          adminLabels: {
+            hasSome: adminLabels,
+          },
+        });
+      }
+
       const users = await ctx.db.user.findMany({
         where: whereConditions.length > 0 ? { AND: whereConditions } : {},
         include: {
@@ -562,8 +592,20 @@ export const profileRouter = createTRPCRouter({
         nextCursor = nextItem!.id;
       }
 
+      // Strip sensitive admin fields for non-admin callers
+      const members = isAdmin
+        ? users
+        : users.map(
+            ({
+              adminLabels: _al,
+              adminNotes: _an,
+              adminWorkExperience: _aw,
+              ...rest
+            }) => rest,
+          );
+
       return {
-        members: users,
+        members,
         nextCursor,
       };
     }),

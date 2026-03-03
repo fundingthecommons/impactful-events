@@ -11,6 +11,7 @@ import {
   Button,
   TextInput,
   MultiSelect,
+  Select,
   Checkbox,
   Stack,
   Group,
@@ -18,6 +19,7 @@ import {
   Center,
   ActionIcon,
   Tooltip,
+  Divider,
 } from "@mantine/core";
 import {
   IconSearch,
@@ -35,6 +37,7 @@ import { api } from "~/trpc/react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { UserAvatar } from "~/app/_components/UserAvatar";
+import { ADMIN_LABELS } from "~/app/_components/AdminFieldsEditor";
 
 interface ProfileFilters {
   search: string;
@@ -43,10 +46,16 @@ interface ProfileFilters {
   availableForMentoring: boolean | undefined;
   availableForHiring: boolean | undefined;
   availableForOfficeHours: boolean | undefined;
+  // Admin-only filters
+  eventId: string | undefined;
+  adminLabels: string[];
 }
 
 export function ProfilesClient() {
   const { data: session } = useSession();
+  const isAdmin =
+    session?.user?.role === "admin" || session?.user?.role === "staff";
+
   const [filters, setFilters] = useState<ProfileFilters>({
     search: "",
     skills: [],
@@ -54,6 +63,8 @@ export function ProfilesClient() {
     availableForMentoring: undefined,
     availableForHiring: undefined,
     availableForOfficeHours: undefined,
+    eventId: undefined,
+    adminLabels: [],
   });
 
   const {
@@ -71,14 +82,21 @@ export function ProfilesClient() {
       availableForHiring: filters.availableForHiring,
       availableForOfficeHours: filters.availableForOfficeHours,
       limit: 20,
+      // Admin-only (server ignores these for non-admins)
+      eventId: filters.eventId,
+      adminLabels:
+        filters.adminLabels.length > 0 ? filters.adminLabels : undefined,
     },
     {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
-    }
+    },
   );
 
   const { data: stats } = api.profile.getProfileStats.useQuery();
   const { data: allSkills = [] } = api.profile.getAllSkills.useQuery();
+  const { data: events } = api.event.getEvents.useQuery(undefined, {
+    enabled: isAdmin,
+  });
 
   const allMembers = data?.pages.flatMap((page) => page.members) ?? [];
 
@@ -94,6 +112,8 @@ export function ProfilesClient() {
       availableForMentoring: undefined,
       availableForHiring: undefined,
       availableForOfficeHours: undefined,
+      eventId: undefined,
+      adminLabels: [],
     });
   };
 
@@ -210,6 +230,45 @@ export function ProfilesClient() {
                   />
                 </Stack>
               </div>
+
+              {isAdmin && (
+                <>
+                  <Divider
+                    my="xs"
+                    label="Admin Filters"
+                    labelPosition="center"
+                  />
+
+                  <Select
+                    label="Attended event"
+                    placeholder="Any event"
+                    data={
+                      events?.map((e) => ({ value: e.id, label: e.name })) ?? []
+                    }
+                    value={filters.eventId ?? null}
+                    onChange={(value) =>
+                      handleFilterChange(
+                        "eventId",
+                        value ?? undefined,
+                      )
+                    }
+                    clearable
+                    searchable
+                  />
+
+                  <MultiSelect
+                    label="Admin labels"
+                    placeholder="Any label"
+                    data={ADMIN_LABELS.map((l) => l.value)}
+                    value={filters.adminLabels}
+                    onChange={(value) =>
+                      handleFilterChange("adminLabels", value)
+                    }
+                    searchable
+                    clearable
+                  />
+                </>
+              )}
             </Stack>
           </Card>
         </Grid.Col>
@@ -293,6 +352,35 @@ export function ProfilesClient() {
                             )}
                           </Group>
                         )}
+
+                        {isAdmin &&
+                          "adminLabels" in member &&
+                          Array.isArray(member.adminLabels) &&
+                          member.adminLabels.length > 0 && (
+                            <Group gap={4} mb="xs">
+                              {(member.adminLabels as string[])
+                                .slice(0, 3)
+                                .map((label) => (
+                                  <Badge
+                                    key={label}
+                                    size="xs"
+                                    variant="dot"
+                                    color="violet"
+                                  >
+                                    {label}
+                                  </Badge>
+                                ))}
+                              {member.adminLabels.length > 3 && (
+                                <Badge
+                                  size="xs"
+                                  variant="outline"
+                                  color="violet"
+                                >
+                                  +{member.adminLabels.length - 3}
+                                </Badge>
+                              )}
+                            </Group>
+                          )}
                       </Card.Section>
 
                       <Card.Section px="lg" pb="lg">
