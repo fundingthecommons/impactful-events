@@ -60,6 +60,7 @@ export default function SessionDetailPage() {
     { enabled: !!userSession?.user },
   );
   const canManage = permissions?.canManage ?? false;
+  const isSpeakerOnly = permissions?.isSpeakerOnly ?? false;
   const isAdmin = userSession?.user?.role === "admin" || userSession?.user?.role === "staff";
 
   // Edit modal state
@@ -252,7 +253,7 @@ export default function SessionDetailPage() {
                   ? "Speaker"
                   : "Speakers"}
               </Title>
-              {canManage && (
+              {canManage && !isSpeakerOnly && (
                 <Button
                   variant="subtle"
                   size="xs"
@@ -324,7 +325,7 @@ export default function SessionDetailPage() {
                       {speakerName}
                     </Text>
                   </Group>
-                  {canManage && (
+                  {canManage && !isSpeakerOnly && (
                     <Tooltip label="Connect to a user profile">
                       <Button
                         variant="light"
@@ -403,6 +404,7 @@ export default function SessionDetailPage() {
           sessionTypes={filters.sessionTypes}
           tracks={filters.tracks}
           isAdmin={isAdmin}
+          isSpeakerOnly={isSpeakerOnly}
           onSuccess={() => {
             void utils.schedule.getSession.invalidate({ sessionId: params.sessionId });
             void utils.schedule.getEventSchedule.invalidate({ eventId: params.eventId });

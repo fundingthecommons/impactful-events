@@ -478,6 +478,7 @@ export interface EditSessionModalProps {
   sessionTypes: Array<{ id: string; name: string; color: string }>;
   tracks: Array<{ id: string; name: string; color: string }>;
   isAdmin: boolean;
+  isSpeakerOnly?: boolean;
   onSuccess?: () => void;
 }
 
@@ -491,6 +492,7 @@ export default function EditSessionModal({
   sessionTypes,
   tracks,
   isAdmin,
+  isSpeakerOnly = false,
   onSuccess,
 }: EditSessionModalProps) {
   const utils = api.useUtils();
@@ -524,6 +526,18 @@ export default function EditSessionModal({
   });
 
   const handleSubmit = () => {
+    if (isSpeakerOnly) {
+      if (!title) {
+        notifications.show({ title: "Missing fields", message: "Title is required", color: "orange" });
+        return;
+      }
+      updateMutation.mutate({
+        id: session.id,
+        title,
+        description: description || null,
+      });
+      return;
+    }
     if (!title || !startTime || !endTime) {
       notifications.show({ title: "Missing fields", message: "Title, start time, and end time are required", color: "orange" });
       return;
@@ -562,82 +576,86 @@ export default function EditSessionModal({
           autosize
           minRows={2}
         />
-        <Group grow>
-          <DateTimePicker
-            label="Start Time"
-            value={startTime}
-            onChange={(val) => setStartTime(val as Date | null)}
-            required
-          />
-          <DateTimePicker
-            label="End Time"
-            value={endTime}
-            onChange={(val) => setEndTime(val as Date | null)}
-            required
-          />
-        </Group>
-        <SpeakerSelector
-          linkedSpeakers={linkedSpeakers}
-          onAddLinkedSpeaker={(user) =>
-            setLinkedSpeakers((prev) => [...prev, { user, role: "Speaker" }])
-          }
-          onRemoveLinkedSpeaker={(userId) =>
-            setLinkedSpeakers((prev) => prev.filter((s) => s.user.id !== userId))
-          }
-          onChangeSpeakerRole={(userId, role) =>
-            setLinkedSpeakers((prev) =>
-              prev.map((s) => (s.user.id === userId ? { ...s, role } : s)),
-            )
-          }
-          textSpeakers={textSpeakers}
-          onTextSpeakersChange={setTextSpeakers}
-          venueId={venueId}
-          isAdmin={isAdmin}
-          eventId={eventId}
-        />
-        {rooms.length > 0 && (
-          <Select
-            label="Room"
-            placeholder="Select room"
-            data={rooms.map((r) => ({ value: r.id, label: r.name }))}
-            value={roomId}
-            onChange={setRoomId}
-            clearable
-            leftSection={<IconDoor size={14} />}
-          />
+        {!isSpeakerOnly && (
+          <>
+            <Group grow>
+              <DateTimePicker
+                label="Start Time"
+                value={startTime}
+                onChange={(val) => setStartTime(val as Date | null)}
+                required
+              />
+              <DateTimePicker
+                label="End Time"
+                value={endTime}
+                onChange={(val) => setEndTime(val as Date | null)}
+                required
+              />
+            </Group>
+            <SpeakerSelector
+              linkedSpeakers={linkedSpeakers}
+              onAddLinkedSpeaker={(user) =>
+                setLinkedSpeakers((prev) => [...prev, { user, role: "Speaker" }])
+              }
+              onRemoveLinkedSpeaker={(userId) =>
+                setLinkedSpeakers((prev) => prev.filter((s) => s.user.id !== userId))
+              }
+              onChangeSpeakerRole={(userId, role) =>
+                setLinkedSpeakers((prev) =>
+                  prev.map((s) => (s.user.id === userId ? { ...s, role } : s)),
+                )
+              }
+              textSpeakers={textSpeakers}
+              onTextSpeakersChange={setTextSpeakers}
+              venueId={venueId}
+              isAdmin={isAdmin}
+              eventId={eventId}
+            />
+            {rooms.length > 0 && (
+              <Select
+                label="Room"
+                placeholder="Select room"
+                data={rooms.map((r) => ({ value: r.id, label: r.name }))}
+                value={roomId}
+                onChange={setRoomId}
+                clearable
+                leftSection={<IconDoor size={14} />}
+              />
+            )}
+            {sessionTypes.length > 0 && (
+              <Select
+                label="Session Type"
+                placeholder="Select type"
+                data={sessionTypes.map((st) => ({
+                  value: st.id,
+                  label: st.name,
+                }))}
+                value={sessionTypeId}
+                onChange={setSessionTypeId}
+                clearable
+              />
+            )}
+            {tracks.length > 0 && (
+              <Select
+                label="Track"
+                placeholder="Select track"
+                data={tracks.map((t) => ({
+                  value: t.id,
+                  label: t.name,
+                }))}
+                value={trackId}
+                onChange={setTrackId}
+                clearable
+              />
+            )}
+            <Switch
+              label="Published"
+              description="Published sessions are visible on the public schedule"
+              checked={isPublished}
+              onChange={(e) => setIsPublished(e.currentTarget.checked)}
+            />
+          </>
         )}
-        {sessionTypes.length > 0 && (
-          <Select
-            label="Session Type"
-            placeholder="Select type"
-            data={sessionTypes.map((st) => ({
-              value: st.id,
-              label: st.name,
-            }))}
-            value={sessionTypeId}
-            onChange={setSessionTypeId}
-            clearable
-          />
-        )}
-        {tracks.length > 0 && (
-          <Select
-            label="Track"
-            placeholder="Select track"
-            data={tracks.map((t) => ({
-              value: t.id,
-              label: t.name,
-            }))}
-            value={trackId}
-            onChange={setTrackId}
-            clearable
-          />
-        )}
-        <Switch
-          label="Published"
-          description="Published sessions are visible on the public schedule"
-          checked={isPublished}
-          onChange={(e) => setIsPublished(e.currentTarget.checked)}
-        />
         <Group justify="flex-end">
           <Button variant="subtle" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSubmit} loading={updateMutation.isPending}>

@@ -95,7 +95,8 @@ export async function assertCanManageVenue(
 
 /**
  * Assert user can manage a session (admin OR owner of the session's venue).
- * Sessions without a venue can only be managed by admins.
+ * For CONFERENCE events, session speakers can also manage their own sessions.
+ * Sessions without a venue can only be managed by admins (unless speaker on CONFERENCE).
  * Throws FORBIDDEN if not authorized.
  */
 export async function assertCanManageSession(
@@ -108,11 +109,27 @@ export async function assertCanManageSession(
 
   const session = await db.scheduleSession.findUnique({
     where: { id: sessionId },
-    select: { venueId: true },
+    select: {
+      venueId: true,
+      event: { select: { type: true } },
+      sessionSpeakers: { where: { userId }, select: { id: true } },
+    },
   });
 
   if (!session) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Session not found" });
+  }
+
+  // Venue owner check
+  if (session.venueId) {
+    const owns = await isVenueOwner(db, userId, session.venueId);
+    if (owns) return;
+  }
+
+  // For CONFERENCE events, allow session speakers to manage their sessions
+  const isConference = session.event.type?.toUpperCase() === "CONFERENCE";
+  if (isConference && session.sessionSpeakers.length > 0) {
+    return;
   }
 
   if (!session.venueId) {
@@ -122,11 +139,35 @@ export async function assertCanManageSession(
     });
   }
 
-  const owns = await isVenueOwner(db, userId, session.venueId);
-  if (!owns) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "You do not have permission to manage sessions in this venue",
-    });
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "You do not have permission to manage sessions in this venue",
+  });
+}
+
+/**
+ * Check if user is a "speaker-only" editor for a session.
+ * Returns true if the user passed assertCanManageSession ONLY because they are
+ * a session speaker (not admin/staff, not venue owner).
+ */
+export async function isSessionSpeakerOnly(
+  db: PrismaClient,
+  userId: string,
+  userRole: string | undefined | null,
+  sessionId: string,
+): Promise<boolean> {
+  if (isAdminOrStaff(userRole)) return false;
+
+  const session = await db.scheduleSession.findUnique({
+    where: { id: sessionId },
+    select: { venueId: true },
+  });
+
+  if (session?.venueId) {
+    const owns = await isVenueOwner(db, userId, session.venueId);
+    if (owns) return false;
   }
+
+  // If we get here and the user has permission, they must be a session speaker
+  return true;
 }

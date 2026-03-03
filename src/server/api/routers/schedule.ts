@@ -11,6 +11,7 @@ import {
   isAdminOrStaff,
   assertCanManageVenue,
   assertCanManageSession,
+  isSessionSpeakerOnly,
   isEventFloorOwner,
   getUserOwnedVenueIds,
   assertAdminOrEventFloorOwner,
@@ -673,6 +674,27 @@ export const scheduleRouter = createTRPCRouter({
         id,
       );
 
+      // Speakers can only edit title and description
+      const speakerOnly = await isSessionSpeakerOnly(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        id,
+      );
+      if (speakerOnly) {
+        const restrictedFields = [
+          data.venueId, data.roomId, data.startTime, data.endTime,
+          data.order, data.isPublished, data.sessionTypeId, data.trackId,
+          data.speakers,
+        ];
+        if (restrictedFields.some((f) => f !== undefined) || linkedSpeakers !== undefined) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Speakers can only edit the title and description of their sessions",
+          });
+        }
+      }
+
       // Validate session date falls within event date range
       if (data.startTime) {
         const session = await ctx.db.scheduleSession.findUnique({
@@ -770,6 +792,19 @@ export const scheduleRouter = createTRPCRouter({
         ctx.session.user.role,
         input.id,
       );
+      // Speakers cannot delete sessions
+      const speakerOnly = await isSessionSpeakerOnly(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.id,
+      );
+      if (speakerOnly) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Speakers cannot delete sessions. Contact a floor lead or admin.",
+        });
+      }
       return ctx.db.scheduleSession.delete({ where: { id: input.id } });
     }),
 
@@ -1259,20 +1294,34 @@ export const scheduleRouter = createTRPCRouter({
       const userId = ctx.session.user.id;
       const userRole = ctx.session.user.role;
 
-      if (isAdminOrStaff(userRole)) return { canManage: true };
+      if (isAdminOrStaff(userRole)) return { canManage: true, isSpeakerOnly: false };
 
       const session = await ctx.db.scheduleSession.findUnique({
         where: { id: input.sessionId },
-        select: { venueId: true },
+        select: {
+          venueId: true,
+          event: { select: { type: true } },
+          sessionSpeakers: { where: { userId }, select: { id: true } },
+        },
       });
 
-      if (!session?.venueId) return { canManage: false };
+      if (!session) return { canManage: false, isSpeakerOnly: false };
 
-      const owns = await ctx.db.venueOwner.findUnique({
-        where: { userId_venueId: { userId, venueId: session.venueId } },
-      });
+      // Venue owner check
+      if (session.venueId) {
+        const owns = await ctx.db.venueOwner.findUnique({
+          where: { userId_venueId: { userId, venueId: session.venueId } },
+        });
+        if (owns) return { canManage: true, isSpeakerOnly: false };
+      }
 
-      return { canManage: !!owns };
+      // For CONFERENCE events, allow session speakers
+      const isConference = session.event.type?.toUpperCase() === "CONFERENCE";
+      if (isConference && session.sessionSpeakers.length > 0) {
+        return { canManage: true, isSpeakerOnly: true };
+      }
+
+      return { canManage: false, isSpeakerOnly: false };
     }),
 
   // Link a user to a session as a speaker and optionally remove a text speaker name
@@ -1292,6 +1341,19 @@ export const scheduleRouter = createTRPCRouter({
         ctx.session.user.role,
         input.sessionId,
       );
+      // Speakers cannot manage other speakers on their sessions
+      const speakerOnly = await isSessionSpeakerOnly(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.sessionId,
+      );
+      if (speakerOnly) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Speakers cannot manage participants. Contact a floor lead or admin.",
+        });
+      }
 
       // Create SessionSpeaker record (skip if already linked)
       const existing = await ctx.db.sessionSpeaker.findUnique({
@@ -1831,6 +1893,19 @@ export const scheduleRouter = createTRPCRouter({
         ctx.session.user.role,
         input.sessionId,
       );
+      // Speakers cannot reschedule sessions
+      const speakerOnly = await isSessionSpeakerOnly(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        input.sessionId,
+      );
+      if (speakerOnly) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Speakers cannot reschedule sessions. Contact a floor lead or admin.",
+        });
+      }
 
       const session = await ctx.db.scheduleSession.findUnique({
         where: { id: input.sessionId },

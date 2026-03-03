@@ -37,6 +37,7 @@ import {
   IconBrandX,
   IconVideo,
   IconInfoCircle,
+  IconEdit,
 } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
 import Link from "next/link";
@@ -146,7 +147,7 @@ export default function ConferenceDashboard({
   const { data: mySessions, isLoading: sessionsLoading } =
     api.schedule.getMySessions.useQuery(
       { eventId },
-      { enabled: isSpeaker },
+      { enabled: isSpeaker || hasSpeakerApplication },
     );
 
   // Fetch speaker application and profile for talk submission status
@@ -544,7 +545,7 @@ export default function ConferenceDashboard({
         )}
 
         {/* Speaker: My Sessions */}
-        {(isSpeaker || (hasSpeakerApplication && applicationStatus === "ACCEPTED")) && (
+        {(isSpeaker || hasSpeakerApplication || (mySessions && mySessions.length > 0)) && (
           <Card withBorder>
             <Stack gap="md">
               <Group justify="space-between">
@@ -578,7 +579,15 @@ export default function ConferenceDashboard({
                     const timeStr = `${startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })} – ${endTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })}`;
 
                     return (
-                      <Card key={session.id} withBorder p="sm" radius="sm">
+                      <Card
+                        key={session.id}
+                        withBorder
+                        p="sm"
+                        radius="sm"
+                        component={Link}
+                        href={`/events/${eventSlug}/schedule/${session.id}`}
+                        style={{ textDecoration: "none", cursor: "pointer" }}
+                      >
                         <Group justify="space-between" wrap="nowrap" align="flex-start">
                           <Stack gap={4} style={{ flex: 1 }}>
                             <Group gap="xs">
@@ -633,6 +642,7 @@ export default function ConferenceDashboard({
                               </Text>
                             )}
                           </Stack>
+                          <IconEdit size={16} style={{ color: "var(--mantine-color-dimmed)", flexShrink: 0, marginTop: 2 }} />
                         </Group>
                       </Card>
                     );
