@@ -35,9 +35,12 @@ import {
   IconArrowUp,
   IconArrowDown,
   IconLayoutGrid,
+  IconWorld,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import { Hyperboard } from "~/app/_components/Hyperboard";
+import { HyperscanStatsWidget } from "~/app/_components/HyperscanStatsWidget";
+import { HyperscanFeedTab } from "./HyperscanFeedTab";
 import { formatDistanceToNow } from "date-fns";
 import { UserAvatar } from "~/app/_components/UserAvatar";
 import { getDisplayName } from "~/utils/userDisplay";
@@ -81,7 +84,7 @@ export default function ImpactPage({ params }: ImpactPageProps) {
   };
 
   // Get event details
-  const { isLoading: eventLoading } = api.event.getEvent.useQuery(
+  const { data: eventData, isLoading: eventLoading } = api.event.getEvent.useQuery(
     { id: eventId },
     { enabled: !!eventId }
   );
@@ -240,7 +243,7 @@ export default function ImpactPage({ params }: ImpactPageProps) {
 
   return (
     <Container size="xl" py="xl">
-      <Title order={1} mb="xl">Residency Impact</Title>
+      <Title order={1} mb="xl">{eventData?.type === "CONFERENCE" ? "Conference" : "Residency"} Impact</Title>
 
       <Tabs value={activeTab} onChange={handleTabChange}>
         <Tabs.List>
@@ -264,6 +267,9 @@ export default function ImpactPage({ params }: ImpactPageProps) {
           </Tabs.Tab>
           <Tabs.Tab value="combined-hyperboard" leftSection={<IconLayoutGrid size={16} />}>
             Combined Hyperboard
+          </Tabs.Tab>
+          <Tabs.Tab value="hypersphere" leftSection={<IconWorld size={16} />}>
+            Hypersphere
           </Tabs.Tab>
         </Tabs.List>
 
@@ -816,6 +822,15 @@ export default function ImpactPage({ params }: ImpactPageProps) {
               <Text c="dimmed">No data found for this event.</Text>
             )}
           </Box>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="hypersphere" pt="xl">
+          <Stack gap="xl">
+            <HyperscanStatsWidget />
+            <Divider />
+            <Title order={3}>Network Feed</Title>
+            <HyperscanFeedTab />
+          </Stack>
         </Tabs.Panel>
       </Tabs>
     </Container>

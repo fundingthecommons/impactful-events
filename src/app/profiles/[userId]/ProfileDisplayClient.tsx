@@ -45,6 +45,7 @@ import { useRouter } from "next/navigation";
 import { MarkdownRenderer } from "~/app/_components/MarkdownRenderer";
 import { getDisplayName } from "~/utils/userDisplay";
 import { UserAvatar } from "~/app/_components/UserAvatar";
+import { HypersphereActivity } from "./HypersphereActivity";
 
 interface ProfileDisplayClientProps {
   userId: string;
@@ -509,6 +510,8 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
               )}
             </Stack>
           </Card>
+
+          <HypersphereActivity userId={userId} />
         </Grid.Col>
       </Grid>
     </Container>

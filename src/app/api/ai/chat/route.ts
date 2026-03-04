@@ -280,6 +280,67 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Inject Hypersphere network context
+    try {
+      const { getHyperscanService } = await import(
+        "~/server/services/hyperscan"
+      );
+      const hyperscanService = getHyperscanService();
+
+      const [statsResult, feedResult] = await Promise.allSettled([
+        hyperscanService.getNetworkStats(),
+        hyperscanService.getFeed({ limit: 5 }),
+      ]);
+
+      if (statsResult.status === "fulfilled") {
+        const stats = statsResult.value;
+        contextParts.push(
+          `\nHypersphere Network:` +
+            ` Hypercerts: ${String(stats.hypercerts.totalRecords)} records (${String(stats.hypercerts.activities.totalRecords)} activities, ${String(stats.hypercerts.activities.uniqueUsers)} unique users)` +
+            ` | Biodiversity: ${String(stats.gainforest.totalRecords)} records (${String(stats.gainforest.occurrences.totalRecords)} occurrences)` +
+            ` | Reviews: ${String(stats.hyperscan.totalRecords)} (${String(stats.hyperscan.likes.totalRecords)} likes, ${String(stats.hyperscan.comments.totalRecords)} comments)` +
+            ` | Badges: ${String(stats.certified.awards.totalRecords)} awarded to ${String(stats.certified.uniqueRecipients)} recipients`
+        );
+      }
+
+      if (feedResult.status === "fulfilled" && feedResult.value.length > 0) {
+        const feedList = feedResult.value
+          .slice(0, 5)
+          .map(
+            (f) =>
+              `- [${f.type}] ${f.title || "Untitled"} (${f.createdAt})`
+          )
+          .join("\n");
+        contextParts.push(`\nRecent Hypersphere Activity:\n${feedList}`);
+      }
+
+      // If user has AT Proto account, add their personal Hypersphere activity
+      try {
+        const userAtAccount = await db.atProtoAccount.findUnique({
+          where: { userId: session.user.id },
+          select: { did: true, handle: true },
+        });
+
+        if (userAtAccount) {
+          const profileData = await hyperscanService.getProfile(
+            userAtAccount.did
+          );
+          const recordCount = profileData.recentRecords.length;
+          const collectionCount = profileData.collections.length;
+          contextParts.push(
+            `\nYour Hypersphere Profile: @${userAtAccount.handle}` +
+              ` | Collections: ${String(collectionCount)}` +
+              ` | Recent records: ${String(recordCount)}` +
+              ` | View: ${profileData.hyperscanUrl}`
+          );
+        }
+      } catch {
+        // Non-critical — continue without personal Hypersphere data
+      }
+    } catch {
+      // Non-critical — chat works without Hyperscan context
+    }
+
     const contextMessage = contextParts.join("\n");
 
     // Prepend context and behavioral instructions, then append user messages
@@ -304,6 +365,13 @@ export async function POST(request: NextRequest) {
       "- When a user asks how to do something, only suggest actions they have permission to perform based on their role.",
       "- Do NOT suggest admin pages or management actions to users without admin/staff/floor-lead roles.",
       "- If a user asks about something they don't have permission to do, let them know who to contact (event organizers) rather than explaining how to do it.",
+      "",
+      "HYPERSPHERE CONTEXT:",
+      "- You have access to real-time Hypersphere network data (hypercerts, impact claims, biodiversity observations, badges).",
+      "- When users ask about impact, hypercerts, or network activity, reference the Hypersphere stats from the context above.",
+      "- Hypercerts are impact certificates created on the AT Protocol. Users can create them for their projects via the Hypercerts tab.",
+      "- If asked about specific accounts or profiles, suggest connecting their AT Proto account to see their Hypersphere activity.",
+      "- You can reference total network stats, recent activity, and collection breakdowns.",
     ].join("\n");
 
     const allMessages = [
