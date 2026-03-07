@@ -16,6 +16,7 @@ import {
   IconTrash,
   IconMessageCircle,
   IconSearch,
+  IconFile,
 } from "@tabler/icons-react";
 import { DataTable, type DataTableSortStatus } from "mantine-datatable";
 import { getDisplayName } from "~/utils/userDisplay";
@@ -151,6 +152,9 @@ export function SessionTableView({
           break;
         case "isPublished":
           cmp = (a.isPublished ? 1 : 0) - (b.isPublished ? 1 : 0);
+          break;
+        case "slides":
+          cmp = (a.slidesUrl ? 1 : 0) - (b.slidesUrl ? 1 : 0);
           break;
         case "venue":
           cmp = (a.venue?.name ?? "").localeCompare(b.venue?.name ?? "");
@@ -422,6 +426,29 @@ export function SessionTableView({
               ) : (
                 <Text size="xs" c="dimmed">
                   -
+                </Text>
+              ),
+          },
+          {
+            accessor: "slides",
+            title: "Slides",
+            sortable: true,
+            width: 90,
+            render: (session) =>
+              session.slidesUrl ? (
+                <Tooltip label={session.slidesFileName ?? "Slides uploaded"}>
+                  <Badge
+                    size="xs"
+                    variant="light"
+                    color="green"
+                    leftSection={<IconFile size={10} />}
+                  >
+                    Uploaded
+                  </Badge>
+                </Tooltip>
+              ) : (
+                <Text size="xs" c="dimmed">
+                  —
                 </Text>
               ),
           },

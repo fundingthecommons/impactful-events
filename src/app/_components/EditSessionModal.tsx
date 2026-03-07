@@ -83,6 +83,9 @@ export type FloorSession = {
     user: SelectedSpeaker;
   }>;
   _count?: { comments: number };
+  slidesUrl?: string | null;
+  slidesFileName?: string | null;
+  slidesUploadedAt?: Date | null;
 };
 
 export type VenueRoom = { id: string; name: string; capacity: number | null; order: number };

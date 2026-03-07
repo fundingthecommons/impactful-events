@@ -15,10 +15,11 @@ import {
   Paper,
   Button,
   Tooltip,
+  FileButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconArrowLeft, IconClock, IconMapPin, IconLink, IconUserPlus, IconEdit } from "@tabler/icons-react";
+import { IconArrowLeft, IconClock, IconMapPin, IconLink, IconUserPlus, IconEdit, IconFile, IconUpload, IconTrash } from "@tabler/icons-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -125,6 +126,72 @@ export default function SessionDetailPage() {
 
   const prefillParts = linkingTextSpeaker ? splitName(linkingTextSpeaker) : null;
 
+  // Slides upload state
+  const [uploadingSlides, setUploadingSlides] = useState(false);
+
+  const removeSlideMutation = api.schedule.removeSessionSlides.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Slides removed",
+        message: "Slides have been removed from this session.",
+        color: "green",
+      });
+      void utils.schedule.getSession.invalidate({ sessionId: params.sessionId });
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
+
+  const handleFileUpload = async (file: File | null) => {
+    if (!file) return;
+
+    if (file.size > 50 * 1024 * 1024) {
+      notifications.show({
+        title: "File too large",
+        message: "Maximum file size is 50MB.",
+        color: "red",
+      });
+      return;
+    }
+
+    setUploadingSlides(true);
+    try {
+      const formData = new FormData();
+      formData.append("slides", file);
+      formData.append("sessionId", params.sessionId);
+
+      const response = await fetch("/api/upload/session-slides", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const result = await response.json() as { error?: string };
+        throw new Error(result.error ?? "Upload failed");
+      }
+
+      notifications.show({
+        title: "Slides uploaded",
+        message: "Your slides have been uploaded successfully.",
+        color: "green",
+      });
+      void utils.schedule.getSession.invalidate({ sessionId: params.sessionId });
+    } catch (error) {
+      notifications.show({
+        title: "Upload failed",
+        message: error instanceof Error ? error.message : "Please try again.",
+        color: "red",
+      });
+    } finally {
+      setUploadingSlides(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <Center h={400}>
@@ -143,6 +210,10 @@ export default function SessionDetailPage() {
 
   const color = session.sessionType?.color ?? "#94a3b8";
   const hasSpeakers = session.sessionSpeakers.length > 0 || session.speakers.length > 0;
+  const isCurrentUserSpeaker = session.sessionSpeakers.some(
+    (s) => s.user.id === userSession?.user?.id,
+  );
+  const canUploadSlides = isCurrentUserSpeaker || isAdmin;
 
   return (
     <Container size="md" py="xl">
@@ -242,6 +313,89 @@ export default function SessionDetailPage() {
               {session.description}
             </Text>
           </Paper>
+        )}
+
+        {/* Slides */}
+        {(session.slidesUrl ?? canUploadSlides) && (
+          <Stack gap="md">
+            <Title order={3}>Slides</Title>
+
+            {/* Download link — visible to everyone when slides exist */}
+            {session.slidesUrl && (
+              <Paper p="md" withBorder radius="md">
+                <Group justify="space-between" align="center">
+                  <Group gap="md">
+                    <IconFile size={24} style={{ color: "var(--mantine-color-dimmed)" }} />
+                    <Stack gap={2}>
+                      <Anchor
+                        href={session.slidesUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        fw={500}
+                      >
+                        {session.slidesFileName ?? "Download slides"}
+                      </Anchor>
+                      {session.slidesUploadedAt && (
+                        <Text size="xs" c="dimmed">
+                          Uploaded{" "}
+                          {new Date(session.slidesUploadedAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </Text>
+                      )}
+                    </Stack>
+                  </Group>
+                  {canUploadSlides && (
+                    <Button
+                      variant="subtle"
+                      color="red"
+                      size="xs"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={() => removeSlideMutation.mutate({ sessionId: params.sessionId })}
+                      loading={removeSlideMutation.isPending}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </Group>
+              </Paper>
+            )}
+
+            {/* Upload area — only for speakers and admins */}
+            {canUploadSlides && (
+              <Paper
+                p="md"
+                withBorder
+                radius="md"
+                style={{ borderStyle: "dashed" }}
+              >
+                <Stack align="center" gap="sm">
+                  {!session.slidesUrl && (
+                    <Text size="sm" c="dimmed">
+                      Upload your presentation slides
+                    </Text>
+                  )}
+                  <FileButton onChange={(file) => void handleFileUpload(file)}>
+                    {(props) => (
+                      <Button
+                        {...props}
+                        variant="light"
+                        loading={uploadingSlides}
+                        leftSection={<IconUpload size={16} />}
+                      >
+                        {session.slidesUrl ? "Replace slides" : "Upload slides"}
+                      </Button>
+                    )}
+                  </FileButton>
+                  <Text size="xs" c="dimmed">
+                    Max 50MB. Any file type accepted.
+                  </Text>
+                </Stack>
+              </Paper>
+            )}
+          </Stack>
         )}
 
         {/* Speakers */}

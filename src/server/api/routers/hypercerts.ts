@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { createHypercertsService } from "~/server/services/hypercerts";
+import { createActivityCertService } from "~/server/services/activityCerts";
 import { TRPCError } from "@trpc/server";
+import { isAdminOrStaff } from "~/server/api/utils/scheduleAuth";
 
 export const hypercertsRouter = createTRPCRouter({
   /**
@@ -110,5 +112,99 @@ export const hypercertsRouter = createTRPCRouter({
         }
         throw error;
       }
+    }),
+
+  /**
+   * Publish an event as an activity cert with speakers as contributors
+   */
+  publishEventActivityCert: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Admin/staff or event creator check
+      if (!isAdminOrStaff(ctx.session.user.role)) {
+        const event = await ctx.db.event.findUnique({
+          where: { id: input.eventId },
+          select: { createdById: true },
+        });
+
+        if (!event) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+        }
+
+        if (event.createdById !== ctx.session.user.id) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Only admins or event creators can publish activity certs",
+          });
+        }
+      }
+
+      // Check if already published
+      const existingEvent = await ctx.db.event.findUnique({
+        where: { id: input.eventId },
+        select: { activityCertUri: true },
+      });
+
+      if (existingEvent?.activityCertUri) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Activity cert already published for this event",
+        });
+      }
+
+      const service = createActivityCertService(ctx.db);
+      const result = await service.publishEventActivityCert(input.eventId);
+
+      // Store URIs on the event
+      await ctx.db.event.update({
+        where: { id: input.eventId },
+        data: {
+          activityCertUri: result.activityUri,
+          activityCertCid: result.activityCid,
+          hyperboardUri: result.boardUri,
+          hyperboardCid: result.boardCid,
+          activityCertPublishedAt: new Date(),
+        },
+      });
+
+      return {
+        success: true,
+        activityUri: result.activityUri,
+        boardUri: result.boardUri,
+        contributorCount: result.contributorCount,
+      };
+    }),
+
+  /**
+   * Get activity cert publish status for an event
+   */
+  getEventActivityCertStatus: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const event = await ctx.db.event.findUnique({
+        where: { id: input.eventId },
+        select: {
+          activityCertUri: true,
+          activityCertCid: true,
+          hyperboardUri: true,
+          hyperboardCid: true,
+          activityCertPublishedAt: true,
+        },
+      });
+
+      if (!event) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+      }
+
+      return {
+        isPublished: !!event.activityCertUri,
+        activityUri: event.activityCertUri,
+        hyperboardUri: event.hyperboardUri,
+        publishedAt: event.activityCertPublishedAt,
+      };
     }),
 });

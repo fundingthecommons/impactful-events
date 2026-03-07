@@ -42,6 +42,8 @@ export const env = createEnv({
     TELEGRAM_PROJECT_UPDATE_TOPIC_ID: z.string().optional(),
     ATPROTO_PDS_URL: z.string().url().optional().default("https://bsky.social"),
     ATPROTO_ENCRYPTION_KEY: z.string().min(32).optional(),
+    ATPROTO_PLATFORM_HANDLE: z.string().optional(),
+    ATPROTO_PLATFORM_APP_PASSWORD: z.string().optional(),
     GITHUB_API_TOKEN: z.string().optional(),
     LUMA_API_KEY: z.string().optional(),
     // EAS (Ethereum Attestation Service) configuration
@@ -98,6 +100,8 @@ export const env = createEnv({
     TELEGRAM_PROJECT_UPDATE_TOPIC_ID: process.env.TELEGRAM_PROJECT_UPDATE_TOPIC_ID,
     ATPROTO_PDS_URL: process.env.ATPROTO_PDS_URL,
     ATPROTO_ENCRYPTION_KEY: process.env.ATPROTO_ENCRYPTION_KEY,
+    ATPROTO_PLATFORM_HANDLE: process.env.ATPROTO_PLATFORM_HANDLE,
+    ATPROTO_PLATFORM_APP_PASSWORD: process.env.ATPROTO_PLATFORM_APP_PASSWORD,
     GITHUB_API_TOKEN: process.env.GITHUB_API_TOKEN,
     LUMA_API_KEY: process.env.LUMA_API_KEY,
     EAS_PRIVATE_KEY: process.env.EAS_PRIVATE_KEY,

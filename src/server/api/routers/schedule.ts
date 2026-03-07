@@ -809,6 +809,68 @@ export const scheduleRouter = createTRPCRouter({
     }),
 
   // ──────────────────────────────────────────
+  // Session slides
+  // ──────────────────────────────────────────
+
+  removeSessionSlides: protectedProcedure
+    .input(z.object({ sessionId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const session = await ctx.db.scheduleSession.findUnique({
+        where: { id: input.sessionId },
+        select: {
+          slidesUrl: true,
+          sessionSpeakers: {
+            where: { userId: ctx.session.user.id },
+            select: { id: true },
+          },
+        },
+      });
+
+      if (!session) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Session not found",
+        });
+      }
+
+      const isAdmin =
+        ctx.session.user.role === "admin" ||
+        ctx.session.user.role === "staff";
+      const isSpeaker = session.sessionSpeakers.length > 0;
+
+      if (!isAdmin && !isSpeaker) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only session speakers can remove slides",
+        });
+      }
+
+      // Delete from Vercel Blob
+      if (session.slidesUrl) {
+        try {
+          const { del } = await import("@vercel/blob");
+          await del(session.slidesUrl, {
+            token: process.env.PLATFORM_READ_WRITE_TOKEN,
+          });
+        } catch {
+          console.error(
+            "Failed to delete slides blob, continuing with DB cleanup",
+          );
+        }
+      }
+
+      return ctx.db.scheduleSession.update({
+        where: { id: input.sessionId },
+        data: {
+          slidesUrl: null,
+          slidesFileName: null,
+          slidesUploadedAt: null,
+          slidesUploadedById: null,
+        },
+      });
+    }),
+
+  // ──────────────────────────────────────────
   // Venue mutations (admin only for create/delete, owner for update)
   // ──────────────────────────────────────────
 
@@ -894,10 +956,10 @@ export const scheduleRouter = createTRPCRouter({
       const roomCount = await ctx.db.scheduleRoom.count({
         where: { venueId: input.venueId },
       });
-      if (roomCount >= 3) {
+      if (roomCount >= 10) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Maximum of 3 rooms per floor",
+          message: "Maximum of 10 rooms per floor",
         });
       }
 

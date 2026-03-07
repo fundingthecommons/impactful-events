@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Button,
   Container,
   Title,
   Text,
@@ -13,6 +14,7 @@ import {
   Divider,
   ThemeIcon,
   TextInput,
+  Loader,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -32,6 +34,7 @@ import {
   IconChevronRight,
   IconLink,
   IconTicket,
+  IconCertificate,
 } from "@tabler/icons-react";
 import { useState } from "react";
 import Link from "next/link";
@@ -186,6 +189,28 @@ export default function AdminEventDetailClient({ event }: AdminEventDetailClient
 
   const [registrationUrl, setRegistrationUrl] = useState(event.registrationUrl ?? "");
   const [lumaEventId, setLumaEventId] = useState(event.lumaEventId ?? "");
+
+  const activityCertStatus = api.hypercerts.getEventActivityCertStatus.useQuery(
+    { eventId: event.id },
+  );
+
+  const publishActivityCert = api.hypercerts.publishEventActivityCert.useMutation({
+    onSuccess: (data) => {
+      notifications.show({
+        title: "Activity Cert Published",
+        message: `Published with ${String(data.contributorCount)} contributor${data.contributorCount === 1 ? "" : "s"}`,
+        color: "green",
+      });
+      void activityCertStatus.refetch();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Failed to Publish",
+        message: error.message,
+        color: "red",
+      });
+    },
+  });
 
   const updateEvent = api.event.updateEvent.useMutation({
     onSuccess: () => {
@@ -428,6 +453,54 @@ export default function AdminEventDetailClient({ event }: AdminEventDetailClient
                 disabled={updateEvent.isPending}
               />
             </SimpleGrid>
+
+            <Divider />
+
+            {/* Activity Cert (Hypercerts) */}
+            <Paper p="md" radius="sm" withBorder>
+              <Stack gap="sm">
+                <Group gap="xs">
+                  <IconCertificate size={20} />
+                  <Text size="sm" fw={500}>Activity Cert (Hypercerts)</Text>
+                </Group>
+
+                {activityCertStatus.data?.isPublished ? (
+                  <Stack gap="xs">
+                    <Group gap="xs">
+                      <Badge color="green" variant="light">Published</Badge>
+                      {activityCertStatus.data.publishedAt && (
+                        <Text size="xs" c="dimmed">
+                          {new Date(activityCertStatus.data.publishedAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </Text>
+                      )}
+                    </Group>
+                    <Text size="xs" c="dimmed" style={{ wordBreak: "break-all" }}>
+                      {activityCertStatus.data.activityUri}
+                    </Text>
+                  </Stack>
+                ) : (
+                  <Stack gap="xs">
+                    <Text size="xs" c="dimmed">
+                      Publish this event as an activity cert on the Hypersphere with speakers as contributors and a hyperboard.
+                    </Text>
+                    <Button
+                      size="sm"
+                      variant="light"
+                      leftSection={publishActivityCert.isPending ? <Loader size={14} /> : <IconCertificate size={14} />}
+                      onClick={() => publishActivityCert.mutate({ eventId: event.id })}
+                      loading={publishActivityCert.isPending}
+                      style={{ alignSelf: "flex-start" }}
+                    >
+                      Publish Activity Cert
+                    </Button>
+                  </Stack>
+                )}
+              </Stack>
+            </Paper>
           </Stack>
         </Paper>
 

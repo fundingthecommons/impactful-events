@@ -170,6 +170,9 @@ model User {
   // Cross-floor sharing
   sharedApplications    Application[]       @relation("ApplicationSharedBy")
 
+  // Session slides uploads
+  uploadedSessionSlides ScheduleSession[]   @relation("SessionSlidesUploader")
+
   // AI interaction relations
   aiInteractions        AiInteraction[]     @relation("UserAiInteractions")
   aiFeedback            AiFeedback[]        @relation("UserAiFeedback")
@@ -253,6 +256,13 @@ model Event {
 
   // Feature flag for floor management
   featureFloorManagement Boolean @default(false)
+
+  // Activity cert (Hypercerts) integration
+  activityCertUri         String?
+  activityCertCid         String?
+  hyperboardUri           String?
+  hyperboardCid           String?
+  activityCertPublishedAt DateTime?
 
   // Schedule system relations
   scheduleVenues       ScheduleVenue[]
@@ -2242,7 +2252,14 @@ model ScheduleSession {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Slides upload
+  slidesUrl          String?
+  slidesFileName     String?
+  slidesUploadedAt   DateTime?
+  slidesUploadedById String?
+
   event           Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  slidesUploadedBy User?               @relation("SessionSlidesUploader", fields: [slidesUploadedById], references: [id], onDelete: SetNull)
   venue           ScheduleVenue?       @relation(fields: [venueId], references: [id], onDelete: SetNull)
   room            ScheduleRoom?        @relation(fields: [roomId], references: [id], onDelete: SetNull)
   sessionType     ScheduleSessionType? @relation(fields: [sessionTypeId], references: [id], onDelete: SetNull)
