@@ -17,6 +17,7 @@ import type {
   AskOfferCommentNotificationProps,
   FloorOwnerAssignedProps,
   SpeakerInvitedProps,
+  SlidesReminderProps,
 } from './templates';
 
 type TemplateProps =
@@ -32,7 +33,8 @@ type TemplateProps =
   | ForumCommentNotificationProps
   | AskOfferCommentNotificationProps
   | FloorOwnerAssignedProps
-  | SpeakerInvitedProps;
+  | SpeakerInvitedProps
+  | SlidesReminderProps;
 
 // Strongly typed application data interface
 interface ApplicationWithUserAndEvent {
@@ -445,6 +447,8 @@ export class EmailService {
         return `You've been assigned as a Floor Lead for ${(data as FloorOwnerAssignedProps).eventName}`;
       case 'speakerInvited':
         return `You've been added as a speaker at ${(data as SpeakerInvitedProps).eventName}`;
+      case 'slidesReminder':
+        return `Reminder: Please upload your slides for ${(data as SlidesReminderProps).eventName}`;
       default:
         return 'Notification from Funding the Commons';
     }

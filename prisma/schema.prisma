@@ -754,6 +754,9 @@ enum EmailType {
   FORUM_COMMENT     // For forum thread comment notifications
   ASK_OFFER_COMMENT // For ask/offer comment notifications
 
+  // Speaker/session related
+  SLIDES_REMINDER   // Reminder to upload session slides
+
   // Legacy (for backward compatibility)
   MISSING_INFO    // Deprecated: Use APPLICATION_MISSING_INFO
   STATUS_UPDATE   // Deprecated: Use specific status types

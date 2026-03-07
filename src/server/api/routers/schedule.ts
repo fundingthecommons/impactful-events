@@ -2159,4 +2159,150 @@ export const scheduleRouter = createTRPCRouter({
         orderBy: { createdAt: "desc" },
       });
     }),
+
+  // ──────────────────────────────────────────
+  // Sessions with slides status (for speaker management)
+  // ──────────────────────────────────────────
+
+  getSessionsWithSlidesStatus: protectedProcedure
+    .input(z.object({ eventId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const event = await resolveEventId(ctx.db, input.eventId);
+
+      const admin = isAdminOrStaff(ctx.session.user.role);
+      const floorOwner = await isEventFloorOwner(
+        ctx.db,
+        event.id,
+        ctx.session.user.id,
+      );
+
+      if (!admin && !floorOwner) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Admin or floor owner access required",
+        });
+      }
+
+      const sessions = await ctx.db.scheduleSession.findMany({
+        where: { eventId: event.id },
+        select: {
+          id: true,
+          title: true,
+          slidesUrl: true,
+          slidesFileName: true,
+          slidesUploadedAt: true,
+          sessionSpeakers: {
+            include: {
+              user: {
+                select: userSelectFields,
+              },
+            },
+            orderBy: { order: "asc" },
+          },
+        },
+        orderBy: [{ startTime: "asc" }, { order: "asc" }],
+      });
+
+      return {
+        event: { id: event.id, name: event.name, slug: event.slug },
+        sessions,
+      };
+    }),
+
+  sendSlidesReminder: protectedProcedure
+    .input(
+      z.object({
+        eventId: z.string(),
+        reminders: z.array(
+          z.object({
+            sessionId: z.string(),
+            speakerUserId: z.string(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const event = await resolveEventId(ctx.db, input.eventId);
+
+      const admin = isAdminOrStaff(ctx.session.user.role);
+      const floorOwner = await isEventFloorOwner(
+        ctx.db,
+        event.id,
+        ctx.session.user.id,
+      );
+
+      if (!admin && !floorOwner) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Admin or floor owner access required",
+        });
+      }
+
+      const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+      const eventPath = event.slug ?? event.id;
+      const contactEmail =
+        process.env.CONTACT_EMAIL ?? "info@fundingthecommons.io";
+
+      const emailService = getEmailService(ctx.db);
+      let successCount = 0;
+      let failureCount = 0;
+
+      for (const reminder of input.reminders) {
+        const session = await ctx.db.scheduleSession.findUnique({
+          where: { id: reminder.sessionId },
+          select: { id: true, title: true },
+        });
+
+        if (!session) {
+          failureCount++;
+          continue;
+        }
+
+        const user = await ctx.db.user.findUnique({
+          where: { id: reminder.speakerUserId },
+          select: { id: true, email: true, firstName: true, surname: true, name: true },
+        });
+
+        if (!user?.email) {
+          failureCount++;
+          continue;
+        }
+
+        const speakerName =
+          user.firstName ?? user.name ?? user.email;
+        const sessionUrl = `${baseUrl}/events/${eventPath}/schedule/${session.id}`;
+
+        try {
+          const result = await emailService.sendEmail({
+            to: user.email,
+            templateName: "slidesReminder",
+            templateData: {
+              speakerName,
+              eventName: event.name,
+              sessionTitle: session.title,
+              sessionUrl,
+              contactEmail,
+            },
+            eventId: event.id,
+            userId: ctx.session.user.id,
+          });
+
+          if (result.success) {
+            successCount++;
+          } else {
+            failureCount++;
+          }
+        } catch (error) {
+          captureEmailError(error, {
+            userId: ctx.session.user.id,
+            emailType: "slides_reminder",
+            recipient: user.email,
+            templateName: "slidesReminder",
+          });
+          failureCount++;
+        }
+      }
+
+      return { successCount, failureCount };
+    }),
 });

@@ -19,6 +19,8 @@ import {
   Checkbox,
   Modal,
   Select,
+  Switch,
+  Anchor,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -31,6 +33,9 @@ import {
   IconUserPlus,
   IconMicrophone,
   IconTrash,
+  IconDownload,
+  IconSend,
+  IconFilePresentation,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import ApplicationDetailsDrawer from "~/app/admin/events/[eventId]/applications/ApplicationDetailsDrawer";
@@ -55,7 +60,7 @@ export default function SpeakerManagementClient({ eventId }: Props) {
   const [floorFilter, setFloorFilter] = useState<string | null>(null);
 
   // URL hash-based tab linking
-  const validMainTabs = ["applications", "invitations"];
+  const validMainTabs = ["applications", "invitations", "sessions"];
   useEffect(() => {
     const hash = window.location.hash.slice(1);
     if (hash && validMainTabs.includes(hash)) {
@@ -85,6 +90,28 @@ export default function SpeakerManagementClient({ eventId }: Props) {
     invitationType: "EVENT_ROLE",
     roleName: "speaker",
     roleLookupName: "speaker",
+  });
+
+  // ── Sessions with slides status ──
+  const [sessionsSearch, setSessionsSearch] = useState("");
+  const [showMissingSlidesOnly, setShowMissingSlidesOnly] = useState(false);
+  const [selectedReminders, setSelectedReminders] = useState<string[]>([]);
+
+  const { data: sessionsData, isLoading: loadingSessions } =
+    api.schedule.getSessionsWithSlidesStatus.useQuery({ eventId });
+
+  const sendSlidesReminder = api.schedule.sendSlidesReminder.useMutation({
+    onSuccess: (result) => {
+      notifications.show({
+        title: "Reminders sent",
+        message: `${result.successCount} reminder${result.successCount !== 1 ? "s" : ""} sent${result.failureCount > 0 ? `, ${result.failureCount} failed` : ""}`,
+        color: result.failureCount > 0 ? "yellow" : "green",
+      });
+      setSelectedReminders([]);
+    },
+    onError: (error) => {
+      notifications.show({ title: "Error", message: error.message, color: "red" });
+    },
   });
 
   // ── Application Queries ──
@@ -163,6 +190,69 @@ export default function SpeakerManagementClient({ eventId }: Props) {
     return Array.from(floorMap, ([value, label]) => ({ value, label }));
   }, [speakerApplications]);
 
+  // ── Sessions tab: flatten sessions → (session, speaker) rows ──
+  const sessionRows = useMemo(() => {
+    if (!sessionsData?.sessions) return [];
+    const rows: Array<{
+      key: string;
+      sessionId: string;
+      sessionTitle: string;
+      speakerUserId: string;
+      speakerName: string;
+      speakerEmail: string;
+      slidesUrl: string | null;
+      slidesFileName: string | null;
+      slidesUploadedAt: Date | null;
+    }> = [];
+    for (const session of sessionsData.sessions) {
+      if (session.sessionSpeakers.length === 0) {
+        rows.push({
+          key: session.id,
+          sessionId: session.id,
+          sessionTitle: session.title,
+          speakerUserId: "",
+          speakerName: "(no speakers)",
+          speakerEmail: "",
+          slidesUrl: session.slidesUrl,
+          slidesFileName: session.slidesFileName,
+          slidesUploadedAt: session.slidesUploadedAt,
+        });
+      } else {
+        for (const sp of session.sessionSpeakers) {
+          rows.push({
+            key: `${session.id}-${sp.user.id}`,
+            sessionId: session.id,
+            sessionTitle: session.title,
+            speakerUserId: sp.user.id,
+            speakerName: sp.user.firstName ?? sp.user.name ?? sp.user.email ?? "Unknown",
+            speakerEmail: sp.user.email ?? "",
+            slidesUrl: session.slidesUrl,
+            slidesFileName: session.slidesFileName,
+            slidesUploadedAt: session.slidesUploadedAt,
+          });
+        }
+      }
+    }
+    return rows;
+  }, [sessionsData]);
+
+  const filteredSessionRows = useMemo(() => {
+    let rows = sessionRows;
+    if (showMissingSlidesOnly) {
+      rows = rows.filter((r) => !r.slidesUrl);
+    }
+    if (sessionsSearch.trim()) {
+      const q = sessionsSearch.toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          r.sessionTitle.toLowerCase().includes(q) ||
+          r.speakerName.toLowerCase().includes(q) ||
+          r.speakerEmail.toLowerCase().includes(q),
+      );
+    }
+    return rows;
+  }, [sessionRows, showMissingSlidesOnly, sessionsSearch]);
+
   // ── Loading ──
   if (inv.isLoading || loadingApplications || loadingSpeakers) {
     return (
@@ -209,6 +299,34 @@ export default function SpeakerManagementClient({ eventId }: Props) {
 
   const activeSpeakerCount = currentSpeakers?.filter(user => user.userRoles.length > 0).length ?? 0;
 
+  // Only rows that can receive reminders (has speaker email, no slides)
+  const remindableRows = filteredSessionRows.filter(
+    (r) => r.speakerEmail && !r.slidesUrl,
+  );
+
+  const handleBulkRemind = () => {
+    const reminders = selectedReminders
+      .map((key) => {
+        const row = sessionRows.find((r) => r.key === key);
+        if (!row?.speakerUserId) return null;
+        return { sessionId: row.sessionId, speakerUserId: row.speakerUserId };
+      })
+      .filter((r): r is { sessionId: string; speakerUserId: string } => r !== null);
+
+    if (reminders.length === 0) return;
+    sendSlidesReminder.mutate({ eventId, reminders });
+  };
+
+  const handleSingleRemind = (sessionId: string, speakerUserId: string) => {
+    sendSlidesReminder.mutate({
+      eventId,
+      reminders: [{ sessionId, speakerUserId }],
+    });
+  };
+
+  const missingSlidesCount = sessionRows.filter((r) => !r.slidesUrl).length;
+  const uploadedSlidesCount = sessionRows.filter((r) => r.slidesUrl).length;
+
   return (
     <Container size="xl" py="md">
       {/* Header */}
@@ -243,6 +361,10 @@ export default function SpeakerManagementClient({ eventId }: Props) {
           <Tabs.Tab value="invitations">
             Invitations
             {inv.invitations.length > 0 && <Badge size="sm" variant="light" ml="xs">{inv.invitations.length}</Badge>}
+          </Tabs.Tab>
+          <Tabs.Tab value="sessions" leftSection={<IconFilePresentation size={16} />}>
+            Sessions
+            {sessionRows.length > 0 && <Badge size="sm" variant="light" ml="xs">{sessionRows.length}</Badge>}
           </Tabs.Tab>
         </Tabs.List>
 
@@ -432,6 +554,170 @@ export default function SpeakerManagementClient({ eventId }: Props) {
             isResending={inv.resendInvitation.isPending}
             isCancelling={inv.cancelInvitation.isPending}
           />
+        </Tabs.Panel>
+
+        {/* ── Sessions Tab ── */}
+        <Tabs.Panel value="sessions">
+          {loadingSessions ? (
+            <Group justify="center" py="xl"><Loader size="lg" /></Group>
+          ) : (
+            <>
+              {/* Stats row */}
+              <InvitationStatsGrid
+                stats={[
+                  { value: sessionRows.length, label: "Total Rows" },
+                  { value: uploadedSlidesCount, label: "Slides Uploaded", color: "green" },
+                  { value: missingSlidesCount, label: "Missing Slides", color: "red" },
+                ]}
+                cols={{ base: 3, sm: 3 }}
+              />
+
+              {/* Filters */}
+              <Card withBorder mb="md" p="md">
+                <Group>
+                  <TextInput
+                    placeholder="Search sessions or speakers..."
+                    value={sessionsSearch}
+                    onChange={(e) => setSessionsSearch(e.currentTarget.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <Switch
+                    label="Missing slides only"
+                    checked={showMissingSlidesOnly}
+                    onChange={(e) => {
+                      setShowMissingSlidesOnly(e.currentTarget.checked);
+                      setSelectedReminders([]);
+                    }}
+                  />
+                </Group>
+              </Card>
+
+              {/* Bulk action bar */}
+              {selectedReminders.length > 0 && (
+                <Card withBorder mb="md" p="md">
+                  <Group justify="space-between">
+                    <Text size="sm">
+                      {selectedReminders.length} speaker{selectedReminders.length !== 1 ? "s" : ""} selected
+                    </Text>
+                    <Group gap="xs">
+                      <Button
+                        leftSection={<IconSend size={14} />}
+                        size="sm"
+                        onClick={handleBulkRemind}
+                        loading={sendSlidesReminder.isPending}
+                      >
+                        Send Reminder to {selectedReminders.length} Speaker{selectedReminders.length !== 1 ? "s" : ""}
+                      </Button>
+                      <Button variant="subtle" size="sm" onClick={() => setSelectedReminders([])}>
+                        Clear
+                      </Button>
+                    </Group>
+                  </Group>
+                </Card>
+              )}
+
+              {filteredSessionRows.length === 0 ? (
+                <Text ta="center" py="xl" c="dimmed">
+                  No sessions found.
+                </Text>
+              ) : (
+                <>
+                  {remindableRows.length > 0 && (
+                    <Group mb="md">
+                      <Checkbox
+                        checked={selectedReminders.length === remindableRows.length && remindableRows.length > 0}
+                        indeterminate={selectedReminders.length > 0 && selectedReminders.length < remindableRows.length}
+                        onChange={() => {
+                          setSelectedReminders((prev) =>
+                            prev.length === remindableRows.length
+                              ? []
+                              : remindableRows.map((r) => r.key),
+                          );
+                        }}
+                        label={`Select all without slides (${remindableRows.length})`}
+                        size="sm"
+                      />
+                    </Group>
+                  )}
+
+                  <Table striped highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th w={40} />
+                        <Table.Th>Session</Table.Th>
+                        <Table.Th>Speaker</Table.Th>
+                        <Table.Th>Email</Table.Th>
+                        <Table.Th>Slides</Table.Th>
+                        <Table.Th>Actions</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {filteredSessionRows.map((row) => {
+                        const canRemind = row.speakerEmail && !row.slidesUrl;
+                        return (
+                          <Table.Tr key={row.key}>
+                            <Table.Td>
+                              {canRemind && (
+                                <Checkbox
+                                  checked={selectedReminders.includes(row.key)}
+                                  onChange={() => {
+                                    setSelectedReminders((prev) =>
+                                      prev.includes(row.key)
+                                        ? prev.filter((k) => k !== row.key)
+                                        : [...prev, row.key],
+                                    );
+                                  }}
+                                  size="sm"
+                                />
+                              )}
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm" fw={500}>{row.sessionTitle}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm">{row.speakerName}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              <Text size="sm" c="dimmed">{row.speakerEmail}</Text>
+                            </Table.Td>
+                            <Table.Td>
+                              {row.slidesUrl ? (
+                                <Anchor href={row.slidesUrl} target="_blank" size="sm">
+                                  <Group gap={4} wrap="nowrap">
+                                    <IconDownload size={14} />
+                                    <Text size="sm" truncate maw={150}>
+                                      {row.slidesFileName ?? "Download"}
+                                    </Text>
+                                  </Group>
+                                </Anchor>
+                              ) : (
+                                <Badge color="red" variant="light" size="sm">
+                                  Missing
+                                </Badge>
+                              )}
+                            </Table.Td>
+                            <Table.Td>
+                              {canRemind && (
+                                <Button
+                                  variant="light"
+                                  size="xs"
+                                  leftSection={<IconSend size={14} />}
+                                  onClick={() => handleSingleRemind(row.sessionId, row.speakerUserId)}
+                                  loading={sendSlidesReminder.isPending}
+                                >
+                                  Remind
+                                </Button>
+                              )}
+                            </Table.Td>
+                          </Table.Tr>
+                        );
+                      })}
+                    </Table.Tbody>
+                  </Table>
+                </>
+              )}
+            </>
+          )}
         </Tabs.Panel>
       </Tabs>
 
