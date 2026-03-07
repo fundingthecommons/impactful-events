@@ -18,6 +18,7 @@ import {
   Tabs,
   Checkbox,
   Modal,
+  Select,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -51,6 +52,7 @@ interface Props {
 export default function SpeakerManagementClient({ eventId }: Props) {
   const [mainTab, setMainTab] = useState<string>("applications");
   const [appTab, setAppTab] = useState<string>("all");
+  const [floorFilter, setFloorFilter] = useState<string | null>(null);
 
   // URL hash-based tab linking
   const validMainTabs = ["applications", "invitations"];
@@ -150,6 +152,17 @@ export default function SpeakerManagementClient({ eventId }: Props) {
     return emails;
   }, [inv.invitations]);
 
+  // ── Derive unique floors from applications ──
+  const availableFloors = useMemo(() => {
+    const floorMap = new Map<string, string>();
+    for (const app of speakerApplications ?? []) {
+      for (const av of app.venues ?? []) {
+        floorMap.set(av.venue.id, av.venue.name);
+      }
+    }
+    return Array.from(floorMap, ([value, label]) => ({ value, label }));
+  }, [speakerApplications]);
+
   // ── Loading ──
   if (inv.isLoading || loadingApplications || loadingSpeakers) {
     return (
@@ -179,12 +192,17 @@ export default function SpeakerManagementClient({ eventId }: Props) {
     app => app.invitationId != null || invitedEmails.has(app.email.toLowerCase())
   );
 
+  const applyFloorFilter = (apps: typeof allApplications) => {
+    if (!floorFilter) return apps;
+    return apps.filter(app => app.venues?.some(av => av.venue.id === floorFilter));
+  };
+
   const getCurrentTabApplications = () => {
     switch (appTab) {
-      case "accepted": return acceptedApplications;
-      case "rejected": return rejectedApplications;
-      case "invited": return invitedApplications;
-      default: return allApplications;
+      case "accepted": return applyFloorFilter(acceptedApplications);
+      case "rejected": return applyFloorFilter(rejectedApplications);
+      case "invited": return applyFloorFilter(invitedApplications);
+      default: return applyFloorFilter(allApplications);
     }
   };
   const currentApplications = getCurrentTabApplications();
@@ -254,26 +272,40 @@ export default function SpeakerManagementClient({ eventId }: Props) {
             </Card>
           )}
 
+          {availableFloors.length > 1 && (
+            <Card withBorder mb="md" p="md">
+              <Select
+                label="Filter by floor"
+                placeholder="All floors"
+                data={availableFloors}
+                value={floorFilter}
+                onChange={setFloorFilter}
+                clearable
+                w={250}
+              />
+            </Card>
+          )}
+
           <Card withBorder>
             <Tabs value={appTab} onChange={(v) => setAppTab(v ?? "all")}>
               <Tabs.List grow>
                 <Tabs.Tab value="all">
-                  All {allApplications.length > 0 && <Badge size="sm" variant="light" ml="xs">{allApplications.length}</Badge>}
+                  All {applyFloorFilter(allApplications).length > 0 && <Badge size="sm" variant="light" ml="xs">{applyFloorFilter(allApplications).length}</Badge>}
                 </Tabs.Tab>
                 <Tabs.Tab value="accepted">
-                  Accepted {acceptedApplications.length > 0 && <Badge size="sm" variant="light" color="green" ml="xs">{acceptedApplications.length}</Badge>}
+                  Accepted {applyFloorFilter(acceptedApplications).length > 0 && <Badge size="sm" variant="light" color="green" ml="xs">{applyFloorFilter(acceptedApplications).length}</Badge>}
                 </Tabs.Tab>
                 <Tabs.Tab value="rejected">
-                  Rejected {rejectedApplications.length > 0 && <Badge size="sm" variant="light" color="red" ml="xs">{rejectedApplications.length}</Badge>}
+                  Rejected {applyFloorFilter(rejectedApplications).length > 0 && <Badge size="sm" variant="light" color="red" ml="xs">{applyFloorFilter(rejectedApplications).length}</Badge>}
                 </Tabs.Tab>
                 <Tabs.Tab value="invited">
-                  Invited {invitedApplications.length > 0 && <Badge size="sm" variant="light" color="violet" ml="xs">{invitedApplications.length}</Badge>}
+                  Invited {applyFloorFilter(invitedApplications).length > 0 && <Badge size="sm" variant="light" color="violet" ml="xs">{applyFloorFilter(invitedApplications).length}</Badge>}
                 </Tabs.Tab>
               </Tabs.List>
 
               <Tabs.Panel value="all" mt="md">
                 <SpeakerApplicationsTable
-                  applications={allApplications}
+                  applications={applyFloorFilter(allApplications)}
                   selectedApplications={selectedApplications}
                   invitedEmails={invitedEmails}
                   onSelectAll={() => {
@@ -293,12 +325,12 @@ export default function SpeakerManagementClient({ eventId }: Props) {
               </Tabs.Panel>
               <Tabs.Panel value="accepted" mt="md">
                 <SpeakerApplicationsTable
-                  applications={acceptedApplications}
+                  applications={applyFloorFilter(acceptedApplications)}
                   selectedApplications={selectedApplications}
                   invitedEmails={invitedEmails}
                   onSelectAll={() => {
                     setSelectedApplications(prev =>
-                      prev.length === acceptedApplications.length ? [] : acceptedApplications.map(a => a.id)
+                      prev.length === currentApplications.length ? [] : currentApplications.map(a => a.id)
                     );
                   }}
                   onSelectApplication={(id) => {
@@ -313,12 +345,12 @@ export default function SpeakerManagementClient({ eventId }: Props) {
               </Tabs.Panel>
               <Tabs.Panel value="rejected" mt="md">
                 <SpeakerApplicationsTable
-                  applications={rejectedApplications}
+                  applications={applyFloorFilter(rejectedApplications)}
                   selectedApplications={selectedApplications}
                   invitedEmails={invitedEmails}
                   onSelectAll={() => {
                     setSelectedApplications(prev =>
-                      prev.length === rejectedApplications.length ? [] : rejectedApplications.map(a => a.id)
+                      prev.length === currentApplications.length ? [] : currentApplications.map(a => a.id)
                     );
                   }}
                   onSelectApplication={(id) => {
@@ -333,12 +365,12 @@ export default function SpeakerManagementClient({ eventId }: Props) {
               </Tabs.Panel>
               <Tabs.Panel value="invited" mt="md">
                 <SpeakerApplicationsTable
-                  applications={invitedApplications}
+                  applications={applyFloorFilter(invitedApplications)}
                   selectedApplications={selectedApplications}
                   invitedEmails={invitedEmails}
                   onSelectAll={() => {
                     setSelectedApplications(prev =>
-                      prev.length === invitedApplications.length ? [] : invitedApplications.map(a => a.id)
+                      prev.length === currentApplications.length ? [] : currentApplications.map(a => a.id)
                     );
                   }}
                   onSelectApplication={(id) => {
