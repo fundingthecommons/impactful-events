@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   Container,
   Title,
@@ -16,8 +16,10 @@ import {
   Badge,
   Menu,
   Button,
+  Chip,
 } from "@mantine/core";
-import { IconSearch, IconEye, IconCheck } from "@tabler/icons-react";
+import { IconSearch, IconEye, IconCheck, IconUser } from "@tabler/icons-react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { api } from "~/trpc/react";
 import { getDisplayName } from "~/utils/userDisplay";
@@ -62,15 +64,31 @@ export type ScheduleSession = {
 
 interface SchedulePageClientProps {
   eventId: string;
+  initialMySchedule?: boolean;
 }
 
-export default function SchedulePageClient({ eventId }: SchedulePageClientProps) {
+export default function SchedulePageClient({ eventId, initialMySchedule = false }: SchedulePageClientProps) {
   const [viewMode, setViewMode] = useState<"simple" | "expanded" | "grid" | "by-floor">("simple");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeVenueId, setActiveVenueId] = useState<string | null>(null);
   const [activeSessionTypes, setActiveSessionTypes] = useState<string[]>([]);
   const [activeTracks, setActiveTracks] = useState<string[]>([]);
   const [activeFloorManagerId, setActiveFloorManagerId] = useState<string | null>(null);
+  const [showMySessions, setShowMySessions] = useState(initialMySchedule);
+
+  const { data: authSession } = useSession();
+  const userId = authSession?.user?.id;
+
+  const handleToggleMySessions = useCallback((checked: boolean) => {
+    setShowMySessions(checked);
+    const url = new URL(window.location.href);
+    if (checked) {
+      url.searchParams.set("my", "true");
+    } else {
+      url.searchParams.delete("my");
+    }
+    window.history.replaceState({}, "", url.toString());
+  }, []);
 
   const { data: scheduleData, isLoading: scheduleLoading } =
     api.schedule.getEventSchedule.useQuery({ eventId });
@@ -84,6 +102,10 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
     if (!sessions) return [];
 
     return sessions.filter((session) => {
+      // My Sessions filter
+      if (showMySessions && userId) {
+        if (!session.sessionSpeakers.some((s) => s.user.id === userId)) return false;
+      }
       // Search filter
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -125,7 +147,7 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
       }
       return true;
     });
-  }, [sessions, searchQuery, activeVenueId, activeSessionTypes, activeTracks, activeFloorManagerId, filterData?.floorManagers]);
+  }, [sessions, showMySessions, userId, searchQuery, activeVenueId, activeSessionTypes, activeTracks, activeFloorManagerId, filterData?.floorManagers]);
 
   // Stage 2: Group by day (shared between both views)
   const { days, sessionsByDay } = useMemo(() => {
@@ -226,7 +248,14 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
       {/* Header with title and view toggle */}
       <Group justify="space-between" align="flex-start" mb="lg" wrap="wrap" gap="sm">
         <Stack gap="xs">
-          <Title order={1}>{scheduleData.event.name}</Title>
+          <Group gap="xs" align="center">
+            <Title order={1}>{scheduleData.event.name}</Title>
+            {showMySessions && (
+              <Badge variant="filled" color="blue" size="lg">
+                {filteredSessions.length} session{filteredSessions.length !== 1 ? "s" : ""}
+              </Badge>
+            )}
+          </Group>
           {scheduleData.event.location && (
             <Text c="dimmed" size="sm">
               {scheduleData.event.location}
@@ -298,9 +327,23 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
           {/* Main schedule area */}
           <div>
             {!selectedDay || !timeSlots ? (
-              <Text c="dimmed" ta="center" py="xl">
-                No sessions scheduled yet.
-              </Text>
+              <Stack align="center" py="xl" gap="sm">
+                {showMySessions ? (
+                  <>
+                    <IconUser size={40} color="var(--mantine-color-dimmed)" />
+                    <Text c="dimmed" ta="center">
+                      You are not assigned to any sessions yet.
+                    </Text>
+                    <Button variant="subtle" size="sm" onClick={() => handleToggleMySessions(false)}>
+                      View all sessions
+                    </Button>
+                  </>
+                ) : (
+                  <Text c="dimmed" ta="center">
+                    No sessions scheduled yet.
+                  </Text>
+                )}
+              </Stack>
             ) : (
               <Stack gap={4}>
                 {Array.from(timeSlots.entries()).map(([time, timeSessions]) => (
@@ -368,6 +411,20 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
           {/* Filter sidebar */}
           <div className="schedule-sidebar">
             <Stack gap="md">
+              {userId && (
+                <div className="schedule-filter-section">
+                  <Chip
+                    checked={showMySessions}
+                    onChange={handleToggleMySessions}
+                    variant="filled"
+                    color="blue"
+                    icon={<IconUser size={14} />}
+                  >
+                    My Sessions
+                  </Chip>
+                </div>
+              )}
+
               <div className="schedule-filter-section">
                 <TextInput
                   placeholder="Schedule or people"
@@ -508,6 +565,20 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
           {/* Filter sidebar */}
           <div className="schedule-sidebar">
             <Stack gap="md">
+              {userId && (
+                <div className="schedule-filter-section">
+                  <Chip
+                    checked={showMySessions}
+                    onChange={handleToggleMySessions}
+                    variant="filled"
+                    color="blue"
+                    icon={<IconUser size={14} />}
+                  >
+                    My Sessions
+                  </Chip>
+                </div>
+              )}
+
               <div className="schedule-filter-section">
                 <TextInput
                   placeholder="Schedule or people"
@@ -617,6 +688,20 @@ export default function SchedulePageClient({ eventId }: SchedulePageClientProps)
           {/* Filter sidebar */}
           <div className="schedule-sidebar">
             <Stack gap="md">
+              {userId && (
+                <div className="schedule-filter-section">
+                  <Chip
+                    checked={showMySessions}
+                    onChange={handleToggleMySessions}
+                    variant="filled"
+                    color="blue"
+                    icon={<IconUser size={14} />}
+                  >
+                    My Sessions
+                  </Chip>
+                </div>
+              )}
+
               <div className="schedule-filter-section">
                 <TextInput
                   placeholder="Schedule or people"

@@ -531,7 +531,7 @@ export default function ConferenceDashboard({
                 <Group>
                   <Button
                     component={Link}
-                    href={`/events/${eventSlug}/schedule`}
+                    href={`/events/${eventSlug}/schedule${mySessions && mySessions.length > 0 ? "?my=true" : ""}`}
                     variant="light"
                     size="sm"
                     leftSection={<IconCalendar size={16} />}
@@ -647,6 +647,17 @@ export default function ConferenceDashboard({
                       </Card>
                     );
                   })}
+                  <Group justify="flex-end" mt="xs">
+                    <Button
+                      component={Link}
+                      href={`/events/${eventSlug}/schedule?my=true`}
+                      variant="subtle"
+                      size="xs"
+                      rightSection={<IconCalendar size={14} />}
+                    >
+                      View in full schedule
+                    </Button>
+                  </Group>
                 </Stack>
               )}
             </Stack>

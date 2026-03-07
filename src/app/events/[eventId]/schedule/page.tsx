@@ -8,9 +8,11 @@ export const metadata: Metadata = {
 
 interface SchedulePageProps {
   params: Promise<{ eventId: string }>;
+  searchParams: Promise<{ my?: string }>;
 }
 
-export default async function SchedulePage({ params }: SchedulePageProps) {
+export default async function SchedulePage({ params, searchParams }: SchedulePageProps) {
   const { eventId } = await params;
-  return <SchedulePageClient eventId={eventId} />;
+  const { my } = await searchParams;
+  return <SchedulePageClient eventId={eventId} initialMySchedule={my === "true"} />;
 }
