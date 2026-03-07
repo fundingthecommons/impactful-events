@@ -376,22 +376,43 @@ export default function SchedulePageClient({ eventId, initialMySchedule = false 
                           <Text fw={600} size="sm">
                             {session.title}
                           </Text>
+                          <Text size="xs" c="dimmed">
+                            {new Date(session.startTime).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                              timeZone: "UTC",
+                            })}
+                            {" – "}
+                            {new Date(session.endTime).toLocaleTimeString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                              timeZone: "UTC",
+                            })}
+                          </Text>
                           {session.sessionType && (
                             <Text size="xs" c="dimmed">
                               {session.sessionType.name}
                             </Text>
                           )}
                           {(session.sessionSpeakers.length > 0 || session.speakers.length > 0) && (
-                            <Text size="xs" c="dimmed">
-                              {[
-                                ...session.sessionSpeakers.map((s) =>
-                                  s.role !== "Speaker"
-                                    ? `${getDisplayName(s.user, "Unknown")} (${s.role})`
-                                    : getDisplayName(s.user, "Unknown"),
-                                ),
-                                ...session.speakers,
-                              ].join(" \u2022 ")}
-                            </Text>
+                            <Group gap={4} wrap="wrap">
+                              {session.sessionSpeakers.map((s) => (
+                                <Text key={s.user.id} size="xs" c="dimmed">
+                                  {getDisplayName(s.user, "Unknown")}
+                                  {s.role !== "Speaker" ? ` (${s.role})` : ""}
+                                  {s.user.profile?.company && (
+                                    <Text span size="xs" c="dimmed" style={{ opacity: 0.7 }}>
+                                      {" · "}{s.user.profile.company}
+                                    </Text>
+                                  )}
+                                </Text>
+                              ))}
+                              {session.speakers.map((name) => (
+                                <Text key={name} size="xs" c="dimmed">{name}</Text>
+                              ))}
+                            </Group>
                           )}
                           {session.venue && (
                             <Text size="xs" c="dimmed">
