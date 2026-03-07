@@ -21,6 +21,7 @@ import {
   Tooltip,
   Image,
   SimpleGrid,
+  Anchor,
 } from "@mantine/core";
 import {
   IconMapPin,
@@ -38,6 +39,8 @@ import {
   IconArrowLeft,
   IconStar,
   IconMicrophone,
+  IconBrandBluesky,
+  IconVideo,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
@@ -106,7 +109,7 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
     );
   }
 
-  const getSocialLink = (url: string, type: 'github' | 'linkedin' | 'twitter' | 'website', label: string) => (
+  const getSocialLink = (url: string, type: 'github' | 'linkedin' | 'twitter' | 'website' | 'bluesky', label: string) => (
     <ActionIcon
       component="a"
       href={url}
@@ -120,6 +123,7 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
       {type === 'linkedin' && <IconBrandLinkedin size={20} />}
       {type === 'twitter' && <IconBrandTwitter size={20} />}
       {type === 'website' && <IconWorld size={20} />}
+      {type === 'bluesky' && <IconBrandBluesky size={20} />}
     </ActionIcon>
   );
 
@@ -233,6 +237,7 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
                   {profile?.linkedinUrl && getSocialLink(profile.linkedinUrl, 'linkedin', 'LinkedIn')}
                   {profile?.twitterUrl && getSocialLink(profile.twitterUrl, 'twitter', 'Twitter')}
                   {profile?.website && getSocialLink(profile.website, 'website', 'Website')}
+                  {profile?.blueskyUrl && getSocialLink(profile.blueskyUrl, 'bluesky', 'Bluesky')}
                 </Group>
               </Box>
             </Group>
@@ -267,6 +272,40 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
                   </Badge>
                 ))}
               </Group>
+            </Card>
+          )}
+
+          {/* Speaker Experience */}
+          {(profile?.speakerPreviousExperience ?? profile?.speakerPastTalkUrl ?? profile?.speakerEntityName) && (
+            <Card shadow="sm" padding="lg" radius="md" withBorder mb="lg">
+              <Group gap="sm" mb="md">
+                <IconMicrophone size={20} />
+                <Title order={3}>Speaker Experience</Title>
+              </Group>
+              <Stack gap="md">
+                {profile.speakerEntityName && (
+                  <Group gap="xs">
+                    <Text size="sm" fw={500}>Representing:</Text>
+                    <Text size="sm">{profile.speakerEntityName}</Text>
+                  </Group>
+                )}
+                {profile.speakerPreviousExperience && (
+                  <div>
+                    <Text size="sm" fw={500} mb="xs">Speaking Experience</Text>
+                    <Text size="sm" style={{ lineHeight: 1.6 }}>
+                      {profile.speakerPreviousExperience}
+                    </Text>
+                  </div>
+                )}
+                {profile.speakerPastTalkUrl && (
+                  <Group gap="xs">
+                    <IconVideo size={16} />
+                    <Anchor href={profile.speakerPastTalkUrl} target="_blank" size="sm">
+                      Watch a past talk
+                    </Anchor>
+                  </Group>
+                )}
+              </Stack>
             </Card>
           )}
 
