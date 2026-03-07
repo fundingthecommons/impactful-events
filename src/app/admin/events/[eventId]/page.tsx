@@ -40,6 +40,8 @@ export default async function AdminEventDetailPage({ params }: AdminEventDetailP
     featureSponsorManagement: true,
     featureScheduleManagement: true,
     featureFloorManagement: true,
+    registrationUrl: true,
+    lumaEventId: true,
     _count: {
       select: {
         applications: true,

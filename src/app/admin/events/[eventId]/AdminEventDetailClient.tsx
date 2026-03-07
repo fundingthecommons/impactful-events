@@ -12,6 +12,7 @@ import {
   SimpleGrid,
   Divider,
   ThemeIcon,
+  TextInput,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -29,7 +30,10 @@ import {
   IconBuilding,
   IconClipboardList,
   IconChevronRight,
+  IconLink,
+  IconTicket,
 } from "@tabler/icons-react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
@@ -56,6 +60,8 @@ interface EventData {
   featureSponsorManagement: boolean;
   featureScheduleManagement: boolean;
   featureFloorManagement: boolean;
+  registrationUrl: string | null;
+  lumaEventId: string | null;
   _count: {
     applications: number;
     sponsors: number;
@@ -177,6 +183,33 @@ interface AdminEventDetailClientProps {
 export default function AdminEventDetailClient({ event }: AdminEventDetailClientProps) {
   const router = useRouter();
   const eventIdentifier = event.slug ?? event.id;
+
+  const [registrationUrl, setRegistrationUrl] = useState(event.registrationUrl ?? "");
+  const [lumaEventId, setLumaEventId] = useState(event.lumaEventId ?? "");
+
+  const updateEvent = api.event.updateEvent.useMutation({
+    onSuccess: () => {
+      notifications.show({
+        title: "Saved",
+        message: "Integration settings updated.",
+        color: "green",
+      });
+      router.refresh();
+    },
+    onError: (error) => {
+      notifications.show({
+        title: "Error",
+        message: error.message ?? "Failed to save",
+        color: "red",
+      });
+    },
+  });
+
+  const handleSaveField = (field: "registrationUrl" | "lumaEventId", value: string) => {
+    const currentValue = field === "registrationUrl" ? event.registrationUrl : event.lumaEventId;
+    if (value === (currentValue ?? "")) return;
+    updateEvent.mutate({ id: event.id, [field]: value || undefined });
+  };
 
   const updateFeatureFlags = api.event.updateEventFeatureFlags.useMutation({
     onSuccess: () => {
@@ -360,6 +393,43 @@ export default function AdminEventDetailClient({ event }: AdminEventDetailClient
             );
           })}
         </SimpleGrid>
+
+        {/* Integrations */}
+        <Paper p="lg" radius="md" withBorder>
+          <Stack gap="md">
+            <Group gap="xs">
+              <IconLink size={20} />
+              <Title order={3}>Integrations</Title>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Configure external service integrations for this event.
+            </Text>
+
+            <Divider />
+
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
+              <TextInput
+                label="Registration URL"
+                placeholder="https://luma.com/your-event"
+                leftSection={<IconLink size={16} />}
+                value={registrationUrl}
+                onChange={(e) => setRegistrationUrl(e.currentTarget.value)}
+                onBlur={() => handleSaveField("registrationUrl", registrationUrl)}
+                disabled={updateEvent.isPending}
+              />
+              <TextInput
+                label="Luma Event ID"
+                description="Required for auto-generating speaker coupon codes"
+                placeholder="evt-..."
+                leftSection={<IconTicket size={16} />}
+                value={lumaEventId}
+                onChange={(e) => setLumaEventId(e.currentTarget.value)}
+                onBlur={() => handleSaveField("lumaEventId", lumaEventId)}
+                disabled={updateEvent.isPending}
+              />
+            </SimpleGrid>
+          </Stack>
+        </Paper>
 
         {/* Feature Configuration */}
         <Paper p="lg" radius="md" withBorder>
