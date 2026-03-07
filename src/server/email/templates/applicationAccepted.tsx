@@ -18,6 +18,7 @@ export interface ApplicationAcceptedProps {
   registrationUrl?: string;
   speakerCouponCode?: string;
   sessions?: Array<{ title: string; url: string }>;
+  myScheduleUrl?: string;
 }
 
 export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = ({
@@ -25,6 +26,7 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
   applicantName,
   speakerCouponCode,
   sessions,
+  myScheduleUrl,
 }) => {
   const firstName = applicantFirstName ?? applicantName;
   const previewText = `🎉 You're confirmed as a presenter at Intelligence at the Frontier`;
@@ -130,6 +132,13 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
               </React.Fragment>
             ))}
             .
+          </Text>
+        )}
+
+        {myScheduleUrl && (
+          <Text style={paragraph}>
+            You can manage your sessions{' '}
+            <a href={myScheduleUrl} style={link}>here</a>.
           </Text>
         )}
 

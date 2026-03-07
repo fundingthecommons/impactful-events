@@ -274,6 +274,7 @@ export class EmailService {
           registrationUrl: application.event.registrationUrl ?? undefined,
           speakerCouponCode,
           sessions,
+          myScheduleUrl: `${baseUrl}/events/${eventSlug}/schedule?my=true`,
         } satisfies ApplicationAcceptedProps;
         break;
       }
