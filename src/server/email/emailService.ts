@@ -411,7 +411,7 @@ export class EmailService {
   private getSubjectForTemplate(templateName: TemplateName, data: TemplateProps): string {
     switch (templateName) {
       case 'applicationAccepted':
-        return `🎉 You're Confirmed as a Speaker – ${(data as ApplicationAcceptedProps).eventName}`;
+        return `🎉 You're Confirmed as a Presenter – ${(data as ApplicationAcceptedProps).eventName}`;
       case 'applicationRejected':
         return `Update on Your Speaker Application – ${(data as ApplicationRejectedProps).eventName}`;
       case 'applicationWaitlisted':

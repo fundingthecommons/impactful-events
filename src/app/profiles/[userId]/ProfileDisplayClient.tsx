@@ -37,6 +37,7 @@ import {
   IconCalendar,
   IconArrowLeft,
   IconStar,
+  IconMicrophone,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import Link from "next/link";
@@ -55,6 +56,7 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
   const router = useRouter();
   const { data: profileData, isLoading, error } = api.profile.getProfile.useQuery({ userId });
   const { data: projectUpdates = [] } = api.project.getUserProjectUpdates.useQuery({ userId });
+  const { data: userSessions = [] } = api.profile.getUserSessions.useQuery({ userId });
 
   const getRelativeTime = (date: Date) => {
     const now = new Date();
@@ -326,6 +328,144 @@ export function ProfileDisplayClient({ userId }: ProfileDisplayClientProps) {
                       </div>
                     </Group>
                   </Paper>
+                ))}
+              </Stack>
+            </Card>
+          )}
+
+          {/* Sessions */}
+          {userSessions.length > 0 && (
+            <Card shadow="sm" padding="lg" radius="md" withBorder mb="lg">
+              <Group gap="sm" mb="md">
+                <IconMicrophone size={20} />
+                <Title order={3}>Sessions</Title>
+              </Group>
+              <Stack gap="lg">
+                {Object.entries(
+                  userSessions.reduce<
+                    Record<
+                      string,
+                      {
+                        event: (typeof userSessions)[0]["event"];
+                        sessions: typeof userSessions;
+                      }
+                    >
+                  >((acc, session) => {
+                    const eId = session.event.id;
+                    acc[eId] ??= { event: session.event, sessions: [] };
+                    acc[eId].sessions.push(session);
+                    return acc;
+                  }, {})
+                ).map(([groupEventId, { event, sessions }]) => (
+                  <div key={groupEventId}>
+                    <Group gap="xs" mb="sm">
+                      <Text fw={600} size="sm">
+                        {event.name}
+                      </Text>
+                      {event.location && (
+                        <Text size="xs" c="dimmed">
+                          {event.location}
+                        </Text>
+                      )}
+                    </Group>
+                    <Stack gap="xs">
+                      {sessions.map((sessionItem) => {
+                        const eventSlug = event.slug ?? event.id;
+                        return (
+                          <Paper
+                            key={sessionItem.id}
+                            p="sm"
+                            withBorder
+                            component={Link}
+                            href={`/events/${eventSlug}/schedule/${sessionItem.id}`}
+                            style={{
+                              textDecoration: "none",
+                              color: "inherit",
+                              cursor: "pointer",
+                              transition:
+                                "transform 0.1s ease, box-shadow 0.1s ease",
+                            }}
+                            onMouseEnter={(
+                              e: React.MouseEvent<HTMLAnchorElement>,
+                            ) => {
+                              e.currentTarget.style.transform =
+                                "translateY(-2px)";
+                              e.currentTarget.style.boxShadow =
+                                "0 4px 12px rgba(0,0,0,0.1)";
+                            }}
+                            onMouseLeave={(
+                              e: React.MouseEvent<HTMLAnchorElement>,
+                            ) => {
+                              e.currentTarget.style.transform =
+                                "translateY(0)";
+                              e.currentTarget.style.boxShadow = "";
+                            }}
+                          >
+                            <Group
+                              justify="space-between"
+                              align="flex-start"
+                            >
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <Group gap="xs" align="center">
+                                  <Text
+                                    fw={500}
+                                    size="sm"
+                                    lineClamp={1}
+                                    style={{ flex: 1 }}
+                                  >
+                                    {sessionItem.title}
+                                  </Text>
+                                  {sessionItem.sessionType && (
+                                    <Badge
+                                      size="xs"
+                                      variant="light"
+                                      style={{
+                                        backgroundColor: `${sessionItem.sessionType.color}15`,
+                                        color: sessionItem.sessionType.color,
+                                      }}
+                                    >
+                                      {sessionItem.sessionType.name}
+                                    </Badge>
+                                  )}
+                                </Group>
+                                <Text size="xs" c="dimmed">
+                                  {new Date(
+                                    sessionItem.startTime,
+                                  ).toLocaleDateString("en-US", {
+                                    weekday: "short",
+                                    month: "short",
+                                    day: "numeric",
+                                    timeZone: "UTC",
+                                  })}
+                                  {" \u2022 "}
+                                  {new Date(
+                                    sessionItem.startTime,
+                                  ).toLocaleTimeString("en-US", {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                    timeZone: "UTC",
+                                  })}
+                                  {" - "}
+                                  {new Date(
+                                    sessionItem.endTime,
+                                  ).toLocaleTimeString("en-US", {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                    timeZone: "UTC",
+                                  })}
+                                  {sessionItem.venue
+                                    ? ` \u2022 ${sessionItem.venue.name}`
+                                    : ""}
+                                </Text>
+                              </div>
+                            </Group>
+                          </Paper>
+                        );
+                      })}
+                    </Stack>
+                  </div>
                 ))}
               </Stack>
             </Card>

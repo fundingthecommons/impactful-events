@@ -289,7 +289,27 @@ export default function SessionDetailPage() {
                     </Avatar>
                     <Stack gap={4} style={{ minWidth: 0, flex: 1 }}>
                       <Group gap={8} align="center">
-                        <Text fw={700} size="lg">
+                        <Text
+                          fw={700}
+                          size="lg"
+                          component={Link}
+                          href={`/profiles/${speaker.user.id}`}
+                          c="blue"
+                          style={{
+                            textDecoration: "none",
+                            cursor: "pointer",
+                          }}
+                          onMouseEnter={(
+                            e: React.MouseEvent<HTMLAnchorElement>,
+                          ) => {
+                            e.currentTarget.style.textDecoration = "underline";
+                          }}
+                          onMouseLeave={(
+                            e: React.MouseEvent<HTMLAnchorElement>,
+                          ) => {
+                            e.currentTarget.style.textDecoration = "none";
+                          }}
+                        >
                           {name}
                         </Text>
                         {speaker.role !== "Speaker" && (

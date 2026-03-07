@@ -298,6 +298,51 @@ export const profileRouter = createTRPCRouter({
       return profile;
     }),
 
+  // Get sessions for a user (public - only published sessions)
+  getUserSessions: publicProcedure
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const sessions = await ctx.db.scheduleSession.findMany({
+        where: {
+          isPublished: true,
+          sessionSpeakers: { some: { userId: input.userId } },
+        },
+        include: {
+          event: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              startDate: true,
+              endDate: true,
+              location: true,
+            },
+          },
+          venue: { select: { id: true, name: true } },
+          room: { select: { id: true, name: true } },
+          sessionType: { select: { id: true, name: true, color: true } },
+          track: { select: { id: true, name: true, color: true } },
+          sessionSpeakers: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  surname: true,
+                  name: true,
+                  image: true,
+                },
+              },
+            },
+            orderBy: { order: "asc" },
+          },
+        },
+        orderBy: [{ startTime: "asc" }],
+      });
+
+      return sessions;
+    }),
+
   // Update current user's profile
   updateProfile: protectedProcedure
     .input(profileUpdateSchema)

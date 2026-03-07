@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Text, Badge, Group, Avatar, Stack } from "@mantine/core";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getDisplayName } from "~/utils/userDisplay";
 import { type ScheduleSession } from "./SchedulePageClient";
 
@@ -45,6 +46,8 @@ function SpeakerBio({ bio }: { bio: string }) {
 }
 
 export default function ExpandedView({ sessions, eventId }: ExpandedViewProps) {
+  const router = useRouter();
+
   if (sessions.length === 0) {
     return (
       <Text c="dimmed" ta="center" py="xl">
@@ -161,7 +164,31 @@ export default function ExpandedView({ sessions, eventId }: ExpandedViewProps) {
                                 </Avatar>
                                 <div style={{ minWidth: 0, flex: 1 }}>
                                   <Group gap={6} align="center">
-                                    <Text fw={600} size="sm">
+                                    <Text
+                                      fw={600}
+                                      size="sm"
+                                      c="blue"
+                                      style={{ cursor: "pointer" }}
+                                      onClick={(e: React.MouseEvent) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        router.push(
+                                          `/profiles/${speaker.user.id}`,
+                                        );
+                                      }}
+                                      onMouseEnter={(
+                                        e: React.MouseEvent<HTMLSpanElement>,
+                                      ) => {
+                                        e.currentTarget.style.textDecoration =
+                                          "underline";
+                                      }}
+                                      onMouseLeave={(
+                                        e: React.MouseEvent<HTMLSpanElement>,
+                                      ) => {
+                                        e.currentTarget.style.textDecoration =
+                                          "none";
+                                      }}
+                                    >
                                       {name}
                                     </Text>
                                     {speaker.role !== "Speaker" && (
