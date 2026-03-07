@@ -215,6 +215,7 @@ model Event {
   location        String?
   registrationUrl String?  // External registration link (e.g., Luma)
   discountCode    String?  // Discount code for rejected speaker consolation offer
+  lumaEventId     String?  // Luma event ID (starts with "evt-") for coupon creation
   type            String   // e.g., "HACKATHON", "DINNER", "CONFERENCE"
   isOnline    Boolean     @default(true)
   status      EventStatus @default(ACTIVE)

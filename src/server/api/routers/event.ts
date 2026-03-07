@@ -1093,6 +1093,7 @@ export const eventRouter = createTRPCRouter({
         // Registration & discount
         registrationUrl: z.string().optional(),
         discountCode: z.string().optional(),
+        lumaEventId: z.string().optional(),
         // Feature flags
         featureApplicantVetting: z.boolean().optional(),
         featureSpeakerVetting: z.boolean().optional(),

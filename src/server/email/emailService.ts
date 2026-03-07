@@ -57,6 +57,7 @@ interface ApplicationWithUserAndEvent {
     location?: string | null;
     registrationUrl?: string | null;
     discountCode?: string | null;
+    lumaEventId?: string | null;
     slug?: string | null;
     type: string;
   };
@@ -211,6 +212,34 @@ export class EmailService {
           month: 'long', day: 'numeric', year: 'numeric',
         });
 
+        // Create Luma coupon code if the event has a Luma event ID
+        let speakerCouponCode: string | undefined;
+        if (application.event.lumaEventId) {
+          try {
+            const { getLumaService, generateSpeakerCouponCode } = await import('~/server/services/luma');
+            const lumaService = getLumaService();
+            if (lumaService) {
+              const couponCode = generateSpeakerCouponCode(
+                application.user?.firstName,
+                application.user?.surname,
+              );
+              const couponResult = await lumaService.createCoupon({
+                eventId: application.event.lumaEventId,
+                code: couponCode,
+                percentOff: 100,
+                remainingCount: 2,
+              });
+              if (couponResult.success) {
+                speakerCouponCode = couponResult.code;
+              } else {
+                console.error(`Luma coupon creation failed for application ${application.id}: ${couponResult.error}`);
+              }
+            }
+          } catch (error) {
+            console.error('Error creating Luma coupon:', error);
+          }
+        }
+
         templateName = 'applicationAccepted';
         templateData = {
           applicantName,
@@ -221,6 +250,7 @@ export class EmailService {
           dashboardUrl: `${baseUrl}/events/${eventSlug}`,
           contactEmail: process.env.ADMIN_EMAIL ?? 'beth@fundingthecommons.io',
           registrationUrl: application.event.registrationUrl ?? undefined,
+          speakerCouponCode,
         } satisfies ApplicationAcceptedProps;
         break;
       }

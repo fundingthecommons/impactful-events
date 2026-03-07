@@ -18,6 +18,7 @@ export interface ApplicationAcceptedProps {
   faqUrl?: string;
   contactEmail: string;
   registrationUrl?: string;
+  speakerCouponCode?: string;
 }
 
 export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = ({
@@ -28,6 +29,7 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
   location,
   contactEmail,
   registrationUrl,
+  speakerCouponCode,
 }) => {
   const firstName = applicantFirstName ?? applicantName;
   const previewText = `🎉 You're confirmed as a speaker at ${eventName}`;
@@ -72,6 +74,16 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
             </Row>
           )}
         </Section>
+
+        {speakerCouponCode && (
+          <Section style={couponBox}>
+            <Text style={couponHeading}>Your Speaker Registration Code</Text>
+            <Text style={couponCode}>{speakerCouponCode}</Text>
+            <Text style={couponNote}>
+              Use this code when registering for complimentary access (2 uses).
+            </Text>
+          </Section>
+        )}
 
         <Text style={paragraph}>
           Please reply to confirm your participation, and we&apos;ll follow up with additional
@@ -145,6 +157,37 @@ const detailValue = {
 const link = {
   color: '#2563eb',
   textDecoration: 'underline',
+};
+
+const couponBox = {
+  backgroundColor: '#f0fdf4',
+  borderRadius: '8px',
+  padding: '20px',
+  margin: '24px 32px',
+  border: '1px solid #86efac',
+  textAlign: 'center' as const,
+};
+
+const couponHeading = {
+  fontSize: '16px',
+  fontWeight: 'bold' as const,
+  color: '#15803d',
+  margin: '0 0 12px',
+};
+
+const couponCode = {
+  fontSize: '22px',
+  fontWeight: 'bold' as const,
+  color: '#166534',
+  letterSpacing: '2px',
+  fontFamily: 'monospace, Courier New',
+  margin: '0 0 8px',
+};
+
+const couponNote = {
+  fontSize: '13px',
+  color: '#6b7280',
+  margin: '0',
 };
 
 const signature = {
