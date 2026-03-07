@@ -59,6 +59,18 @@ const schema = z.object({
   telegramHandle: z.string().max(100).optional(),
   discordHandle: z.string().max(100).optional(),
   avatarUrl: z.string().url().optional().or(z.literal("")),
+  // Speaker details
+  speakerTalkTitle: z.string().max(200).optional(),
+  speakerTalkAbstract: z.string().max(2000).optional(),
+  speakerTalkFormat: z.string().max(200).optional(),
+  speakerTalkDuration: z.string().max(50).optional(),
+  speakerTalkTopic: z.string().max(500).optional(),
+  speakerPreviousExperience: z.string().max(2000).optional(),
+  speakerPastTalkUrl: z.string().url().optional().or(z.literal("")),
+  speakerEntityName: z.string().max(200).optional(),
+  speakerOtherFloorsTopicTheme: z.string().max(2000).optional(),
+  speakerDisplayPreference: z.string().max(500).optional(),
+  speakerCoHostInfo: z.string().max(2000).optional(),
 });
 
 type ProfileFormData = z.infer<typeof schema>;
@@ -193,6 +205,17 @@ export function ProfileEditClient() {
       telegramHandle: "",
       discordHandle: "",
       avatarUrl: "",
+      speakerTalkTitle: "",
+      speakerTalkAbstract: "",
+      speakerTalkFormat: "",
+      speakerTalkDuration: "",
+      speakerTalkTopic: "",
+      speakerPreviousExperience: "",
+      speakerPastTalkUrl: "",
+      speakerEntityName: "",
+      speakerOtherFloorsTopicTheme: "",
+      speakerDisplayPreference: "",
+      speakerCoHostInfo: "",
     },
   });
 
@@ -220,6 +243,17 @@ export function ProfileEditClient() {
         telegramHandle: currentProfile.telegramHandle ?? "",
         discordHandle: currentProfile.discordHandle ?? "",
         avatarUrl: currentProfile.avatarUrl ?? "",
+        speakerTalkTitle: currentProfile.speakerTalkTitle ?? "",
+        speakerTalkAbstract: currentProfile.speakerTalkAbstract ?? "",
+        speakerTalkFormat: currentProfile.speakerTalkFormat ?? "",
+        speakerTalkDuration: currentProfile.speakerTalkDuration ?? "",
+        speakerTalkTopic: currentProfile.speakerTalkTopic ?? "",
+        speakerPreviousExperience: currentProfile.speakerPreviousExperience ?? "",
+        speakerPastTalkUrl: currentProfile.speakerPastTalkUrl ?? "",
+        speakerEntityName: currentProfile.speakerEntityName ?? "",
+        speakerOtherFloorsTopicTheme: currentProfile.speakerOtherFloorsTopicTheme ?? "",
+        speakerDisplayPreference: currentProfile.speakerDisplayPreference ?? "",
+        speakerCoHostInfo: currentProfile.speakerCoHostInfo ?? "",
       });
       setHasInitialized(true);
     }
@@ -467,6 +501,106 @@ export function ProfileEditClient() {
                   placeholder="DeFi, AI/ML, Climate, etc."
                   description="What areas or topics are you interested in?"
                   {...form.getInputProps("interests")}
+                />
+              </Grid.Col>
+            </Grid>
+          </Card>
+
+          {/* Speaker Details */}
+          <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Title order={2} size="h3" mb="md">
+              Speaker Details
+            </Title>
+            <Text size="sm" c="dimmed" mb="md">
+              Information about your speaking experience and talk proposals.
+              This is displayed on your speaker dashboard and event pages.
+            </Text>
+            <Grid>
+              <Grid.Col span={12}>
+                <TextInput
+                  label="Talk / Session Title"
+                  placeholder="Your proposed talk or session name"
+                  {...form.getInputProps("speakerTalkTitle")}
+                />
+              </Grid.Col>
+              <Grid.Col span={12}>
+                <Textarea
+                  label="Talk Abstract / Description"
+                  placeholder="Describe what your talk or session is about"
+                  minRows={3}
+                  maxRows={6}
+                  {...form.getInputProps("speakerTalkAbstract")}
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <TextInput
+                  label="Session Format"
+                  placeholder="Talk, Workshop, Panel, etc."
+                  {...form.getInputProps("speakerTalkFormat")}
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <TextInput
+                  label="Preferred Duration"
+                  placeholder="e.g., 30, 60, 90 minutes"
+                  {...form.getInputProps("speakerTalkDuration")}
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <TextInput
+                  label="Topic / Track"
+                  placeholder="The topic or track for your talk"
+                  {...form.getInputProps("speakerTalkTopic")}
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <TextInput
+                  label="Entity / Group Name"
+                  placeholder="Name of artist, entity, or group (if applicable)"
+                  {...form.getInputProps("speakerEntityName")}
+                />
+              </Grid.Col>
+              <Grid.Col span={12}>
+                <Textarea
+                  label="Previous Speaking Experience"
+                  placeholder="Describe your previous speaking experience"
+                  minRows={2}
+                  maxRows={4}
+                  {...form.getInputProps("speakerPreviousExperience")}
+                />
+              </Grid.Col>
+              <Grid.Col span={12}>
+                <TextInput
+                  label="Past Talk URL"
+                  placeholder="https://youtube.com/watch?v=..."
+                  {...form.getInputProps("speakerPastTalkUrl")}
+                />
+              </Grid.Col>
+              <Grid.Col span={12}>
+                <Textarea
+                  label="Display Preference"
+                  placeholder="How you&apos;d like to appear on the event agenda"
+                  minRows={2}
+                  maxRows={3}
+                  {...form.getInputProps("speakerDisplayPreference")}
+                />
+              </Grid.Col>
+              <Grid.Col span={12}>
+                <Textarea
+                  label="Co-Host Information"
+                  placeholder="Names, emails, and links for any co-hosts"
+                  minRows={2}
+                  maxRows={4}
+                  {...form.getInputProps("speakerCoHostInfo")}
+                />
+              </Grid.Col>
+              <Grid.Col span={12}>
+                <Textarea
+                  label="Other Floors Topic / Theme"
+                  placeholder="Topic or theme for non-main-stage tracks (if applicable)"
+                  minRows={2}
+                  maxRows={4}
+                  {...form.getInputProps("speakerOtherFloorsTopicTheme")}
                 />
               </Grid.Col>
             </Grid>
