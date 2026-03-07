@@ -17,12 +17,14 @@ export interface ApplicationAcceptedProps {
   contactEmail: string;
   registrationUrl?: string;
   speakerCouponCode?: string;
+  sessions?: Array<{ title: string; url: string }>;
 }
 
 export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = ({
   applicantFirstName,
   applicantName,
   speakerCouponCode,
+  sessions,
 }) => {
   const firstName = applicantFirstName ?? applicantName;
   const previewText = `🎉 You're confirmed as a presenter at Intelligence at the Frontier`;
@@ -117,6 +119,19 @@ export const ApplicationAcceptedTemplate: React.FC<ApplicationAcceptedProps> = (
           floors (no plugging in!), so please be prepared to do this by Friday, March 13 at the
           latest. If your presentation doesn&apos;t require slides, don&apos;t worry about this.
         </Text>
+
+        {sessions && sessions.length > 0 && (
+          <Text style={paragraph}>
+            Please upload your slides as soon as possible to your session{sessions.length > 1 ? 's' : ''}:
+            {sessions.map((session, index) => (
+              <React.Fragment key={session.url}>
+                {index > 0 && ','}{' '}
+                <a href={session.url} style={link}>{session.title}</a>
+              </React.Fragment>
+            ))}
+            .
+          </Text>
+        )}
 
         <Text style={sectionHeading}>Contact your floor lead here:</Text>
 

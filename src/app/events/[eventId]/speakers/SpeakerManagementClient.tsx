@@ -35,7 +35,7 @@ import {
   IconTrash,
   IconDownload,
   IconSend,
-  IconFilePresentation,
+  IconPresentation,
 } from "@tabler/icons-react";
 import { api } from "~/trpc/react";
 import ApplicationDetailsDrawer from "~/app/admin/events/[eventId]/applications/ApplicationDetailsDrawer";
@@ -362,7 +362,7 @@ export default function SpeakerManagementClient({ eventId }: Props) {
             Invitations
             {inv.invitations.length > 0 && <Badge size="sm" variant="light" ml="xs">{inv.invitations.length}</Badge>}
           </Tabs.Tab>
-          <Tabs.Tab value="sessions" leftSection={<IconFilePresentation size={16} />}>
+          <Tabs.Tab value="sessions" leftSection={<IconPresentation size={16} />}>
             Sessions
             {sessionRows.length > 0 && <Badge size="sm" variant="light" ml="xs">{sessionRows.length}</Badge>}
           </Tabs.Tab>

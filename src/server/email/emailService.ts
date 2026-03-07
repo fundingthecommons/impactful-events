@@ -242,6 +242,26 @@ export class EmailService {
           }
         }
 
+        // Look up speaker's sessions for this event
+        let sessions: Array<{ title: string; url: string }> | undefined;
+        if (application.userId) {
+          const speakerSessions = await this.db.sessionSpeaker.findMany({
+            where: {
+              userId: application.userId,
+              session: { eventId: application.eventId },
+            },
+            include: {
+              session: { select: { id: true, title: true } },
+            },
+          });
+          if (speakerSessions.length > 0) {
+            sessions = speakerSessions.map((ss) => ({
+              title: ss.session.title,
+              url: `${baseUrl}/events/${eventSlug}/schedule/${ss.session.id}`,
+            }));
+          }
+        }
+
         templateName = 'applicationAccepted';
         templateData = {
           applicantName,
@@ -253,6 +273,7 @@ export class EmailService {
           contactEmail: process.env.ADMIN_EMAIL ?? 'beth@fundingthecommons.io',
           registrationUrl: application.event.registrationUrl ?? undefined,
           speakerCouponCode,
+          sessions,
         } satisfies ApplicationAcceptedProps;
         break;
       }
