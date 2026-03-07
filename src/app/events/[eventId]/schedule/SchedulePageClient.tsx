@@ -73,7 +73,6 @@ export default function SchedulePageClient({ eventId, initialMySchedule = false 
   const [activeVenueId, setActiveVenueId] = useState<string | null>(null);
   const [activeSessionTypes, setActiveSessionTypes] = useState<string[]>([]);
   const [activeTracks, setActiveTracks] = useState<string[]>([]);
-  const [activeFloorManagerId, setActiveFloorManagerId] = useState<string | null>(null);
   const [showMySessions, setShowMySessions] = useState(initialMySchedule);
 
   const { data: authSession } = useSession();
@@ -136,18 +135,9 @@ export default function SchedulePageClient({ eventId, initialMySchedule = false 
       ) {
         return false;
       }
-      // Floor lead filter
-      if (activeFloorManagerId && filterData?.floorManagers) {
-        const manager = filterData.floorManagers.find(
-          (fm) => fm.id === activeFloorManagerId,
-        );
-        if (manager && (!session.venueId || !manager.venueIds.includes(session.venueId))) {
-          return false;
-        }
-      }
       return true;
     });
-  }, [sessions, showMySessions, userId, searchQuery, activeVenueId, activeSessionTypes, activeTracks, activeFloorManagerId, filterData?.floorManagers]);
+  }, [sessions, showMySessions, userId, searchQuery, activeVenueId, activeSessionTypes, activeTracks]);
 
   // Stage 2: Group by day (shared between both views)
   const { days, sessionsByDay } = useMemo(() => {
@@ -473,29 +463,6 @@ export default function SchedulePageClient({ eventId, initialMySchedule = false 
                     }))}
                     value={activeVenueId}
                     onChange={setActiveVenueId}
-                    clearable
-                    styles={{
-                      input: {
-                        backgroundColor: "var(--schedule-search-bg)",
-                      },
-                    }}
-                  />
-                </div>
-              )}
-
-              {filterData?.floorManagers && filterData.floorManagers.length > 0 && (
-                <div className="schedule-filter-section">
-                  <Text fw={600} size="sm" mb="xs">
-                    Filter By Floor Lead
-                  </Text>
-                  <Select
-                    placeholder="All floor leads"
-                    data={filterData.floorManagers.map((fm) => ({
-                      value: fm.id,
-                      label: getDisplayName(fm, "Unknown"),
-                    }))}
-                    value={activeFloorManagerId}
-                    onChange={setActiveFloorManagerId}
                     clearable
                     styles={{
                       input: {
