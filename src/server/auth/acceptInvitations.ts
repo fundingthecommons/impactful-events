@@ -21,7 +21,13 @@ interface AcceptInvitationsResult {
 export async function acceptPendingInvitations(
   email: string,
   userId: string,
+  opts: { emailVerified?: boolean } = {},
 ): Promise<AcceptInvitationsResult> {
+  // SECURITY: whether we have proof the signing-in user actually controls this
+  // email. Credentials registration performs no email verification, so an
+  // attacker can register any address; OAuth providers (Google/Discord) verify
+  // it. We refuse to grant a global admin/staff role on an unverified email.
+  const { emailVerified = false } = opts;
   const invitations = await db.invitation.findMany({
     where: {
       email: { equals: email.toLowerCase(), mode: "insensitive" },
@@ -75,6 +81,18 @@ export async function acceptPendingInvitations(
         invitation.type === "GLOBAL_STAFF") &&
       invitation.globalRole
     ) {
+      // SECURITY: never grant a global admin/staff role from an unverified,
+      // self-asserted email. Otherwise an attacker who registers an invited
+      // address (credentials sign-up does no email verification) is promoted on
+      // first sign-in. Leave the invitation PENDING so a verified sign-in
+      // (OAuth) or an existing admin can complete the grant deliberately.
+      if (!emailVerified) {
+        console.warn(
+          `[AUTH] Skipped ${invitation.globalRole} grant for an unverified email; invitation ${invitation.id} left pending.`,
+        );
+        continue;
+      }
+
       await db.user.update({
         where: { id: userId },
         data: { role: invitation.globalRole },

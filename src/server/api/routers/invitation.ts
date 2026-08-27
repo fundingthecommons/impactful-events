@@ -663,31 +663,33 @@ export const invitationRouter = createTRPCRouter({
 
   // Accept invitation (called during user registration / sign-in)
   // Note: Invitations are also accepted automatically in the NextAuth signIn callback
-  accept: publicProcedure
+  accept: protectedProcedure
     .input(
-      z.object({
-        email: z.string().email(),
-        userId: z.string().optional(),
-      }),
+      z
+        .object({
+          email: z.string().email().optional(),
+          userId: z.string().optional(),
+        })
+        .optional(),
     )
-    .mutation(async ({ ctx, input }) => {
-      const normalizedEmail = input.email.toLowerCase().trim();
-      let userId = input.userId;
-
-      if (!userId) {
-        const user = await ctx.db.user.findFirst({
-          where: { email: { equals: normalizedEmail, mode: "insensitive" } },
-          select: { id: true },
-        });
-
-        if (!user) {
-          return { accepted: 0, roles: [] };
-        }
-
-        userId = user.id;
+    .mutation(async ({ ctx }) => {
+      // SECURITY: only ever accept the CALLER'S OWN pending invitations. This
+      // was a publicProcedure that trusted a client-supplied email + userId,
+      // letting an unauthenticated caller grant an EVENT_ROLE/VENUE_OWNER to an
+      // arbitrary account. Client-supplied identity is now ignored; the email is
+      // resolved from the authenticated user's DB record. (Redundant with the
+      // NextAuth signIn callback, which is the real acceptance path.)
+      const dbUser = await ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+        select: { email: true },
+      });
+      if (!dbUser?.email) {
+        return { accepted: 0, roles: [] };
       }
-
-      return acceptPendingInvitations(normalizedEmail, userId);
+      return acceptPendingInvitations(
+        dbUser.email.toLowerCase().trim(),
+        ctx.session.user.id,
+      );
     }),
 
   // Cancel invitation

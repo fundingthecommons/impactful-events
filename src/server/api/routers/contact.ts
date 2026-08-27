@@ -1451,7 +1451,7 @@ export const contactRouter = createTRPCRouter({
       }
     }),
 
-  matchEventApplicants: protectedProcedure.mutation(async ({ ctx }) => {
+  matchEventApplicants: adminOrStaffProcedure.mutation(async ({ ctx }) => {
     // Get all applications with their responses and questions
     const applications = await ctx.db.application.findMany({
       include: {
@@ -1506,7 +1506,7 @@ export const contactRouter = createTRPCRouter({
     };
   }),
 
-  createContact: protectedProcedure
+  createContact: adminOrStaffProcedure
     .input(
       z.object({
         firstName: z.string().min(1, "First name is required"),
@@ -1560,7 +1560,7 @@ export const contactRouter = createTRPCRouter({
       return contact;
     }),
 
-  updateContact: protectedProcedure
+  updateContact: adminOrStaffProcedure
     .input(
       z.object({
         id: z.string().min(1, "Contact ID is required"),
@@ -1794,7 +1794,7 @@ export const contactRouter = createTRPCRouter({
       }
     }),
 
-  mergeContacts: protectedProcedure
+  mergeContacts: adminOrStaffProcedure
     .input(
       z.object({
         contactIds: z

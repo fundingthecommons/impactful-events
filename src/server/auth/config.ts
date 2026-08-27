@@ -233,9 +233,19 @@ export const authConfig = {
       // Universal invitation acceptance for ALL sign-in methods
       if (user.id && user.email) {
         try {
+          // OAuth providers (Google/Discord) prove the user controls this
+          // email, and a magic-link (Postmark, type "email") sign-in proves it
+          // by the click itself; the credentials provider does not. Global
+          // admin/staff grants are refused on an unverified email (see
+          // acceptPendingInvitations).
+          const emailVerified =
+            account?.provider === "google" ||
+            account?.provider === "discord" ||
+            account?.type === "email";
           const invitationResult = await acceptPendingInvitations(
             user.email,
             user.id,
+            { emailVerified },
           );
           if (invitationResult.accepted > 0) {
             console.log(

@@ -7,6 +7,28 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { isAdminOrStaff } from "~/server/api/utils/scheduleAuth";
+
+// SECURITY: private contact / internal fields on UserProfile that must never be
+// returned to a caller who is neither the profile owner nor admin/staff. The
+// public directory procedures (getAllMembers / searchProfiles / getProfile) use
+// Prisma `include`, which returns the whole row, so we strip these explicitly.
+const PRIVATE_PROFILE_FIELDS = [
+  "phoneNumber",
+  "telegramHandle",
+  "telegramChatId",
+  "discordHandle",
+  "speakerCoHostInfo",
+] as const;
+
+function stripPrivateProfileFields<T>(profile: T, isPrivileged: boolean): T {
+  if (!profile || isPrivileged) return profile;
+  const sanitized = { ...(profile as Record<string, unknown>) };
+  for (const field of PRIVATE_PROFILE_FIELDS) {
+    if (field in sanitized) sanitized[field] = null;
+  }
+  return sanitized as T;
+}
 
 // URL validation that accepts URLs with or without protocol, normalizes to https://
 const lenientUrlSchema = z
@@ -302,7 +324,10 @@ export const profileRouter = createTRPCRouter({
         });
       }
 
-      return profile;
+      // SECURITY: strip private contact fields unless the viewer is the owner
+      // or admin/staff — this is a publicProcedure reachable by anyone.
+      const isPrivileged = isOwner || isAdminOrStaff(ctx.session?.user?.role);
+      return stripPrivateProfileFields(profile, isPrivileged);
     }),
 
   // Get sessions for a user (public - only published sessions)
@@ -474,8 +499,16 @@ export const profileRouter = createTRPCRouter({
         nextCursor = nextItem!.id;
       }
 
+      // SECURITY: strip private contact fields for non-privileged callers — this
+      // is a publicProcedure and previously returned the full UserProfile row.
+      const callerIsAdmin = isAdminOrStaff(ctx.session?.user?.role);
+      const callerId = ctx.session?.user?.id;
+      const sanitizedProfiles = profiles.map((p) =>
+        stripPrivateProfileFields(p, callerIsAdmin || p.userId === callerId),
+      );
+
       return {
-        profiles,
+        profiles: sanitizedProfiles,
         nextCursor,
       };
     }),
@@ -658,6 +691,10 @@ export const profileRouter = createTRPCRouter({
           adminWorkExperience: null,
           adminUpdatedBy: null,
           adminUpdatedAt: null,
+          // SECURITY: strip private contact fields on the nested profile — the
+          // sanitizer above only covered top-level User fields, leaving
+          // phone/telegram/discord/co-host exposed to any anonymous caller.
+          profile: stripPrivateProfileFields(rest.profile, false),
         };
       });
 
@@ -999,8 +1036,21 @@ export const profileRouter = createTRPCRouter({
         nextCursor = nextItem!.id;
       }
 
+      // SECURITY: this publicProcedure includes the whole owner UserProfile —
+      // strip private contact fields for non-owner/non-admin callers (same leak
+      // class as getAllMembers/searchProfiles/getProfile).
+      const callerIsAdmin = isAdminOrStaff(ctx.session?.user?.role);
+      const callerId = ctx.session?.user?.id;
+      const sanitizedProjects = projects.map((p) => ({
+        ...p,
+        profile: stripPrivateProfileFields(
+          p.profile,
+          callerIsAdmin || p.profile?.userId === callerId,
+        ),
+      }));
+
       return {
-        projects,
+        projects: sanitizedProjects,
         nextCursor,
       };
     }),
