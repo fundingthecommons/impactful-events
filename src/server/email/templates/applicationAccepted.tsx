@@ -226,8 +226,8 @@ export const ApplicationAcceptedTemplate: React.FC<
           </Text>
           <Text style={floorLeadItem}>
             <strong>Floor 16:</strong>{" "}
-            <a href="mailto:david@fundingthecommons.io" style={link}>
-              david@fundingthecommons.io
+            <a href="mailto:contact@fundingthecommons.io" style={link}>
+              contact@fundingthecommons.io
             </a>{" "}
             or{" "}
             <a href="mailto:events@flourishing.foundation" style={link}>
