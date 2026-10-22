@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  adminOrStaffProcedure,
+} from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 // Enums matching Prisma schema
@@ -311,12 +315,15 @@ export const onboardingRouter = createTRPCRouter({
     }),
 
   // Get onboarding status for admin (helper for checking completion)
-  getOnboardingStatus: protectedProcedure
+  // SECURITY: admin/staff only. applicationIds is attacker-controlled and was
+  // never checked against the caller, so any member could probe whether any
+  // application had submitted onboarding, an e-ticket or health insurance.
+  // No client code calls this today and it is documented as an admin helper;
+  // if applicants ever need their own row, add a per-id userId ownership
+  // check instead of reopening it.
+  getOnboardingStatus: adminOrStaffProcedure
     .input(z.object({ applicationIds: z.array(z.string()) }))
     .query(async ({ ctx, input }) => {
-      // This endpoint can be used by admins to check onboarding completion status
-      // TODO: Add admin role check if needed
-
       const onboardings = await ctx.db.applicationOnboarding.findMany({
         where: {
           applicationId: { in: input.applicationIds },

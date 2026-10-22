@@ -8,7 +8,8 @@ interface Speaker {
     firstName: string | null;
     surname: string | null;
     name: string | null;
-    email: string | null;
+    // SECURITY: no email — the card renders name/company only and the pages
+    // that feed it no longer select it.
     profile: {
       company: string | null;
       jobTitle: string | null;

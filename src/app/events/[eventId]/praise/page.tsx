@@ -169,9 +169,6 @@ export default function PraisePage({ params }: PraisePageProps) {
                         <Text fw={500}>
                           {getDisplayName(praise.sender, "Unknown")}
                         </Text>
-                        <Text size="xs" c="dimmed">
-                          {praise.sender.email}
-                        </Text>
                       </div>
                     </Group>
                     <Text size="sm" c="dimmed">
@@ -217,9 +214,6 @@ export default function PraisePage({ params }: PraisePageProps) {
                       <div>
                         <Text fw={500}>
                           {getDisplayName(praise.recipient, "Unknown")}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                          {praise.recipient?.email}
                         </Text>
                       </div>
                     </Group>

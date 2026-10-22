@@ -121,7 +121,6 @@ export function KudosLeaderboardClient() {
                               customAvatarUrl: entry.user.profile?.avatarUrl,
                               oauthImageUrl: entry.user.image,
                               name: entry.user.name,
-                              email: entry.user.email,
                               firstName: entry.user.firstName,
                               surname: entry.user.surname,
                             }}

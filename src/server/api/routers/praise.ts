@@ -122,7 +122,8 @@ export const praiseRouter = createTRPCRouter({
           firstName: true,
           surname: true,
           name: true,
-          email: true,
+          // SECURITY: no email — protectedProcedure is not a gate (anyone can
+          // self-register); the leaderboard only needs a display name.
           image: true,
         },
       });
@@ -172,11 +173,12 @@ export const praiseRouter = createTRPCRouter({
           eventId: input.eventId,
         },
         include: {
+          // SECURITY: no email on a member-reachable feed (any self-registered
+          // user can call this); the page renders name + avatar only.
           sender: {
             select: {
               id: true,
               name: true,
-              email: true,
               image: true,
             },
           },
@@ -184,7 +186,6 @@ export const praiseRouter = createTRPCRouter({
             select: {
               id: true,
               name: true,
-              email: true,
               image: true,
             },
           },
@@ -263,11 +264,12 @@ export const praiseRouter = createTRPCRouter({
 
       const transactions = await ctx.db.praise.findMany({
         include: {
+          // SECURITY: no email on sender/recipient — this lists every praise
+          // in the system to any member; the feed cards render names only.
           sender: {
             select: {
               id: true,
               name: true,
-              email: true,
               image: true,
             },
           },
@@ -275,7 +277,6 @@ export const praiseRouter = createTRPCRouter({
             select: {
               id: true,
               name: true,
-              email: true,
               image: true,
             },
           },

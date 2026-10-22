@@ -102,6 +102,34 @@ const userSelectFields = {
   profile: { select: { company: true } },
 } as const;
 
+// SECURITY: userSelectFields carries `email`, which the floor-lead management
+// procedures need, but the public agenda (getEventSchedule / getSession) must
+// not hand every published speaker's address to anonymous callers. The key is
+// kept (null) so the response shape and client types are unchanged; admin/staff
+// and DB-verified floor leads (venue owners) of the event still receive it.
+async function canSeeSpeakerEmails(
+  db: PrismaClient,
+  viewer: { id: string; role?: string | null } | null | undefined,
+  eventId: string,
+): Promise<boolean> {
+  if (!viewer) return false;
+  if (isAdminOrStaff(viewer.role)) return true;
+  return isEventFloorOwner(db, viewer.id, eventId);
+}
+
+function redactSpeakerEmails<
+  T extends { sessionSpeakers: Array<{ user: { email: string | null } }> },
+>(session: T, canSeeEmails: boolean): T {
+  if (canSeeEmails) return session;
+  return {
+    ...session,
+    sessionSpeakers: session.sessionSpeakers.map((speaker) => ({
+      ...speaker,
+      user: { ...speaker.user, email: null },
+    })),
+  };
+}
+
 /**
  * Validate that all linked speaker user IDs are floor applicants for the given venue.
  * Only enforced for non-admin users.
@@ -156,7 +184,17 @@ export const scheduleRouter = createTRPCRouter({
         orderBy: [{ startTime: "asc" }, { order: "asc" }],
       });
 
-      return { event, sessions };
+      const canSeeEmails = await canSeeSpeakerEmails(
+        ctx.db,
+        ctx.session?.user,
+        event.id,
+      );
+      return {
+        event,
+        sessions: sessions.map((session) =>
+          redactSpeakerEmails(session, canSeeEmails),
+        ),
+      };
     }),
 
   // Public: Get a single session by ID
@@ -199,7 +237,10 @@ export const scheduleRouter = createTRPCRouter({
         });
       }
 
-      return session;
+      return redactSpeakerEmails(
+        session,
+        await canSeeSpeakerEmails(ctx.db, ctx.session?.user, session.event.id),
+      );
     }),
 
   // Public: Get filter options (venues + session types + tracks) for an event
@@ -563,6 +604,21 @@ export const scheduleRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const event = await resolveEventId(ctx.db, input.eventId);
 
+      // SECURITY: this is a CSV-import helper for the schedule management UI,
+      // but it was a bare protectedProcedure: it scans every applicant to the
+      // event and returned their emails to any self-registered member, and
+      // the optional `emails` map made it an exact-email oracle ("did
+      // alice@example.com apply to this event?"). Gate it to admin/staff or a
+      // DB-verified floor lead (venue owner) of this event — the same callers
+      // canSeeSpeakerEmails already grants speaker emails to on the schedule.
+      // The email field is kept for them; nobody else reaches this point.
+      await assertAdminOrEventFloorOwner(
+        ctx.db,
+        ctx.session.user.id,
+        ctx.session.user.role,
+        event.id,
+      );
+
       // Single query: fetch ALL users who have applied for this event
       const allApplicants = await ctx.db.user.findMany({
         where: {
@@ -682,7 +738,13 @@ export const scheduleRouter = createTRPCRouter({
           },
         },
         select: {
-          ...userSelectFields,
+          // SECURITY: no email — publicProcedure; the result never exposes it,
+          // so do not load it either.
+          id: true,
+          firstName: true,
+          surname: true,
+          name: true,
+          image: true,
           profile: {
             select: {
               avatarUrl: true,

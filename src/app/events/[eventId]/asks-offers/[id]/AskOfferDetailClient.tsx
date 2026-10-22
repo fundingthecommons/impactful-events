@@ -87,7 +87,6 @@ interface AskOfferDetailClientProps {
       id: string;
       name: string | null;
       image: string | null;
-      email: string | null;
       profile?: {
         jobTitle: string | null;
         company: string | null;
@@ -405,7 +404,6 @@ export default function AskOfferDetailClient({
                   customAvatarUrl: askOffer.user.profile?.avatarUrl,
                   oauthImageUrl: askOffer.user.image,
                   name: askOffer.user.name,
-                  email: askOffer.user.email,
                 })}
                 alt={askOffer.user.name ?? "User"}
                 size="lg"
@@ -413,7 +411,6 @@ export default function AskOfferDetailClient({
               >
                 {getAvatarInitials({
                   name: askOffer.user.name,
-                  email: askOffer.user.email,
                 })}
               </Avatar>
               <div style={{ flex: 1 }}>

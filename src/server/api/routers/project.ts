@@ -9,6 +9,12 @@ import { type EmailResult } from "~/server/email/emailService";
 import { env } from "~/env";
 import { type PrismaClient } from "@prisma/client";
 import { getDisplayName } from "~/utils/userDisplay";
+import {
+  canViewProfile,
+  isProfileOwnerOrPrivileged,
+  redactProfileFields,
+  stripPrivateProfileFields,
+} from "~/server/api/utils/profilePrivacy";
 
 /**
  * Resolve event identifier - accepts both CUID and slug.
@@ -467,6 +473,7 @@ export const projectRouter = createTRPCRouter({
                       company: true,
                       location: true,
                       bio: true,
+                      isPublic: true,
                     },
                   },
                 },
@@ -503,6 +510,31 @@ export const projectRouter = createTRPCRouter({
         });
       }
 
+      // SECURITY: `profile` is the whole UserProfile row (Prisma include) on a
+      // publicProcedure. Sanitise it with the shared helpers before anything
+      // is read off it: private contact fields are stripped for non-owner /
+      // non-admin callers, and a profile the owner set to isPublic === false
+      // is reduced to the hidden-profile shape — display name + avatar (from
+      // User) only, every UserProfile field nulled. Keys are kept so the
+      // client types are unchanged. The project itself stays visible: it is a
+      // public artifact (featured projects, event showcases); only the owner's
+      // profile is private. Same rule for collaborators' profile snippets.
+      const viewer = ctx.session?.user;
+      const ownerProfile = stripPrivateProfileFields(
+        project.profile,
+        isProfileOwnerOrPrivileged(project.profile.userId, viewer),
+      );
+      const authorProfile = {
+        jobTitle: ownerProfile.jobTitle,
+        company: ownerProfile.company,
+        location: ownerProfile.location,
+        bio: ownerProfile.bio,
+        githubUrl: ownerProfile.githubUrl,
+        linkedinUrl: ownerProfile.linkedinUrl,
+        twitterUrl: ownerProfile.twitterUrl,
+        website: ownerProfile.website,
+      };
+
       return {
         id: project.id,
         title: project.title,
@@ -520,34 +552,40 @@ export const projectRouter = createTRPCRouter({
           id: project.profile.user.id,
           name: project.profile.user.name,
           image: project.profile.user.image,
-          profile: {
-            jobTitle: project.profile.jobTitle,
-            company: project.profile.company,
-            location: project.profile.location,
-            bio: project.profile.bio,
-            githubUrl: project.profile.githubUrl,
-            linkedinUrl: project.profile.linkedinUrl,
-            twitterUrl: project.profile.twitterUrl,
-            website: project.profile.website,
-          },
+          profile: canViewProfile(ownerProfile, viewer)
+            ? authorProfile
+            : redactProfileFields(authorProfile),
         },
-        collaborators: project.collaborators.map((collab) => ({
-          id: collab.id,
-          userId: collab.user.id,
-          name: collab.user.name,
-          image: collab.user.image,
-          role: collab.role,
-          canEdit: collab.canEdit,
-          addedAt: collab.addedAt,
-          profile: collab.user.profile
+        collaborators: project.collaborators.map((collab) => {
+          const collabProfile = collab.user.profile
             ? {
                 jobTitle: collab.user.profile.jobTitle,
                 company: collab.user.profile.company,
                 location: collab.user.profile.location,
                 bio: collab.user.profile.bio,
               }
-            : null,
-        })),
+            : null;
+          const collabProfileVisible = canViewProfile(
+            {
+              userId: collab.user.id,
+              isPublic: collab.user.profile?.isPublic,
+            },
+            viewer,
+          );
+          return {
+            id: collab.id,
+            userId: collab.user.id,
+            name: collab.user.name,
+            image: collab.user.image,
+            role: collab.role,
+            canEdit: collab.canEdit,
+            addedAt: collab.addedAt,
+            profile:
+              collabProfile && !collabProfileVisible
+                ? redactProfileFields(collabProfile)
+                : collabProfile,
+          };
+        }),
         likes: project.likes,
       };
     }),

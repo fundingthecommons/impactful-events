@@ -48,7 +48,8 @@ async function getFloorSessions(eventId: string, venueId: string) {
               firstName: true,
               surname: true,
               name: true,
-              email: true,
+              // SECURITY: no email — this is a public, unauthenticated print
+              // card; it renders name/company only.
               profile: {
                 select: { company: true, jobTitle: true },
               },

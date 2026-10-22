@@ -7,6 +7,11 @@ import {
 import { hashPassword } from "~/utils/password";
 import { TRPCError } from "@trpc/server";
 import { getFullName } from "~/utils/userDisplay";
+import { isAdminOrStaff } from "~/server/api/utils/scheduleAuth";
+import {
+  buildUserSearchWhere,
+  redactSearchedUserEmail,
+} from "~/server/api/utils/userSearch";
 
 export const userRouter = createTRPCRouter({
   create: publicProcedure
@@ -380,15 +385,31 @@ export const userRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      // Search users by firstName, surname, or email
+      // SECURITY: a session is not a trust boundary (anyone can self-register),
+      // and this was the one user API with no gate beyond protectedProcedure.
+      // Members keep name search (needed for @mentions and collaborator
+      // pickers); only admin/staff and floor leads (VenueOwner rows) of an
+      // event that has not yet ended may search by email or see emails in the
+      // results — otherwise this is an email-enumeration oracle over the whole
+      // user table. The floor-lead check is scoped to a live event because the
+      // row outlives the event it was granted for, and a leftover row from a
+      // past event is no reason to read every member's address today. The row
+      // is granted by staff invitation or assignment; an invitation claim is
+      // only as strong as sign-up email verification (tracked follow-up).
+      const canSeeEmails =
+        isAdminOrStaff(ctx.session.user.role) ||
+        !!(await ctx.db.venueOwner.findFirst({
+          where: {
+            userId: ctx.session.user.id,
+            // Event.endDate is required in the schema, so "null or in the
+            // future" reduces to gte now.
+            event: { endDate: { gte: new Date() } },
+          },
+          select: { id: true },
+        }));
+
       const users = await ctx.db.user.findMany({
-        where: {
-          OR: [
-            { firstName: { contains: input.query, mode: "insensitive" } },
-            { surname: { contains: input.query, mode: "insensitive" } },
-            { email: { contains: input.query, mode: "insensitive" } },
-          ],
-        },
+        where: buildUserSearchWhere(input.query, canSeeEmails),
         select: {
           id: true,
           firstName: true,
@@ -403,6 +424,6 @@ export const userRouter = createTRPCRouter({
         },
       });
 
-      return users;
+      return users.map((user) => redactSearchedUserEmail(user, canSeeEmails));
     }),
 });

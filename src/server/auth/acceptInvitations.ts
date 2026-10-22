@@ -17,6 +17,9 @@ interface AcceptInvitationsResult {
  * Used by:
  * - NextAuth signIn callback (universal, runs for all auth methods)
  * - invitation.accept tRPC procedure (legacy client-side calls)
+ * - POST /api/auth/register (credentials sign-up, with or without an existing
+ *   account for the email) — so this function is the single owner of the
+ *   "global role needs a verified email" rule.
  */
 export async function acceptPendingInvitations(
   email: string,
@@ -25,8 +28,13 @@ export async function acceptPendingInvitations(
 ): Promise<AcceptInvitationsResult> {
   // SECURITY: whether we have proof the signing-in user actually controls this
   // email. Credentials registration performs no email verification, so an
-  // attacker can register any address; OAuth providers (Google/Discord) verify
-  // it. We refuse to grant a global admin/staff role on an unverified email.
+  // attacker can register any address; OAuth providers (Google/Discord) and a
+  // CLICKED magic link verify it (a magic-link sign-in *request* does not —
+  // see the signIn callback). We refuse to grant a global admin/staff role on
+  // an unverified email. EVENT_ROLE and VENUE_OWNER invitations below are
+  // still accepted without it (product impact on sponsor / floor-lead
+  // onboarding; tracked follow-up), so an event-scoped affiliation is only as
+  // strong as sign-up email verification.
   const { emailVerified = false } = opts;
   const invitations = await db.invitation.findMany({
     where: {

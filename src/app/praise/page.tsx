@@ -87,9 +87,6 @@ export default function PraisePage() {
                         <Text fw={500}>
                           {getDisplayName(entry.user, "Unknown")}
                         </Text>
-                        <Text size="sm" c="dimmed">
-                          {entry.user?.email}
-                        </Text>
                       </div>
                     </Group>
                     <Badge size="lg" color="grape" variant="filled">

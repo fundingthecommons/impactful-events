@@ -248,7 +248,6 @@ export default function ThreadDetailClient({
                   customAvatarUrl: thread.user.profile?.avatarUrl,
                   oauthImageUrl: thread.user.image,
                   name: thread.user.name,
-                  email: thread.user.email,
                 })}
                 alt={thread.user.name ?? "User"}
                 size="md"
@@ -256,7 +255,6 @@ export default function ThreadDetailClient({
               >
                 {getAvatarInitials({
                   name: thread.user.name,
-                  email: thread.user.email,
                 })}
               </Avatar>
               <div>

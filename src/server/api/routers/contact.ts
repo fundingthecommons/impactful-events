@@ -704,7 +704,15 @@ export const contactRouter = createTRPCRouter({
       return contact;
     }),
 
-  importGoogleContacts: protectedProcedure.mutation(async ({ ctx }) => {
+  // SECURITY: the import* procedures below write into the shared sponsor CRM
+  // (Contact / ContactCommunication rows read by getContacts etc., which are
+  // already admin/staff only). A bare protectedProcedure let any self-
+  // registered member pull their own Google / Notion / Telegram data into the
+  // staff CRM and, for the *ForContact variants, pull a staff contact's
+  // message history into their own view. Gate every importer to admin/staff;
+  // disconnectGoogleAccount stays self-scoped (it only touches the caller's
+  // own OAuth account row).
+  importGoogleContacts: adminOrStaffProcedure.mutation(async ({ ctx }) => {
     console.log(
       `[DEBUG] Starting Google Contacts import for user: ${ctx.session.user.id}`,
     );
@@ -862,7 +870,8 @@ export const contactRouter = createTRPCRouter({
     }
   }),
 
-  importGoogleContactsFromEmails: protectedProcedure.mutation(
+  // SECURITY: admin/staff only (CRM importer — see importGoogleContacts).
+  importGoogleContactsFromEmails: adminOrStaffProcedure.mutation(
     async ({ ctx }) => {
       const oauth2Client = await getGoogleAuthClient(ctx, "gmail");
       const gmail = google.gmail({ version: "v1", auth: oauth2Client });
@@ -919,7 +928,8 @@ export const contactRouter = createTRPCRouter({
     },
   ),
 
-  importGmailMessages: protectedProcedure
+  // SECURITY: admin/staff only (CRM importer — see importGoogleContacts).
+  importGmailMessages: adminOrStaffProcedure
     .input(
       z.object({
         eventId: z.string().optional(), // Optional: communications can be event-agnostic
@@ -1057,7 +1067,8 @@ export const contactRouter = createTRPCRouter({
       }
     }),
 
-  importNotionContacts: protectedProcedure.mutation(async ({ ctx }) => {
+  // SECURITY: admin/staff only (CRM importer — see importGoogleContacts).
+  importNotionContacts: adminOrStaffProcedure.mutation(async ({ ctx }) => {
     const notionToken = process.env.NOTION_TOKEN;
     const databaseId = process.env.NOTION_CONTACTS_DATABASE_ID;
     if (!notionToken || !databaseId) {
@@ -1114,7 +1125,9 @@ export const contactRouter = createTRPCRouter({
     return { count };
   }),
 
-  importTelegramContacts: protectedProcedure.mutation(async ({ ctx }) => {
+  // SECURITY: admin/staff only (CRM importer — see importGoogleContacts).
+  // Reached from TelegramSetupModal, which only mounts inside /crm/contacts.
+  importTelegramContacts: adminOrStaffProcedure.mutation(async ({ ctx }) => {
     // Get the user's stored Telegram credentials
     const userAuth = await ctx.db.telegramAuth.findUnique({
       where: { userId: ctx.session.user.id },
@@ -1258,7 +1271,8 @@ export const contactRouter = createTRPCRouter({
     }
   }),
 
-  importTelegramMessagesForContact: protectedProcedure
+  // SECURITY: admin/staff only (CRM importer — see importGoogleContacts).
+  importTelegramMessagesForContact: adminOrStaffProcedure
     .input(
       z.object({
         contactId: z.string().min(1, "Contact ID is required"),
@@ -1669,7 +1683,8 @@ export const contactRouter = createTRPCRouter({
     }
   }),
 
-  importGmailMessagesForContact: protectedProcedure
+  // SECURITY: admin/staff only (CRM importer — see importGoogleContacts).
+  importGmailMessagesForContact: adminOrStaffProcedure
     .input(
       z.object({
         contactId: z.string().min(1, "Contact ID is required"),

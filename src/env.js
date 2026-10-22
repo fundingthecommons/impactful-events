@@ -29,13 +29,20 @@ export const env = createEnv({
       .default("development"),
     TEST_EMAIL_OVERRIDE: z.string().email().optional(),
     ADMIN_EMAIL: z.string().email(),
-    MASTRA_API_KEY: z.string(),
+    // SECURITY: a blank key must fail validation, not silently equal a blank
+    // bearer token (src/utils/validateApiKey.ts also fails closed at runtime).
+    MASTRA_API_KEY: z.string().min(1),
     MASTRA_SERVER_URL: z.string().url().optional(),
     OPENAI_API_KEY: z.string().optional(),
     ANTHROPIC_API_KEY: z.string().optional(),
     SENTRY_DSN: z.string().optional(),
     SENTRY_AUTH_TOKEN: z.string().optional(),
     TELEGRAM_BOT_TOKEN: z.string().optional(),
+    // SECURITY: declared here so the webhook secret is a known, documented
+    // variable. Optional in the schema only so Preview builds without it still
+    // build; src/app/api/telegram/webhook/route.ts rejects every update at
+    // runtime when it is unset (docs/security/telegram-webhook-rotation.md).
+    TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
     TELEGRAM_CHANNEL_ID: z.string().optional(),
     TELEGRAM_PRAISE_TOPIC_ID: z.string().optional(),
     TELEGRAM_ASKOFFER_TOPIC_ID: z.string().optional(),
@@ -98,6 +105,7 @@ export const env = createEnv({
     SENTRY_DSN: process.env.SENTRY_DSN,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+    TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET,
     TELEGRAM_CHANNEL_ID: process.env.TELEGRAM_CHANNEL_ID,
     TELEGRAM_PRAISE_TOPIC_ID: process.env.TELEGRAM_PRAISE_TOPIC_ID,
     TELEGRAM_ASKOFFER_TOPIC_ID: process.env.TELEGRAM_ASKOFFER_TOPIC_ID,

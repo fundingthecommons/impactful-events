@@ -2591,7 +2591,16 @@ export const applicationRouter = createTRPCRouter({
         },
         include: {
           user: {
-            include: {
+            // SECURITY: `select`, not `include` — this publicProcedure returns
+            // `app.user` verbatim inside each project's `profile.user`, and the
+            // include handed anonymous callers the whole User row (email,
+            // password hash, admin notes/labels, emailVerified).
+            select: {
+              id: true,
+              firstName: true,
+              surname: true,
+              name: true,
+              image: true,
               profile: {
                 select: {
                   id: true,
@@ -2692,7 +2701,8 @@ export const applicationRouter = createTRPCRouter({
                   linkedinUrl: true,
                   twitterUrl: true,
                   website: true,
-                  priorExperience: true,
+                  // SECURITY: no priorExperience — application-derived text
+                  // that no public UI renders (publicProcedure).
                   availableForHiring: true,
                   availableForMentoring: true,
                   availableForOfficeHours: true,
@@ -2848,7 +2858,8 @@ export const applicationRouter = createTRPCRouter({
                   linkedinUrl: true,
                   twitterUrl: true,
                   website: true,
-                  priorExperience: true,
+                  // SECURITY: no priorExperience — application-derived text
+                  // that no public UI renders (publicProcedure).
                   availableForHiring: true,
                   availableForMentoring: true,
                   availableForOfficeHours: true,
@@ -3092,7 +3103,10 @@ export const applicationRouter = createTRPCRouter({
         },
         include: {
           user: {
-            include: {
+            // SECURITY: `select`, not `include` — do not load whole User rows
+            // (password hash, admin notes) on a publicProcedure that only
+            // returns projects.
+            select: {
               profile: {
                 select: {
                   projects: {

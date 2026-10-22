@@ -131,7 +131,6 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
                 customAvatarUrl: item.user.profile?.avatarUrl,
                 oauthImageUrl: item.user.image,
                 name: item.user.name,
-                email: item.user.email,
               })}
               alt={item.user.name ?? "User"}
               size="sm"
@@ -139,7 +138,6 @@ export function AsksOffersTab({ eventId, session }: AsksOffersTabProps) {
             >
               {getAvatarInitials({
                 name: item.user.name,
-                email: item.user.email,
               })}
             </Avatar>
             <div>

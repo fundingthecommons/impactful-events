@@ -2,7 +2,11 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { TelegramClient, sessions, Api } from "telegram";
 import bigInt from "big-integer";
-import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
+import {
+  createTRPCRouter,
+  protectedProcedure,
+  adminOrStaffProcedure,
+} from "~/server/api/trpc";
 import {
   encryptTelegramCredentials,
   decryptTelegramCredentials,
@@ -524,7 +528,11 @@ export const telegramAuthRouter = createTRPCRouter({
   }),
 
   // Send bulk messages to multiple contacts
-  sendBulkMessage: protectedProcedure
+  // SECURITY: admin/staff only. This reads the shared sponsor CRM (Contact
+  // rows: names, emails, Telegram handles) and sends Telegram DMs from the
+  // caller's account to arbitrary contactIds. protectedProcedure is not a gate
+  // (anyone can self-register), so any member could spam the CRM's contacts.
+  sendBulkMessage: adminOrStaffProcedure
     .input(
       z.object({
         contactIds: z.array(z.string()).min(1).max(50), // Limit to 50 recipients
@@ -789,7 +797,10 @@ export const telegramAuthRouter = createTRPCRouter({
     }),
 
   // Get available smart lists
-  getSmartLists: protectedProcedure.query(async ({ ctx }) => {
+  // SECURITY: admin/staff only — the list counts are derived from residency
+  // application statuses (accepted / rejected / waitlisted) and the admin
+  // roster, which are staff-facing CRM data. Only /crm/communicate calls this.
+  getSmartLists: adminOrStaffProcedure.query(async ({ ctx }) => {
     // Static smart lists based on application data
     const smartLists = [
       {
@@ -909,7 +920,11 @@ export const telegramAuthRouter = createTRPCRouter({
   }),
 
   // Get contacts for a specific smart list
-  getSmartListContacts: protectedProcedure
+  // SECURITY: admin/staff only. Returns every residency applicant's email and
+  // Telegram handle (keyed by application status) and every admin's email —
+  // the same PII the admin applications page shows. A bare protectedProcedure
+  // handed that to any self-registered member.
+  getSmartListContacts: adminOrStaffProcedure
     .input(
       z.object({
         listId: z.string(),
@@ -1036,7 +1051,9 @@ export const telegramAuthRouter = createTRPCRouter({
     }),
 
   // Send bulk message to a smart list
-  sendBulkMessageToList: protectedProcedure
+  // SECURITY: admin/staff only — same reasoning as sendBulkMessage; this one
+  // fans out to a whole applicant cohort or the admin roster in one call.
+  sendBulkMessageToList: adminOrStaffProcedure
     .input(
       z.object({
         listId: z.string(),

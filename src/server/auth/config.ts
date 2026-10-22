@@ -186,7 +186,7 @@ export const authConfig = {
     },
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account, profile, email }) {
       // Update firstName/surname from OAuth provider profile if available
       if (account?.provider === "google" && profile && user.id) {
         const googleProfile = profile as {
@@ -233,15 +233,69 @@ export const authConfig = {
       // Universal invitation acceptance for ALL sign-in methods
       if (user.id && user.email) {
         try {
-          // OAuth providers (Google/Discord) prove the user controls this
-          // email, and a magic-link (Postmark, type "email") sign-in proves it
-          // by the click itself; the credentials provider does not. Global
-          // admin/staff grants are refused on an unverified email (see
-          // acceptPendingInvitations).
+          // SECURITY: OAuth providers (Google/Discord) prove the user controls
+          // this email, and a magic-link (Postmark, type "email") sign-in
+          // proves it by the click itself; the credentials provider does not.
+          // Auth.js runs this callback TWICE for the email provider: once at
+          // the sign-in REQUEST, before any link is clicked, with
+          // `email: { verificationRequest: true }` (@auth/core 0.41.3,
+          // lib/actions/signin/send-token.js: callbacks.signIn({ user,
+          // account, email: { verificationRequest: true } })), and again after
+          // the click with no `email` param (lib/actions/callback/index.js:
+          // handleAuthorized({ user, account })). Only the second call proves
+          // anything: anyone can type an invitee's address into the sign-in
+          // form, and `account.type === "email"` alone promoted that address's
+          // existing (e.g. attacker-pre-registered) account before the link
+          // was ever opened. Global admin/staff grants are refused on an
+          // unverified email (see acceptPendingInvitations).
+          //
+          // OAuth is proof only when the provider itself says the address is
+          // verified: Google sends `email_verified`, Discord sends `verified`,
+          // and both can be false (a Discord account may carry any unverified
+          // address). `profile` here is the raw provider profile.
+          const oauthProfile = (profile ?? {}) as {
+            email_verified?: boolean;
+            verified?: boolean;
+          };
           const emailVerified =
-            account?.provider === "google" ||
-            account?.provider === "discord" ||
-            account?.type === "email";
+            (account?.provider === "google" &&
+              oauthProfile.email_verified === true) ||
+            (account?.provider === "discord" &&
+              oauthProfile.verified === true) ||
+            (account?.type === "email" && !email?.verificationRequest);
+
+          if (emailVerified) {
+            // SECURITY: account pre-hijack defence. Credentials sign-up does
+            // no verification, so an attacker can register the invitee's
+            // address with a password of their own before the invitation
+            // exists. When the real owner later proves control of the address
+            // (clicked magic link, verified OAuth), that proof must take
+            // ownership of the row: stamp emailVerified and drop any password
+            // set while the address was unverified, otherwise the global role
+            // granted below would land on an account the attacker still
+            // controls. The legitimate owner can set a new password via the
+            // emailed reset flow. Looked up by email because for a brand-new
+            // OAuth user `user.id` is the provider id and no row exists yet.
+            const existingRow = await db.user.findUnique({
+              where: { email: user.email },
+              select: { id: true, emailVerified: true, password: true },
+            });
+            if (existingRow && !existingRow.emailVerified) {
+              await db.user.update({
+                where: { id: existingRow.id },
+                data: {
+                  emailVerified: new Date(),
+                  ...(existingRow.password ? { password: null } : {}),
+                },
+              });
+              if (existingRow.password) {
+                console.warn(
+                  `[AUTH] Verified sign-in for ${user.email} took ownership of a pre-registered unverified credentials account; its password was cleared.`,
+                );
+              }
+            }
+          }
+
           const invitationResult = await acceptPendingInvitations(
             user.email,
             user.id,

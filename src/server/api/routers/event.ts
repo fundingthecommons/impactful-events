@@ -10,6 +10,25 @@ import {
   adminOrStaffProcedure,
 } from "~/server/api/trpc";
 import { getEventSlugService } from "~/server/services/eventSlugService";
+import { isAdminOrStaff } from "~/server/api/utils/scheduleAuth";
+
+// SECURITY: `Sponsor.contacts` is the shared sponsor CRM (names, emails,
+// phones, Telegram/LinkedIn handles, notes). getEvent / getEvents are
+// publicProcedures, so the contacts are emptied for anyone who is not
+// admin/staff; the key is kept so the response shape and client types do not
+// change (the /sponsors board only reads `contacts.length`).
+function redactSponsorContacts<
+  T extends { sponsors: Array<{ sponsor: { contacts: unknown[] } }> },
+>(event: T, isPrivileged: boolean): T {
+  if (isPrivileged) return event;
+  return {
+    ...event,
+    sponsors: event.sponsors.map((eventSponsor) => ({
+      ...eventSponsor,
+      sponsor: { ...eventSponsor.sponsor, contacts: [] },
+    })),
+  } as T;
+}
 
 // Calculate profile completion percentage
 function calculateProfileCompletion(profile: unknown): number {
@@ -464,31 +483,32 @@ export const eventRouter = createTRPCRouter({
         },
       };
 
-      // If slug is explicitly provided, use it
-      if (input.slug) {
-        return ctx.db.event.findUnique({
-          where: { slug: input.slug },
-          include: includeClause,
-        });
-      }
+      // If slug is explicitly provided, use it; otherwise try the id first
+      let event = input.slug
+        ? await ctx.db.event.findUnique({
+            where: { slug: input.slug },
+            include: includeClause,
+          })
+        : input.id
+          ? await ctx.db.event.findUnique({
+              where: { id: input.id },
+              include: includeClause,
+            })
+          : null;
 
-      // If id is provided, try by ID first
-      if (input.id) {
-        let event = await ctx.db.event.findUnique({
-          where: { id: input.id },
-          include: includeClause,
-        });
-
-        // If not found by ID, try treating it as a slug (for backward compatibility)
-        event ??= await ctx.db.event.findUnique({
+      // If not found by ID, try treating it as a slug (for backward compatibility)
+      if (!event && !input.slug && input.id) {
+        event = await ctx.db.event.findUnique({
           where: { slug: input.id },
           include: includeClause,
         });
-
-        return event;
       }
 
-      return null;
+      if (!event) return null;
+      return redactSponsorContacts(
+        event,
+        isAdminOrStaff(ctx.session?.user?.role),
+      );
     }),
 
   getEvents: publicProcedure.query(async ({ ctx }) => {
@@ -513,7 +533,8 @@ export const eventRouter = createTRPCRouter({
       orderBy: [{ startDate: "desc" }],
     });
 
-    return events;
+    const isPrivileged = isAdminOrStaff(ctx.session?.user?.role);
+    return events.map((event) => redactSponsorContacts(event, isPrivileged));
   }),
 
   addSponsorToEvent: adminOrStaffProcedure
