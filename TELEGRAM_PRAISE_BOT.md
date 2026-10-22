@@ -37,7 +37,9 @@ Add the following to your `.env` file:
 # Required: Your bot token from BotFather
 TELEGRAM_BOT_TOKEN="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
 
-# Optional: Webhook security token (recommended for production)
+# Required: webhook secret. The webhook rejects every update (401) until this
+# is set AND matches the secret_token given to setWebhook.
+# NEVER commit this value — see docs/security/telegram-webhook-rotation.md
 TELEGRAM_WEBHOOK_SECRET="your-random-secret-token"
 
 # Optional: Channel ID for automatic praise cross-posting
@@ -49,6 +51,14 @@ To generate a secure webhook secret:
 ```bash
 openssl rand -hex 32
 ```
+
+> **The webhook secret must never be committed.** Not in `.env` (gitignored),
+> not in a helper or test script, not in a doc, not pasted into a chat or an
+> agent session. It lives in exactly two places: Vercel's environment variables
+> and your local `.env`. This repository is public — a manual test script
+> carrying the live value sat in it from 2025-10-31 until 2026-10-21. If the
+> value is ever written anywhere else, rotate it the same day by following
+> [`docs/security/telegram-webhook-rotation.md`](docs/security/telegram-webhook-rotation.md).
 
 **Note**: If `TELEGRAM_PRAISE_CHANNEL_ID` is not set, praise will still be saved to the database but won't be cross-posted to a channel.
 
@@ -66,11 +76,12 @@ curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
   }'
 ```
 
-**Option B: Using Telegram API directly**
-Visit this URL in your browser (replace `<YOUR_BOT_TOKEN>` and `<YOUR_DOMAIN>`):
-```
-https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook?url=https://<YOUR_DOMAIN>/api/telegram/webhook
-```
+**Do not register the webhook without `secret_token`.** The handler rejects
+every update that does not carry a matching `X-Telegram-Bot-Api-Secret-Token`
+header, so a webhook set without a secret (for example the
+`setWebhook?url=...` browser shortcut) delivers nothing. Use the same value you
+set as `TELEGRAM_WEBHOOK_SECRET` in Vercel, and keep it out of browser URLs and
+shell history — [`docs/security/telegram-webhook-rotation.md`](docs/security/telegram-webhook-rotation.md) shows a `read -rs` pattern for this.
 
 **Verify webhook is set:**
 ```bash
@@ -297,6 +308,13 @@ const leaderboard = await api.praise.getLeaderboard.query({
 });
 ```
 
+## Rotating the Webhook Secret
+
+Rotate immediately if the value was ever committed, pasted into a chat, doc or
+agent session, or known to someone who has since left the team; otherwise at
+least once a year. The procedure is a human-operated runbook — it is never
+delegated to an agent: [`docs/security/telegram-webhook-rotation.md`](docs/security/telegram-webhook-rotation.md).
+
 ## Troubleshooting
 
 ### Bot Not Responding
@@ -313,7 +331,12 @@ const leaderboard = await api.praise.getLeaderboard.query({
 
 ### Webhook Issues
 - Verify your domain is HTTPS (Telegram requires SSL)
-- Check webhook secret matches in both Telegram and your `.env`
+- **Every update gets `401`** (Vercel logs show `Unauthorized`, or
+  `getWebhookInfo` shows `last_error_message: "Wrong response from the webhook:
+  401 Unauthorized"`): `TELEGRAM_WEBHOOK_SECRET` is unset in Vercel, the live
+  deployment predates the env change, or the value differs from the
+  `secret_token` given to `setWebhook`. Fix by running the rotation runbook end
+  to end: [`docs/security/telegram-webhook-rotation.md`](docs/security/telegram-webhook-rotation.md)
 - Review Telegram webhook delivery logs in Telegram API
 
 ### Channel Cross-Posting Issues
@@ -373,7 +396,11 @@ Potential features to add:
 Receives updates from Telegram Bot API.
 
 **Headers:**
-- `X-Telegram-Bot-Api-Secret-Token`: Optional webhook security token
+- `X-Telegram-Bot-Api-Secret-Token`: **required.** Must equal
+  `TELEGRAM_WEBHOOK_SECRET` (constant-time compare). Missing or mismatched →
+  `401 Unauthorized`. If `TELEGRAM_WEBHOOK_SECRET` is unset on the server the
+  endpoint rejects every update (fail-closed) and logs
+  `[Webhook] TELEGRAM_WEBHOOK_SECRET is not set`.
 
 **Body:** Telegram Update object (JSON)
 

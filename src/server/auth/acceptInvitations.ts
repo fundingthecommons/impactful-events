@@ -17,11 +17,25 @@ interface AcceptInvitationsResult {
  * Used by:
  * - NextAuth signIn callback (universal, runs for all auth methods)
  * - invitation.accept tRPC procedure (legacy client-side calls)
+ * - POST /api/auth/register (credentials sign-up, with or without an existing
+ *   account for the email) — so this function is the single owner of the
+ *   "global role needs a verified email" rule.
  */
 export async function acceptPendingInvitations(
   email: string,
   userId: string,
+  opts: { emailVerified?: boolean } = {},
 ): Promise<AcceptInvitationsResult> {
+  // SECURITY: whether we have proof the signing-in user actually controls this
+  // email. Credentials registration performs no email verification, so an
+  // attacker can register any address; OAuth providers (Google/Discord) and a
+  // CLICKED magic link verify it (a magic-link sign-in *request* does not —
+  // see the signIn callback). We refuse to grant a global admin/staff role on
+  // an unverified email. EVENT_ROLE and VENUE_OWNER invitations below are
+  // still accepted without it (product impact on sponsor / floor-lead
+  // onboarding; tracked follow-up), so an event-scoped affiliation is only as
+  // strong as sign-up email verification.
+  const { emailVerified = false } = opts;
   const invitations = await db.invitation.findMany({
     where: {
       email: { equals: email.toLowerCase(), mode: "insensitive" },
@@ -75,6 +89,18 @@ export async function acceptPendingInvitations(
         invitation.type === "GLOBAL_STAFF") &&
       invitation.globalRole
     ) {
+      // SECURITY: never grant a global admin/staff role from an unverified,
+      // self-asserted email. Otherwise an attacker who registers an invited
+      // address (credentials sign-up does no email verification) is promoted on
+      // first sign-in. Leave the invitation PENDING so a verified sign-in
+      // (OAuth) or an existing admin can complete the grant deliberately.
+      if (!emailVerified) {
+        console.warn(
+          `[AUTH] Skipped ${invitation.globalRole} grant for an unverified email; invitation ${invitation.id} left pending.`,
+        );
+        continue;
+      }
+
       await db.user.update({
         where: { id: userId },
         data: { role: invitation.globalRole },

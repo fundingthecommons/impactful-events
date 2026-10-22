@@ -1,5 +1,17 @@
+import { timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
 import { env } from "~/env";
+
+// SECURITY: constant-time compare for shared secrets. `===` returns at the
+// first differing byte, so response timing leaks how long a matching prefix
+// is. Lengths are compared up front (timingSafeEqual throws on a mismatch);
+// the length of the secret is not what we are protecting.
+function secretsMatch(provided: string, expected: string): boolean {
+  const providedBuf = Buffer.from(provided, "utf8");
+  const expectedBuf = Buffer.from(expected, "utf8");
+  if (providedBuf.length !== expectedBuf.length) return false;
+  return timingSafeEqual(providedBuf, expectedBuf);
+}
 
 /**
  * Validates an API key for the Mastra AI agent
@@ -7,6 +19,14 @@ import { env } from "~/env";
  * @returns boolean - true if valid, false if invalid
  */
 export function validateMastraApiKey(request: Request | NextRequest): boolean {
+  // SECURITY: fail closed. Under SKIP_ENV_VALIDATION (or a deploy with the
+  // variable blank) env.MASTRA_API_KEY can be "" and a bare "Bearer " header
+  // would have compared equal to it. No configured key means no access.
+  const expectedKey = env.MASTRA_API_KEY;
+  if (!expectedKey) {
+    return false;
+  }
+
   const authHeader = request.headers.get("authorization");
 
   if (!authHeader) {
@@ -14,7 +34,7 @@ export function validateMastraApiKey(request: Request | NextRequest): boolean {
   }
 
   const providedKey = authHeader.replace("Bearer ", "");
-  return providedKey === env.MASTRA_API_KEY;
+  return secretsMatch(providedKey, expectedKey);
 }
 
 /**
@@ -55,7 +75,8 @@ export function validateTranscriptionApiKey(
   }
   const apiKey = request.headers.get("x-api-key");
   if (!apiKey) return false;
-  return apiKey === env.TRANSCRIPTION_API_KEY;
+  // SECURITY: same constant-time compare as the Mastra key above.
+  return secretsMatch(apiKey, env.TRANSCRIPTION_API_KEY);
 }
 
 /**

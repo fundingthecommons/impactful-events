@@ -134,7 +134,8 @@ export const forumRouter = createTRPCRouter({
               id: true,
               name: true,
               image: true,
-              email: true,
+              // SECURITY: no email — publicProcedure; the thread author card
+              // only needs name + avatar + public profile fields.
               profile: {
                 select: {
                   jobTitle: true,

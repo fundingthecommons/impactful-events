@@ -405,7 +405,9 @@ export function SpeakerSelector({
           <UserSearchSelect
             onSelect={onAddLinkedSpeaker}
             excludeUserIds={linkedSpeakers.map((s) => s.user.id)}
-            placeholder="Search by name or email..."
+            // SECURITY: user.searchUsers only matches on email for admin/staff
+            // and floor leads; do not advertise email search to everyone.
+            placeholder="Search by name..."
           />
         )}
         <Button

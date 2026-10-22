@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "~/server/db";
+import { acceptPendingInvitations } from "~/server/auth/acceptInvitations";
 import { hashPassword, validatePassword } from "~/utils/password";
 
 const registerSchema = z.object({
@@ -10,6 +11,17 @@ const registerSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   invitationToken: z.string().optional(),
 });
+
+// SECURITY: whether the DB already holds proof that this account controls its
+// email. Only User.emailVerified counts: the NextAuth signIn callback stamps it
+// on every verified sign-in (a clicked magic link, Google with email_verified,
+// Discord with verified) and takes ownership of a pre-registered credentials
+// row at that moment. An OAuth Account row alone is NOT proof — Discord (and
+// in rare cases Google) can carry an unverified address — and a credentials
+// registration leaves no proof at all.
+function hasVerifiedEmail(user: { emailVerified: Date | null }): boolean {
+  return user.emailVerified !== null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,54 +105,33 @@ export async function POST(request: NextRequest) {
       // If there's an invitation and user already exists, assign the role
       if (invitation) {
         try {
-          if (invitation.type === "EVENT_ROLE") {
-            // Check if user already has this role for this event
-            const existingRole = await db.userRole.findUnique({
-              where: {
-                userId_eventId_roleId: {
-                  userId: existingUser.id,
-                  eventId: invitation.eventId!,
-                  roleId: invitation.roleId!,
-                },
-              },
-            });
-
-            if (!existingRole) {
-              // Create user role assignment
-              await db.userRole.create({
-                data: {
-                  userId: existingUser.id,
-                  eventId: invitation.eventId!,
-                  roleId: invitation.roleId!,
-                },
-              });
-            }
-          } else if (
-            invitation.type === "GLOBAL_ADMIN" ||
-            invitation.type === "GLOBAL_STAFF"
-          ) {
-            // Update user's global role if not already at that level
-            if (existingUser.role !== invitation.globalRole) {
-              await db.user.update({
-                where: { id: existingUser.id },
-                data: { role: invitation.globalRole },
-              });
-            }
-          }
-
-          // Mark invitation as accepted
-          await db.invitation.update({
-            where: { id: invitation.id },
-            data: {
-              status: "ACCEPTED",
-              acceptedAt: new Date(),
-            },
+          // SECURITY: this branch runs with NO session and NO password check —
+          // anyone holding the token can trigger it for the invitee's address.
+          // It used to write GLOBAL_ADMIN/GLOBAL_STAFF straight onto the row,
+          // so an attacker who had pre-registered the invitee's address via
+          // credentials (unverified) was promoted as soon as the invitation
+          // existed. All grants now go through acceptPendingInvitations, which
+          // owns the rule: EVENT_ROLE / VENUE_OWNER are applied; a global role
+          // is applied only when the DB proves the account controls the email
+          // (OAuth-linked, or emailVerified set by a magic-link sign-in) and is
+          // otherwise left PENDING for a verified sign-in to complete. The
+          // response is uniform so this endpoint does not reveal whether the
+          // grant happened.
+          const emailVerified = hasVerifiedEmail(existingUser);
+          await acceptPendingInvitations(email, existingUser.id, {
+            emailVerified,
           });
 
-          const message =
-            invitation.type === "EVENT_ROLE"
-              ? `User already exists with this email, but invitation to ${invitation.event?.name} as ${invitation.role?.name} has been accepted. Please sign in.`
-              : `User already exists with this email, but has been promoted to global ${invitation.globalRole}. Please sign in.`;
+          const isEventInvitation =
+            invitation.type === "EVENT_ROLE" ||
+            invitation.type === "VENUE_OWNER";
+          const roleName =
+            invitation.type === "VENUE_OWNER"
+              ? "Floor Lead"
+              : (invitation.role?.name ?? invitation.globalRole);
+          const message = isEventInvitation
+            ? `User already exists with this email, but invitation to ${invitation.event?.name} as ${roleName} has been accepted. Please sign in.`
+            : `User already exists with this email. Sign in with Google, Discord, or an emailed sign-in link to complete your global ${invitation.globalRole} invitation.`;
 
           return NextResponse.json(
             {
@@ -149,7 +140,7 @@ export async function POST(request: NextRequest) {
               invitation: {
                 type: invitation.type,
                 eventName: invitation.event?.name,
-                roleName: invitation.role?.name ?? invitation.globalRole,
+                roleName,
               },
             },
             { status: 409 },
@@ -185,54 +176,37 @@ export async function POST(request: NextRequest) {
     // If there was an invitation, assign the role and mark invitation as accepted
     if (invitation) {
       try {
-        if (invitation.type === "EVENT_ROLE") {
-          // Create user role assignment for event-specific roles
-          await db.userRole.create({
-            data: {
-              userId: user.id,
-              eventId: invitation.eventId!,
-              roleId: invitation.roleId!,
-            },
-          });
-        } else if (
-          invitation.type === "GLOBAL_ADMIN" ||
-          invitation.type === "GLOBAL_STAFF"
-        ) {
-          // Update user's global role
-          await db.user.update({
-            where: { id: user.id },
-            data: { role: invitation.globalRole },
-          });
-        }
-
-        // Mark invitation as accepted
-        await db.invitation.update({
-          where: { id: invitation.id },
-          data: {
-            status: "ACCEPTED",
-            acceptedAt: new Date(),
-          },
+        // SECURITY: a credentials registration verifies nothing about the
+        // email, so this goes through acceptPendingInvitations with
+        // emailVerified:false — EVENT_ROLE / VENUE_OWNER are applied, while a
+        // GLOBAL_ADMIN/GLOBAL_STAFF invitation stays PENDING and completes on
+        // the user's first Google / Discord / magic-link sign-in (NextAuth
+        // signIn callback). Previously this branch wrote the global role onto
+        // the brand-new, unverified account directly.
+        await acceptPendingInvitations(email, user.id, {
+          emailVerified: false,
         });
 
-        const responseMessage =
-          invitation.type === "EVENT_ROLE"
-            ? `User registered successfully with invitation to ${invitation.event?.name} as ${invitation.role?.name}`
-            : `User registered successfully as global ${invitation.globalRole}`;
+        const isEventInvitation =
+          invitation.type === "EVENT_ROLE" ||
+          invitation.type === "VENUE_OWNER";
+        const roleName =
+          invitation.type === "VENUE_OWNER"
+            ? "Floor Lead"
+            : (invitation.role?.name ?? invitation.globalRole);
+        const responseMessage = isEventInvitation
+          ? `User registered successfully with invitation to ${invitation.event?.name} as ${roleName}`
+          : `User registered successfully. Sign in with Google, Discord, or an emailed sign-in link to complete your global ${invitation.globalRole} invitation.`;
 
         return NextResponse.json(
           {
             message: responseMessage,
-            user: {
-              ...user,
-              role:
-                invitation.type === "EVENT_ROLE"
-                  ? user.role
-                  : invitation.globalRole,
-            },
+            // `user.role` is the DB default: no global role is granted here.
+            user,
             invitation: {
               type: invitation.type,
               eventName: invitation.event?.name,
-              roleName: invitation.role?.name ?? invitation.globalRole,
+              roleName,
             },
           },
           { status: 201 },

@@ -101,7 +101,8 @@ export const askOfferRouter = createTRPCRouter({
               id: true,
               name: true,
               image: true,
-              email: true,
+              // SECURITY: no email — publicProcedure; the author card only
+              // needs name + avatar + public profile fields.
               profile: {
                 select: {
                   jobTitle: true,
@@ -165,7 +166,7 @@ export const askOfferRouter = createTRPCRouter({
               id: true,
               name: true,
               image: true,
-              email: true,
+              // SECURITY: no email — publicProcedure (event asks/offers board).
               profile: {
                 select: {
                   jobTitle: true,
@@ -570,7 +571,9 @@ ${tags.length > 0 ? `🏷️ Tags: ${tags.join(", ")}` : ""}
               id: true,
               name: true,
               image: true,
-              email: true,
+              // SECURITY: no email — protectedProcedure is not a gate (anyone
+              // can self-register); every poster's address was exposed to any
+              // member via the /community feed.
               profile: {
                 select: {
                   jobTitle: true,

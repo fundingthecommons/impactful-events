@@ -14,8 +14,11 @@ import {
 } from "~/server/api/utils/scheduleAuth";
 
 export const roleRouter = createTRPCRouter({
-  // Get all global roles
-  getGlobalRoles: publicProcedure.query(async ({ ctx }) => {
+  // Get all global roles (with their members)
+  // SECURITY: admin/staff only. This returns every admin/staff user's name and
+  // email and was a publicProcedure — an anonymous caller could enumerate the
+  // platform's privileged accounts. Nothing outside admin tooling consumes it.
+  getGlobalRoles: adminOrStaffProcedure.query(async ({ ctx }) => {
     const roles = await ctx.db.globalRole.findMany({
       include: {
         userGlobalRoles: {
@@ -632,6 +635,8 @@ export const roleRouter = createTRPCRouter({
     }),
 
   // Get all event roles (for invitations and assignments)
+  // SECURITY: stays public on purpose — `Role` is only { id, name } (role
+  // definitions, no users; see prisma/schema.prisma).
   getEventRoles: publicProcedure.query(async ({ ctx }) => {
     const roles = await ctx.db.role.findMany({
       orderBy: { name: "asc" },

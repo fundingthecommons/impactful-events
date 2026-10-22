@@ -675,6 +675,10 @@ export const evaluationRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      // SECURITY: admin/staff only. Without this gate any authenticated
+      // (incl. self-registered) user could read an application's full contents
+      // and staff-only admin notes once an evaluation row keyed to them exists.
+      checkAdminAccess(ctx.session.user.role);
       const userId = ctx.session.user.id;
 
       return await ctx.db.applicationEvaluation.findUnique({
@@ -1236,6 +1240,10 @@ export const evaluationRouter = createTRPCRouter({
         .optional(),
     )
     .query(async ({ ctx, input }) => {
+      // SECURITY: admin/staff only. Without this gate any authenticated
+      // (incl. self-registered) user could enumerate every applicant's name and
+      // email across all events via the self-assignment queue.
+      checkAdminAccess(ctx.session.user.role);
       const userId = ctx.session.user.id;
       const { eventId, stage = "SCREENING", limit = 20 } = input ?? {};
 
@@ -1299,6 +1307,11 @@ export const evaluationRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: admin/staff only. Without this gate any authenticated
+      // (incl. self-registered) user could self-assign as reviewer to ANY
+      // application — unlocking full application reads and score writes,
+      // including on their own application (corrupting the consensus average).
+      checkAdminAccess(ctx.session.user.role);
       const userId = ctx.session.user.id;
       const { applicationId, stage, priority, notes } = input;
 

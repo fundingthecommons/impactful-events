@@ -47,7 +47,8 @@ export const kudosRouter = createTRPCRouter({
           firstName: true,
           surname: true,
           name: true,
-          email: true,
+          // SECURITY: no email — this is a publicProcedure; the leaderboard
+          // only needs a display name + avatar.
           image: true,
           kudos: true,
           profile: {
@@ -123,7 +124,6 @@ export const kudosRouter = createTRPCRouter({
               firstName: user.firstName,
               surname: user.surname,
               name: user.name,
-              email: user.email,
               image: user.image,
               profile: user.profile,
             },

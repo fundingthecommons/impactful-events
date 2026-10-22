@@ -134,7 +134,6 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
                 customAvatarUrl: item.user.profile?.avatarUrl,
                 oauthImageUrl: item.user.image,
                 name: item.user.name,
-                email: item.user.email,
               })}
               alt={item.user.name ?? "User"}
               size="sm"
@@ -142,7 +141,6 @@ export function AsksAndOffers({ eventId, session }: AsksAndOffersProps) {
             >
               {getAvatarInitials({
                 name: item.user.name,
-                email: item.user.email,
               })}
             </Avatar>
             <div>

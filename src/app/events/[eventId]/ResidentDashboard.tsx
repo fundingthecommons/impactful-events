@@ -754,14 +754,12 @@ function ProjectsTab({ residentProjects }: ProjectsTabProps) {
                         customAvatarUrl: project.profile.avatarUrl,
                         oauthImageUrl: project.profile.user?.image,
                         name: project.profile.user?.name,
-                        email: project.profile.user?.email,
                       })}
                       size="xs"
                       radius="xl"
                     >
                       {getAvatarInitials({
                         name: project.profile.user?.name,
-                        email: project.profile.user?.email,
                       })}
                     </Avatar>
                     <Text size="xs" c="dimmed">

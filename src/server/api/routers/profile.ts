@@ -7,6 +7,15 @@ import {
   protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { isAdminOrStaff } from "~/server/api/utils/scheduleAuth";
+// SECURITY: the private-field stripper and the isPublic visibility filters are
+// shared with project.ts via ~/server/api/utils/profilePrivacy so the two
+// routers cannot drift apart.
+import {
+  memberVisibilityFilter,
+  profileVisibilityFilter,
+  stripPrivateProfileFields,
+} from "~/server/api/utils/profilePrivacy";
 
 // URL validation that accepts URLs with or without protocol, normalizes to https://
 const lenientUrlSchema = z
@@ -286,7 +295,8 @@ export const profileRouter = createTRPCRouter({
         };
       }
 
-      // Check privacy settings - block access if profile is private and viewer is not the owner
+      // Check privacy settings - block access if profile is private and viewer
+      // is neither the owner nor admin/staff
       const isOwner = ctx.session?.user?.id === input.userId;
 
       // Cast to access isPublic field (TypeScript inference issue with include)
@@ -295,14 +305,38 @@ export const profileRouter = createTRPCRouter({
       };
       const isPublic = profileWithPrivacy.isPublic ?? true; // Default to public if not set
 
-      if (isPublic === false && !isOwner) {
+      // SECURITY: admin/staff may open a private profile (the member admin view
+      // links here); any other non-owner is refused. Aligned with
+      // searchProfiles / getAllMembers, whose visibility filters exempt
+      // admin/staff from the isPublic check. On this path the role is re-read
+      // from the DB (one query, only when a non-owner opens a private profile)
+      // because the JWT role claim is set at sign-in and a demoted staffer
+      // would otherwise keep opening private profiles until the token expires.
+      let viewerIsStaffInDb = false;
+      if (isPublic === false && !isOwner && ctx.session?.user?.id) {
+        const viewer = await ctx.db.user.findUnique({
+          where: { id: ctx.session.user.id },
+          select: { role: true },
+        });
+        viewerIsStaffInDb = isAdminOrStaff(viewer?.role);
+      }
+      if (isPublic === false && !isOwner && !viewerIsStaffInDb) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "This profile is private",
         });
       }
 
-      return profile;
+      // SECURITY: strip private contact fields unless the viewer is the owner
+      // or admin/staff — this is a publicProcedure reachable by anyone. For a
+      // private profile the DB-verified role decides; for a public one the
+      // session role is used (same as the directory procedures).
+      const isPrivileged =
+        isOwner ||
+        (isPublic === false
+          ? viewerIsStaffInDb
+          : isAdminOrStaff(ctx.session?.user?.role));
+      return stripPrivateProfileFields(profile, isPrivileged);
     }),
 
   // Get sessions for a user (public - only published sessions)
@@ -442,8 +476,13 @@ export const profileRouter = createTRPCRouter({
         where.availableForOfficeHours = availableForOfficeHours;
       }
 
+      // SECURITY: honor isPublic — a profile the owner hid must not appear in
+      // search for anyone but the owner and admin/staff (the filter is
+      // undefined for admin/staff, so the privileged behaviour is unchanged).
+      const visibility = profileVisibilityFilter(ctx.session?.user);
+
       const profiles = await ctx.db.userProfile.findMany({
-        where,
+        where: visibility ? { AND: [where, visibility] } : where,
         include: {
           user: {
             select: {
@@ -474,8 +513,16 @@ export const profileRouter = createTRPCRouter({
         nextCursor = nextItem!.id;
       }
 
+      // SECURITY: strip private contact fields for non-privileged callers — this
+      // is a publicProcedure and previously returned the full UserProfile row.
+      const callerIsAdmin = isAdminOrStaff(ctx.session?.user?.role);
+      const callerId = ctx.session?.user?.id;
+      const sanitizedProfiles = profiles.map((p) =>
+        stripPrivateProfileFields(p, callerIsAdmin || p.userId === callerId),
+      );
+
       return {
-        profiles,
+        profiles: sanitizedProfiles,
         nextCursor,
       };
     }),
@@ -533,11 +580,20 @@ export const profileRouter = createTRPCRouter({
                 company: { contains: search, mode: "insensitive" },
               },
             },
-            {
-              profile: {
-                priorExperience: { contains: search, mode: "insensitive" },
-              },
-            },
+            // SECURITY: priorExperience is application-derived text that no
+            // public UI renders; only admin/staff may probe it through search.
+            ...(isAdmin
+              ? [
+                  {
+                    profile: {
+                      priorExperience: {
+                        contains: search,
+                        mode: "insensitive" as const,
+                      },
+                    },
+                  },
+                ]
+              : []),
           ],
         });
       }
@@ -608,6 +664,12 @@ export const profileRouter = createTRPCRouter({
         });
       }
 
+      // SECURITY: honor isPublic — hidden profiles are excluded from the
+      // directory for everyone but their owner and admin/staff. Users without
+      // a profile row stay listed (nothing to hide; isPublic defaults true).
+      const visibility = memberVisibilityFilter(ctx.session?.user);
+      if (visibility) whereConditions.push(visibility);
+
       const users = await ctx.db.user.findMany({
         where: whereConditions.length > 0 ? { AND: whereConditions } : {},
         include: {
@@ -658,6 +720,10 @@ export const profileRouter = createTRPCRouter({
           adminWorkExperience: null,
           adminUpdatedBy: null,
           adminUpdatedAt: null,
+          // SECURITY: strip private contact fields on the nested profile — the
+          // sanitizer above only covered top-level User fields, leaving
+          // phone/telegram/discord/co-host exposed to any anonymous caller.
+          profile: stripPrivateProfileFields(rest.profile, false),
         };
       });
 
@@ -968,6 +1034,13 @@ export const profileRouter = createTRPCRouter({
         where.technologies = { hasSome: technologies };
       }
 
+      // SECURITY: honor isPublic — projects whose owner hid their profile are
+      // not listed for anyone but the owner and admin/staff (the single
+      // project page stays reachable by direct link with a redacted author
+      // card; see project.getProjectDetails).
+      const visibility = profileVisibilityFilter(ctx.session?.user);
+      if (visibility) where.profile = visibility;
+
       const projects = await ctx.db.userProject.findMany({
         where,
         include: {
@@ -999,8 +1072,21 @@ export const profileRouter = createTRPCRouter({
         nextCursor = nextItem!.id;
       }
 
+      // SECURITY: this publicProcedure includes the whole owner UserProfile —
+      // strip private contact fields for non-owner/non-admin callers (same leak
+      // class as getAllMembers/searchProfiles/getProfile).
+      const callerIsAdmin = isAdminOrStaff(ctx.session?.user?.role);
+      const callerId = ctx.session?.user?.id;
+      const sanitizedProjects = projects.map((p) => ({
+        ...p,
+        profile: stripPrivateProfileFields(
+          p.profile,
+          callerIsAdmin || p.profile?.userId === callerId,
+        ),
+      }));
+
       return {
-        projects,
+        projects: sanitizedProjects,
         nextCursor,
       };
     }),

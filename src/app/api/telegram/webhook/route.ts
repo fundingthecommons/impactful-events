@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "~/server/db";
 import * as Sentry from "@sentry/nextjs";
@@ -514,11 +515,31 @@ async function captureTelegramChatId(
  */
 export async function POST(request: NextRequest) {
   try {
-    // Verify webhook token (optional security measure)
+    // SECURITY: the webhook secret is mandatory and this check fails closed.
+    // Previously the comparison was skipped whenever TELEGRAM_WEBHOOK_SECRET
+    // was unset, so a misconfigured deploy accepted ANY caller as Telegram,
+    // letting an attacker record fake praise (cross-posted to the channel)
+    // and, via captureTelegramChatId, rebind a member's stored telegramChatId
+    // to a chat they control. The comparison is constant-time
+    // (timingSafeEqual on equal-length buffers) so the secret cannot be
+    // recovered byte-by-byte from response timing. Rotation runbook:
+    // docs/security/telegram-webhook-rotation.md
     const webhookToken = request.headers.get("X-Telegram-Bot-Api-Secret-Token");
     const expectedToken = process.env.TELEGRAM_WEBHOOK_SECRET;
 
-    if (expectedToken && webhookToken !== expectedToken) {
+    if (!expectedToken) {
+      console.error(
+        "[Webhook] TELEGRAM_WEBHOOK_SECRET is not set; rejecting update",
+      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const providedBuf = Buffer.from(webhookToken ?? "", "utf8");
+    const expectedBuf = Buffer.from(expectedToken, "utf8");
+    if (
+      providedBuf.length !== expectedBuf.length ||
+      !crypto.timingSafeEqual(providedBuf, expectedBuf)
+    ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

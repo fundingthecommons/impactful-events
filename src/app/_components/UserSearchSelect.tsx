@@ -167,9 +167,14 @@ export function UserSearchSelect({
                       <Text size="sm" fw={500}>
                         {getDisplayName(user, "Unknown")}
                       </Text>
-                      <Text size="xs" c="dimmed">
-                        {user.email}
-                      </Text>
+                      {/* SECURITY: user.searchUsers nulls email for non-staff /
+                          non-floor-lead callers; render it only when present
+                          so members do not see an empty line per result. */}
+                      {user.email && (
+                        <Text size="xs" c="dimmed">
+                          {user.email}
+                        </Text>
+                      )}
                     </div>
                   </Group>
                 </Paper>

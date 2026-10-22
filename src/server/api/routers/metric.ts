@@ -3,10 +3,13 @@ import {
   createTRPCRouter,
   protectedProcedure,
   publicProcedure,
+  adminOrStaffProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { type PrismaClient } from "@prisma/client";
 import { getAIMetricSuggestionService } from "~/server/services/aiMetricSuggestion";
 import { captureApiError } from "~/utils/errorCapture";
+import { isAdminOrStaff } from "~/server/api/utils/scheduleAuth";
 
 /**
  * Metrics System Router
@@ -44,6 +47,59 @@ const metricCadenceEnum = z.enum([
 ]);
 
 const metricTimePeriodEnum = z.enum(["BEFORE", "DURING", "AFTER", "ONGOING"]);
+
+// SECURITY: DB-verified admin/staff check for the owner-or-staff gates below.
+// adminOrStaffProcedure re-checks the DB itself; these gates run inside
+// protectedProcedure, so they do their own lookup instead of trusting the JWT
+// role claim (which is only set at sign-in).
+async function isAdminOrStaffInDb(
+  db: PrismaClient,
+  userId: string,
+): Promise<boolean> {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  return isAdminOrStaff(user?.role);
+}
+
+// SECURITY: project-scoped metric writes require the caller to own the project
+// (UserProject.profile.userId) or be a ProjectCollaborator with canEdit — the
+// same rule project.ts applies to project updates — with a DB-verified
+// admin/staff bypass. projectId is attacker-controlled input, so this is
+// always checked in the DB, never inferred from the client.
+async function assertCanEditProject(
+  db: PrismaClient,
+  userId: string,
+  projectId: string,
+): Promise<void> {
+  const project = await db.userProject.findUnique({
+    where: { id: projectId },
+    select: {
+      profile: { select: { userId: true } },
+      collaborators: {
+        where: { userId, canEdit: true },
+        select: { id: true },
+      },
+    },
+  });
+  if (!project) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Project not found",
+    });
+  }
+  if (project.profile.userId === userId || project.collaborators.length > 0) {
+    return;
+  }
+  if (await isAdminOrStaffInDb(db, userId)) {
+    return;
+  }
+  throw new TRPCError({
+    code: "FORBIDDEN",
+    message: "You don't have permission to manage metrics for this project",
+  });
+}
 
 export const metricRouter = createTRPCRouter({
   /**
@@ -94,12 +150,12 @@ export const metricRouter = createTRPCRouter({
           orderBy: { createdAt: "desc" },
           include: {
             creator: {
+              // SECURITY: publicProcedure — never select the creator's email.
               select: {
                 id: true,
                 name: true,
                 firstName: true,
                 surname: true,
-                email: true,
               },
             },
             _count: {
@@ -139,12 +195,12 @@ export const metricRouter = createTRPCRouter({
         where: input.id ? { id: input.id } : { slug: input.slug },
         include: {
           creator: {
+            // SECURITY: publicProcedure — never select the creator's email.
             select: {
               id: true,
               name: true,
               firstName: true,
               surname: true,
-              email: true,
             },
           },
           measurements: {
@@ -240,6 +296,39 @@ export const metricRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: metric definitions are a shared, publicly listed catalog, but
+      // creating one is a by-design self-service flow (project MetricsTab
+      // "Create custom metric" and the AI "create and add" path), so it cannot
+      // be staff-only without removing that feature. Gate on being a builder
+      // instead: the caller must own or have edit rights on at least one
+      // project, or be admin/staff (DB-verified). Every existing UI path still
+      // works — the modal is only reachable from a project the caller can edit
+      // — while a drive-by self-registered account with no project can no
+      // longer pollute the catalog or squat slugs. Rows stay attributable via
+      // createdBy; update/delete below are staff-only.
+      const userId = ctx.session.user.id;
+      const [editableProject, dbUser] = await Promise.all([
+        ctx.db.userProject.findFirst({
+          where: {
+            OR: [
+              { profile: { userId } },
+              { collaborators: { some: { userId, canEdit: true } } },
+            ],
+          },
+          select: { id: true },
+        }),
+        ctx.db.user.findUnique({
+          where: { id: userId },
+          select: { role: true },
+        }),
+      ]);
+      if (!editableProject && !isAdminOrStaff(dbUser?.role)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You need a project you can edit to create custom metrics",
+        });
+      }
+
       // Generate slug if not provided
       const slug =
         input.slug ??
@@ -284,7 +373,11 @@ export const metricRouter = createTRPCRouter({
   /**
    * Update an existing metric
    */
-  update: protectedProcedure
+  // SECURITY: admin/staff only. Metric definitions are platform-level and
+  // shared by every project; no client code calls this. Without this gate any
+  // authenticated (incl. self-registered) user could rename, re-slug (breaking
+  // routes) or deactivate any metric in the catalog.
+  update: adminOrStaffProcedure
     .input(
       z.object({
         id: z.string(),
@@ -370,7 +463,9 @@ export const metricRouter = createTRPCRouter({
   /**
    * Delete (soft delete) a metric
    */
-  delete: protectedProcedure
+  // SECURITY: admin/staff only — same reasoning as update; no client code
+  // calls this.
+  delete: adminOrStaffProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const metric = await ctx.db.metric.findUnique({
@@ -412,6 +507,37 @@ export const metricRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: measurements are public impact data (getMeasurements /
+      // getById). A project-scoped measurement may be self-reported by that
+      // project's owner or edit-collaborator (DB-verified); a measurement with
+      // no projectId (event-level or global) has no owner to check and is
+      // admin/staff only. Without this gate any authenticated user could write
+      // fake impact numbers against any project or event.
+      const userId = ctx.session.user.id;
+      const isStaff = await isAdminOrStaffInDb(ctx.db, userId);
+      if (input.projectId) {
+        await assertCanEditProject(ctx.db, userId, input.projectId);
+      } else if (!isStaff) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Only admin/staff can record measurements that are not scoped to a project",
+        });
+      }
+      // SECURITY: eventId is attacker-controlled and UserProject has no
+      // project<->event link in the schema, so there is nothing to verify it
+      // against. Without this check a project owner/editor could publish
+      // measurements tagged with any event, polluting that event's public
+      // impact numbers. Non-staff callers may only record project-scoped,
+      // event-less measurements; admin/staff may tag any event.
+      if (input.eventId && !isStaff) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message:
+            "Only admin/staff can record measurements tagged with an event",
+        });
+      }
+
       // Verify metric exists
       const metric = await ctx.db.metric.findUnique({
         where: { id: input.metricId },
@@ -501,6 +627,7 @@ export const metricRouter = createTRPCRouter({
               },
             },
             measuredByUser: {
+              // SECURITY: publicProcedure — no email on the user select.
               select: {
                 id: true,
                 name: true,
@@ -532,6 +659,11 @@ export const metricRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: project owner / edit-collaborator or admin/staff only,
+      // verified in the DB. Without this gate any authenticated user could
+      // attach metrics to any project.
+      await assertCanEditProject(ctx.db, ctx.session.user.id, input.projectId);
+
       // Check if association already exists
       const existing = await ctx.db.projectMetric.findUnique({
         where: {
@@ -585,6 +717,11 @@ export const metricRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: project owner / edit-collaborator or admin/staff only,
+      // verified in the DB. Without this gate any authenticated user could
+      // strip metrics (and their tracking) from any project.
+      await assertCanEditProject(ctx.db, ctx.session.user.id, input.projectId);
+
       const projectMetric = await ctx.db.projectMetric.findUnique({
         where: {
           projectId_metricId: {
@@ -635,6 +772,7 @@ export const metricRouter = createTRPCRouter({
             },
           },
           addedByUser: {
+            // SECURITY: publicProcedure — no email on the user select.
             select: {
               id: true,
               name: true,
@@ -660,6 +798,14 @@ export const metricRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // SECURITY: this calls a paid LLM (OpenAI gpt-4o in aiMetricSuggestion)
+      // and feeds it the project's update history, so it is gated to the
+      // project's owner / edit-collaborator or admin/staff (DB-verified).
+      // Without this gate any self-registered account could run up the API
+      // bill against arbitrary project ids. Checked outside the try block so
+      // a FORBIDDEN is not reported to Sentry as an API failure.
+      await assertCanEditProject(ctx.db, ctx.session.user.id, input.projectId);
+
       try {
         // Fetch project with updates
         const project = await ctx.db.userProject.findUnique({
